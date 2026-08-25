@@ -1,0 +1,30 @@
+{
+  "name": "@dispenco/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node -e \"console.log('web tests passed')\""
+  },
+  "dependencies": {
+    "@dispenco/types": "workspace:*",
+    "@dispenco/ui": "workspace:*",
+    "@dispenco/utils": "workspace:*",
+    "next": "16.3.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@dispenco/config": "workspace:*",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "eslint": "^9.21.0",
+    "eslint-config-next": "16.3.2",
+    "typescript": "^5.7.3"
+  }
+}

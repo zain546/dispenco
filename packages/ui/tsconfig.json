@@ -1,0 +1,9 @@
+{
+  "extends": "@dispenco/config/tsconfig.react.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "module": "ESNext"
+  },
+  "include": ["src/**/*"]
+}
