@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Store,
+  Pill,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -38,13 +39,18 @@ export default function DashboardLayout({
       <aside className="w-60 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col justify-between p-4 shrink-0">
         <div>
           {/* Logo & Brand */}
-          <div className="px-2 pb-4 border-b border-sidebar-border">
-            <h1 className="text-xl font-bold tracking-tight text-primary">
-              Dispenco
-            </h1>
-            <span className="text-xs text-muted-foreground">
-              Pharmacy Management
-            </span>
+          <div className="px-2 pb-4 border-b border-sidebar-border flex items-center gap-2.5">
+            <div className="size-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm shrink-0">
+              <Pill className="size-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-primary leading-none">
+                Dispenco
+              </h1>
+              <span className="text-[11px] text-muted-foreground leading-tight block mt-0.5">
+                Pharmacy Management
+              </span>
+            </div>
           </div>
 
           {/* Nav Links */}
