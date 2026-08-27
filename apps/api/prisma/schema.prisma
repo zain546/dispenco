@@ -34,6 +34,7 @@ model User {
   email              String
   passwordHash       String
   refreshTokenHash   String?
+  tokenVersion       Int              @default(1)
   name               String
   phone              String?
   isActive           Boolean          @default(true)
