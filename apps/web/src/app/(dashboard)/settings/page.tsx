@@ -1,15 +1,26 @@
+import { Card, CardContent } from '@/components/ui/card';
+import { Settings } from 'lucide-react';
+
 export default function SettingsPage() {
   return (
-    <div>
-      <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
-        Store & Account Settings
-      </h1>
-      <p style={{ margin: '0.25rem 0 1.5rem 0', color: '#64748b', fontSize: '0.875rem' }}>
-        Configure tenant settings, stores, roles, permissions, and tax defaults.
-      </p>
-      <div style={{ backgroundColor: '#ffffff', padding: '2rem', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>
-        Settings module placeholder — ready for store settings & role management.
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Store & Account Settings
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure tenant settings, stores, roles, permissions, and tax defaults.
+        </p>
       </div>
+
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
+          <Settings className="size-10 text-muted-foreground/60" />
+          <p className="text-sm">
+            Settings module placeholder — ready for store settings & role management.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
