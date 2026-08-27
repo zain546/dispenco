@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
   "devDependencies": {
     "@dispenco/config": "workspace:*",
     "@types/node": "^22.13.4",

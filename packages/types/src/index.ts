@@ -23,3 +23,5 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   timestamp: string;
 }
+
+export * from './product-attributes';
