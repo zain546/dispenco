@@ -26,3 +26,4 @@ pnpm-debug.log*
 .env.test.local
 .env.production.local
 /doc
+/teacher-portal
