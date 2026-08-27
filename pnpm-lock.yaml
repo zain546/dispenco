@@ -209,6 +209,10 @@ importers:
   packages/config: {}
 
   packages/types:
+    dependencies:
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@dispenco/config':
         specifier: workspace:*
