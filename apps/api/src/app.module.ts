@@ -6,6 +6,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
+import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { StoresModule } from './modules/stores/stores.module';
@@ -26,6 +27,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
       envFilePath: ['.env', '.env.example'],
       validationSchema: envValidationSchema,
     }),
+    PrismaModule,
     AuthModule,
     TenantsModule,
     StoresModule,
