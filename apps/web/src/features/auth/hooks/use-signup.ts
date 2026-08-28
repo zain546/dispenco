@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { signupSchema, type SignupFormValues } from '../schemas';
+import { authApi } from '../services/auth-api';
 
 export function useSignup() {
   const router = useRouter();
@@ -22,61 +23,34 @@ export function useSignup() {
     },
   });
 
-  const onSubmit = form.handleSubmit(async (data) => {
+  const onSubmit = form.handleSubmit(async (values) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-      const response = await fetch(`${apiBaseUrl}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          storeName: data.storeName,
-          email: data.email,
-          password: data.password,
-          name: data.storeName,
-        }),
-      });
-
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.message || 'Account creation failed');
-      }
-
-      login(
-        {
-          id: resData.user?.id || 'new-user-1',
-          email: resData.user?.email || data.email,
-          name: resData.user?.name || data.storeName,
-          tenantId: resData.user?.tenantId || 'new-tenant-1',
-          storeName: data.storeName,
-          role: 'Owner',
-        },
-        data.storeName
-      );
-
+      const res = await authApi.signup(values);
+      login(res.user, values.storeName);
       router.push('/dashboard');
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Registration failed';
-
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+      if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'ERR_NETWORK') {
         login(
           {
             id: 'demo-user-1',
-            email: data.email,
-            name: data.storeName,
+            email: values.email,
+            name: values.storeName,
             tenantId: 'demo-tenant-1',
-            storeName: data.storeName,
+            storeName: values.storeName,
             role: 'Owner',
           },
-          data.storeName
+          values.storeName
         );
         router.push('/dashboard');
         return;
       }
+
+      const errorMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error ? err.message : 'Registration failed');
 
       setError(errorMessage);
     } finally {

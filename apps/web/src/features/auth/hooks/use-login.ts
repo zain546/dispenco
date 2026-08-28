@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { loginSchema, type LoginFormValues } from '../schemas';
+import { authApi } from '../services/auth-api';
 
 export function useLogin() {
   const router = useRouter();
@@ -21,51 +22,21 @@ export function useLogin() {
     },
   });
 
-  const onSubmit = form.handleSubmit(async (data) => {
+  const onSubmit = form.handleSubmit(async (values) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-      const response = await fetch(`${apiBaseUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-        }),
-      });
-
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.message || 'Invalid email or password');
-      }
-
-      login(
-        {
-          id: resData.user?.id || 'user-1',
-          email: resData.user?.email || data.email,
-          name: resData.user?.name || data.email.split('@')[0],
-          tenantId: resData.user?.tenantId || 'tenant-1',
-          storeName: resData.user?.storeName || 'Main Branch — Blue Area',
-          role: resData.user?.role || 'Owner',
-        },
-        resData.user?.storeName
-      );
-
+      const res = await authApi.login(values);
+      login(res.user, res.user.storeName);
       router.push('/dashboard');
     } catch (err: unknown) {
-      // Fallback for local demo preview if backend API is not running
-      const errorMessage = err instanceof Error ? err.message : 'Sign in failed';
-      
-      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+      if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'ERR_NETWORK') {
         login(
           {
             id: 'demo-user-1',
-            email: data.email,
-            name: data.email.split('@')[0] || 'Owner Pharmacy',
+            email: values.email,
+            name: values.email.split('@')[0] || 'Owner Pharmacy',
             tenantId: 'demo-tenant-1',
             storeName: 'Main Branch — Blue Area',
             role: 'Owner',
@@ -75,6 +46,10 @@ export function useLogin() {
         router.push('/dashboard');
         return;
       }
+
+      const errorMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error ? err.message : 'Sign in failed');
 
       setError(errorMessage);
     } finally {
