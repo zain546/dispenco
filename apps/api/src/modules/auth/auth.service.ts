@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Response, Request } from 'express';
@@ -17,9 +17,8 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupDto, res: Response) {
-    const existingUser = await this.prisma.user.findFirst({
-      where: { email: dto.email.toLowerCase().trim() },
-    });
+    const email = dto.email.toLowerCase().trim();
+    const existingUser = await this.prisma.user.findFirst({ where: { email } });
 
     if (existingUser) {
       throw new ConflictException('An account with this email address already exists');
@@ -30,9 +29,7 @@ export class AuthService {
 
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
-        data: {
-          name: dto.storeName,
-        },
+        data: { name: dto.storeName },
       });
 
       const store = await tx.store.create({
@@ -53,7 +50,7 @@ export class AuthService {
       const user = await tx.user.create({
         data: {
           tenantId: tenant.id,
-          email: dto.email.toLowerCase().trim(),
+          email,
           passwordHash,
           name: dto.name || dto.storeName,
           tokenVersion: 1,
@@ -78,9 +75,7 @@ export class AuthService {
       role: 'Owner',
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-
+    const { accessToken, refreshToken } = this.generateTokens(payload);
     this.setRefreshTokenCookie(res, refreshToken);
 
     return {
@@ -91,16 +86,20 @@ export class AuthService {
         email: result.user.email,
         name: result.user.name,
         tenantId: result.tenant.id,
+        storeName: result.store.name,
         role: 'Owner',
       },
     };
   }
 
   async login(dto: LoginDto, res: Response) {
+    const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findFirst({
-      where: { email: dto.email.toLowerCase().trim() },
+      where: { email },
       include: {
-        tenant: true,
+        tenant: {
+          include: { stores: { take: 1 } },
+        },
         userRoles: {
           include: { role: true },
         },
@@ -121,6 +120,7 @@ export class AuthService {
     }
 
     const roleName = user.userRoles[0]?.role?.name || 'User';
+    const storeName = user.tenant.stores[0]?.name || user.tenant.name;
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -130,9 +130,7 @@ export class AuthService {
       role: roleName,
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-
+    const { accessToken, refreshToken } = this.generateTokens(payload);
     this.setRefreshTokenCookie(res, refreshToken);
 
     return {
@@ -143,6 +141,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         tenantId: user.tenantId,
+        storeName,
         role: roleName,
       },
     };
@@ -178,9 +177,7 @@ export class AuthService {
         role: payload.role,
       };
 
-      const accessToken = this.jwtService.sign(newPayload, { expiresIn: '15m' });
-      const newRefreshToken = this.jwtService.sign(newPayload, { expiresIn: '7d' });
-
+      const { accessToken, refreshToken: newRefreshToken } = this.generateTokens(newPayload);
       this.setRefreshTokenCookie(res, newRefreshToken);
 
       return {
@@ -213,6 +210,12 @@ export class AuthService {
       success: true,
       message: 'Logged out successfully',
     };
+  }
+
+  private generateTokens(payload: JwtPayload) {
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    return { accessToken, refreshToken };
   }
 
   private setRefreshTokenCookie(res: Response, token: string) {
