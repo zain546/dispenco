@@ -4,6 +4,7 @@ export interface JwtPayload {
   tenantId: string;
   tokenVersion: number;
   role?: string;
+  permissions?: string[];
 }
 
 export interface AuthenticatedUser {
@@ -12,4 +13,5 @@ export interface AuthenticatedUser {
   tenantId: string;
   tokenVersion: number;
   role?: string;
+  permissions?: string[];
 }

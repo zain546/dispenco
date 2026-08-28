@@ -25,3 +25,4 @@ export interface ApiResponse<T = unknown> {
 }
 
 export * from './product-attributes';
+export * from './permissions';

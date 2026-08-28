@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Response, Request } from 'express';
 import * as bcrypt from 'bcryptjs';
+import { ALL_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS } from '@dispenco/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
@@ -24,6 +25,9 @@ export class AuthService {
       throw new ConflictException('An account with this email address already exists');
     }
 
+    // Ensure all system permissions exist in database
+    await this.ensurePermissionsExist();
+
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(dto.password, saltRounds);
 
@@ -39,6 +43,7 @@ export class AuthService {
         },
       });
 
+      // 1. Create Owner Role (All Permissions)
       const ownerRole = await tx.role.create({
         data: {
           tenantId: tenant.id,
@@ -47,6 +52,38 @@ export class AuthService {
         },
       });
 
+      const allPermissionRecords = await tx.permission.findMany({
+        where: { name: { in: ALL_PERMISSIONS } },
+      });
+
+      await tx.rolePermission.createMany({
+        data: allPermissionRecords.map((perm) => ({
+          roleId: ownerRole.id,
+          permissionId: perm.id,
+        })),
+      });
+
+      // 2. Create Staff Role (Limited Default Operational Permissions)
+      const staffRole = await tx.role.create({
+        data: {
+          tenantId: tenant.id,
+          name: 'Staff',
+          isDefault: false,
+        },
+      });
+
+      const staffPermissionRecords = await tx.permission.findMany({
+        where: { name: { in: DEFAULT_STAFF_PERMISSIONS } },
+      });
+
+      await tx.rolePermission.createMany({
+        data: staffPermissionRecords.map((perm) => ({
+          roleId: staffRole.id,
+          permissionId: perm.id,
+        })),
+      });
+
+      // 3. Create Owner User
       const user = await tx.user.create({
         data: {
           tenantId: tenant.id,
@@ -67,12 +104,15 @@ export class AuthService {
       return { tenant, store, user, ownerRole };
     });
 
+    const userPermissions = ALL_PERMISSIONS;
+
     const payload: JwtPayload = {
       sub: result.user.id,
       email: result.user.email,
       tenantId: result.tenant.id,
       tokenVersion: result.user.tokenVersion,
       role: 'Owner',
+      permissions: userPermissions,
     };
 
     const { accessToken, refreshToken } = this.generateTokens(payload);
@@ -88,6 +128,7 @@ export class AuthService {
         tenantId: result.tenant.id,
         storeName: result.store.name,
         role: 'Owner',
+        permissions: userPermissions,
       },
     };
   }
@@ -101,7 +142,15 @@ export class AuthService {
           include: { stores: { take: 1 } },
         },
         userRoles: {
-          include: { role: true },
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  include: { permission: true },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -119,8 +168,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const roleName = user.userRoles[0]?.role?.name || 'User';
+    const primaryRole = user.userRoles[0]?.role;
+    const roleName = primaryRole?.name || 'User';
     const storeName = user.tenant.stores[0]?.name || user.tenant.name;
+
+    const userPermissions = primaryRole?.rolePermissions.map(
+      (rp) => rp.permission.name
+    ) || [];
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -128,6 +182,7 @@ export class AuthService {
       tenantId: user.tenantId,
       tokenVersion: user.tokenVersion,
       role: roleName,
+      permissions: userPermissions,
     };
 
     const { accessToken, refreshToken } = this.generateTokens(payload);
@@ -143,6 +198,7 @@ export class AuthService {
         tenantId: user.tenantId,
         storeName,
         role: roleName,
+        permissions: userPermissions,
       },
     };
   }
@@ -159,6 +215,19 @@ export class AuthService {
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
+        include: {
+          userRoles: {
+            include: {
+              role: {
+                include: {
+                  rolePermissions: {
+                    include: { permission: true },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!user || !user.isActive) {
@@ -169,12 +238,19 @@ export class AuthService {
         throw new UnauthorizedException('Token has been revoked');
       }
 
+      const primaryRole = user.userRoles[0]?.role;
+      const roleName = primaryRole?.name || payload.role;
+      const userPermissions = primaryRole?.rolePermissions.map(
+        (rp) => rp.permission.name
+      ) || payload.permissions || [];
+
       const newPayload: JwtPayload = {
         sub: user.id,
         email: user.email,
         tenantId: user.tenantId,
         tokenVersion: user.tokenVersion,
-        role: payload.role,
+        role: roleName,
+        permissions: userPermissions,
       };
 
       const { accessToken, refreshToken: newRefreshToken } = this.generateTokens(newPayload);
@@ -210,6 +286,16 @@ export class AuthService {
       success: true,
       message: 'Logged out successfully',
     };
+  }
+
+  private async ensurePermissionsExist() {
+    for (const permName of ALL_PERMISSIONS) {
+      await this.prisma.permission.upsert({
+        where: { name: permName },
+        update: {},
+        create: { name: permName },
+      });
+    }
   }
 
   private generateTokens(payload: JwtPayload) {
