@@ -1,0 +1,19 @@
+name: Continuous Deployment (CD)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy Production Applications
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Notify Deployment Pipeline
+        run: |
+          echo "🚀 Repository merged to main branch."
+          echo "Ready for cloud deployment (Render / Railway / Vercel)."
