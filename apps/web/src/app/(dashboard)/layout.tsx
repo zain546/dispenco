@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/auth-context';
 
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -32,11 +34,26 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user, storeName, logout } = useAuth();
+
+  const userName = user?.name || 'Owner Pharmacy';
+  const displayStoreName = storeName || user?.storeName || 'Main Branch — Blue Area';
+  const role = user?.role || 'Owner';
+
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const userInitials = getInitials(userName);
 
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar Navigation */}
-      <aside className="w-60 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col justify-between p-4 shrink-0">
+      <aside className="w-60 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col justify-between p-4 shrink-0 relative z-20">
         <div>
           {/* Logo & Brand */}
           <div className="px-2 pb-4 border-b border-sidebar-border flex items-center gap-2.5">
@@ -77,29 +94,30 @@ export default function DashboardLayout({
         </div>
 
         {/* Footer Account / Logout */}
-        <div className="pt-4 border-t border-sidebar-border space-y-3">
+        <div className="pt-4 border-t border-sidebar-border space-y-2">
           <div className="flex items-center gap-3 px-1">
-            <Avatar className="size-8 bg-primary text-primary-foreground">
+            <Avatar className="size-8 bg-primary text-primary-foreground shrink-0">
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                OP
+                {userInitials}
               </AvatarFallback>
             </Avatar>
-            <div className="text-xs">
-              <div className="font-semibold text-sidebar-foreground">
-                Owner Pharmacy
+            <div className="text-xs min-w-0 flex-1">
+              <div className="font-semibold text-sidebar-foreground truncate" title={userName}>
+                {userName}
               </div>
-              <div className="text-muted-foreground">
-                Al-Shifa Group
+              <div className="text-muted-foreground truncate" title={displayStoreName}>
+                {displayStoreName} ({role})
               </div>
             </div>
           </div>
-          <Link
-            href="/login"
-            className="flex items-center gap-2 text-xs font-medium text-destructive hover:bg-destructive/10 px-2 py-1.5 rounded-md transition-colors"
+          <Button
+            variant="ghost"
+            onClick={() => logout()}
+            className="w-full justify-start gap-2 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive px-2 py-1.5 h-8 transition-colors mt-1"
           >
             <LogOut className="size-4" />
-            Sign Out
-          </Link>
+            <span>Sign Out</span>
+          </Button>
         </div>
       </aside>
 
@@ -107,11 +125,13 @@ export default function DashboardLayout({
       <div className="flex-1 flex flex-col min-w-0 bg-muted/20">
         {/* Top Header */}
         <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Store className="size-4 text-primary" />
-            <span>Store: <strong className="text-foreground">Main Branch — Blue Area</strong></span>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+            <Store className="size-4 text-primary shrink-0" />
+            <span className="truncate">
+              Store: <strong className="text-foreground">{displayStoreName}</strong>
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
             <span>Status:</span>
             <Badge variant="outline" className="gap-1.5 border-emerald-500/30 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
