@@ -1,10 +1,13 @@
 import { Controller, Post, Get, Body, Res, Req, UseGuards } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { Permission } from '@dispenco/types';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { RequirePermissions } from './decorators/require-permissions.decorator';
 import { AuthenticatedUser } from './interfaces/jwt-payload.interface';
 
 @Controller('auth')
@@ -37,6 +40,17 @@ export class AuthController {
   getProfile(@CurrentUser() user: AuthenticatedUser) {
     return {
       success: true,
+      user,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SETTINGS_MANAGE)
+  @Get('settings-check')
+  checkSettingsAccess(@CurrentUser() user: AuthenticatedUser) {
+    return {
+      success: true,
+      message: 'Access granted to manage settings',
       user,
     };
   }
