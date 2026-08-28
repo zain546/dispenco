@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { HealthModule } from './modules/health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { StoresModule } from './modules/stores/stores.module';
 import { UsersModule } from './modules/users/users.module';
@@ -29,6 +30,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     }),
     PrismaModule,
     AuthModule,
+    HealthModule,
     TenantsModule,
     StoresModule,
     UsersModule,
