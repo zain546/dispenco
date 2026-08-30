@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Calendar,
   Boxes,
+  Layers,
   LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -44,6 +45,7 @@ import {
 } from '@/components/ui/dialog';
 import { productsApi, type ProductData } from '../services/products-api';
 import { PRODUCT_CATEGORIES } from '../schemas/product-schema';
+import { ProductBatchesModal } from './product-batches-modal';
 
 // ==========================================
 // 1. Helper Utilities (SRP & Pure Functions)
@@ -189,9 +191,11 @@ function StockStatusBadge({
 function ProductTableRow({
   product,
   onDelete,
+  onViewBatches,
 }: {
   product: ProductData;
   onDelete: (product: ProductData) => void;
+  onViewBatches: (product: ProductData) => void;
 }) {
   const totalStock = product.totalStock ?? 0;
   const iconConfig = getMedicineIconConfig(product.category, product.name, product.unit);
@@ -247,9 +251,16 @@ function ProductTableRow({
       {/* Stock Level & Status */}
       <td className="py-3 px-4">
         <div className="space-y-1">
-          <div className="font-bold text-foreground">
-            {totalStock} <span className="text-xs font-normal text-muted-foreground">{product.unit}s</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => onViewBatches(product)}
+            className="font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1 text-left"
+            title="View FEFO Batch Breakdown"
+          >
+            <span>{totalStock}</span>
+            <span className="text-xs font-normal text-muted-foreground">{product.unit}s</span>
+            <Layers className="size-3 text-muted-foreground/70" />
+          </button>
           <StockStatusBadge totalStock={totalStock} lowStockThreshold={product.lowStockThreshold} />
         </div>
       </td>
@@ -284,6 +295,15 @@ function ProductTableRow({
       {/* Actions */}
       <td className="py-3 px-4 text-right">
         <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onViewBatches(product)}
+            className="size-8 text-muted-foreground hover:text-primary"
+            title="Inspect FEFO Batches"
+          >
+            <Layers className="size-4" />
+          </Button>
           <Button asChild variant="ghost" size="icon" className="size-8 text-primary hover:bg-primary/10">
             <Link href={`/inventory/receive?productId=${product.id}`} title="Receive Stock Batch">
               <Boxes className="size-4" />
@@ -312,9 +332,11 @@ function ProductTableRow({
 function ProductCardItem({
   product,
   onDelete,
+  onViewBatches,
 }: {
   product: ProductData;
   onDelete: (product: ProductData) => void;
+  onViewBatches: (product: ProductData) => void;
 }) {
   const totalStock = product.totalStock ?? 0;
   const iconConfig = getMedicineIconConfig(product.category, product.name, product.unit);
@@ -338,6 +360,15 @@ function ProductCardItem({
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onViewBatches(product)}
+              className="size-7 text-muted-foreground hover:text-primary"
+              title="Inspect FEFO Batches"
+            >
+              <Layers className="size-3.5" />
+            </Button>
             <Button asChild variant="ghost" size="icon" className="size-7 text-primary hover:bg-primary/10">
               <Link href={`/inventory/receive?productId=${product.id}`} title="Receive Stock Batch">
                 <Boxes className="size-3.5" />
@@ -474,6 +505,15 @@ export function ProductList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<ProductData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Batch Breakdown Modal State
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  const [selectedProductForBatches, setSelectedProductForBatches] = useState<ProductData | null>(null);
+
+  const handleViewBatches = (product: ProductData) => {
+    setSelectedProductForBatches(product);
+    setBatchModalOpen(true);
+  };
 
   // Debounce search input
   useEffect(() => {
@@ -699,7 +739,12 @@ export function ProductList() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {products.map((prod) => (
-                    <ProductTableRow key={prod.id} product={prod} onDelete={confirmDelete} />
+                    <ProductTableRow
+                      key={prod.id}
+                      product={prod}
+                      onDelete={confirmDelete}
+                      onViewBatches={handleViewBatches}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -709,7 +754,12 @@ export function ProductList() {
           {/* Mobile Card List (Visible on < md) */}
           <div className="md:hidden space-y-3">
             {products.map((prod) => (
-              <ProductCardItem key={prod.id} product={prod} onDelete={confirmDelete} />
+              <ProductCardItem
+                key={prod.id}
+                product={prod}
+                onDelete={confirmDelete}
+                onViewBatches={handleViewBatches}
+              />
             ))}
           </div>
 
@@ -752,6 +802,13 @@ export function ProductList() {
         isDeleting={isDeleting}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleDelete}
+      />
+
+      {/* FEFO Batches Breakdown Modal */}
+      <ProductBatchesModal
+        productId={selectedProductForBatches?.id || null}
+        open={batchModalOpen}
+        onOpenChange={setBatchModalOpen}
       />
     </div>
   );
