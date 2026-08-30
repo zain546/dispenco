@@ -2,18 +2,18 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-vali
 
 export class SignupDto {
   @IsString()
-  @IsNotEmpty()
-  storeName!: string;
+  @IsNotEmpty({ message: 'Full name is required' })
+  name!: string;
 
-  @IsEmail()
-  @IsNotEmpty()
+  @IsEmail({}, { message: 'Invalid email address' })
+  @IsNotEmpty({ message: 'Email address is required' })
   email!: string;
 
   @IsString()
-  @MinLength(6, { message: 'Password must be at least 6 characters long' })
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
   password!: string;
 
   @IsString()
   @IsOptional()
-  name?: string;
+  storeName?: string;
 }
