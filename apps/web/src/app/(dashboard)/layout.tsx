@@ -267,18 +267,18 @@ export default function DashboardLayout({
         {/* Main Content Container */}
         <div className="flex-1 flex flex-col min-w-0 bg-muted/20">
           {/* Top Header */}
-          <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 shadow-xs shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
+          <header className="h-14 sm:h-16 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 shadow-xs shrink-0 gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
               {/* Mobile Drawer Trigger (Visible on < lg) */}
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetTrigger asChild>
                   <Button
                     variant="outline"
                     size="icon"
-                    className="lg:hidden size-9 shrink-0 text-foreground"
+                    className="lg:hidden size-8 sm:size-9 shrink-0 text-foreground"
                     aria-label="Open Navigation Menu"
                   >
-                    <Menu className="size-5" />
+                    <Menu className="size-4 sm:size-5" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-72 p-4 flex flex-col justify-between bg-sidebar text-sidebar-foreground">
@@ -325,10 +325,10 @@ export default function DashboardLayout({
                 </SheetContent>
               </Sheet>
 
-              <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-                <Store className="size-5 text-primary shrink-0" />
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground min-w-0">
+                <Store className="size-4 sm:size-5 text-primary shrink-0" />
                 <span className="truncate">
-                  Active Store:{' '}
+                  <span className="hidden sm:inline">Active Store: </span>
                   <strong className="text-foreground font-semibold">
                     {displayStoreName}
                   </strong>
@@ -336,20 +336,20 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
               <span className="font-medium hidden sm:inline">System Status:</span>
               <Badge
                 variant="outline"
-                className="gap-1.5 border-emerald-500/30 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 font-medium px-2.5 py-1"
+                className="gap-1 sm:gap-1.5 border-emerald-500/30 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 font-medium px-2 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs"
               >
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                Operational
+                <span className="size-1.5 sm:size-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="hidden xs:inline">Operational</span>
               </Badge>
             </div>
           </header>
 
           {/* Page View Body */}
-          <main className="flex-1 p-4 sm:p-6 overflow-y-auto">{children}</main>
+          <main className="flex-1 p-3.5 sm:p-6 overflow-y-auto">{children}</main>
         </div>
       </div>
     </TooltipProvider>
