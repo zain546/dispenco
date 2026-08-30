@@ -69,6 +69,8 @@ export interface PaginatedProductsResponse {
     page: number;
     limit: number;
     totalPages: number;
+    hasNextPage?: boolean;
+    hasPrevPage?: boolean;
   };
 }
 
