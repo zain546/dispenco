@@ -5,6 +5,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNumber,
   Min,
   IsObject,
 } from 'class-validator';
@@ -55,4 +56,49 @@ export class CreateProductDto {
   @IsObject()
   @IsOptional()
   attributes?: Record<string, unknown>;
+
+  // Unified Initial Stock & Batch Fields
+  @IsInt()
+  @Min(0, { message: 'Stock quantity must be 0 or greater' })
+  @IsOptional()
+  initialStockQuantity?: number;
+
+  @IsString()
+  @IsOptional()
+  expiryDate?: string;
+
+  @IsNumber()
+  @Min(0, { message: 'Cost price must be 0 or greater' })
+  @IsOptional()
+  costPrice?: number;
+
+  @IsNumber()
+  @Min(0, { message: 'Selling price / MRP must be 0 or greater' })
+  @IsOptional()
+  sellPrice?: number;
+
+  @IsString()
+  @IsOptional()
+  batchNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  rackNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  vendorName?: string;
+
+  // Manufacturing & Purchase Invoice Details
+  @IsString()
+  @IsOptional()
+  mfgDate?: string;
+
+  @IsString()
+  @IsOptional()
+  purchaseInvoiceNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  purchaseInvoiceDate?: string;
 }
