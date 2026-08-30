@@ -222,12 +222,12 @@ async function main() {
     console.log(` Seeding products for Tenant: ${tenant.name} (${tenant.id})...`);
 
     for (const item of dummyProducts) {
-      const existing = await prisma.product.findFirst({
+      let product = await prisma.product.findFirst({
         where: { tenantId: tenant.id, name: item.name },
       });
 
-      if (!existing) {
-        const product = await prisma.product.create({
+      if (!product) {
+        product = await prisma.product.create({
           data: {
             tenantId: tenant.id,
             name: item.name,
@@ -240,28 +240,72 @@ async function main() {
             attributes: item.attributes as Prisma.InputJsonValue,
           },
         });
+        console.log(`   Added Product: ${product.name}`);
+      }
 
-        if (item.stock > 0) {
-          const expiryDate = new Date();
-          expiryDate.setMonth(expiryDate.getMonth() + item.expiryMonths);
+      if (product) {
+        // Check existing batches count
+        const existingBatches = await prisma.batch.count({
+          where: { tenantId: tenant.id, productId: product.id },
+        });
 
-          const batchNumber = `BN-${Math.floor(100000 + Math.random() * 900000)}`;
+        // Seed 3 realistic FEFO batches if only 0 or 1 batch exists
+        if (existingBatches <= 1) {
+          const now = new Date();
 
-          await prisma.batch.create({
-            data: {
-              tenantId: tenant.id,
-              storeId: store.id,
-              productId: product.id,
-              batchNumber,
-              expiryDate,
-              costPrice: new Prisma.Decimal(item.costPrice),
-              sellPrice: new Prisma.Decimal(item.sellPrice),
-              quantityReceived: item.stock,
-              quantityRemaining: item.stock,
-            },
+          // 1. Near Expiry Batch (Expires in ~40 days)
+          const nearExpiryDate = new Date();
+          nearExpiryDate.setDate(now.getDate() + 40);
+
+          // 2. Active Healthy Batch (Expires in ~18 months)
+          const healthyExpiryDate = new Date();
+          healthyExpiryDate.setMonth(now.getMonth() + (item.expiryMonths || 18));
+
+          // 3. Expired Batch (Expired 25 days ago)
+          const expiredDate = new Date();
+          expiredDate.setDate(now.getDate() - 25);
+
+          const randomSuffix = Math.floor(100 + Math.random() * 900);
+
+          await prisma.batch.createMany({
+            data: [
+              {
+                tenantId: tenant.id,
+                storeId: store.id,
+                productId: product.id,
+                batchNumber: `BN-${randomSuffix}-NEAR`,
+                expiryDate: nearExpiryDate,
+                costPrice: new Prisma.Decimal(item.costPrice),
+                sellPrice: new Prisma.Decimal(item.sellPrice),
+                quantityReceived: 50,
+                quantityRemaining: 35,
+              },
+              {
+                tenantId: tenant.id,
+                storeId: store.id,
+                productId: product.id,
+                batchNumber: `BN-${randomSuffix}-HLTH`,
+                expiryDate: healthyExpiryDate,
+                costPrice: new Prisma.Decimal(item.costPrice + 5),
+                sellPrice: new Prisma.Decimal(item.sellPrice + 10),
+                quantityReceived: 100,
+                quantityRemaining: 85,
+              },
+              {
+                tenantId: tenant.id,
+                storeId: store.id,
+                productId: product.id,
+                batchNumber: `BN-${randomSuffix}-EXPD`,
+                expiryDate: expiredDate,
+                costPrice: new Prisma.Decimal(item.costPrice - 10),
+                sellPrice: new Prisma.Decimal(item.sellPrice),
+                quantityReceived: 30,
+                quantityRemaining: 12,
+              },
+            ],
           });
+          console.log(`   Seeded 3 FEFO Batches (Healthy, Near Expiry, Expired) for: ${product.name}`);
         }
-        console.log(`   Added: ${product.name}`);
       }
     }
   }
