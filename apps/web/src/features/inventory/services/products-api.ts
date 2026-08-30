@@ -22,6 +22,20 @@ export interface ProductData {
   updatedAt: string;
 }
 
+export interface BatchData {
+  id: string;
+  batchNumber: string;
+  expiryDate: string;
+  costPrice: number;
+  sellPrice: number;
+  quantityReceived: number;
+  quantityRemaining: number;
+  daysUntilExpiry: number;
+  isExpired: boolean;
+  isNearExpiry: boolean;
+  createdAt: string;
+}
+
 export interface CreateProductPayload {
   name: string;
   genericName?: string;
@@ -44,6 +58,20 @@ export interface CreateProductPayload {
   vendorName?: string;
 
   // Manufacturing & Purchase Invoice Details
+  mfgDate?: string;
+  purchaseInvoiceNumber?: string;
+  purchaseInvoiceDate?: string;
+}
+
+export interface ReceiveStockPayload {
+  productId: string;
+  quantity: number;
+  expiryDate: string;
+  costPrice: number;
+  sellPrice: number;
+  batchNumber?: string;
+  rackNumber?: string;
+  vendorName?: string;
   mfgDate?: string;
   purchaseInvoiceNumber?: string;
   purchaseInvoiceDate?: string;
@@ -76,7 +104,9 @@ export interface PaginatedProductsResponse {
 }
 
 export const productsApi = {
-  async createProduct(payload: CreateProductPayload): Promise<{ success: boolean; data: ProductData; message?: string }> {
+  async createProduct(
+    payload: CreateProductPayload,
+  ): Promise<{ success: boolean; data: ProductData; message?: string }> {
     const { data } = await apiClient.post('/products', payload);
     return data;
   },
@@ -91,13 +121,55 @@ export const productsApi = {
     return data;
   },
 
-  async updateProduct(id: string, payload: UpdateProductPayload): Promise<{ success: boolean; data: ProductData; message?: string }> {
+  async updateProduct(
+    id: string,
+    payload: UpdateProductPayload,
+  ): Promise<{ success: boolean; data: ProductData; message?: string }> {
     const { data } = await apiClient.patch(`/products/${id}`, payload);
     return data;
   },
 
-  async deleteProduct(id: string): Promise<{ success: boolean; data: ProductData; message?: string }> {
+  async deleteProduct(
+    id: string,
+  ): Promise<{ success: boolean; data: ProductData; message?: string }> {
     const { data } = await apiClient.delete(`/products/${id}`);
+    return data;
+  },
+
+  // Stock Receive & Batch APIs
+  async receiveStock(payload: ReceiveStockPayload): Promise<{
+    success: boolean;
+    message: string;
+    batch: {
+      id: string;
+      batchNumber: string;
+      quantityReceived: number;
+      quantityRemaining: number;
+      costPrice: number;
+      sellPrice: number;
+      expiryDate: string;
+    };
+    product: {
+      id: string;
+      name: string;
+      totalStock: number;
+    };
+  }> {
+    const { data } = await apiClient.post('/inventory/receive', payload);
+    return data;
+  },
+
+  async getProductBatches(productId: string): Promise<{
+    product: {
+      id: string;
+      name: string;
+      category: string;
+      unit: string;
+      totalStock: number;
+    };
+    batches: BatchData[];
+  }> {
+    const { data } = await apiClient.get(`/inventory/products/${productId}/batches`);
     return data;
   },
 };
