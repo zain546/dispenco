@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import {
   Pill,
   Save,
@@ -152,6 +153,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
           lowStockThreshold: Number(values.lowStockThreshold),
           attributes,
         });
+        toast.success('Medicine product updated successfully!');
       } else {
         await productsApi.createProduct({
           name: values.name,
@@ -176,6 +178,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
           purchaseInvoiceDate: values.purchaseInvoiceDate || undefined,
           attributes,
         });
+        toast.success('Stock & Medicine created successfully!');
       }
 
       router.push('/inventory');
@@ -185,34 +188,37 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (err instanceof Error ? err.message : 'Failed to save product');
       setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
   });
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-10">
+    <div className="space-y-6 max-w-4xl mx-auto px-4 sm:px-6 pb-12">
       {/* Header Bar */}
-      <div className="flex items-center gap-3 pb-2 border-b border-border">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => router.back()}
-          className="size-9"
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Pill className="size-5 text-primary" />
-            <span>{isEditing ? 'Edit Medicine / Product' : 'Create Stock & Add Medicine'}</span>
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {isEditing
-              ? 'Update medicine specifications and catalog details'
-              : 'Enter medicine details, initial stock quantity, prices, and batch information in one click'}
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => router.back()}
+            className="size-9 shrink-0"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Pill className="size-5 text-primary shrink-0" />
+              <span>{isEditing ? 'Edit Medicine / Product' : 'Create Stock & Add Medicine'}</span>
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {isEditing
+                ? 'Update medicine specifications and catalog details'
+                : 'Enter medicine details, initial stock quantity, prices, and batch information in one click'}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -225,20 +231,20 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
       <form onSubmit={onSubmit} className="space-y-6">
         {/* Core Medicine & Stock Information Card */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-xs">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Sparkles className="size-4 text-primary" />
               <span>Mandatory Medicine & Stock Fields</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               Enter medicine title, stock quantity, prices, and expiry date.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Medicine / Product Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">
+            <div className="space-y-2 col-span-1 sm:col-span-2 md:col-span-1">
+              <Label htmlFor="name" className="text-xs sm:text-sm">
                 Medicine / Product Name <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -252,8 +258,8 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             </div>
 
             {/* Generic Formula / Brand */}
-            <div className="space-y-2">
-              <Label htmlFor="genericName">
+            <div className="space-y-2 col-span-1 sm:col-span-2 md:col-span-1">
+              <Label htmlFor="genericName" className="text-xs sm:text-sm">
                 Generic Name / Brand Formula
               </Label>
               <Input
@@ -265,7 +271,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Package Unit */}
             <div className="space-y-2">
-              <Label htmlFor="unit">
+              <Label htmlFor="unit" className="text-xs sm:text-sm">
                 Package Unit <span className="text-destructive">*</span>
               </Label>
               <Select
@@ -290,7 +296,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Category */}
             <div className="space-y-2">
-              <Label htmlFor="category">
+              <Label htmlFor="category" className="text-xs sm:text-sm">
                 Category <span className="text-destructive">*</span>
               </Label>
               <Select
@@ -315,7 +321,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Initial Stock Quantity */}
             <div className="space-y-2">
-              <Label htmlFor="initialStockQuantity" className="flex items-center gap-1.5">
+              <Label htmlFor="initialStockQuantity" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <Boxes className="size-3.5 text-primary" />
                 <span>Stock Quantity (in {selectedUnit}s)</span>
               </Label>
@@ -332,7 +338,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Expiry Date */}
             <div className="space-y-2">
-              <Label htmlFor="expiryDate" className="flex items-center gap-1.5">
+              <Label htmlFor="expiryDate" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <Calendar className="size-3.5 text-primary" />
                 <span>Set Expiry Date</span>
               </Label>
@@ -345,7 +351,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Purchase / Cost Price */}
             <div className="space-y-2">
-              <Label htmlFor="costPrice" className="flex items-center gap-1.5">
+              <Label htmlFor="costPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <DollarSign className="size-3.5 text-muted-foreground" />
                 <span>Purchase Price per {selectedUnit}</span>
               </Label>
@@ -360,7 +366,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Retail Price / MRP */}
             <div className="space-y-2">
-              <Label htmlFor="sellPrice" className="flex items-center gap-1.5">
+              <Label htmlFor="sellPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <DollarSign className="size-3.5 text-primary" />
                 <span>Retail Price (MRP) per {selectedUnit}</span>
               </Label>
@@ -376,20 +382,20 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
         </Card>
 
         {/* Optional Batch, Manufacturing & Vendor Invoice Details */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-xs">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Boxes className="size-4 text-primary" />
               <span>Batch, Manufacturing & Invoice Details (Optional)</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               Optional batch code, manufacturing date, vendor info, invoice data, and shelf location.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Batch Number */}
             <div className="space-y-2">
-              <Label htmlFor="batchNumber">Batch No</Label>
+              <Label htmlFor="batchNumber" className="text-xs sm:text-sm">Batch No</Label>
               <Input
                 id="batchNumber"
                 placeholder="Enter Batch No (Auto-generated if empty)"
@@ -399,7 +405,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Manufacturing Date */}
             <div className="space-y-2">
-              <Label htmlFor="mfgDate" className="flex items-center gap-1.5">
+              <Label htmlFor="mfgDate" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <Calendar className="size-3.5 text-muted-foreground" />
                 <span>Manufacturing Date</span>
               </Label>
@@ -412,7 +418,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Vendor / Distributor Name */}
             <div className="space-y-2">
-              <Label htmlFor="vendorName" className="flex items-center gap-1.5">
+              <Label htmlFor="vendorName" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <Truck className="size-3.5 text-muted-foreground" />
                 <span>Vendor Name / Supplier</span>
               </Label>
@@ -425,7 +431,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Purchase Invoice Number */}
             <div className="space-y-2">
-              <Label htmlFor="purchaseInvoiceNumber" className="flex items-center gap-1.5">
+              <Label htmlFor="purchaseInvoiceNumber" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <FileText className="size-3.5 text-muted-foreground" />
                 <span>Purchase Invoice Number</span>
               </Label>
@@ -438,7 +444,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Purchase Invoice Date */}
             <div className="space-y-2">
-              <Label htmlFor="purchaseInvoiceDate" className="flex items-center gap-1.5">
+              <Label htmlFor="purchaseInvoiceDate" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <Calendar className="size-3.5 text-muted-foreground" />
                 <span>Purchase Invoice Date</span>
               </Label>
@@ -451,7 +457,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Rack Number */}
             <div className="space-y-2">
-              <Label htmlFor="rackNumber" className="flex items-center gap-1.5">
+              <Label htmlFor="rackNumber" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <MapPin className="size-3.5 text-muted-foreground" />
                 <span>Rack / Shelf Number</span>
               </Label>
@@ -463,8 +469,8 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             </div>
 
             {/* Barcode */}
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="barcode" className="flex items-center gap-1.5">
+            <div className="space-y-2 col-span-1 sm:col-span-2">
+              <Label htmlFor="barcode" className="text-xs sm:text-sm flex items-center gap-1.5">
                 <QrCode className="size-3.5 text-muted-foreground" />
                 <span>Barcode / EAN (Optional)</span>
               </Label>
@@ -478,20 +484,20 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
         </Card>
 
         {/* Dynamic Category Attributes Card */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-xs">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <SlidersHorizontal className="size-4 text-primary" />
               <span>Category Attributes ({PRODUCT_CATEGORIES.find(c => c.value === selectedCategory)?.label})</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               Pharmaceutical details specific to this category.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Manufacturer Field */}
             <div className="space-y-2">
-              <Label htmlFor="manufacturer">Manufacturer / Pharma Company</Label>
+              <Label htmlFor="manufacturer" className="text-xs sm:text-sm">Manufacturer / Pharma Company</Label>
               <Input
                 id="manufacturer"
                 placeholder="e.g. GSK, Abbott, Getz Pharma"
@@ -503,7 +509,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             {selectedCategory === 'TABLET_CAPSULE' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="dosageForm">Dosage Form</Label>
+                  <Label htmlFor="dosageForm" className="text-xs sm:text-sm">Dosage Form</Label>
                   <Input
                     id="dosageForm"
                     placeholder="e.g. Film-Coated Tablet, Capsule"
@@ -511,7 +517,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="strength">Strength</Label>
+                  <Label htmlFor="strength" className="text-xs sm:text-sm">Strength</Label>
                   <Input
                     id="strength"
                     placeholder="e.g. 500mg, 20mg"
@@ -519,7 +525,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="packSize">Pack Size (Units per {selectedUnit})</Label>
+                  <Label htmlFor="packSize" className="text-xs sm:text-sm">Pack Size (Units per {selectedUnit})</Label>
                   <Input
                     id="packSize"
                     type="number"
@@ -537,7 +543,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             {selectedCategory === 'SYRUP_LIQUID' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="volumeMl">Volume (ML)</Label>
+                  <Label htmlFor="volumeMl" className="text-xs sm:text-sm">Volume (ML)</Label>
                   <Input
                     id="volumeMl"
                     type="number"
@@ -546,7 +552,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="flavor">Flavor (Optional)</Label>
+                  <Label htmlFor="flavor" className="text-xs sm:text-sm">Flavor (Optional)</Label>
                   <Input
                     id="flavor"
                     placeholder="e.g. Cherry, Mixed Fruit"
@@ -560,7 +566,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             {selectedCategory === 'INJECTION_INFUSION' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="route">Route of Administration</Label>
+                  <Label htmlFor="route" className="text-xs sm:text-sm">Route of Administration</Label>
                   <Input
                     id="route"
                     placeholder="e.g. IV / IM, Subcutaneous"
@@ -568,7 +574,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="storageTemp">Storage Temperature</Label>
+                  <Label htmlFor="storageTemp" className="text-xs sm:text-sm">Storage Temperature</Label>
                   <Input
                     id="storageTemp"
                     placeholder="e.g. 2°C - 8°C (Refrigerated)"
@@ -582,7 +588,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             {selectedCategory === 'MEDICAL_DEVICE' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="modelNumber">Model Number</Label>
+                  <Label htmlFor="modelNumber" className="text-xs sm:text-sm">Model Number</Label>
                   <Input
                     id="modelNumber"
                     placeholder="e.g. BP-301"
@@ -590,7 +596,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="warrantyMonths">Warranty (Months)</Label>
+                  <Label htmlFor="warrantyMonths" className="text-xs sm:text-sm">Warranty (Months)</Label>
                   <Input
                     id="warrantyMonths"
                     type="number"
@@ -605,7 +611,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             {selectedCategory === 'GENERAL_ITEM' && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="brand">Brand Name</Label>
+                  <Label htmlFor="brand" className="text-xs sm:text-sm">Brand Name</Label>
                   <Input
                     id="brand"
                     placeholder="e.g. Dettol, Nestlé"
@@ -613,7 +619,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Product Description</Label>
+                  <Label htmlFor="description" className="text-xs sm:text-sm">Product Description</Label>
                   <Input
                     id="description"
                     placeholder="Short product overview"
@@ -626,20 +632,20 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
         </Card>
 
         {/* Compliance & Low Stock Alerts Card */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-xs">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <ShieldAlert className="size-4 text-primary" />
               <span>Compliance & Reorder Alerts</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               Set low-stock reorder thresholds and prescription schedule.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
             {/* Low Stock Alert Threshold */}
             <div className="space-y-2">
-              <Label htmlFor="lowStockThreshold">Low Stock Alert Threshold (in {selectedUnit}s)</Label>
+              <Label htmlFor="lowStockThreshold" className="text-xs sm:text-sm">Low Stock Alert Threshold (in {selectedUnit}s)</Label>
               <Input
                 id="lowStockThreshold"
                 type="number"
@@ -653,7 +659,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
             {/* Controlled Substance Panel */}
             <div className="space-y-2">
-              <Label htmlFor="isControlledSubstance">Regulatory Classification</Label>
+              <Label htmlFor="isControlledSubstance" className="text-xs sm:text-sm">Regulatory Classification</Label>
               <div className="flex flex-col justify-start rounded-md border border-input p-3 bg-card gap-2.5">
                 <div className="flex items-center space-x-3">
                   <Checkbox
@@ -663,12 +669,12 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                       setValue('isControlledSubstance', !!checked, { shouldValidate: true })
                     }
                   />
-                  <Label htmlFor="isControlledSubstance" className="cursor-pointer font-medium text-sm">
+                  <Label htmlFor="isControlledSubstance" className="cursor-pointer font-medium text-xs sm:text-sm">
                     Controlled Substance / Schedule Rx
                   </Label>
                 </div>
                 {isControlled ? (
-                  <div className="flex items-center gap-1.5 text-xs text-destructive font-medium bg-destructive/10 px-2.5 py-1 rounded-sm">
+                  <div className="flex items-center gap-1.5 text-xs text-destructive font-medium bg-destructive/10 px-2.5 py-1.5 rounded-sm">
                     <ShieldAlert className="size-3.5 shrink-0" />
                     <span>Requires Doctor Prescription & Audit Log at POS</span>
                   </div>
@@ -683,20 +689,20 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
         </Card>
 
         {/* Bottom Action Footer */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+        <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4 border-t border-border">
           <Button
             type="button"
             variant="outline"
             onClick={() => router.back()}
             disabled={isLoading}
-            className="min-w-[100px]"
+            className="w-full sm:w-auto min-w-[100px]"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             disabled={isLoading}
-            className="gap-2 min-w-[140px]"
+            className="w-full sm:w-auto gap-2 min-w-[140px]"
           >
             {isLoading ? (
               <>
