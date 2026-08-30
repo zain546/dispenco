@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Store, Mail, Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +18,13 @@ export function SignupCard() {
 
   return (
     <div className="w-full max-w-md space-y-6">
-      <AuthHeader subtitle="Create your pharmacy account & workspace" />
+      <AuthHeader subtitle="Create your account & get started" />
 
       <Card>
         <CardHeader className="space-y-1">
           <CardTitle>Create account</CardTitle>
           <CardDescription>
-            Enter details to setup your pharmacy store & workspace
+            Enter your details to create your Dispenco account
           </CardDescription>
         </CardHeader>
 
@@ -38,21 +38,21 @@ export function SignupCard() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="storeName">Store Name</Label>
+              <Label htmlFor="name">Full Name</Label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-                  <Store className="h-4 w-4" />
+                  <User className="h-4 w-4" />
                 </div>
                 <Input
-                  id="storeName"
+                  id="name"
                   type="text"
-                  placeholder="Al-Shifa Pharmacy"
+                  placeholder="John Doe"
                   className="pl-9"
-                  {...register('storeName')}
+                  {...register('name')}
                 />
               </div>
-              {errors.storeName && (
-                <p className="text-xs text-destructive mt-1">{errors.storeName.message}</p>
+              {errors.name && (
+                <p className="text-xs text-destructive mt-1">{errors.name.message}</p>
               )}
             </div>
 

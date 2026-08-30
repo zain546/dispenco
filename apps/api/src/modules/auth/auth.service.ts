@@ -30,18 +30,22 @@ export class AuthService {
 
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(dto.password, saltRounds);
+    const tenantName = dto.storeName || `${dto.name}'s Workspace`;
 
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
-        data: { name: dto.storeName },
+        data: { name: tenantName },
       });
 
-      const store = await tx.store.create({
-        data: {
-          tenantId: tenant.id,
-          name: dto.storeName,
-        },
-      });
+      let store = null;
+      if (dto.storeName) {
+        store = await tx.store.create({
+          data: {
+            tenantId: tenant.id,
+            name: dto.storeName,
+          },
+        });
+      }
 
       // 1. Create Owner Role (All Permissions)
       const ownerRole = await tx.role.create({
@@ -89,7 +93,7 @@ export class AuthService {
           tenantId: tenant.id,
           email,
           passwordHash,
-          name: dto.name || dto.storeName,
+          name: dto.name,
           tokenVersion: 1,
         },
       });
@@ -126,7 +130,7 @@ export class AuthService {
         email: result.user.email,
         name: result.user.name,
         tenantId: result.tenant.id,
-        storeName: result.store.name,
+        storeName: result.store?.name || null,
         role: 'Owner',
         permissions: userPermissions,
       },
@@ -170,7 +174,7 @@ export class AuthService {
 
     const primaryRole = user.userRoles[0]?.role;
     const roleName = primaryRole?.name || 'User';
-    const storeName = user.tenant.stores[0]?.name || user.tenant.name;
+    const storeName = user.tenant.stores[0]?.name || null;
 
     const userPermissions = primaryRole?.rolePermissions.map(
       (rp) => rp.permission.name

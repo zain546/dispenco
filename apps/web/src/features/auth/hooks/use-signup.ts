@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import { signupSchema, type SignupFormValues } from '../schemas';
+import { signupSchema, type SignupFormData } from '../schemas';
 import { authApi } from '../services/auth-api';
 
 export function useSignup() {
@@ -14,10 +14,10 @@ export function useSignup() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<SignupFormValues>({
+  const form = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      storeName: '',
+      name: '',
       email: '',
       password: '',
     },
@@ -29,22 +29,24 @@ export function useSignup() {
 
     try {
       const res = await authApi.signup(values);
-      login(res.user, values.storeName);
-      router.push('/dashboard');
+      login(res.user, res.user.storeName || undefined);
+      
+      if (!res.user.storeName) {
+        router.push('/onboarding');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'ERR_NETWORK') {
-        login(
-          {
-            id: 'demo-user-1',
-            email: values.email,
-            name: values.storeName,
-            tenantId: 'demo-tenant-1',
-            storeName: values.storeName,
-            role: 'Owner',
-          },
-          values.storeName
-        );
-        router.push('/dashboard');
+        login({
+          id: 'demo-user-1',
+          email: values.email,
+          name: values.name,
+          tenantId: 'demo-tenant-1',
+          storeName: undefined,
+          role: 'Owner',
+        });
+        router.push('/onboarding');
         return;
       }
 

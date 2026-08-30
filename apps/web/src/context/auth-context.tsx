@@ -21,15 +21,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
-const DEFAULT_USER: UserSession = {
-  id: 'demo-user-1',
-  email: 'owner@pharmacy.com',
-  name: 'Owner Pharmacy',
-  tenantId: 'demo-tenant-1',
-  storeName: 'Main Branch — Blue Area',
-  role: 'Owner',
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'dispenco_auth_user';
@@ -37,7 +28,7 @@ const STORE_STORAGE_KEY = 'dispenco_store_name';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
-  const [storeName, setStoreName] = useState<string>('Main Branch — Blue Area');
+  const [storeName, setStoreName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -47,35 +38,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedStore = localStorage.getItem(STORE_STORAGE_KEY);
 
       if (storedUser) {
-        const parsed = JSON.parse(storedUser);
+        const parsed: UserSession = JSON.parse(storedUser);
         setUser(parsed);
-        if (parsed.storeName) {
-          setStoreName(parsed.storeName);
-        }
+        setStoreName(storedStore || parsed.storeName || '');
       } else {
-        setUser(DEFAULT_USER);
-        setStoreName(DEFAULT_USER.storeName || 'Main Branch — Blue Area');
-      }
-
-      if (storedStore) {
-        setStoreName(storedStore);
+        setUser(null);
+        setStoreName('');
       }
     } catch {
-      setUser(DEFAULT_USER);
+      setUser(null);
+      setStoreName('');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   const login = (userData: UserSession, newStoreName?: string) => {
-    const finalStoreName = newStoreName || userData.storeName || 'Main Branch — Blue Area';
-    const updatedUser = { ...userData, storeName: finalStoreName };
+    const finalStoreName = newStoreName || userData.storeName || '';
+    const updatedUser = { ...userData, storeName: finalStoreName || undefined };
 
     setUser(updatedUser);
     setStoreName(finalStoreName);
 
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-    localStorage.setItem(STORE_STORAGE_KEY, finalStoreName);
+    if (finalStoreName) {
+      localStorage.setItem(STORE_STORAGE_KEY, finalStoreName);
+    } else {
+      localStorage.removeItem(STORE_STORAGE_KEY);
+    }
   };
 
   const logout = async () => {
@@ -85,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ignore network errors on logout cleanup
     } finally {
       setUser(null);
+      setStoreName('');
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(STORE_STORAGE_KEY);
       router.push('/login');

@@ -1,16 +1,25 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string().min(1, 'Email address is required').email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
 });
 
-export type LoginFormValues = z.infer<typeof loginSchema>;
+export type LoginFormData = z.infer<typeof loginSchema>;
+export type LoginFormValues = LoginFormData;
 
 export const signupSchema = z.object({
-  storeName: z.string().min(2, 'Store name must be at least 2 characters'),
-  email: z.string().min(1, 'Email address is required').email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  name: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters long'),
 });
 
-export type SignupFormValues = z.infer<typeof signupSchema>;
+export type SignupFormData = z.infer<typeof signupSchema>;
+export type SignupFormValues = SignupFormData;
+
+export const onboardingSchema = z.object({
+  storeName: z.string().min(2, 'Pharmacy / Store name must be at least 2 characters'),
+  address: z.string().optional(),
+});
+
+export type OnboardingFormData = z.infer<typeof onboardingSchema>;

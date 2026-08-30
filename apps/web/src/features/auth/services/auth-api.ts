@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api';
-import type { LoginFormValues, SignupFormValues } from '../schemas';
+import type { LoginFormData, SignupFormData } from '../schemas';
 import type { UserSession } from '@/context/auth-context';
 
 export interface AuthResponse {
@@ -9,17 +9,16 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  async login(credentials: LoginFormValues): Promise<AuthResponse> {
+  async login(credentials: LoginFormData): Promise<AuthResponse> {
     const { data } = await apiClient.post<AuthResponse>('/auth/login', credentials);
     return data;
   },
 
-  async signup(credentials: SignupFormValues): Promise<AuthResponse> {
+  async signup(credentials: SignupFormData): Promise<AuthResponse> {
     const { data } = await apiClient.post<AuthResponse>('/auth/signup', {
-      storeName: credentials.storeName,
+      name: credentials.name,
       email: credentials.email,
       password: credentials.password,
-      name: credentials.storeName,
     });
     return data;
   },
