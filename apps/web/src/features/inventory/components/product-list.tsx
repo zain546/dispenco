@@ -20,6 +20,7 @@ import {
   RefreshCw,
   AlertCircle,
   Calendar,
+  Boxes,
   LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -283,6 +284,11 @@ function ProductTableRow({
       {/* Actions */}
       <td className="py-3 px-4 text-right">
         <div className="flex items-center justify-end gap-1">
+          <Button asChild variant="ghost" size="icon" className="size-8 text-primary hover:bg-primary/10">
+            <Link href={`/inventory/receive?productId=${product.id}`} title="Receive Stock Batch">
+              <Boxes className="size-4" />
+            </Link>
+          </Button>
           <Button asChild variant="ghost" size="icon" className="size-8 text-muted-foreground">
             <Link href={`/inventory/${product.id}/edit`} title="Edit Product">
               <Edit className="size-4" />
@@ -332,6 +338,11 @@ function ProductCardItem({
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <Button asChild variant="ghost" size="icon" className="size-7 text-primary hover:bg-primary/10">
+              <Link href={`/inventory/receive?productId=${product.id}`} title="Receive Stock Batch">
+                <Boxes className="size-3.5" />
+              </Link>
+            </Button>
             <Button asChild variant="ghost" size="icon" className="size-7 text-muted-foreground">
               <Link href={`/inventory/${product.id}/edit`}>
                 <Edit className="size-3.5" />
@@ -545,7 +556,7 @@ export function ProductList() {
             Manage pharmacy products, batches, stock levels, and FEFO expiry tracking.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
@@ -556,6 +567,17 @@ export function ProductList() {
           >
             <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Refresh</span>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="h-9 px-3 gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+          >
+            <Link href="/inventory/receive">
+              <Boxes className="size-4" />
+              <span>Receive Stock</span>
+            </Link>
           </Button>
           <Button asChild size="sm" className="h-9 px-3 gap-1.5">
             <Link href="/inventory/new">
