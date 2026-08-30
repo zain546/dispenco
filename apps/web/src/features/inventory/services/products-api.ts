@@ -17,6 +17,7 @@ export interface ProductData {
   totalStock?: number;
   latestSellPrice?: number | null;
   latestCostPrice?: number | null;
+  nearestExpiryDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
