@@ -54,4 +54,28 @@ export class UpdateProductDto {
   @IsObject()
   @IsOptional()
   attributes?: Record<string, unknown>;
+
+  @IsString()
+  @IsOptional()
+  batchNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  rackNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  vendorName?: string;
+
+  @IsString()
+  @IsOptional()
+  mfgDate?: string;
+
+  @IsString()
+  @IsOptional()
+  purchaseInvoiceNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  purchaseInvoiceDate?: string;
 }
