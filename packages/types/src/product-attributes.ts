@@ -1,51 +1,66 @@
 import { z } from 'zod';
 
+const optionalNumber = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined || Number.isNaN(Number(val)) ? undefined : Number(val)),
+  z.number().positive().optional()
+);
+
+const optionalInt = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined || Number.isNaN(Number(val)) ? undefined : Number(val)),
+  z.number().int().positive().optional()
+);
+
+const optionalNonNegativeInt = z.preprocess(
+  (val) => (val === '' || val === null || val === undefined || Number.isNaN(Number(val)) ? undefined : Number(val)),
+  z.number().int().min(0).optional()
+);
+
 export const tabletCapsuleAttributesSchema = z.object({
-  dosageForm: z.string().min(1, 'Dosage form is required'),
-  strength: z.string().min(1, 'Strength is required'),
-  packSize: z.number().int().positive('Pack size must be a positive integer'),
-  stripCount: z.number().int().nonnegative().optional(),
-  manufacturer: z.string().min(1, 'Manufacturer name is required'),
-  prescriptionRequired: z.boolean().default(false),
-});
+  dosageForm: z.string().optional(),
+  strength: z.string().optional(),
+  packSize: optionalInt,
+  stripCount: optionalNonNegativeInt,
+  manufacturer: z.string().optional(),
+  prescriptionRequired: z.boolean().optional(),
+}).passthrough();
 
 export type TabletCapsuleAttributes = z.infer<typeof tabletCapsuleAttributesSchema>;
 
 export const syrupLiquidAttributesSchema = z.object({
-  volumeMl: z.number().positive('Volume in ML must be positive'),
+  volumeMl: optionalNumber,
   flavor: z.string().optional(),
   strength: z.string().optional(),
-  manufacturer: z.string().min(1, 'Manufacturer name is required'),
-  prescriptionRequired: z.boolean().default(false),
-});
+  manufacturer: z.string().optional(),
+  prescriptionRequired: z.boolean().optional(),
+}).passthrough();
 
 export type SyrupLiquidAttributes = z.infer<typeof syrupLiquidAttributesSchema>;
 
 export const injectionInfusionAttributesSchema = z.object({
-  volumeMl: z.number().positive().optional(),
-  route: z.string().min(1, 'Administration route is required'),
+  volumeMl: optionalNumber,
+  route: z.string().optional(),
   storageTemp: z.string().optional(),
-  manufacturer: z.string().min(1, 'Manufacturer name is required'),
-  prescriptionRequired: z.boolean().default(true),
-});
+  manufacturer: z.string().optional(),
+  prescriptionRequired: z.boolean().optional(),
+}).passthrough();
 
 export type InjectionInfusionAttributes = z.infer<typeof injectionInfusionAttributesSchema>;
 
 export const medicalDeviceAttributesSchema = z.object({
   modelNumber: z.string().optional(),
-  warrantyMonths: z.number().int().nonnegative().optional(),
+  warrantyMonths: optionalNonNegativeInt,
   powerSource: z.string().optional(),
-  manufacturer: z.string().min(1, 'Manufacturer name is required'),
-});
+  manufacturer: z.string().optional(),
+}).passthrough();
 
 export type MedicalDeviceAttributes = z.infer<typeof medicalDeviceAttributesSchema>;
 
 export const cosmeticsPersonalCareAttributesSchema = z.object({
-  volumeMl: z.number().positive().optional(),
-  weightGrams: z.number().positive().optional(),
+  volumeMl: optionalNumber,
+  weightGrams: optionalNumber,
   skinType: z.string().optional(),
-  manufacturer: z.string().min(1, 'Manufacturer name is required'),
-});
+  manufacturer: z.string().optional(),
+}).passthrough();
 
 export type CosmeticsPersonalCareAttributes = z.infer<typeof cosmeticsPersonalCareAttributesSchema>;
 

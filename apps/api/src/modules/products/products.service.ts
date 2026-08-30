@@ -18,16 +18,6 @@ export class ProductsService {
    * Create a new product and optional initial stock batch in a single flow
    */
   async createProduct(tenantId: string, dto: CreateProductDto) {
-    if (dto.attributes) {
-      const validation = validateProductAttributes(dto.category, dto.attributes);
-      if (!validation.success) {
-        throw new BadRequestException({
-          message: 'Invalid product category attributes',
-          errors: validation.error.format(),
-        });
-      }
-    }
-
     const mergedAttributes: Record<string, unknown> = {
       ...((dto.attributes as Record<string, unknown>) || {}),
       ...(dto.rackNumber ? { rackNumber: dto.rackNumber.trim() } : {}),
@@ -36,6 +26,17 @@ export class ProductsService {
       ...(dto.purchaseInvoiceNumber ? { purchaseInvoiceNumber: dto.purchaseInvoiceNumber.trim() } : {}),
       ...(dto.purchaseInvoiceDate ? { purchaseInvoiceDate: dto.purchaseInvoiceDate.trim() } : {}),
     };
+
+    if (Object.keys(mergedAttributes).length > 0) {
+      const validation = validateProductAttributes(dto.category, mergedAttributes);
+      if (!validation.success) {
+        console.error('Category Attributes Validation Error:', JSON.stringify(validation.error.flatten()));
+        throw new BadRequestException({
+          message: 'Invalid product category attributes',
+          errors: validation.error.flatten(),
+        });
+      }
+    }
 
     const product = await this.prisma.$transaction(async (tx) => {
       // 1. Create product catalog entry
@@ -52,19 +53,19 @@ export class ProductsService {
           isControlledSubstance: dto.isControlledSubstance ?? false,
           isActive: dto.isActive ?? true,
           lowStockThreshold: dto.lowStockThreshold ?? 10,
-          attributes: mergedAttributes as Prisma.InputJsonValue,
+          attributes: (mergedAttributes as Prisma.InputJsonValue) || {},
         },
       });
 
-      // 2. If initial stock quantity, prices, or expiry are provided, create initial Batch
-      const hasInitialStock =
-        (dto.initialStockQuantity !== undefined && dto.initialStockQuantity > 0) ||
-        dto.expiryDate ||
-        dto.costPrice !== undefined ||
-        dto.sellPrice !== undefined;
-
-      if (hasInitialStock) {
-        // Find or create default store for this tenant
+      // 2. If initial stock & batch info are provided, create the initial Batch
+      if (
+        dto.initialStockQuantity !== undefined &&
+        dto.initialStockQuantity > 0 &&
+        dto.costPrice !== undefined &&
+        dto.sellPrice !== undefined &&
+        dto.expiryDate
+      ) {
+        // Find or fallback to primary store for tenant
         let store = await tx.store.findFirst({
           where: { tenantId },
         });
@@ -73,31 +74,26 @@ export class ProductsService {
           store = await tx.store.create({
             data: {
               tenantId,
-              name: 'Main Store',
+              name: 'Main Pharmacy Store',
             },
           });
         }
 
-        const batchNo =
-          dto.batchNumber && dto.batchNumber.trim() !== ''
-            ? dto.batchNumber.trim()
-            : `B-${Math.floor(100000 + Math.random() * 900000)}`;
-
-        const expiry = dto.expiryDate
-          ? new Date(dto.expiryDate)
-          : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // default 1 yr
+        const generatedBatchNumber =
+          dto.batchNumber?.trim() ||
+          `BN-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`;
 
         await tx.batch.create({
           data: {
             tenantId,
             storeId: store.id,
             productId: createdProduct.id,
-            batchNumber: batchNo,
-            expiryDate: expiry,
-            costPrice: new Prisma.Decimal(dto.costPrice || 0),
-            sellPrice: new Prisma.Decimal(dto.sellPrice || 0),
-            quantityReceived: dto.initialStockQuantity || 0,
-            quantityRemaining: dto.initialStockQuantity || 0,
+            batchNumber: generatedBatchNumber,
+            expiryDate: new Date(dto.expiryDate),
+            costPrice: new Prisma.Decimal(dto.costPrice),
+            sellPrice: new Prisma.Decimal(dto.sellPrice),
+            quantityReceived: dto.initialStockQuantity,
+            quantityRemaining: dto.initialStockQuantity,
           },
         });
       }
@@ -105,106 +101,94 @@ export class ProductsService {
       return createdProduct;
     });
 
-    return {
-      success: true,
-      message: 'Product catalog & initial stock entry created successfully',
-      data: product,
-    };
+    return this.getProductById(tenantId, product.id);
   }
 
   /**
-   * List products for a tenant with search, filtering, pagination, and stock aggregates
+   * Query products with pagination, search, category filter, and low stock status
    */
-  async findAllProducts(tenantId: string, query: QueryProductsDto) {
-    const page = Math.max(1, query.page || 1);
-    const limit = Math.max(1, Math.min(100, query.limit || 20));
+  async getProducts(tenantId: string, query: QueryProductsDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ProductWhereInput = {
       tenantId,
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { genericName: { contains: query.search, mode: 'insensitive' } },
+              { barcode: { contains: query.search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     };
 
-    if (query.category) {
-      where.category = query.category;
-    }
-
-    if (query.isControlledSubstance !== undefined) {
-      where.isControlledSubstance = query.isControlledSubstance;
-    }
-
-    if (query.isActive !== undefined) {
-      where.isActive = query.isActive;
-    }
-
-    if (query.search && query.search.trim() !== '') {
-      const searchTerm = query.search.trim();
-      where.OR = [
-        { name: { contains: searchTerm, mode: 'insensitive' } },
-        { genericName: { contains: searchTerm, mode: 'insensitive' } },
-        { barcode: { contains: searchTerm, mode: 'insensitive' } },
-        { category: { contains: searchTerm, mode: 'insensitive' } },
-      ];
-    }
-
-    const [products, total] = await Promise.all([
+    const [total, products] = await Promise.all([
+      this.prisma.product.count({ where }),
       this.prisma.product.findMany({
         where,
         skip,
         take: limit,
+        orderBy: { createdAt: 'desc' },
         include: {
           batches: {
-            select: {
-              quantityRemaining: true,
-              costPrice: true,
-              sellPrice: true,
-              expiryDate: true,
-              batchNumber: true,
-            },
+            where: { quantityRemaining: { gt: 0 } },
+            orderBy: { expiryDate: 'asc' },
           },
         },
-        orderBy: { updatedAt: 'desc' },
       }),
-      this.prisma.product.count({ where }),
     ]);
 
-    // Map products to include computed total stock quantity and latest selling price
-    const mappedProducts = products.map((prod) => {
-      const totalStock = prod.batches.reduce(
-        (sum, b) => sum + b.quantityRemaining,
-        0,
+    const items = products.map((product) => {
+      const totalStock = product.batches.reduce(
+        (sum, batch) => sum + batch.quantityRemaining,
+        0
       );
-      const latestBatch = prod.batches[0];
+      const isLowStock = totalStock <= product.lowStockThreshold;
+      const latestBatch = product.batches[0] || null;
+
       return {
-        ...prod,
+        ...product,
         totalStock,
-        latestSellPrice: latestBatch ? Number(latestBatch.sellPrice) : null,
+        isLowStock,
         latestCostPrice: latestBatch ? Number(latestBatch.costPrice) : null,
+        latestSellPrice: latestBatch ? Number(latestBatch.sellPrice) : null,
+        nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
       };
     });
 
     const totalPages = Math.ceil(total / limit);
 
     return {
-      success: true,
-      data: mappedProducts,
+      data: items,
       meta: {
         total,
         page,
         limit,
         totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
       },
     };
   }
 
   /**
-   * Find a single product by ID including batches
+   * Alias for getProducts
    */
-  async findOneProduct(tenantId: string, id: string) {
+  async findAllProducts(tenantId: string, query: QueryProductsDto) {
+    return this.getProducts(tenantId, query);
+  }
+
+  /**
+   * Get a single product by ID with stock batches
+   */
+  async getProductById(tenantId: string, id: string) {
     const product = await this.prisma.product.findFirst({
-      where: {
-        id,
-        tenantId,
-      },
+      where: { id, tenantId },
       include: {
         batches: {
           orderBy: { expiryDate: 'asc' },
@@ -213,82 +197,94 @@ export class ProductsService {
     });
 
     if (!product) {
-      throw new NotFoundException(`Product with ID '${id}' not found`);
+      throw new NotFoundException(`Product with ID "${id}" not found`);
     }
 
     const totalStock = product.batches.reduce(
-      (sum, b) => sum + b.quantityRemaining,
-      0,
+      (sum, batch) => sum + batch.quantityRemaining,
+      0
     );
+    const isLowStock = totalStock <= product.lowStockThreshold;
+    const latestBatch = product.batches.find((b) => b.quantityRemaining > 0) || product.batches[0] || null;
 
     return {
-      success: true,
-      data: {
-        ...product,
-        totalStock,
-      },
+      ...product,
+      totalStock,
+      isLowStock,
+      latestCostPrice: latestBatch ? Number(latestBatch.costPrice) : null,
+      latestSellPrice: latestBatch ? Number(latestBatch.sellPrice) : null,
+      nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
     };
   }
 
   /**
-   * Update an existing product
+   * Alias for getProductById
+   */
+  async findOneProduct(tenantId: string, id: string) {
+    return this.getProductById(tenantId, id);
+  }
+
+  /**
+   * Update catalog product details
    */
   async updateProduct(tenantId: string, id: string, dto: UpdateProductDto) {
-    const existing = await this.findOneProduct(tenantId, id);
+    const existingProduct = await this.getProductById(tenantId, id);
 
-    const categoryToValidate = dto.category || existing.data.category;
-
-    if (dto.attributes && categoryToValidate) {
-      const validation = validateProductAttributes(categoryToValidate, dto.attributes);
-      if (!validation.success) {
-        throw new BadRequestException({
-          message: 'Invalid product category attributes',
-          errors: validation.error.format(),
-        });
-      }
-    }
-
-    const updateData: Prisma.ProductUpdateInput = {
-      ...(dto.name !== undefined && { name: dto.name.trim() }),
-      ...(dto.genericName !== undefined && { genericName: dto.genericName ? dto.genericName.trim() : null }),
-      ...(dto.category !== undefined && { category: dto.category.trim() }),
-      ...(dto.unit !== undefined && { unit: dto.unit.trim() }),
-      ...(dto.barcode !== undefined && { barcode: dto.barcode ? dto.barcode.trim() : null }),
-      ...(dto.images !== undefined && { images: dto.images }),
-      ...(dto.taxCode !== undefined && { taxCode: dto.taxCode ? dto.taxCode.trim() : null }),
-      ...(dto.isControlledSubstance !== undefined && { isControlledSubstance: dto.isControlledSubstance }),
-      ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-      ...(dto.lowStockThreshold !== undefined && { lowStockThreshold: dto.lowStockThreshold }),
-      ...(dto.attributes !== undefined && { attributes: dto.attributes as Prisma.InputJsonValue }),
+    const existingAttrs = (existingProduct.attributes as Record<string, unknown>) || {};
+    const mergedAttributes: Record<string, unknown> = {
+      ...existingAttrs,
+      ...((dto.attributes as Record<string, unknown>) || {}),
+      ...(dto.rackNumber !== undefined ? { rackNumber: dto.rackNumber?.trim() || null } : {}),
+      ...(dto.vendorName !== undefined ? { vendorName: dto.vendorName?.trim() || null } : {}),
+      ...(dto.mfgDate !== undefined ? { mfgDate: dto.mfgDate?.trim() || null } : {}),
+      ...(dto.purchaseInvoiceNumber !== undefined ? { purchaseInvoiceNumber: dto.purchaseInvoiceNumber?.trim() || null } : {}),
+      ...(dto.purchaseInvoiceDate !== undefined ? { purchaseInvoiceDate: dto.purchaseInvoiceDate?.trim() || null } : {}),
     };
+
+    const category = dto.category?.trim() || existingProduct.category || 'GENERAL_ITEM';
+    const validation = validateProductAttributes(category, mergedAttributes);
+
+    if (!validation.success) {
+      throw new BadRequestException({
+        message: 'Invalid product category attributes',
+        errors: validation.error.flatten(),
+      });
+    }
 
     const updatedProduct = await this.prisma.product.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...(dto.name ? { name: dto.name.trim() } : {}),
+        ...(dto.genericName !== undefined ? { genericName: dto.genericName?.trim() || null } : {}),
+        ...(dto.category ? { category: dto.category.trim() } : {}),
+        ...(dto.unit ? { unit: dto.unit.trim() } : {}),
+        ...(dto.barcode !== undefined ? { barcode: dto.barcode?.trim() || null } : {}),
+        ...(dto.images ? { images: dto.images } : {}),
+        ...(dto.taxCode !== undefined ? { taxCode: dto.taxCode?.trim() || null } : {}),
+        ...(dto.isControlledSubstance !== undefined ? { isControlledSubstance: dto.isControlledSubstance } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...(dto.lowStockThreshold !== undefined ? { lowStockThreshold: dto.lowStockThreshold } : {}),
+        attributes: (mergedAttributes as Prisma.InputJsonValue) || {},
+      },
     });
 
-    return {
-      success: true,
-      message: 'Product updated successfully',
-      data: updatedProduct,
-    };
+    return this.getProductById(tenantId, updatedProduct.id);
   }
 
   /**
-   * Soft-delete or archive a product by setting isActive to false
+   * Soft delete / deactivate a product
    */
   async deleteProduct(tenantId: string, id: string) {
-    await this.findOneProduct(tenantId, id);
+    await this.getProductById(tenantId, id);
 
-    const updatedProduct = await this.prisma.product.update({
+    await this.prisma.product.update({
       where: { id },
       data: { isActive: false },
     });
 
     return {
       success: true,
-      message: 'Product archived successfully',
-      data: updatedProduct,
+      message: 'Product deactivated successfully',
     };
   }
 }
