@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Package,
@@ -10,7 +9,9 @@ import {
   Search,
   Filter,
   Pill,
-  ShieldAlert,
+  Syringe,
+  Droplet,
+  Stethoscope,
   Edit,
   Trash2,
   ChevronLeft,
@@ -18,11 +19,10 @@ import {
   Loader2,
   RefreshCw,
   AlertCircle,
-  Boxes,
   Calendar,
-  Sparkles,
+  LucideIcon,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -44,8 +44,404 @@ import {
 import { productsApi, type ProductData } from '../services/products-api';
 import { PRODUCT_CATEGORIES } from '../schemas/product-schema';
 
+// ==========================================
+// 1. Helper Utilities (SRP & Pure Functions)
+// ==========================================
+
+export function formatCategory(catVal: string): string {
+  const found = PRODUCT_CATEGORIES.find((c) => c.value === catVal);
+  return found ? found.label : catVal;
+}
+
+export function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return 'N/A';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+interface MedicineIconConfig {
+  Icon: LucideIcon;
+  bgClass: string;
+}
+
+export function getMedicineIconConfig(
+  category: string,
+  name?: string,
+  unit?: string,
+): MedicineIconConfig {
+  const upperCat = (category || '').toUpperCase();
+  const upperName = (name || '').toUpperCase();
+  const upperUnit = (unit || '').toUpperCase();
+
+  // Injections & IV Infusions or Vials/Ampoules/Pens
+  if (
+    upperCat.includes('INJECTION') ||
+    upperCat.includes('INFUSION') ||
+    upperUnit === 'VIAL' ||
+    upperUnit === 'AMPOULE' ||
+    upperName.includes('INJECTION') ||
+    upperName.includes('PEN')
+  ) {
+    return {
+      Icon: Syringe,
+      bgClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 dark:bg-rose-500/20',
+    };
+  }
+
+  // Syrups & Liquids or Drops & Bottles
+  if (
+    upperCat.includes('SYRUP') ||
+    upperCat.includes('LIQUID') ||
+    upperUnit === 'BOTTLE' ||
+    upperName.includes('SYRUP') ||
+    upperName.includes('DROPS') ||
+    upperName.includes('SUSPENSION') ||
+    upperName.includes('ELIXIR')
+  ) {
+    return {
+      Icon: Droplet,
+      bgClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 dark:bg-amber-500/20',
+    };
+  }
+
+  // Medical Devices & Equipment / Monitors
+  if (
+    upperCat.includes('DEVICE') ||
+    upperCat.includes('EQUIPMENT') ||
+    upperName.includes('MONITOR') ||
+    upperName.includes('THERMOMETER') ||
+    upperName.includes('BP') ||
+    upperName.includes('PULSE')
+  ) {
+    return {
+      Icon: Stethoscope,
+      bgClass: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 dark:bg-indigo-500/20',
+    };
+  }
+
+  // General OTC / Protection / Mask / Supplies
+  if (
+    upperCat.includes('GENERAL') ||
+    upperCat.includes('COSMETICS') ||
+    upperName.includes('MASK') ||
+    upperName.includes('BANDAGE') ||
+    upperName.includes('SUPPLY')
+  ) {
+    return {
+      Icon: Package,
+      bgClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 dark:bg-purple-500/20',
+    };
+  }
+
+  // Default Tablets / Capsules / Pills
+  return {
+    Icon: Pill,
+    bgClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 dark:bg-teal-500/20',
+  };
+}
+
+// ==========================================
+// 2. Shared Sub-Components (DRY & SRP)
+// ==========================================
+
+function StockStatusBadge({
+  totalStock,
+  lowStockThreshold,
+}: {
+  totalStock: number;
+  lowStockThreshold: number;
+}) {
+  if (totalStock === 0) {
+    return (
+      <Badge variant="destructive" className="text-[10px]">
+        Out of Stock
+      </Badge>
+    );
+  }
+  if (totalStock <= lowStockThreshold) {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]"
+      >
+        Low Stock
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]"
+    >
+      Healthy
+    </Badge>
+  );
+}
+
+function ProductTableRow({
+  product,
+  onDelete,
+}: {
+  product: ProductData;
+  onDelete: (product: ProductData) => void;
+}) {
+  const totalStock = product.totalStock ?? 0;
+  const iconConfig = getMedicineIconConfig(product.category, product.name, product.unit);
+  const CategoryIcon = iconConfig.Icon;
+
+  return (
+    <tr className="hover:bg-muted/30 transition-colors">
+      {/* Medicine Name & Formula */}
+      <td className="py-3 px-4">
+        <div className="flex items-start gap-2.5">
+          <div
+            className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${iconConfig.bgClass}`}
+          >
+            <CategoryIcon className="size-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-semibold text-foreground flex items-center gap-1.5">
+              <span className="truncate">{product.name}</span>
+              {product.isControlledSubstance && (
+                <Badge
+                  variant="outline"
+                  className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0 font-medium shrink-0"
+                  title="Controlled Substance (Schedule Rx)"
+                >
+                  Rx
+                </Badge>
+              )}
+            </div>
+            {product.genericName && (
+              <p className="text-xs text-muted-foreground truncate">{product.genericName}</p>
+            )}
+            {product.barcode && (
+              <p className="text-[11px] text-muted-foreground/70 font-mono truncate">
+                {product.barcode}
+              </p>
+            )}
+          </div>
+        </div>
+      </td>
+
+      {/* Category & Unit */}
+      <td className="py-3 px-4">
+        <div className="space-y-1">
+          <Badge variant="secondary" className="text-[11px] font-medium">
+            {formatCategory(product.category)}
+          </Badge>
+          <p className="text-xs text-muted-foreground">
+            Unit: <strong>{product.unit}</strong>
+          </p>
+        </div>
+      </td>
+
+      {/* Stock Level & Status */}
+      <td className="py-3 px-4">
+        <div className="space-y-1">
+          <div className="font-bold text-foreground">
+            {totalStock} <span className="text-xs font-normal text-muted-foreground">{product.unit}s</span>
+          </div>
+          <StockStatusBadge totalStock={totalStock} lowStockThreshold={product.lowStockThreshold} />
+        </div>
+      </td>
+
+      {/* Pricing */}
+      <td className="py-3 px-4">
+        <div className="text-xs space-y-0.5">
+          <div>
+            <span className="text-muted-foreground">MRP: </span>
+            <strong className="text-foreground">
+              {product.latestSellPrice !== null && product.latestSellPrice !== undefined
+                ? `PKR ${product.latestSellPrice.toFixed(2)}`
+                : 'N/A'}
+            </strong>
+          </div>
+          {product.latestCostPrice !== null && product.latestCostPrice !== undefined && (
+            <div className="text-muted-foreground text-[11px]">
+              Cost: PKR {product.latestCostPrice.toFixed(2)}
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* Nearest Expiry */}
+      <td className="py-3 px-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="size-3.5 text-muted-foreground/70" />
+          <span>{formatDate(product.nearestExpiryDate)}</span>
+        </div>
+      </td>
+
+      {/* Actions */}
+      <td className="py-3 px-4 text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button asChild variant="ghost" size="icon" className="size-8 text-muted-foreground">
+            <Link href={`/inventory/${product.id}/edit`} title="Edit Product">
+              <Edit className="size-4" />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(product)}
+            className="size-8 text-destructive hover:bg-destructive/10"
+            title="Deactivate Product"
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ProductCardItem({
+  product,
+  onDelete,
+}: {
+  product: ProductData;
+  onDelete: (product: ProductData) => void;
+}) {
+  const totalStock = product.totalStock ?? 0;
+  const iconConfig = getMedicineIconConfig(product.category, product.name, product.unit);
+  const CategoryIcon = iconConfig.Icon;
+
+  return (
+    <Card className="shadow-xs border-border">
+      <CardContent className="p-3.5 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <div
+              className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${iconConfig.bgClass}`}
+            >
+              <CategoryIcon className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
+              {product.genericName && (
+                <p className="text-xs text-muted-foreground truncate">{product.genericName}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button asChild variant="ghost" size="icon" className="size-7 text-muted-foreground">
+              <Link href={`/inventory/${product.id}/edit`}>
+                <Edit className="size-3.5" />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(product)}
+              className="size-7 text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="secondary" className="text-[10px]">
+            {formatCategory(product.category)}
+          </Badge>
+          {product.isControlledSubstance && (
+            <Badge
+              variant="outline"
+              className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]"
+            >
+              Rx Schedule
+            </Badge>
+          )}
+          <StockStatusBadge totalStock={totalStock} lowStockThreshold={product.lowStockThreshold} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
+          <div>
+            <span className="text-muted-foreground block text-[11px]">Stock Level</span>
+            <span className="font-bold text-foreground">
+              {totalStock} {product.unit}s
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground block text-[11px]">Retail MRP</span>
+            <span className="font-semibold text-foreground">
+              {product.latestSellPrice !== null && product.latestSellPrice !== undefined
+                ? `PKR ${product.latestSellPrice.toFixed(2)}`
+                : 'N/A'}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProductDeactivationModal({
+  isOpen,
+  product,
+  isDeleting,
+  onClose,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  product: ProductData | null;
+  isDeleting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Deactivate Medicine Product</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to deactivate <strong>{product?.name}</strong>? Deactivating will hide
+            it from active POS sales while preserving stock audit records.
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="gap-2"
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>Deactivating...</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="size-4" />
+                <span>Deactivate</span>
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ==========================================
+// 3. Main Container Component
+// ==========================================
+
 export function ProductList() {
-  const router = useRouter();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -136,50 +532,32 @@ export function ProductList() {
     }
   };
 
-  // Helper formatting functions
-  const formatCategory = (catVal: string) => {
-    const found = PRODUCT_CATEGORIES.find((c) => c.value === catVal);
-    return found ? found.label : catVal;
-  };
-
-  const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return 'N/A';
-    try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Package className="size-6 text-primary shrink-0" />
+            <Package className="size-6 text-primary" />
             <span>Inventory Catalog</span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Manage pharmacy products, batches, stock levels, and FEFO expiry tracking.
           </p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchProducts()}
+            onClick={fetchProducts}
             disabled={isLoading}
-            className="size-9 p-0 shrink-0"
-            title="Refresh List"
+            className="h-9 px-3 gap-1.5"
+            title="Refresh inventory list"
           >
             <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-          <Button asChild size="sm" className="w-full sm:w-auto gap-2">
+          <Button asChild size="sm" className="h-9 px-3 gap-1.5">
             <Link href="/inventory/new">
               <Plus className="size-4" />
               <span>Add New Product</span>
@@ -188,13 +566,14 @@ export function ProductList() {
         </div>
       </div>
 
-      {/* Filter & Search Bar Card */}
-      <Card className="shadow-xs bg-card">
-        <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row items-center gap-3">
+      {/* Search & Filter Bar */}
+      <Card className="shadow-xs border-border">
+        <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
           {/* Search Input */}
-          <div className="relative flex-1 w-full">
+          <div className="relative w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search medicine name, generic formula, barcode..."
@@ -297,137 +676,9 @@ export function ProductList() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {products.map((prod) => {
-                    const totalStock = prod.totalStock ?? 0;
-                    const isLowStock = totalStock <= prod.lowStockThreshold;
-                    const isOutOfStock = totalStock === 0;
-
-                    return (
-                      <tr key={prod.id} className="hover:bg-muted/30 transition-colors">
-                        {/* Medicine Name & Formula */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-start gap-2.5">
-                            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                              <Pill className="size-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-semibold text-foreground flex items-center gap-1.5">
-                                <span className="truncate">{prod.name}</span>
-                                {prod.isControlledSubstance && (
-                                  <Badge
-                                    variant="outline"
-                                    className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0 font-medium shrink-0"
-                                    title="Controlled Substance (Schedule Rx)"
-                                  >
-                                    Rx
-                                  </Badge>
-                                )}
-                              </div>
-                              {prod.genericName && (
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {prod.genericName}
-                                </p>
-                              )}
-                              {prod.barcode && (
-                                <p className="text-[11px] text-muted-foreground/70 font-mono truncate">
-                                  {prod.barcode}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Category & Unit */}
-                        <td className="py-3 px-4">
-                          <div className="space-y-1">
-                            <Badge variant="secondary" className="text-[11px] font-medium">
-                              {formatCategory(prod.category)}
-                            </Badge>
-                            <p className="text-xs text-muted-foreground">
-                              Unit: <strong>{prod.unit}</strong>
-                            </p>
-                          </div>
-                        </td>
-
-                        {/* Stock Level */}
-                        <td className="py-3 px-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-foreground text-sm">
-                                {totalStock}
-                              </span>
-                              <span className="text-xs text-muted-foreground">{prod.unit}s</span>
-                            </div>
-                            {isOutOfStock ? (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                Out of Stock
-                              </Badge>
-                            ) : isLowStock ? (
-                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] px-1.5 py-0">
-                                Low Stock
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] px-1.5 py-0">
-                                Healthy
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Prices */}
-                        <td className="py-3 px-4">
-                          <div className="text-xs space-y-0.5">
-                            <div className="font-medium text-foreground">
-                              MRP:{' '}
-                              {prod.latestSellPrice !== null && prod.latestSellPrice !== undefined
-                                ? `PKR ${prod.latestSellPrice.toFixed(2)}`
-                                : 'N/A'}
-                            </div>
-                            <div className="text-muted-foreground text-[11px]">
-                              Cost:{' '}
-                              {prod.latestCostPrice !== null && prod.latestCostPrice !== undefined
-                                ? `PKR ${prod.latestCostPrice.toFixed(2)}`
-                                : 'N/A'}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Nearest Expiry */}
-                        <td className="py-3 px-4">
-                          <div className="text-xs flex items-center gap-1.5 text-muted-foreground">
-                            <Calendar className="size-3.5 text-primary shrink-0" />
-                            <span>{formatDate((prod as any).nearestExpiryDate)}</span>
-                          </div>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              asChild
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground hover:text-foreground"
-                              title="Edit Medicine"
-                            >
-                              <Link href={`/inventory/${prod.id}/edit`}>
-                                <Edit className="size-4" />
-                              </Link>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => confirmDelete(prod)}
-                              className="size-8 text-destructive hover:bg-destructive/10"
-                              title="Deactivate Product"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {products.map((prod) => (
+                    <ProductTableRow key={prod.id} product={prod} onDelete={confirmDelete} />
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -435,110 +686,24 @@ export function ProductList() {
 
           {/* Mobile Card List (Visible on < md) */}
           <div className="md:hidden space-y-3">
-            {products.map((prod) => {
-              const totalStock = prod.totalStock ?? 0;
-              const isLowStock = totalStock <= prod.lowStockThreshold;
-              const isOutOfStock = totalStock === 0;
-
-              return (
-                <Card key={prod.id} className="shadow-xs border-border">
-                  <CardContent className="p-3.5 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <Pill className="size-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-sm text-foreground truncate">
-                            {prod.name}
-                          </h3>
-                          {prod.genericName && (
-                            <p className="text-xs text-muted-foreground truncate">
-                              {prod.genericName}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-muted-foreground"
-                        >
-                          <Link href={`/inventory/${prod.id}/edit`}>
-                            <Edit className="size-3.5" />
-                          </Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => confirmDelete(prod)}
-                          className="size-7 text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="secondary" className="text-[10px]">
-                        {formatCategory(prod.category)}
-                      </Badge>
-                      {prod.isControlledSubstance && (
-                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]">
-                          Rx Schedule
-                        </Badge>
-                      )}
-                      {isOutOfStock ? (
-                        <Badge variant="destructive" className="text-[10px]">
-                          Out of Stock
-                        </Badge>
-                      ) : isLowStock ? (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
-                          Low Stock
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
-                          Healthy
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Stock Level</span>
-                        <span className="font-bold text-foreground">{totalStock} {prod.unit}s</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[11px]">Retail MRP</span>
-                        <span className="font-semibold text-foreground">
-                          {prod.latestSellPrice !== null && prod.latestSellPrice !== undefined
-                            ? `PKR ${prod.latestSellPrice.toFixed(2)}`
-                            : 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {products.map((prod) => (
+              <ProductCardItem key={prod.id} product={prod} onDelete={confirmDelete} />
+            ))}
           </div>
 
-          {/* Pagination Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <p className="text-xs text-muted-foreground">
-              Showing <strong>{products.length}</strong> of <strong>{meta.total}</strong> products
-              (Page <strong>{page}</strong> of <strong>{meta.totalPages}</strong>)
-            </p>
-
+          {/* Pagination Footer */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground pt-2">
+            <div>
+              Showing <strong>{products.length}</strong> of <strong>{meta.total}</strong> products (Page{' '}
+              <strong>{page}</strong> of <strong>{meta.totalPages}</strong>)
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={!meta.hasPrevPage || isLoading}
-                className="h-8 gap-1 text-xs"
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                disabled={page <= 1 || isLoading}
+                className="h-8 px-2.5 gap-1 text-xs"
               >
                 <ChevronLeft className="size-3.5" />
                 <span>Previous</span>
@@ -546,9 +711,9 @@ export function ProductList() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={!meta.hasNextPage || isLoading}
-                className="h-8 gap-1 text-xs"
+                onClick={() => setPage((p) => Math.min(p + 1, meta.totalPages))}
+                disabled={page >= meta.totalPages || isLoading}
+                className="h-8 px-2.5 gap-1 text-xs"
               >
                 <span>Next</span>
                 <ChevronRight className="size-3.5" />
@@ -558,50 +723,14 @@ export function ProductList() {
         </div>
       )}
 
-      {/* Deactivation Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <ShieldAlert className="size-5 shrink-0" />
-              <span>Deactivate Product?</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
-              Are you sure you want to deactivate <strong>{deletingProduct?.name}</strong>? Deactivating will hide it from active POS sales while preserving stock audit records.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="gap-2"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>Deactivating...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 className="size-4" />
-                  <span>Deactivate</span>
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Deactivation Modal */}
+      <ProductDeactivationModal
+        isOpen={deleteDialogOpen}
+        product={deletingProduct}
+        isDeleting={isDeleting}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
