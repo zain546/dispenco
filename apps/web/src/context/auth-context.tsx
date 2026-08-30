@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 import { authApi } from '@/features/auth/services/auth-api';
 
 export interface UserSession {
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setStoreName('');
+      Cookies.remove('dispenco_access_token');
       localStorage.removeItem(AUTH_STORAGE_KEY);
       localStorage.removeItem(STORE_STORAGE_KEY);
       router.push('/login');

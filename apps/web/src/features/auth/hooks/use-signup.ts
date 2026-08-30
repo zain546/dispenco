@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 import { useAuth } from '@/context/auth-context';
 import { signupSchema, type SignupFormData } from '../schemas';
 import { authApi } from '../services/auth-api';
@@ -29,6 +30,9 @@ export function useSignup() {
 
     try {
       const res = await authApi.signup(values);
+      if (res.accessToken) {
+        Cookies.set('dispenco_access_token', res.accessToken, { expires: 1 });
+      }
       login(res.user, res.user.storeName || undefined);
       
       if (!res.user.storeName) {

@@ -120,7 +120,7 @@ export class AuthService {
     };
 
     const { accessToken, refreshToken } = this.generateTokens(payload);
-    this.setRefreshTokenCookie(res, refreshToken);
+    this.setAuthCookies(res, accessToken, refreshToken);
 
     return {
       success: true,
@@ -190,7 +190,7 @@ export class AuthService {
     };
 
     const { accessToken, refreshToken } = this.generateTokens(payload);
-    this.setRefreshTokenCookie(res, refreshToken);
+    this.setAuthCookies(res, accessToken, refreshToken);
 
     return {
       success: true,
@@ -258,7 +258,7 @@ export class AuthService {
       };
 
       const { accessToken, refreshToken: newRefreshToken } = this.generateTokens(newPayload);
-      this.setRefreshTokenCookie(res, newRefreshToken);
+      this.setAuthCookies(res, accessToken, newRefreshToken);
 
       return {
         success: true,
@@ -283,7 +283,13 @@ export class AuthService {
     res.clearCookie('refresh_token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
+    });
+
+    res.clearCookie('dispenco_access_token', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
     });
 
     return {
@@ -302,18 +308,33 @@ export class AuthService {
     }
   }
 
+  /**
+   * Generate short-lived Access Token (1 day) and long-lived Refresh Token (30 days / 1 month)
+   */
   private generateTokens(payload: JwtPayload) {
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '1d' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
     return { accessToken, refreshToken };
   }
 
-  private setRefreshTokenCookie(res: Response, token: string) {
-    res.cookie('refresh_token', token, {
+  /**
+   * Set HTTP cookies: Access token expires in 1 day; Refresh token expires in 30 days
+   */
+  private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+    // 1-Day Access Token Cookie
+    res.cookie('dispenco_access_token', accessToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 3600 * 1000, // 1 day
+    });
+
+    // 30-Day (1 Month) Refresh Token HTTP-Only Cookie
+    res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 3600 * 1000, // 7 days
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 3600 * 1000, // 30 days (1 month)
     });
   }
 }
