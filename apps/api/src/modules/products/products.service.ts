@@ -15,7 +15,7 @@ export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Create a new product scoped to a tenant
+   * Create a new product and optional initial stock batch in a single flow
    */
   async createProduct(tenantId: string, dto: CreateProductDto) {
     if (dto.attributes) {
@@ -28,32 +28,92 @@ export class ProductsService {
       }
     }
 
-    const product = await this.prisma.product.create({
-      data: {
-        tenantId,
-        name: dto.name.trim(),
-        genericName: dto.genericName?.trim() || null,
-        category: dto.category.trim(),
-        unit: dto.unit.trim(),
-        barcode: dto.barcode?.trim() || null,
-        images: dto.images || [],
-        taxCode: dto.taxCode?.trim() || null,
-        isControlledSubstance: dto.isControlledSubstance ?? false,
-        isActive: dto.isActive ?? true,
-        lowStockThreshold: dto.lowStockThreshold ?? 10,
-        attributes: (dto.attributes as Prisma.InputJsonValue) || {},
-      },
+    const mergedAttributes: Record<string, unknown> = {
+      ...((dto.attributes as Record<string, unknown>) || {}),
+      ...(dto.rackNumber ? { rackNumber: dto.rackNumber.trim() } : {}),
+      ...(dto.vendorName ? { vendorName: dto.vendorName.trim() } : {}),
+      ...(dto.mfgDate ? { mfgDate: dto.mfgDate.trim() } : {}),
+      ...(dto.purchaseInvoiceNumber ? { purchaseInvoiceNumber: dto.purchaseInvoiceNumber.trim() } : {}),
+      ...(dto.purchaseInvoiceDate ? { purchaseInvoiceDate: dto.purchaseInvoiceDate.trim() } : {}),
+    };
+
+    const product = await this.prisma.$transaction(async (tx) => {
+      // 1. Create product catalog entry
+      const createdProduct = await tx.product.create({
+        data: {
+          tenantId,
+          name: dto.name.trim(),
+          genericName: dto.genericName?.trim() || null,
+          category: dto.category.trim(),
+          unit: dto.unit.trim(),
+          barcode: dto.barcode?.trim() || null,
+          images: dto.images || [],
+          taxCode: dto.taxCode?.trim() || null,
+          isControlledSubstance: dto.isControlledSubstance ?? false,
+          isActive: dto.isActive ?? true,
+          lowStockThreshold: dto.lowStockThreshold ?? 10,
+          attributes: mergedAttributes as Prisma.InputJsonValue,
+        },
+      });
+
+      // 2. If initial stock quantity, prices, or expiry are provided, create initial Batch
+      const hasInitialStock =
+        (dto.initialStockQuantity !== undefined && dto.initialStockQuantity > 0) ||
+        dto.expiryDate ||
+        dto.costPrice !== undefined ||
+        dto.sellPrice !== undefined;
+
+      if (hasInitialStock) {
+        // Find or create default store for this tenant
+        let store = await tx.store.findFirst({
+          where: { tenantId },
+        });
+
+        if (!store) {
+          store = await tx.store.create({
+            data: {
+              tenantId,
+              name: 'Main Store',
+            },
+          });
+        }
+
+        const batchNo =
+          dto.batchNumber && dto.batchNumber.trim() !== ''
+            ? dto.batchNumber.trim()
+            : `B-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        const expiry = dto.expiryDate
+          ? new Date(dto.expiryDate)
+          : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // default 1 yr
+
+        await tx.batch.create({
+          data: {
+            tenantId,
+            storeId: store.id,
+            productId: createdProduct.id,
+            batchNumber: batchNo,
+            expiryDate: expiry,
+            costPrice: new Prisma.Decimal(dto.costPrice || 0),
+            sellPrice: new Prisma.Decimal(dto.sellPrice || 0),
+            quantityReceived: dto.initialStockQuantity || 0,
+            quantityRemaining: dto.initialStockQuantity || 0,
+          },
+        });
+      }
+
+      return createdProduct;
     });
 
     return {
       success: true,
-      message: 'Product created successfully',
+      message: 'Product catalog & initial stock entry created successfully',
       data: product,
     };
   }
 
   /**
-   * List products for a tenant with search, filtering, and pagination
+   * List products for a tenant with search, filtering, pagination, and stock aggregates
    */
   async findAllProducts(tenantId: string, query: QueryProductsDto) {
     const page = Math.max(1, query.page || 1);
@@ -91,16 +151,42 @@ export class ProductsService {
         where,
         skip,
         take: limit,
+        include: {
+          batches: {
+            select: {
+              quantityRemaining: true,
+              costPrice: true,
+              sellPrice: true,
+              expiryDate: true,
+              batchNumber: true,
+            },
+          },
+        },
         orderBy: { updatedAt: 'desc' },
       }),
       this.prisma.product.count({ where }),
     ]);
 
+    // Map products to include computed total stock quantity and latest selling price
+    const mappedProducts = products.map((prod) => {
+      const totalStock = prod.batches.reduce(
+        (sum, b) => sum + b.quantityRemaining,
+        0,
+      );
+      const latestBatch = prod.batches[0];
+      return {
+        ...prod,
+        totalStock,
+        latestSellPrice: latestBatch ? Number(latestBatch.sellPrice) : null,
+        latestCostPrice: latestBatch ? Number(latestBatch.costPrice) : null,
+      };
+    });
+
     const totalPages = Math.ceil(total / limit);
 
     return {
       success: true,
-      data: products,
+      data: mappedProducts,
       meta: {
         total,
         page,
@@ -111,7 +197,7 @@ export class ProductsService {
   }
 
   /**
-   * Find a single product by ID
+   * Find a single product by ID including batches
    */
   async findOneProduct(tenantId: string, id: string) {
     const product = await this.prisma.product.findFirst({
@@ -119,15 +205,28 @@ export class ProductsService {
         id,
         tenantId,
       },
+      include: {
+        batches: {
+          orderBy: { expiryDate: 'asc' },
+        },
+      },
     });
 
     if (!product) {
       throw new NotFoundException(`Product with ID '${id}' not found`);
     }
 
+    const totalStock = product.batches.reduce(
+      (sum, b) => sum + b.quantityRemaining,
+      0,
+    );
+
     return {
       success: true,
-      data: product,
+      data: {
+        ...product,
+        totalStock,
+      },
     };
   }
 
