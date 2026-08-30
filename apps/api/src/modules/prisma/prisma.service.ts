@@ -7,7 +7,8 @@ import { Pool } from 'pg';
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
     const connectionString =
-      process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/dispenco?schema=public';
+      process.env.DATABASE_URL ||
+      'postgresql://dispenco_user:dispenco_password@localhost:5432/dispenco_db?schema=public';
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
     super({ adapter });
