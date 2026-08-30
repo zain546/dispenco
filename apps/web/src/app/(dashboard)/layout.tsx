@@ -8,6 +8,7 @@ import {
   Package,
   ShoppingCart,
   Truck,
+  Users,
   BarChart3,
   Settings,
   LogOut,
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'POS Counter', href: '/pos', icon: ShoppingCart },
   { name: 'Purchases', href: '/purchases', icon: Truck },
+  { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -37,7 +39,7 @@ export default function DashboardLayout({
   const { user, storeName, logout } = useAuth();
 
   const userName = user?.name || 'Owner Pharmacy';
-  const displayStoreName = storeName || user?.storeName || 'Main Branch — Blue Area';
+  const displayStoreName = storeName || user?.storeName || 'Main Branch';
   const role = user?.role || 'Owner';
 
   const getInitials = (name: string) => {
@@ -53,40 +55,41 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar Navigation */}
-      <aside className="w-60 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col justify-between p-4 shrink-0 relative z-20">
+      <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col justify-between p-4 shrink-0 relative z-20">
         <div>
           {/* Logo & Brand */}
-          <div className="px-2 pb-4 border-b border-sidebar-border flex items-center gap-2.5">
-            <div className="size-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm shrink-0">
-              <Pill className="size-5" />
+          <div className="px-2 pb-4 border-b border-sidebar-border flex items-center gap-3">
+            <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md shrink-0">
+              <Pill className="size-6" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-primary leading-none">
+              <h1 className="text-xl font-bold tracking-tight text-primary leading-none">
                 Dispenco
               </h1>
-              <span className="text-[11px] text-muted-foreground leading-tight block mt-0.5">
-                Pharmacy Management
+              <span className="text-[11px] font-medium text-muted-foreground leading-tight block mt-1">
+                Pharmacy POS & Inventory
               </span>
             </div>
           </div>
 
           {/* Nav Links */}
-          <nav className="flex flex-col gap-1 mt-4">
+          <nav className="flex flex-col gap-1.5 mt-5">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-primary text-primary-foreground font-semibold'
+                      ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
                       : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                   }`}
                 >
-                  <Icon className="size-4" />
-                  {item.name}
+                  {/* 20px Lucide Icon for Sidebar Navigation */}
+                  <Icon className="size-5 shrink-0" />
+                  <span>{item.name}</span>
                 </Link>
               );
             })}
@@ -94,9 +97,9 @@ export default function DashboardLayout({
         </div>
 
         {/* Footer Account / Logout */}
-        <div className="pt-4 border-t border-sidebar-border space-y-2">
-          <div className="flex items-center gap-3 px-1">
-            <Avatar className="size-8 bg-primary text-primary-foreground shrink-0">
+        <div className="pt-4 border-t border-sidebar-border space-y-3">
+          <div className="flex items-center gap-3 px-2">
+            <Avatar className="size-9 bg-primary text-primary-foreground shrink-0 ring-2 ring-primary/20">
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                 {userInitials}
               </AvatarFallback>
@@ -106,14 +109,14 @@ export default function DashboardLayout({
                 {userName}
               </div>
               <div className="text-muted-foreground truncate" title={displayStoreName}>
-                {displayStoreName} ({role})
+                {displayStoreName} • <span className="text-primary font-medium">{role}</span>
               </div>
             </div>
           </div>
           <Button
             variant="ghost"
             onClick={() => logout()}
-            className="w-full justify-start gap-2 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive px-2 py-1.5 h-8 transition-colors mt-1"
+            className="w-full justify-start gap-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive px-3 py-2 h-9 transition-colors"
           >
             <LogOut className="size-4" />
             <span>Sign Out</span>
@@ -124,18 +127,18 @@ export default function DashboardLayout({
       {/* Main Content Container */}
       <div className="flex-1 flex flex-col min-w-0 bg-muted/20">
         {/* Top Header */}
-        <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-            <Store className="size-4 text-primary shrink-0" />
+        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 shadow-xs">
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground min-w-0">
+            <Store className="size-5 text-primary shrink-0" />
             <span className="truncate">
-              Store: <strong className="text-foreground">{displayStoreName}</strong>
+              Active Store: <strong className="text-foreground font-semibold">{displayStoreName}</strong>
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
-            <span>Status:</span>
-            <Badge variant="outline" className="gap-1.5 border-emerald-500/30 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Connected
+          <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+            <span className="font-medium">System Status:</span>
+            <Badge variant="outline" className="gap-1.5 border-emerald-500/30 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 font-medium px-2.5 py-1">
+              <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+              Operational
             </Badge>
           </div>
         </header>
