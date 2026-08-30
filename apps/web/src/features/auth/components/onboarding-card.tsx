@@ -144,7 +144,7 @@ export function OnboardingCard() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white font-medium"
+              className="w-full h-11 font-medium"
             >
               {isLoading ? (
                 <>
