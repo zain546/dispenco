@@ -136,25 +136,39 @@ export class ProductsService {
         orderBy: { createdAt: 'desc' },
         include: {
           batches: {
-            where: { quantityRemaining: { gt: 0 } },
             orderBy: { expiryDate: 'asc' },
           },
         },
       }),
     ]);
 
+    const now = new Date();
+    const sixtyDaysFromNow = new Date();
+    sixtyDaysFromNow.setDate(now.getDate() + 60);
+
     const items = products.map((product) => {
+      const activeStockBatches = product.batches.filter((b) => b.quantityRemaining > 0);
       const totalStock = product.batches.reduce(
         (sum, batch) => sum + batch.quantityRemaining,
         0
       );
       const isLowStock = totalStock <= product.lowStockThreshold;
-      const latestBatch = product.batches[0] || null;
+      const latestBatch = activeStockBatches[0] || product.batches[0] || null;
+
+      const batchCount = product.batches.length;
+      const expiredBatchCount = product.batches.filter((b) => new Date(b.expiryDate) <= now).length;
+      const nearExpiryBatchCount = product.batches.filter((b) => {
+        const exp = new Date(b.expiryDate);
+        return exp > now && exp <= sixtyDaysFromNow;
+      }).length;
 
       return {
         ...product,
         totalStock,
         isLowStock,
+        batchCount,
+        expiredBatchCount,
+        nearExpiryBatchCount,
         latestCostPrice: latestBatch ? Number(latestBatch.costPrice) : null,
         latestSellPrice: latestBatch ? Number(latestBatch.sellPrice) : null,
         nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,

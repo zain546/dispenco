@@ -15,6 +15,9 @@ export interface ProductData {
   lowStockThreshold: number;
   attributes: Record<string, unknown>;
   totalStock?: number;
+  batchCount?: number;
+  expiredBatchCount?: number;
+  nearExpiryBatchCount?: number;
   latestSellPrice?: number | null;
   latestCostPrice?: number | null;
   nearestExpiryDate?: string | null;
