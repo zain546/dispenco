@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { getProductSeoUrl } from '../utils/seo-utils';
 import {
   Dialog,
   DialogContent,
@@ -364,7 +365,7 @@ function ProductTableRow({
             </Link>
           </Button>
           <Button asChild variant="ghost" size="icon" className="size-8 text-muted-foreground">
-            <Link href={`/inventory/${product.id}/edit`} title="Edit Product">
+            <Link href={getProductSeoUrl(product, 'edit')} title="Edit Product">
               <Edit className="size-4" />
             </Link>
           </Button>
@@ -427,7 +428,7 @@ function ProductCardItem({
               </Link>
             </Button>
             <Button asChild variant="ghost" size="icon" className="size-7 text-muted-foreground">
-              <Link href={`/inventory/${product.id}/edit`}>
+              <Link href={getProductSeoUrl(product, 'edit')}>
                 <Edit className="size-3.5" />
               </Link>
             </Button>

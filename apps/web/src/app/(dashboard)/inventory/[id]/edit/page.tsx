@@ -8,10 +8,13 @@ import { ProductForm } from '@/features/inventory/components/product-form';
 import { productsApi, type ProductData } from '@/features/inventory/services/products-api';
 import { Button } from '@/components/ui/button';
 
+import { extractIdFromSlugParam } from '@/features/inventory/utils/seo-utils';
+
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
-  const productId = params.id as string;
+  const rawParam = params?.id as string;
+  const productId = extractIdFromSlugParam(rawParam);
 
   const [product, setProduct] = useState<ProductData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,8 +27,13 @@ export default function EditProductPage() {
 
     productsApi
       .getProductById(productId)
-      .then((res) => {
-        setProduct(res.data);
+      .then((res: any) => {
+        const item = res?.data || (res?.id ? res : null);
+        if (item) {
+          setProduct(item);
+        } else {
+          setError('Medicine product not found');
+        }
       })
       .catch((err: unknown) => {
         const msg =

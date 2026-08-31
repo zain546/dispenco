@@ -28,10 +28,12 @@ import {
   DollarSign,
   Pill,
 } from 'lucide-react';
+import { extractIdFromSlugParam } from '@/features/inventory/utils/seo-utils';
 
 export default function ProductBatchesPage() {
   const params = useParams();
-  const productId = params?.id as string;
+  const rawParam = params?.id as string;
+  const productId = extractIdFromSlugParam(rawParam);
 
   const [loading, setLoading] = useState(true);
   const [productInfo, setProductInfo] = useState<{
