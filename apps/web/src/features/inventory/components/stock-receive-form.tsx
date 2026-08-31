@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -16,8 +16,11 @@ import {
   DollarSign,
   Truck,
   FileText,
-  AlertCircle,
   Pill,
+  TrendingUp,
+  MapPin,
+  Building2,
+  Hash,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -192,74 +195,84 @@ export function StockReceiveForm() {
     : null;
   const CategoryIcon = iconConfig?.Icon || Pill;
 
+  const formattedUnitLabel = selectedProduct?.unit
+    ? selectedProduct.unit.endsWith('s')
+      ? selectedProduct.unit
+      : `${selectedProduct.unit}s`
+    : 'Units';
+
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-10">
+    <div className="space-y-5 max-w-3xl mx-auto pb-12 px-1 sm:px-0">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Button
-              asChild
-              variant="outline"
-              size="icon"
-              className="size-8 shrink-0 text-muted-foreground"
-            >
-              <Link href="/inventory" title="Back to Inventory Catalog">
-                <ArrowLeft className="size-4" />
-              </Link>
-            </Button>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Boxes className="size-6 text-primary" />
-              <span>Receive Incoming Stock Batch</span>
-            </h1>
-          </div>
-          <p className="text-xs sm:text-sm text-muted-foreground pl-10">
+      <div className="flex items-start gap-3 pb-2 border-b border-border/80">
+        <Button
+          asChild
+          variant="outline"
+          size="icon"
+          className="size-9 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted mt-0.5"
+        >
+          <Link href="/inventory" title="Back to Inventory Catalog">
+            <ArrowLeft className="size-4" />
+          </Link>
+        </Button>
+        <div className="space-y-0.5 min-w-0 flex-1">
+          <h1 className="text-base sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Boxes className="size-4 sm:size-6 text-primary shrink-0" />
+            <span>Receive Stock Batch</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground leading-snug">
             Log incoming supplier shipment batches, update stock quantities, and record FEFO expiry dates.
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* Step 1: Medicine Selection */}
-        <Card className="shadow-xs border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Package className="size-4 text-primary" />
+        <Card className="shadow-2xs border-border/80 bg-card overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 pb-3">
+            <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
+              <Package className="size-4 text-primary shrink-0" />
               <span>1. Select Medicine / Product</span>
             </CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-xs text-muted-foreground">
               Search your pharmacy catalog to receive a new shipment batch.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
             {selectedProduct ? (
               /* Selected Product Summary Card */
-              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-3.5 sm:p-4 rounded-xl bg-muted/40 border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div
-                    className={`size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${iconConfig?.bgClass}`}
-                  >
+                  <div className="size-10 rounded-xl bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/50 mt-0.5">
                     <CategoryIcon className="size-5" />
                   </div>
-                  <div className="space-y-1 min-w-0">
+                  <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-sm text-foreground">{selectedProduct.name}</h3>
-                      <Badge variant="secondary" className="text-[10px]">
+                      <h3 className="font-bold text-sm text-foreground leading-snug break-words">
+                        {selectedProduct.name}
+                      </h3>
+                      <Badge variant="secondary" className="text-[10px] font-medium shrink-0">
                         {formatCategory(selectedProduct.category)}
                       </Badge>
                       {selectedProduct.isControlledSubstance && (
-                        <Badge variant="outline" className="bg-destructive/10 text-destructive text-[10px]">
+                        <Badge
+                          variant="outline"
+                          className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-semibold shrink-0"
+                        >
                           Rx Schedule
                         </Badge>
                       )}
                     </div>
                     {selectedProduct.genericName && (
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground line-clamp-1">
                         {selectedProduct.genericName}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Current Active Stock: <strong>{formatUnitPlural(selectedProduct.unit, selectedProduct.totalStock ?? 0)}</strong>
+                      Current Active Stock:{' '}
+                      <strong className="text-foreground font-semibold">
+                        {formatUnitPlural(selectedProduct.unit, selectedProduct.totalStock ?? 0)}
+                      </strong>
                     </p>
                   </div>
                 </div>
@@ -268,7 +281,7 @@ export function StockReceiveForm() {
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedProduct(null)}
-                  className="shrink-0 text-xs h-8"
+                  className="shrink-0 text-xs h-8 border-border hover:bg-muted self-start sm:self-center"
                 >
                   Change Medicine
                 </Button>
@@ -283,7 +296,7 @@ export function StockReceiveForm() {
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     placeholder="Search by medicine name, generic formula (e.g. Paracetamol), or barcode..."
-                    className="pl-9 h-10 text-sm"
+                    className="pl-9 h-10 text-xs sm:text-sm"
                   />
                   {isSearching && (
                     <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin" />
@@ -333,22 +346,22 @@ export function StockReceiveForm() {
         </Card>
 
         {/* Step 2: Batch & Quantity Details */}
-        <Card className="shadow-xs border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Boxes className="size-4 text-primary" />
+        <Card className="shadow-2xs border-border/80 bg-card overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 pb-3">
+            <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
+              <Hash className="size-4 text-primary shrink-0" />
               <span>2. Shipment Batch & Quantities</span>
             </CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-xs text-muted-foreground">
               Enter batch numbers, quantities received, and FEFO expiry dates.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-5 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Batch Number */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="batchNumber" className="text-xs font-semibold">
-                  Batch Number
+                  Batch Number / Lot ID
                 </Label>
                 <button
                   type="button"
@@ -356,7 +369,7 @@ export function StockReceiveForm() {
                   className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium"
                 >
                   <Sparkles className="size-3" />
-                  Auto Generate
+                  <span>Auto Generate</span>
                 </button>
               </div>
               <Input
@@ -371,7 +384,7 @@ export function StockReceiveForm() {
             {/* Quantity Received */}
             <div className="space-y-1.5">
               <Label htmlFor="quantity" className="text-xs font-semibold">
-                Quantity Received ({selectedProduct?.unit ? `${selectedProduct.unit}s` : 'Units'}) *
+                Quantity Received ({formattedUnitLabel}) *
               </Label>
               <Input
                 id="quantity"
@@ -380,7 +393,7 @@ export function StockReceiveForm() {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
                 placeholder="e.g. 50"
-                className="h-9 text-xs sm:text-sm"
+                className="h-9 text-xs sm:text-sm font-bold text-foreground"
                 required
               />
             </div>
@@ -396,7 +409,7 @@ export function StockReceiveForm() {
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="h-9 text-xs sm:text-sm"
+                className="h-9 text-xs sm:text-sm font-semibold"
                 required
               />
             </div>
@@ -418,17 +431,17 @@ export function StockReceiveForm() {
         </Card>
 
         {/* Step 3: Pricing & Gross Margin */}
-        <Card className="shadow-xs border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <DollarSign className="size-4 text-primary" />
+        <Card className="shadow-2xs border-border/80 bg-card overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 pb-3">
+            <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
+              <DollarSign className="size-4 text-primary shrink-0" />
               <span>3. Purchase Cost & Retail MRP Pricing</span>
             </CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-xs text-muted-foreground">
               Record distributor purchase costs and customer selling prices for margin auditing.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Cost Price */}
               <div className="space-y-1.5">
@@ -461,7 +474,7 @@ export function StockReceiveForm() {
                   value={sellPrice}
                   onChange={(e) => setSellPrice(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="e.g. 180.00"
-                  className="h-9 text-xs sm:text-sm"
+                  className="h-9 text-xs sm:text-sm font-semibold text-primary"
                   required
                 />
               </div>
@@ -469,12 +482,13 @@ export function StockReceiveForm() {
 
             {/* Estimated Margin Preview */}
             {numCost > 0 && numSell > 0 && (
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center justify-between gap-2">
-                <span className="text-emerald-700 dark:text-emerald-300 font-medium">
-                  Estimated Batch Profit Margin:
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <span className="text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1">
+                  <TrendingUp className="size-3.5" />
+                  <span>Estimated Batch Profit Margin:</span>
                 </span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  +PKR {marginPkr.toFixed(2)} / unit ({marginPercent}% Margin)
+                  +PKR {marginPkr.toFixed(2)} / unit ({marginPercent}% Gross Margin)
                 </span>
               </div>
             )}
@@ -482,21 +496,22 @@ export function StockReceiveForm() {
         </Card>
 
         {/* Step 4: Supplier & Location Details */}
-        <Card className="shadow-xs border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Truck className="size-4 text-primary" />
+        <Card className="shadow-2xs border-border/80 bg-card overflow-hidden">
+          <CardHeader className="p-4 sm:p-5 pb-3">
+            <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
+              <Truck className="size-4 text-primary shrink-0" />
               <span>4. Supplier Invoice & Rack Location (Optional)</span>
             </CardTitle>
-            <CardDescription className="text-xs">
+            <CardDescription className="text-xs text-muted-foreground">
               Track vendor distributors and storage shelf rack placement.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-5 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Vendor / Distributor Name */}
             <div className="space-y-1.5">
-              <Label htmlFor="vendorName" className="text-xs font-semibold">
-                Supplier / Distributor Name
+              <Label htmlFor="vendorName" className="text-xs font-semibold flex items-center gap-1">
+                <Building2 className="size-3.5 text-muted-foreground" />
+                <span>Supplier / Distributor Name</span>
               </Label>
               <Input
                 id="vendorName"
@@ -509,8 +524,9 @@ export function StockReceiveForm() {
 
             {/* Rack Location */}
             <div className="space-y-1.5">
-              <Label htmlFor="rackNumber" className="text-xs font-semibold">
-                Rack / Storage Shelf Location
+              <Label htmlFor="rackNumber" className="text-xs font-semibold flex items-center gap-1">
+                <MapPin className="size-3.5 text-muted-foreground" />
+                <span>Rack / Storage Shelf Location</span>
               </Label>
               <Input
                 id="rackNumber"
@@ -553,15 +569,15 @@ export function StockReceiveForm() {
         </Card>
 
         {/* Submit Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Button asChild variant="outline" size="sm" className="h-10 px-4 text-xs sm:text-sm">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-2">
+          <Button asChild variant="outline" size="sm" className="h-10 px-5 text-xs sm:text-sm w-full sm:w-auto">
             <Link href="/inventory">Cancel</Link>
           </Button>
           <Button
             type="submit"
             size="sm"
             disabled={isSubmitting || !selectedProduct}
-            className="h-10 px-6 text-xs sm:text-sm gap-2 font-semibold"
+            className="h-10 px-6 text-xs sm:text-sm gap-2 font-semibold shadow-xs w-full sm:w-auto"
           >
             {isSubmitting ? (
               <>

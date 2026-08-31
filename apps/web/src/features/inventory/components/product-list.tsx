@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Clock,
   LucideIcon,
+  MoreVertical,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { getProductSeoUrl } from '../utils/seo-utils';
 import {
   Dialog,
@@ -419,59 +427,76 @@ function ProductCardItem({
   const CategoryIcon = iconConfig.Icon;
 
   return (
-    <Card className="shadow-xs border-border">
+    <Card className="shadow-2xs border-border/80 hover:border-primary/40 transition-all bg-card overflow-hidden">
       <CardContent className="p-3.5 space-y-3">
+        {/* Header Row: Category Icon, Medicine Name & Subtitle, and Clean Contextual Dropdown */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <div className="size-7 rounded-md bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/40 mt-0.5">
-              <CategoryIcon className="size-3.5" />
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <div className="size-8 rounded-lg bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/50 mt-0.5">
+              <CategoryIcon className="size-4" />
             </div>
-            <div className="min-w-0">
-              <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-sm text-foreground leading-snug break-words">
+                {product.name}
+              </h3>
               {product.genericName && (
-                <p className="text-xs text-muted-foreground truncate">{product.genericName}</p>
+                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                  {product.genericName}
+                </p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onViewBatches(product)}
-              className="size-7 text-muted-foreground hover:text-primary"
-              title="Inspect FEFO Batches"
-            >
-              <Layers className="size-3.5" />
-            </Button>
-            <Button asChild variant="ghost" size="icon" className="size-7 text-primary hover:bg-primary/10">
-              <Link href={`/inventory/receive?productId=${product.id}`} title="Receive Stock Batch">
-                <Boxes className="size-3.5" />
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="icon" className="size-7 text-muted-foreground">
-              <Link href={getProductSeoUrl(product, 'edit')}>
-                <Edit className="size-3.5" />
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(product)}
-              className="size-7 text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 -mr-1"
+              >
+                <MoreVertical className="size-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => onViewBatches(product)} className="gap-2 cursor-pointer">
+                <Layers className="size-3.5 text-primary" />
+                <span>Inspect FEFO Batches</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+                <Link href={`/inventory/receive?productId=${product.id}`}>
+                  <Boxes className="size-3.5 text-emerald-600" />
+                  <span>Receive Stock Batch</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+                <Link href={getProductSeoUrl(product, 'edit')}>
+                  <Edit className="size-3.5 text-muted-foreground" />
+                  <span>Edit Medicine Details</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDelete(product)}
+                variant="destructive"
+                className="gap-2 cursor-pointer"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Deactivate Product</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="secondary" className="text-[10px]">
+        {/* Badges Strip */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <Badge variant="secondary" className="text-[10px] font-medium">
             {formatCategory(product.category)}
           </Badge>
           {product.isControlledSubstance && (
             <Badge
               variant="outline"
-              className="bg-destructive/10 text-destructive border-destructive/20 text-[10px]"
+              className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-semibold"
             >
               Rx Schedule
             </Badge>
@@ -480,7 +505,7 @@ function ProductCardItem({
             <Badge
               variant="outline"
               onClick={() => onViewBatches(product)}
-              className="cursor-pointer hover:bg-primary/10 text-[10px] gap-1 px-1.5 py-0 border-primary/20 text-primary font-medium"
+              className="cursor-pointer hover:bg-primary/10 text-[10px] gap-1 px-2 py-0 border-primary/30 text-primary font-semibold"
               title={`${product.batchCount} stock batch(es)`}
             >
               <Layers className="size-3" />
@@ -498,16 +523,21 @@ function ProductCardItem({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
+        {/* Financials & Stock Sub-Grid */}
+        <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg bg-muted/30 border border-border/50 text-xs">
           <div>
-            <span className="text-muted-foreground block text-[11px]">Stock Level</span>
-            <span className="font-bold text-foreground">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider block">
+              Stock Level
+            </span>
+            <span className="font-bold text-foreground text-xs mt-0.5 block">
               {formatUnitPlural(product.unit, totalStock)}
             </span>
           </div>
           <div>
-            <span className="text-muted-foreground block text-[11px]">Retail MRP</span>
-            <span className="font-semibold text-foreground">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider block">
+              Retail MRP
+            </span>
+            <span className="font-bold text-primary text-xs mt-0.5 block">
               {product.latestSellPrice !== null && product.latestSellPrice !== undefined
                 ? `PKR ${product.latestSellPrice.toFixed(2)}`
                 : 'N/A'}
