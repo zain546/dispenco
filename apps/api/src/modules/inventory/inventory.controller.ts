@@ -2,12 +2,14 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Param,
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { ReceiveStockDto } from './dtos/receive-stock.dto';
+import { UpdateBatchDto } from './dtos/update-batch.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -38,5 +40,18 @@ export class InventoryController {
     @Param('productId') productId: string,
   ) {
     return this.inventoryService.getProductBatches(tenantId, productId);
+  }
+
+  /**
+   * PATCH /api/v1/inventory/batches/:batchId
+   * Update details of a specific batch (batchNumber, expiryDate, prices, quantityRemaining)
+   */
+  @Patch('batches/:batchId')
+  async updateBatch(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('batchId') batchId: string,
+    @Body() dto: UpdateBatchDto,
+  ) {
+    return this.inventoryService.updateBatch(tenantId, batchId, dto);
   }
 }
