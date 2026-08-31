@@ -48,40 +48,12 @@ import {
 import { productsApi, type ProductData, type BatchData } from '../services/products-api';
 import { formatCategory, formatDate, formatUnitPlural } from './product-list';
 import { EditBatchModal } from './edit-batch-modal';
+import { FefoBatchBreakdown } from './fefo-batch-breakdown';
+import { getBatchExpiryDetails } from '../utils/batch-utils';
 
 interface ProductFormProps {
   initialData?: ProductData;
   isEditing?: boolean;
-}
-
-// Helper function to safely calculate batch expiry details
-function getBatchExpiryDetails(expiryDateStr: string | Date | undefined) {
-  if (!expiryDateStr) {
-    return { days: 0, isExpired: false, isNear: false, label: 'No Expiry' };
-  }
-  const exp = new Date(expiryDateStr);
-  if (isNaN(exp.getTime())) {
-    return { days: 0, isExpired: false, isNear: false, label: 'Invalid Date' };
-  }
-  const now = new Date();
-  exp.setHours(0, 0, 0, 0);
-  now.setHours(0, 0, 0, 0);
-  const diffTime = exp.getTime() - now.getTime();
-  const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  const isExpired = days <= 0;
-  const isNear = days > 0 && days <= 60;
-
-  let label = '';
-  if (isExpired) {
-    label = 'Expired';
-  } else if (days <= 60) {
-    label = `${days} days left`;
-  } else {
-    const months = Math.round(days / 30);
-    label = `${months > 0 ? months : 1} mos left`;
-  }
-
-  return { days, isExpired, isNear, label };
 }
 
 export function ProductForm({ initialData, isEditing = false }: ProductFormProps) {
@@ -448,199 +420,12 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
         {/* When Editing an existing product: Show Consolidated FEFO Batches & Expiry Breakdown */}
         {isEditing && (
-          <Card className="shadow-xs border-primary/20 bg-card">
-            <CardHeader className="p-4 sm:p-6 pb-3 bg-muted/20 border-b border-border/50">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <CardTitle className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
-                    <Layers className="size-5 text-primary shrink-0" />
-                    <span>Consolidated FEFO Stock & Batch Breakdown</span>
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    This medicine currently has{' '}
-                    <strong className="text-foreground font-semibold">
-                      {formatUnitPlural(selectedUnit, batches.reduce((sum, b) => sum + b.quantityRemaining, 0))}
-                    </strong>{' '}
-                    across <strong className="text-foreground font-semibold">{batches.length} active batches</strong>. Each batch maintains its own expiry date, cost, retail MRP, and vendor location.
-                  </CardDescription>
-                </div>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 shrink-0 font-medium"
-                >
-                  <Link href={`/inventory/receive?productId=${initialData?.id}`}>
-                    <Plus className="size-3.5" />
-                    <span>Receive New Batch</span>
-                  </Link>
-                </Button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-6 space-y-4">
-              {/* Top FEFO Summary Cards */}
-              {batches.length > 0 && (() => {
-                const totalQty = batches.reduce((sum, b) => sum + (b.quantityRemaining || 0), 0);
-                const expiredCount = batches.filter(b => getBatchExpiryDetails(b.expiryDate).isExpired).length;
-                const nearExpiryCount = batches.filter(b => getBatchExpiryDetails(b.expiryDate).isNear).length;
-                const validCount = batches.length - expiredCount - nearExpiryCount;
-
-                // Sort by expiry to find nearest
-                const sortedBatches = [...batches].sort(
-                  (a, b) => new Date(a.expiryDate || 0).getTime() - new Date(b.expiryDate || 0).getTime()
-                );
-                const nearest = sortedBatches[0];
-
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* Total Stock KPI */}
-                    <div className="p-3 bg-muted/40 rounded-lg border border-border/60 flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Total Active Stock</p>
-                        <p className="text-base font-bold text-foreground mt-0.5">
-                          {formatUnitPlural(selectedUnit, totalQty)}
-                        </p>
-                      </div>
-                      <Boxes className="size-5 text-primary/70 shrink-0" />
-                    </div>
-
-                    {/* Nearest Expiry KPI */}
-                    <div className="p-3 bg-muted/40 rounded-lg border border-border/60 flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Nearest Expiry Date</p>
-                        <p className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1.5">
-                          {nearest ? formatDate(nearest.expiryDate) : 'N/A'}
-                        </p>
-                      </div>
-                      <Calendar className="size-5 text-primary/70 shrink-0" />
-                    </div>
-
-                    {/* Batch Health KPI */}
-                    <div className="p-3 bg-muted/40 rounded-lg border border-border/60 flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Batches Breakdown</p>
-                        <p className="text-xs font-semibold text-foreground mt-0.5 flex items-center gap-2">
-                          <span className="text-emerald-600 font-semibold">{validCount} Valid</span>
-                          {nearExpiryCount > 0 && <span className="text-amber-600 font-semibold">• {nearExpiryCount} Near</span>}
-                          {expiredCount > 0 && <span className="text-destructive font-semibold">• {expiredCount} Expired</span>}
-                        </p>
-                      </div>
-                      <Layers className="size-5 text-primary/70 shrink-0" />
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Batches List */}
-              {batches.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground bg-muted/20 rounded-lg border border-dashed border-border text-xs space-y-3">
-                  <Boxes className="size-8 text-muted-foreground/50 mx-auto" />
-                  <div>
-                    <p className="font-semibold text-foreground">No active stock batches recorded for this medicine.</p>
-                    <p className="text-muted-foreground text-[11px] mt-0.5">Log an incoming shipment batch to set stock quantity and expiry date.</p>
-                  </div>
-                  <Button asChild size="sm" variant="default" className="h-8 text-xs gap-1.5 mt-2">
-                    <Link href={`/inventory/receive?productId=${initialData?.id}`}>
-                      <Plus className="size-3.5" />
-                      <span>Receive First Batch</span>
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground">Registered Medicine Stock Batches ({batches.length}):</p>
-                  {batches.map((batch) => {
-                    const expiryInfo = getBatchExpiryDetails(batch.expiryDate);
-
-                    return (
-                      <div
-                        key={batch.id}
-                        className="bg-card rounded-lg border border-border p-3.5 sm:p-4 space-y-3 shadow-2xs hover:border-primary/40 transition-colors"
-                      >
-                        {/* Header Row: Batch Number, Expiry Pill, Vendor, Shelf, and Aligned Edit Button */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/50">
-                          <div className="flex items-center gap-2 flex-wrap min-w-0">
-                            <span className="font-mono font-bold text-xs text-foreground bg-muted px-2.5 py-1 rounded border border-border/80">
-                              #{batch.batchNumber}
-                            </span>
-
-                            <Badge
-                              variant="outline"
-                              className={`text-[11px] gap-1 px-2 py-0.5 ${
-                                expiryInfo.isExpired
-                                  ? 'bg-destructive/10 text-destructive border-destructive/30 font-semibold'
-                                  : expiryInfo.isNear
-                                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 font-semibold'
-                                  : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium'
-                              }`}
-                            >
-                              <Calendar className="size-3" />
-                              <span>
-                                Exp: {formatDate(batch.expiryDate)} ({expiryInfo.label})
-                              </span>
-                            </Badge>
-
-                            {batch.vendorName && (
-                              <Badge variant="outline" className="text-[11px] text-muted-foreground gap-1 bg-muted/40">
-                                <Truck className="size-3 text-muted-foreground" />
-                                <span>{batch.vendorName}</span>
-                              </Badge>
-                            )}
-
-                            {batch.rackNumber && (
-                              <Badge variant="outline" className="text-[11px] text-muted-foreground gap-1 bg-muted/40">
-                                <MapPin className="size-3 text-muted-foreground" />
-                                <span>Shelf: {batch.rackNumber}</span>
-                              </Badge>
-                            )}
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditBatchClick(batch)}
-                            className="h-8 px-3 text-xs gap-1.5 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 self-start sm:self-auto"
-                          >
-                            <Edit3 className="size-3.5" />
-                            <span>Edit Batch</span>
-                          </Button>
-                        </div>
-
-                        {/* Stock and Price details Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                          <div className="p-2.5 bg-muted/30 rounded-md border border-border/40">
-                            <span className="text-[10px] text-muted-foreground block font-medium uppercase tracking-wider">Stock Remaining</span>
-                            <div className="flex items-baseline gap-1 mt-0.5">
-                              <span className="font-semibold text-foreground text-sm">
-                                {formatUnitPlural(selectedUnit, batch.quantityRemaining)}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground">({batch.quantityReceived} rec)</span>
-                            </div>
-                          </div>
-
-                          <div className="p-2.5 bg-muted/30 rounded-md border border-border/40">
-                            <span className="text-[10px] text-muted-foreground block font-medium uppercase tracking-wider">Purchase Cost</span>
-                            <p className="font-semibold text-foreground text-sm mt-0.5">
-                              PKR {Number(batch.costPrice).toFixed(2)}
-                            </p>
-                          </div>
-
-                          <div className="p-2.5 bg-primary/5 rounded-md border border-primary/20">
-                            <span className="text-[10px] text-primary/80 block font-medium uppercase tracking-wider">Retail Price (MRP)</span>
-                            <p className="font-bold text-primary text-sm mt-0.5">
-                              PKR {Number(batch.sellPrice).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <FefoBatchBreakdown
+            productId={initialData?.id}
+            batches={batches}
+            selectedUnit={selectedUnit}
+            onEditBatch={handleEditBatchClick}
+          />
         )}
 
         {/* Optional Batch, Manufacturing & Vendor Invoice Details (Only shown when creating a NEW product) */}
