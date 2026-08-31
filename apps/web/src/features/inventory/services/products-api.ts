@@ -21,6 +21,7 @@ export interface ProductData {
   latestSellPrice?: number | null;
   latestCostPrice?: number | null;
   nearestExpiryDate?: string | null;
+  batches?: BatchData[];
   createdAt: string;
   updatedAt: string;
 }
