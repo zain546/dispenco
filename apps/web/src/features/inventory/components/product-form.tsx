@@ -481,14 +481,14 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             <CardContent className="p-4 sm:p-6 space-y-4">
               {/* Top FEFO Summary Cards */}
               {batches.length > 0 && (() => {
-                const totalQty = batches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+                const totalQty = batches.reduce((sum, b) => sum + (b.quantityRemaining || 0), 0);
                 const expiredCount = batches.filter(b => getBatchExpiryDetails(b.expiryDate).isExpired).length;
                 const nearExpiryCount = batches.filter(b => getBatchExpiryDetails(b.expiryDate).isNear).length;
                 const validCount = batches.length - expiredCount - nearExpiryCount;
 
                 // Sort by expiry to find nearest
                 const sortedBatches = [...batches].sort(
-                  (a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
+                  (a, b) => new Date(a.expiryDate || 0).getTime() - new Date(b.expiryDate || 0).getTime()
                 );
                 const nearest = sortedBatches[0];
 
