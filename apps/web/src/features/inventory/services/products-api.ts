@@ -94,6 +94,7 @@ export interface QueryProductsParams {
   limit?: number;
   search?: string;
   category?: string;
+  stockStatus?: string;
   isControlledSubstance?: boolean;
   isActive?: boolean;
 }

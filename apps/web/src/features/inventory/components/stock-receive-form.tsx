@@ -29,7 +29,7 @@ import {
   type ProductData,
   type ReceiveStockPayload,
 } from '../services/products-api';
-import { formatCategory, getMedicineIconConfig } from './product-list';
+import { formatCategory, getMedicineIconConfig, formatUnitPlural } from './product-list';
 
 export function StockReceiveForm() {
   const router = useRouter();
@@ -61,12 +61,13 @@ export function StockReceiveForm() {
     if (preselectedProductId) {
       productsApi
         .getProductById(preselectedProductId)
-        .then((res) => {
-          if (res.data) {
-            setSelectedProduct(res.data);
-            if (res.data.latestCostPrice) setCostPrice(res.data.latestCostPrice);
-            if (res.data.latestSellPrice) setSellPrice(res.data.latestSellPrice);
-            const attrs = (res.data.attributes as Record<string, string>) || {};
+        .then((res: any) => {
+          const product = res?.data || res;
+          if (product && (product.id || product.name)) {
+            setSelectedProduct(product);
+            if (product.latestCostPrice) setCostPrice(product.latestCostPrice);
+            if (product.latestSellPrice) setSellPrice(product.latestSellPrice);
+            const attrs = (product.attributes as Record<string, string>) || {};
             if (attrs.rackNumber) setRackNumber(attrs.rackNumber);
             if (attrs.vendorName) setVendorName(attrs.vendorName);
           }
@@ -258,7 +259,7 @@ export function StockReceiveForm() {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      Current Active Stock: <strong>{selectedProduct.totalStock ?? 0} {selectedProduct.unit}s</strong>
+                      Current Active Stock: <strong>{formatUnitPlural(selectedProduct.unit, selectedProduct.totalStock ?? 0)}</strong>
                     </p>
                   </div>
                 </div>
@@ -318,7 +319,7 @@ export function StockReceiveForm() {
                           </div>
                           <div className="text-right shrink-0">
                             <Badge variant="outline" className="text-[10px]">
-                              Stock: {prod.totalStock ?? 0} {prod.unit}s
+                              Stock: {formatUnitPlural(prod.unit, prod.totalStock ?? 0)}
                             </Badge>
                           </div>
                         </div>
