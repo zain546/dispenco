@@ -82,13 +82,15 @@ export function formatUnitPlural(unit: string = 'Unit', count?: number): string 
 export function formatDate(dateStr?: string | null): string {
   if (!dateStr) return 'N/A';
   try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
   } catch {
-    return dateStr;
+    return 'N/A';
   }
 }
 
