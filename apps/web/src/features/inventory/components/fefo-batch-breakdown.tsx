@@ -26,16 +26,16 @@ export function FefoBatchBreakdown({
   const stats = getBatchHealthStats(batches);
 
   return (
-    <Card className="border-border shadow-xs overflow-hidden">
-      <CardHeader className="bg-muted/30 pb-4 border-b border-border">
+    <Card className="border-border/80 shadow-2xs overflow-hidden bg-card">
+      <CardHeader className="bg-muted/30 p-3.5 sm:p-5 border-b border-border/80">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-              <Boxes className="size-4 text-primary" />
-              <span>Consolidated FEFO Stock &amp; Batch Breakdown</span>
+          <div className="space-y-0.5 min-w-0">
+            <CardTitle className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
+              <Boxes className="size-4 text-primary shrink-0" />
+              <span>FEFO Stock &amp; Batch Health</span>
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Stock quantity and expiry dates are managed at individual batch levels (First-Expiring-First-Out).
+            <p className="text-xs text-muted-foreground leading-snug">
+              Stock quantity and expiry dates managed per batch (First-Expiring-First-Out).
             </p>
           </div>
 
@@ -44,7 +44,7 @@ export function FefoBatchBreakdown({
             type="button"
             variant="outline"
             size="sm"
-            className="h-8 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 shrink-0 font-medium"
+            className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 shrink-0 font-semibold self-start sm:self-auto"
           >
             <Link href={`/inventory/receive?productId=${productId}`}>
               <Plus className="size-3.5" />
@@ -54,60 +54,60 @@ export function FefoBatchBreakdown({
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-6 space-y-4">
-        {/* Top FEFO KPI Summary Cards */}
+      <CardContent className="p-3.5 sm:p-5 space-y-4">
+        {/* Top FEFO KPI Summary Grid */}
         {batches.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {/* Total Active Stock KPI */}
-            <div className="p-3 bg-muted/40 rounded-lg border border-border/60 flex items-center justify-between">
+            <div className="p-2.5 sm:p-3 bg-muted/40 rounded-xl border border-border/60 flex items-center justify-between">
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
                   Total Active Stock
                 </p>
-                <p className="text-base font-bold text-foreground mt-0.5">
+                <p className="text-xs sm:text-sm font-bold text-foreground mt-0.5">
                   {formatUnitPlural(selectedUnit, stats.totalStock)}
                 </p>
               </div>
-              <Boxes className="size-5 text-primary/70 shrink-0" />
+              <Boxes className="size-4 sm:size-5 text-primary/70 shrink-0" />
             </div>
 
             {/* Nearest Expiry KPI */}
-            <div className="p-3 bg-muted/40 rounded-lg border border-border/60 flex items-center justify-between">
+            <div className="p-2.5 sm:p-3 bg-muted/40 rounded-xl border border-border/60 flex items-center justify-between">
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
                   Nearest Expiry Date
                 </p>
-                <p className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1.5">
+                <p className="text-xs sm:text-sm font-bold text-foreground mt-0.5">
                   {stats.nearestExpiryDate ? formatDate(stats.nearestExpiryDate) : 'N/A'}
                 </p>
               </div>
-              <Calendar className="size-5 text-primary/70 shrink-0" />
+              <Calendar className="size-4 sm:size-5 text-primary/70 shrink-0" />
             </div>
 
             {/* Batch Health KPI */}
-            <div className="p-3 bg-muted/40 rounded-lg border border-border/60 flex items-center justify-between">
+            <div className="p-2.5 sm:p-3 bg-muted/40 rounded-xl border border-border/60 flex items-center justify-between">
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
                   Batches Breakdown
                 </p>
-                <p className="text-xs font-semibold text-foreground mt-0.5 flex items-center gap-2">
-                  <span className="text-emerald-600 font-semibold">{stats.healthyCount} Valid</span>
+                <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-emerald-600 dark:text-emerald-400">{stats.healthyCount} Valid</span>
                   {stats.nearExpiryCount > 0 && (
-                    <span className="text-amber-600 font-semibold">• {stats.nearExpiryCount} Near</span>
+                    <span className="text-amber-600 dark:text-amber-400">• {stats.nearExpiryCount} Near</span>
                   )}
                   {stats.expiredCount > 0 && (
-                    <span className="text-destructive font-semibold">• {stats.expiredCount} Expired</span>
+                    <span className="text-destructive">• {stats.expiredCount} Expired</span>
                   )}
                 </p>
               </div>
-              <Layers className="size-5 text-primary/70 shrink-0" />
+              <Layers className="size-4 sm:size-5 text-primary/70 shrink-0" />
             </div>
           </div>
         )}
 
         {/* Batches List */}
         {batches.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground bg-muted/20 rounded-lg border border-dashed border-border text-xs space-y-3">
+          <div className="p-6 text-center text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border text-xs space-y-3">
             <Boxes className="size-8 text-muted-foreground/50 mx-auto" />
             <div>
               <p className="font-semibold text-foreground">No active stock batches recorded for this medicine.</p>
@@ -124,98 +124,105 @@ export function FefoBatchBreakdown({
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs font-medium text-muted-foreground">
-              Registered Medicine Stock Batches ({batches.length}):
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground">
+                Registered Medicine Stock Batches ({batches.length}):
+              </p>
+            </div>
+
             {batches.map((batch) => {
               const expiryInfo = getBatchExpiryDetails(batch.expiryDate);
 
               return (
                 <div
                   key={batch.id}
-                  className="bg-card rounded-lg border border-border p-3.5 sm:p-4 space-y-3 shadow-2xs hover:border-primary/40 transition-colors"
+                  className="bg-card rounded-xl border border-border/80 p-3 sm:p-4 space-y-3 shadow-2xs hover:border-primary/40 transition-colors"
                 >
-                  {/* Header Row: Batch Number, Expiry Pill, Vendor, Shelf, and Aligned Edit Button */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/50">
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="font-mono font-bold text-xs text-foreground bg-muted px-2.5 py-1 rounded border border-border/80">
-                        #{batch.batchNumber}
-                      </span>
-
-                      <Badge
-                        variant="outline"
-                        className={`text-[11px] gap-1 px-2 py-0.5 ${
-                          expiryInfo.isExpired
-                            ? 'bg-destructive/10 text-destructive border-destructive/30 font-semibold'
-                            : expiryInfo.isNear
-                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 font-semibold'
-                            : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium'
-                        }`}
-                      >
-                        <Calendar className="size-3" />
-                        <span>
-                          Exp: {formatDate(batch.expiryDate)} ({expiryInfo.label})
-                        </span>
-                      </Badge>
-
-                      {batch.vendorName && (
-                        <Badge variant="outline" className="text-[11px] text-muted-foreground gap-1 bg-muted/40">
-                          <Truck className="size-3 text-muted-foreground" />
-                          <span>{batch.vendorName}</span>
-                        </Badge>
-                      )}
-
-                      {batch.rackNumber && (
-                        <Badge variant="outline" className="text-[11px] text-muted-foreground gap-1 bg-muted/40">
-                          <MapPin className="size-3 text-muted-foreground" />
-                          <span>Shelf: {batch.rackNumber}</span>
-                        </Badge>
-                      )}
-                    </div>
+                  {/* Top Bar: Batch Number & Inline Edit Action */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-xs text-foreground bg-muted/80 px-2 py-0.5 rounded border border-border/80 shrink-0">
+                      #{batch.batchNumber}
+                    </span>
 
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => onEditBatch(batch)}
-                      className="h-8 px-3 text-xs gap-1.5 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 self-start sm:self-auto"
+                      className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 font-medium"
                     >
-                      <Edit3 className="size-3.5" />
+                      <Edit3 className="size-3" />
                       <span>Edit Batch</span>
                     </Button>
                   </div>
 
-                  {/* Stock and Price details Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                    <div className="p-2.5 bg-muted/30 rounded-md border border-border/40">
-                      <span className="text-[10px] text-muted-foreground block font-medium uppercase tracking-wider">
-                        Stock Remaining
+                  {/* Badges Row: Expiry, Vendor, Shelf */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] sm:text-[11px] gap-1 px-2 py-0.5 ${
+                        expiryInfo.isExpired
+                          ? 'bg-destructive/10 text-destructive border-destructive/30 font-semibold'
+                          : expiryInfo.isNear
+                          ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 font-semibold'
+                          : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium'
+                      }`}
+                    >
+                      <Calendar className="size-3" />
+                      <span>
+                        Exp: {formatDate(batch.expiryDate)} ({expiryInfo.label})
                       </span>
-                      <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className="font-semibold text-foreground text-sm">
+                    </Badge>
+
+                    {batch.vendorName && (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 bg-muted/40">
+                        <Truck className="size-3 text-muted-foreground" />
+                        <span className="truncate max-w-[120px]">{batch.vendorName}</span>
+                      </Badge>
+                    )}
+
+                    {batch.rackNumber && (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 bg-muted/40">
+                        <MapPin className="size-3 text-muted-foreground" />
+                        <span>Shelf: {batch.rackNumber}</span>
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Stock and Price Metrics Sub-Grid */}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {/* Stock Remaining */}
+                    <div className="p-2 bg-muted/30 rounded-lg border border-border/40 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider truncate">
+                        Stock
+                      </span>
+                      <div className="mt-0.5 min-w-0">
+                        <p className="font-bold text-foreground text-xs sm:text-sm truncate">
                           {formatUnitPlural(selectedUnit, batch.quantityRemaining)}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          ({batch.quantityReceived} rec)
-                        </span>
+                        </p>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">
+                          {batch.quantityReceived} rec
+                        </p>
                       </div>
                     </div>
 
-                    <div className="p-2.5 bg-muted/30 rounded-md border border-border/40">
-                      <span className="text-[10px] text-muted-foreground block font-medium uppercase tracking-wider">
-                        Purchase Cost
+                    {/* Purchase Cost */}
+                    <div className="p-2 bg-muted/30 rounded-lg border border-border/40 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider truncate">
+                        Cost
                       </span>
-                      <p className="font-semibold text-foreground text-sm mt-0.5">
-                        PKR {Number(batch.costPrice || 0).toFixed(2)}
+                      <p className="font-bold text-foreground text-xs sm:text-sm mt-0.5 truncate">
+                        PKR {Number(batch.costPrice || 0).toFixed(0)}
                       </p>
                     </div>
 
-                    <div className="p-2.5 bg-primary/5 rounded-md border border-primary/20">
-                      <span className="text-[10px] text-primary/80 block font-medium uppercase tracking-wider">
-                        Retail Price (MRP)
+                    {/* Retail MRP */}
+                    <div className="p-2 bg-primary/5 rounded-lg border border-primary/20 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] text-primary/80 block font-semibold uppercase tracking-wider truncate">
+                        MRP Price
                       </span>
-                      <p className="font-bold text-primary text-sm mt-0.5">
-                        PKR {Number(batch.sellPrice || 0).toFixed(2)}
+                      <p className="font-bold text-primary text-xs sm:text-sm mt-0.5 truncate">
+                        PKR {Number(batch.sellPrice || 0).toFixed(0)}
                       </p>
                     </div>
                   </div>

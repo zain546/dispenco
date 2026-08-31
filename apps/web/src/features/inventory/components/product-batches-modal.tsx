@@ -12,15 +12,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Calendar,
   Clock,
   AlertTriangle,
   CheckCircle2,
   Package,
   Plus,
   Loader2,
-  Boxes,
-  DollarSign,
   Pill,
   Edit3,
 } from 'lucide-react';
@@ -97,17 +94,15 @@ export function ProductBatchesModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-5 sm:p-6">
-        <DialogHeader className="pb-3 border-b border-border/80">
-          <div className="flex items-center gap-3 pr-6">
-            <div
-              className={`size-11 rounded-xl flex items-center justify-center shrink-0 border border-border/50 ${iconConfig?.bgClass || 'bg-primary/10 text-primary'}`}
-            >
+      <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6 gap-3">
+        <DialogHeader className="pb-3 border-b border-border/80 pr-6 sm:pr-8 shrink-0">
+          <div className="flex items-start gap-3">
+            <div className="size-10 sm:size-11 rounded-xl bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/50">
               <CategoryIcon className="size-5" />
             </div>
-            <div className="space-y-0.5 min-w-0 flex-1">
+            <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <DialogTitle className="text-lg font-bold text-foreground truncate">
+                <DialogTitle className="text-base sm:text-lg font-bold text-foreground leading-snug break-words pr-2">
                   {productInfo ? productInfo.name : 'Medicine Stock Batches'}
                 </DialogTitle>
                 {productInfo && (
@@ -119,8 +114,10 @@ export function ProductBatchesModal({
               <DialogDescription className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                 {productInfo && (
                   <>
-                    <span>Total Active Stock: <strong className="text-foreground font-semibold">{formatUnitPlural(productInfo.unit, productInfo.totalStock)}</strong></span>
-                    <span>•</span>
+                    <span>
+                      Total Active Stock: <strong className="text-foreground font-semibold">{formatUnitPlural(productInfo.unit, productInfo.totalStock)}</strong>
+                    </span>
+                    <span className="hidden sm:inline">•</span>
                     <span className="text-primary font-medium flex items-center gap-1">
                       <Clock className="size-3" /> FEFO Priority Dispatch
                     </span>
@@ -132,19 +129,19 @@ export function ProductBatchesModal({
         </DialogHeader>
 
         {loading ? (
-          <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+          <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3 my-auto">
             <Loader2 className="size-8 text-primary animate-spin" />
             <p className="text-xs font-medium">Loading FEFO stock batches...</p>
           </div>
         ) : (
-          <div className="space-y-4 pt-1">
-            {/* Interactive Minimalist Filter Segment Bar */}
-            <div className="flex items-center justify-between gap-2 p-1 bg-muted/40 rounded-lg border border-border/60 text-xs">
-              <div className="flex items-center gap-1 overflow-x-auto w-full">
+          <div className="space-y-3 overflow-hidden flex flex-col flex-1">
+            {/* Interactive Responsive Filter Segment Bar */}
+            <div className="p-1 bg-muted/40 rounded-lg border border-border/60 text-xs shrink-0 overflow-x-auto scrollbar-none">
+              <div className="flex items-center gap-1 min-w-max">
                 <button
                   type="button"
                   onClick={() => setFilter('all')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all shrink-0 whitespace-nowrap ${
                     filter === 'all'
                       ? 'bg-card text-foreground shadow-2xs font-semibold'
                       : 'text-muted-foreground hover:text-foreground'
@@ -156,7 +153,7 @@ export function ProductBatchesModal({
                 <button
                   type="button"
                   onClick={() => setFilter('healthy')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                     filter === 'healthy'
                       ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
                       : 'text-muted-foreground hover:text-foreground'
@@ -169,7 +166,7 @@ export function ProductBatchesModal({
                 <button
                   type="button"
                   onClick={() => setFilter('near')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                     filter === 'near'
                       ? 'bg-card text-amber-600 dark:text-amber-400 shadow-2xs font-semibold'
                       : 'text-muted-foreground hover:text-foreground'
@@ -182,7 +179,7 @@ export function ProductBatchesModal({
                 <button
                   type="button"
                   onClick={() => setFilter('expired')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                     filter === 'expired'
                       ? 'bg-card text-destructive shadow-2xs font-semibold'
                       : 'text-muted-foreground hover:text-foreground'
@@ -194,9 +191,9 @@ export function ProductBatchesModal({
               </div>
             </div>
 
-            {/* Batches Breakdown Structured List */}
+            {/* Batches Breakdown List with touch scrolling */}
             {filteredBatches.length === 0 ? (
-              <div className="py-10 text-center text-muted-foreground border border-dashed rounded-lg bg-muted/10 space-y-2">
+              <div className="py-10 text-center text-muted-foreground border border-dashed rounded-lg bg-muted/10 space-y-2 my-auto">
                 <Package className="size-8 mx-auto opacity-40" />
                 <p className="text-xs font-medium">No stock batches match the selected filter.</p>
                 {productId && batches.length === 0 && (
@@ -209,7 +206,7 @@ export function ProductBatchesModal({
                 )}
               </div>
             ) : (
-              <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+              <div className="space-y-2.5 overflow-y-auto pr-1 flex-1">
                 {filteredBatches.map((batch) => {
                   const stockPercent =
                     batch.quantityReceived > 0
@@ -219,24 +216,24 @@ export function ProductBatchesModal({
                   return (
                     <div
                       key={batch.id}
-                      className="p-3.5 rounded-lg border border-border/80 bg-card hover:border-primary/40 transition-all space-y-3 shadow-2xs"
+                      className="p-3 sm:p-3.5 rounded-lg border border-border/80 bg-card hover:border-primary/40 transition-all space-y-2.5 shadow-2xs"
                     >
-                      {/* Top Header Row: Batch #, Expiry Badge, Location, and Aligned Edit Action */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono font-bold text-xs text-foreground bg-muted px-2.5 py-1 rounded border border-border/80">
+                      {/* Top Header Row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/40">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
+                          <span className="font-mono font-bold text-xs text-foreground bg-muted px-2 py-0.5 rounded border border-border/80 shrink-0">
                             #{batch.batchNumber}
                           </span>
 
                           {batch.isExpired ? (
-                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] gap-1 font-semibold">
+                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] gap-1 font-semibold shrink-0">
                               <AlertTriangle className="size-3" />
                               <span>Expired ({Math.abs(batch.daysUntilExpiry)} days ago)</span>
                             </Badge>
                           ) : batch.isNearExpiry ? (
                             <Badge
                               variant="outline"
-                              className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px] gap-1 font-semibold"
+                              className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px] gap-1 font-semibold shrink-0"
                             >
                               <Clock className="size-3" />
                               <span>Near Expiry ({batch.daysUntilExpiry} days left)</span>
@@ -244,7 +241,7 @@ export function ProductBatchesModal({
                           ) : (
                             <Badge
                               variant="outline"
-                              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] gap-1 font-medium"
+                              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] gap-1 font-medium shrink-0"
                             >
                               <CheckCircle2 className="size-3" />
                               <span>Active FEFO Batch</span>
@@ -252,13 +249,13 @@ export function ProductBatchesModal({
                           )}
 
                           {batch.rackNumber && (
-                            <span className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 font-medium">
+                            <span className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 font-medium shrink-0">
                               Shelf: <strong className="text-foreground">{batch.rackNumber}</strong>
                             </span>
                           )}
 
                           {batch.vendorName && (
-                            <span className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 truncate max-w-[160px]">
+                            <span className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 truncate max-w-[130px] shrink-0">
                               {batch.vendorName}
                             </span>
                           )}
@@ -268,7 +265,7 @@ export function ProductBatchesModal({
                           variant="outline"
                           size="sm"
                           onClick={() => setEditingBatch(batch)}
-                          className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0"
+                          className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 self-end sm:self-auto"
                         >
                           <Edit3 className="size-3" />
                           <span>Edit</span>
@@ -276,7 +273,7 @@ export function ProductBatchesModal({
                       </div>
 
                       {/* Structured 3-Box Metrics Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-muted/20 p-2.5 rounded-md border border-border/50 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-muted/20 p-2.5 rounded-md border border-border/50 text-xs">
                         <div>
                           <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider block">Expiry Date</span>
                           <span className="font-semibold text-foreground mt-0.5 block">
@@ -286,9 +283,9 @@ export function ProductBatchesModal({
 
                         <div>
                           <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider block">Financial Audit</span>
-                          <div className="mt-0.5 text-foreground">
+                          <div className="mt-0.5 text-foreground flex items-baseline gap-1 flex-wrap">
                             <span>MRP: <strong className="text-primary font-bold">PKR {batch.sellPrice.toFixed(2)}</strong></span>
-                            <span className="text-[10px] text-muted-foreground ml-1.5">(Cost: PKR {batch.costPrice.toFixed(2)})</span>
+                            <span className="text-[10px] text-muted-foreground">(Cost: PKR {batch.costPrice.toFixed(2)})</span>
                           </div>
                         </div>
 
@@ -322,40 +319,40 @@ export function ProductBatchesModal({
               </div>
             )}
 
-            {/* Footer Action */}
+            {/* Footer Actions */}
             {productId && (
-              <div className="pt-3 flex items-center justify-between border-t border-border">
+              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-t border-border shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onOpenChange(false)}
-                  className="text-xs h-8 px-4"
-                >
-                  Close
-                </Button>
-                <Button
                   asChild
-                  size="sm"
-                  className="text-xs h-8 gap-1.5 px-4"
-                  onClick={() => onOpenChange(false)}
+                  className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5 w-full sm:w-auto"
                 >
-                  <Link href={`/inventory/receive?productId=${productId}`}>
-                    <Boxes className="size-3.5" />
-                    <span>Receive New Shipment Batch</span>
+                  <Link href={`/inventory/receive?productId=${productId}`} onClick={() => onOpenChange(false)}>
+                    <Plus className="size-3.5" />
+                    <span className="truncate">Receive New Batch</span>
                   </Link>
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} className="text-xs w-full sm:w-auto">
+                  Close
                 </Button>
               </div>
             )}
           </div>
         )}
+
+        {/* Nested Edit Batch Modal */}
+        <EditBatchModal
+          batch={editingBatch}
+          open={!!editingBatch}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setEditingBatch(null);
+          }}
+          onBatchUpdated={() => {
+            fetchBatches();
+          }}
+        />
       </DialogContent>
-      <EditBatchModal
-        batch={editingBatch}
-        unit={productInfo?.unit}
-        open={!!editingBatch}
-        onOpenChange={(isOpen) => !isOpen && setEditingBatch(null)}
-        onBatchUpdated={fetchBatches}
-      />
     </Dialog>
   );
 }

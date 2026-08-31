@@ -122,14 +122,14 @@ export function EditBatchModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-2 border-b border-border">
-          <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-            <Edit3 className="size-4 text-primary" />
-            <span>Edit Stock Batch & Procurement Specifications</span>
+      <DialogContent className="w-[95vw] sm:w-full max-w-xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="pb-3 border-b border-border/80 pr-6 sm:pr-8">
+          <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-foreground">
+            <Edit3 className="size-4 text-primary shrink-0" />
+            <span>Edit Batch {batch ? `#${batch.batchNumber}` : 'Details'}</span>
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Full control over batch identification, manufacturing/expiry dates, pricing, rack location, and vendor invoice logs.
+          <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+            Update expiry date, stock quantities, pricing, and shelf location for this batch.
           </DialogDescription>
         </DialogHeader>
 
@@ -195,7 +195,7 @@ export function EditBatchModal({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="quantityRemaining" className="text-[11px] font-semibold">
-                  Quantity Remaining ({unit}s) *
+                  Quantity Remaining ({unit.endsWith('s') ? unit : `${unit}s`}) *
                 </Label>
                 <Input
                   id="quantityRemaining"
@@ -212,7 +212,7 @@ export function EditBatchModal({
 
               <div className="space-y-1">
                 <Label htmlFor="quantityReceived" className="text-[11px] font-semibold">
-                  Total Received ({unit}s)
+                  Total Received ({unit.endsWith('s') ? unit : `${unit}s`})
                 </Label>
                 <Input
                   id="quantityReceived"
