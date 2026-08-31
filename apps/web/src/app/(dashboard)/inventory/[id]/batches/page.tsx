@@ -27,8 +27,10 @@ import {
   Boxes,
   DollarSign,
   Pill,
+  Edit3,
 } from 'lucide-react';
 import { extractIdFromSlugParam } from '@/features/inventory/utils/seo-utils';
+import { EditBatchModal } from '@/features/inventory/components/edit-batch-modal';
 
 export default function ProductBatchesPage() {
   const params = useParams();
@@ -44,8 +46,9 @@ export default function ProductBatchesPage() {
     totalStock: number;
   } | null>(null);
   const [batches, setBatches] = useState<BatchData[]>([]);
+  const [editingBatch, setEditingBatch] = useState<BatchData | null>(null);
 
-  useEffect(() => {
+  const fetchBatches = () => {
     if (productId) {
       setLoading(true);
       productsApi
@@ -62,6 +65,10 @@ export default function ProductBatchesPage() {
           setLoading(false);
         });
     }
+  };
+
+  useEffect(() => {
+    fetchBatches();
   }, [productId]);
 
   const iconConfig = productInfo
@@ -210,6 +217,15 @@ export default function ProductBatchesPage() {
                               <span className="font-mono font-bold text-sm text-foreground">
                                 {batch.batchNumber}
                               </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingBatch(batch)}
+                                className="size-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                title="Edit Batch Specifications"
+                              >
+                                <Edit3 className="size-3.5" />
+                              </Button>
                               {batch.isExpired ? (
                                 <Badge variant="destructive" className="text-[10px] gap-1">
                                   <AlertTriangle className="size-3" />
@@ -244,6 +260,18 @@ export default function ProductBatchesPage() {
                                 <DollarSign className="size-3.5 text-muted-foreground/70" />
                                 Selling Price: PKR {batch.sellPrice.toFixed(2)} (Cost: PKR {batch.costPrice.toFixed(2)})
                               </span>
+                              {batch.vendorName && (
+                                <>
+                                  <span>•</span>
+                                  <span>Vendor: <strong>{batch.vendorName}</strong></span>
+                                </>
+                              )}
+                              {batch.rackNumber && (
+                                <>
+                                  <span>•</span>
+                                  <span>Rack: <strong>{batch.rackNumber}</strong></span>
+                                </>
+                              )}
                             </div>
                           </div>
 
@@ -274,6 +302,14 @@ export default function ProductBatchesPage() {
           </Card>
         </div>
       )}
+
+      <EditBatchModal
+        batch={editingBatch}
+        unit={productInfo?.unit}
+        open={!!editingBatch}
+        onOpenChange={(isOpen) => !isOpen && setEditingBatch(null)}
+        onBatchUpdated={fetchBatches}
+      />
     </div>
   );
 }

@@ -22,12 +22,14 @@ import {
   Boxes,
   DollarSign,
   Pill,
+  Edit3,
 } from 'lucide-react';
 import {
   productsApi,
   type BatchData,
 } from '../services/products-api';
 import { formatCategory, formatDate, getMedicineIconConfig } from './product-list';
+import { EditBatchModal } from './edit-batch-modal';
 
 interface ProductBatchesModalProps {
   productId: string | null;
@@ -49,23 +51,29 @@ export function ProductBatchesModal({
     totalStock: number;
   } | null>(null);
   const [batches, setBatches] = useState<BatchData[]>([]);
+  const [editingBatch, setEditingBatch] = useState<BatchData | null>(null);
+
+  const fetchBatches = () => {
+    if (!productId) return;
+    setLoading(true);
+    productsApi
+      .getProductBatches(productId)
+      .then((res) => {
+        setProductInfo(res.product);
+        setBatches(res.batches || []);
+      })
+      .catch(() => {
+        setProductInfo(null);
+        setBatches([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
     if (open && productId) {
-      setLoading(true);
-      productsApi
-        .getProductBatches(productId)
-        .then((res) => {
-          setProductInfo(res.product);
-          setBatches(res.batches || []);
-        })
-        .catch(() => {
-          setProductInfo(null);
-          setBatches([]);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
+      fetchBatches();
     }
   }, [open, productId]);
 
@@ -180,6 +188,15 @@ export function ProductBatchesModal({
                             <span className="font-mono font-bold text-xs sm:text-sm text-foreground">
                               {batch.batchNumber}
                             </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingBatch(batch)}
+                              className="size-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                              title="Edit Batch Specifications"
+                            >
+                              <Edit3 className="size-3" />
+                            </Button>
                             {batch.isExpired ? (
                               <Badge variant="destructive" className="text-[10px] gap-1">
                                 <AlertTriangle className="size-3" />
@@ -204,7 +221,7 @@ export function ProductBatchesModal({
                             )}
                           </div>
 
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1">
                               <Calendar className="size-3 text-muted-foreground/70" />
                               Expiry: <strong>{formatDate(batch.expiryDate)}</strong>
@@ -214,6 +231,18 @@ export function ProductBatchesModal({
                               <DollarSign className="size-3 text-muted-foreground/70" />
                               MRP: PKR {batch.sellPrice.toFixed(2)} (Cost: PKR {batch.costPrice.toFixed(2)})
                             </span>
+                            {batch.vendorName && (
+                              <>
+                                <span>•</span>
+                                <span>Vendor: <strong>{batch.vendorName}</strong></span>
+                              </>
+                            )}
+                            {batch.rackNumber && (
+                              <>
+                                <span>•</span>
+                                <span>Rack: <strong>{batch.rackNumber}</strong></span>
+                              </>
+                            )}
                           </div>
                         </div>
 
@@ -269,6 +298,13 @@ export function ProductBatchesModal({
           </div>
         )}
       </DialogContent>
+      <EditBatchModal
+        batch={editingBatch}
+        unit={productInfo?.unit}
+        open={!!editingBatch}
+        onOpenChange={(isOpen) => !isOpen && setEditingBatch(null)}
+        onBatchUpdated={fetchBatches}
+      />
     </Dialog>
   );
 }

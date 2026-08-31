@@ -37,6 +37,11 @@ export interface BatchData {
   isExpired: boolean;
   isNearExpiry: boolean;
   createdAt: string;
+  mfgDate?: string | null;
+  vendorName?: string | null;
+  purchaseInvoiceNumber?: string | null;
+  purchaseInvoiceDate?: string | null;
+  rackNumber?: string | null;
 }
 
 export interface CreateProductPayload {
@@ -173,6 +178,26 @@ export const productsApi = {
     batches: BatchData[];
   }> {
     const { data } = await apiClient.get(`/inventory/products/${productId}/batches`);
+    return data;
+  },
+
+  async updateBatch(
+    batchId: string,
+    payload: {
+      batchNumber?: string;
+      expiryDate?: string;
+      costPrice?: number;
+      sellPrice?: number;
+      quantityRemaining?: number;
+      quantityReceived?: number;
+      mfgDate?: string;
+      vendorName?: string;
+      purchaseInvoiceNumber?: string;
+      purchaseInvoiceDate?: string;
+      rackNumber?: string;
+    },
+  ): Promise<{ success: boolean; message: string; batch: BatchData }> {
+    const { data } = await apiClient.patch(`/inventory/batches/${batchId}`, payload);
     return data;
   },
 };

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReceiveStockDto } from './dtos/receive-stock.dto';
+import { UpdateBatchDto } from './dtos/update-batch.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -136,6 +137,7 @@ export class InventoryService {
     });
 
     const now = new Date();
+    const productAttrs = (product.attributes as Record<string, unknown>) || {};
 
     const formattedBatches = batches.map((batch) => {
       const expiry = new Date(batch.expiryDate);
@@ -154,6 +156,11 @@ export class InventoryService {
         isExpired: daysUntilExpiry <= 0,
         isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 60,
         createdAt: batch.createdAt.toISOString(),
+        vendorName: (productAttrs.vendorName as string) || null,
+        mfgDate: (productAttrs.mfgDate as string) || null,
+        purchaseInvoiceNumber: (productAttrs.purchaseInvoiceNumber as string) || null,
+        purchaseInvoiceDate: (productAttrs.purchaseInvoiceDate as string) || null,
+        rackNumber: (productAttrs.rackNumber as string) || null,
       };
     });
 
@@ -168,6 +175,86 @@ export class InventoryService {
         totalStock,
       },
       batches: formattedBatches,
+    };
+  }
+
+  /**
+   * Update specific batch details (Batch #, Expiry Date, Price, Quantities, Vendor, Invoice, Rack)
+   */
+  async updateBatch(tenantId: string, batchId: string, dto: UpdateBatchDto) {
+    const existingBatch = await this.prisma.batch.findFirst({
+      where: { id: batchId, tenantId },
+      include: { product: true },
+    });
+
+    if (!existingBatch) {
+      throw new NotFoundException(`Stock batch with ID "${batchId}" not found`);
+    }
+
+    let expiryDate = existingBatch.expiryDate;
+    if (dto.expiryDate) {
+      const parsedDate = new Date(dto.expiryDate);
+      if (isNaN(parsedDate.getTime())) {
+        throw new BadRequestException('Invalid expiry date format');
+      }
+      expiryDate = parsedDate;
+    }
+
+    const updatedBatch = await this.prisma.batch.update({
+      where: { id: batchId },
+      data: {
+        ...(dto.batchNumber ? { batchNumber: dto.batchNumber.trim() } : {}),
+        ...(dto.expiryDate ? { expiryDate } : {}),
+        ...(dto.costPrice !== undefined ? { costPrice: new Prisma.Decimal(dto.costPrice) } : {}),
+        ...(dto.sellPrice !== undefined ? { sellPrice: new Prisma.Decimal(dto.sellPrice) } : {}),
+        ...(dto.quantityRemaining !== undefined
+          ? { quantityRemaining: dto.quantityRemaining }
+          : {}),
+        ...(dto.quantityReceived !== undefined
+          ? { quantityReceived: dto.quantityReceived }
+          : {}),
+      },
+    });
+
+    // Update product attributes if procurement / location fields provided
+    const existingAttrs = (existingBatch.product.attributes as Record<string, unknown>) || {};
+    const updatedAttrs = {
+      ...existingAttrs,
+      ...(dto.vendorName !== undefined ? { vendorName: dto.vendorName.trim() || null } : {}),
+      ...(dto.mfgDate !== undefined ? { mfgDate: dto.mfgDate.trim() || null } : {}),
+      ...(dto.purchaseInvoiceNumber !== undefined
+        ? { purchaseInvoiceNumber: dto.purchaseInvoiceNumber.trim() || null }
+        : {}),
+      ...(dto.purchaseInvoiceDate !== undefined
+        ? { purchaseInvoiceDate: dto.purchaseInvoiceDate.trim() || null }
+        : {}),
+      ...(dto.rackNumber !== undefined ? { rackNumber: dto.rackNumber.trim() || null } : {}),
+    };
+
+    await this.prisma.product.update({
+      where: { id: existingBatch.productId },
+      data: {
+        attributes: updatedAttrs as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      success: true,
+      message: `Batch ${updatedBatch.batchNumber} updated successfully`,
+      batch: {
+        id: updatedBatch.id,
+        batchNumber: updatedBatch.batchNumber,
+        expiryDate: updatedBatch.expiryDate.toISOString(),
+        costPrice: Number(updatedBatch.costPrice),
+        sellPrice: Number(updatedBatch.sellPrice),
+        quantityReceived: updatedBatch.quantityReceived,
+        quantityRemaining: updatedBatch.quantityRemaining,
+        vendorName: (updatedAttrs.vendorName as string) || null,
+        mfgDate: (updatedAttrs.mfgDate as string) || null,
+        purchaseInvoiceNumber: (updatedAttrs.purchaseInvoiceNumber as string) || null,
+        purchaseInvoiceDate: (updatedAttrs.purchaseInvoiceDate as string) || null,
+        rackNumber: (updatedAttrs.rackNumber as string) || null,
+      },
     };
   }
 }
