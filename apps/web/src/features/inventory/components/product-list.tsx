@@ -22,6 +22,8 @@ import {
   Calendar,
   Boxes,
   Layers,
+  AlertTriangle,
+  Clock,
   LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -154,37 +156,73 @@ export function getMedicineIconConfig(
 // 2. Shared Sub-Components (DRY & SRP)
 // ==========================================
 
-function StockStatusBadge({
+function ProductStockStatusBadges({
   totalStock,
   lowStockThreshold,
+  expiredBatchCount = 0,
+  nearExpiryBatchCount = 0,
+  onViewBatches,
+  product,
 }: {
   totalStock: number;
   lowStockThreshold: number;
+  expiredBatchCount?: number;
+  nearExpiryBatchCount?: number;
+  onViewBatches: (product: ProductData) => void;
+  product: ProductData;
 }) {
-  if (totalStock === 0) {
-    return (
-      <Badge variant="destructive" className="text-[10px]">
-        Out of Stock
-      </Badge>
-    );
-  }
-  if (totalStock <= lowStockThreshold) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]"
-      >
-        Low Stock
-      </Badge>
-    );
-  }
+  const isOutOfStock = totalStock === 0;
+  const isLowStock = totalStock > 0 && totalStock <= lowStockThreshold;
+  const hasExpiryWarning = expiredBatchCount > 0 || nearExpiryBatchCount > 0;
+
   return (
-    <Badge
-      variant="outline"
-      className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]"
-    >
-      Healthy
-    </Badge>
+    <div className="flex items-center gap-1 flex-wrap">
+      {/* Quantity Warnings (Out of Stock / Low Stock) */}
+      {isOutOfStock ? (
+        <Badge variant="destructive" className="text-[10px]">
+          Out of Stock
+        </Badge>
+      ) : isLowStock ? (
+        <Badge
+          variant="outline"
+          className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]"
+        >
+          Low Stock
+        </Badge>
+      ) : !hasExpiryWarning ? (
+        <Badge
+          variant="outline"
+          className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]"
+        >
+          Healthy
+        </Badge>
+      ) : null}
+
+      {/* Expiry Alerts */}
+      {expiredBatchCount > 0 && (
+        <Badge
+          variant="destructive"
+          onClick={() => onViewBatches(product)}
+          className="cursor-pointer text-[10px] px-1.5 py-0 gap-1"
+          title={`${expiredBatchCount} expired batch(es)`}
+        >
+          <AlertTriangle className="size-3" />
+          <span>{expiredBatchCount} Expired</span>
+        </Badge>
+      )}
+
+      {nearExpiryBatchCount > 0 && (
+        <Badge
+          variant="outline"
+          onClick={() => onViewBatches(product)}
+          className="cursor-pointer bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] px-1.5 py-0 gap-1 font-medium"
+          title={`${nearExpiryBatchCount} near-expiry batch(es)`}
+        >
+          <Clock className="size-3" />
+          <span>{nearExpiryBatchCount} Near Expiry</span>
+        </Badge>
+      )}
+    </div>
   );
 }
 
@@ -203,24 +241,21 @@ function ProductTableRow({
 
   return (
     <tr className="hover:bg-muted/30 transition-colors">
-      {/* Medicine Name & Formula */}
+      {/* Product & Icon */}
       <td className="py-3 px-4">
-        <div className="flex items-start gap-2.5">
-          <div
-            className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${iconConfig.bgClass}`}
-          >
-            <CategoryIcon className="size-4" />
+        <div className="flex items-center gap-2.5">
+          <div className="size-7 rounded-md bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/40">
+            <CategoryIcon className="size-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="font-semibold text-foreground flex items-center gap-1.5">
-              <span className="truncate">{product.name}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-foreground truncate">{product.name}</span>
               {product.isControlledSubstance && (
                 <Badge
                   variant="outline"
-                  className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0 font-medium shrink-0"
-                  title="Controlled Substance (Schedule Rx)"
+                  className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
                 >
-                  Rx
+                  Rx Schedule
                 </Badge>
               )}
             </div>
@@ -228,18 +263,16 @@ function ProductTableRow({
               <p className="text-xs text-muted-foreground truncate">{product.genericName}</p>
             )}
             {product.barcode && (
-              <p className="text-[11px] text-muted-foreground/70 font-mono truncate">
-                {product.barcode}
-              </p>
+              <p className="text-[11px] text-muted-foreground/80 font-mono">{product.barcode}</p>
             )}
           </div>
         </div>
       </td>
 
-      {/* Category & Unit */}
+      {/* Category & Pack */}
       <td className="py-3 px-4">
-        <div className="space-y-1">
-          <Badge variant="secondary" className="text-[11px] font-medium">
+        <div className="space-y-0.5">
+          <Badge variant="secondary" className="text-[10px]">
             {formatCategory(product.category)}
           </Badge>
           <p className="text-xs text-muted-foreground">
@@ -251,17 +284,38 @@ function ProductTableRow({
       {/* Stock Level & Status */}
       <td className="py-3 px-4">
         <div className="space-y-1">
-          <button
-            type="button"
-            onClick={() => onViewBatches(product)}
-            className="font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1 text-left"
-            title="View FEFO Batch Breakdown"
-          >
-            <span>{totalStock}</span>
-            <span className="text-xs font-normal text-muted-foreground">{product.unit}s</span>
-            <Layers className="size-3 text-muted-foreground/70" />
-          </button>
-          <StockStatusBadge totalStock={totalStock} lowStockThreshold={product.lowStockThreshold} />
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onViewBatches(product)}
+              className="font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1 text-left"
+              title="Click to inspect FEFO Batch Breakdown"
+            >
+              <span>{totalStock}</span>
+              <span className="text-xs font-normal text-muted-foreground">{product.unit}s</span>
+            </button>
+
+            {product.batchCount !== undefined && product.batchCount > 0 && (
+              <Badge
+                variant="outline"
+                onClick={() => onViewBatches(product)}
+                className="cursor-pointer hover:bg-primary/10 text-[10px] gap-1 px-1.5 py-0 border-primary/20 text-primary font-medium"
+                title={`${product.batchCount} stock batch(es)`}
+              >
+                <Layers className="size-3" />
+                <span>{product.batchCount} {product.batchCount === 1 ? 'Batch' : 'Batches'}</span>
+              </Badge>
+            )}
+          </div>
+
+          <ProductStockStatusBadges
+            totalStock={totalStock}
+            lowStockThreshold={product.lowStockThreshold}
+            expiredBatchCount={product.expiredBatchCount}
+            nearExpiryBatchCount={product.nearExpiryBatchCount}
+            onViewBatches={onViewBatches}
+            product={product}
+          />
         </div>
       </td>
 
@@ -347,10 +401,8 @@ function ProductCardItem({
       <CardContent className="p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2.5 min-w-0">
-            <div
-              className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${iconConfig.bgClass}`}
-            >
-              <CategoryIcon className="size-4" />
+            <div className="size-7 rounded-md bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/40 mt-0.5">
+              <CategoryIcon className="size-3.5" />
             </div>
             <div className="min-w-0">
               <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
@@ -402,7 +454,26 @@ function ProductCardItem({
               Rx Schedule
             </Badge>
           )}
-          <StockStatusBadge totalStock={totalStock} lowStockThreshold={product.lowStockThreshold} />
+          {product.batchCount !== undefined && product.batchCount > 0 && (
+            <Badge
+              variant="outline"
+              onClick={() => onViewBatches(product)}
+              className="cursor-pointer hover:bg-primary/10 text-[10px] gap-1 px-1.5 py-0 border-primary/20 text-primary font-medium"
+              title={`${product.batchCount} stock batch(es)`}
+            >
+              <Layers className="size-3" />
+              <span>{product.batchCount} {product.batchCount === 1 ? 'Batch' : 'Batches'}</span>
+            </Badge>
+          )}
+
+          <ProductStockStatusBadges
+            totalStock={totalStock}
+            lowStockThreshold={product.lowStockThreshold}
+            expiredBatchCount={product.expiredBatchCount}
+            nearExpiryBatchCount={product.nearExpiryBatchCount}
+            onViewBatches={onViewBatches}
+            product={product}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs">
