@@ -28,7 +28,7 @@ import {
   productsApi,
   type BatchData,
 } from '../services/products-api';
-import { formatCategory, formatDate, getMedicineIconConfig } from './product-list';
+import { formatCategory, formatDate, getMedicineIconConfig, formatUnitPlural } from './product-list';
 import { EditBatchModal } from './edit-batch-modal';
 
 interface ProductBatchesModalProps {
@@ -249,7 +249,7 @@ export function ProductBatchesModal({
                         {/* Right Info: Stock Progress Bar */}
                         <div className="sm:text-right shrink-0 space-y-1 min-w-[140px]">
                           <div className="text-xs font-semibold text-foreground">
-                            {batch.quantityRemaining} / {batch.quantityReceived} {productInfo?.unit || 'Units'}
+                            {formatUnitPlural(productInfo?.unit || 'Unit', batch.quantityRemaining)} / {batch.quantityReceived} total
                           </div>
                           <div className="w-full sm:w-32 bg-muted h-1.5 rounded-full overflow-hidden">
                             <div

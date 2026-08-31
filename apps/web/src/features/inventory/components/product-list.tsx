@@ -59,6 +59,26 @@ export function formatCategory(catVal: string): string {
   return found ? found.label : catVal;
 }
 
+export function formatUnitPlural(unit: string = 'Unit', count?: number): string {
+  if (count === 1) return `${count} ${unit}`;
+
+  const cleanUnit = unit.trim();
+  let pluralUnit = cleanUnit;
+
+  const lower = cleanUnit.toLowerCase();
+  if (lower.endsWith('box')) {
+    pluralUnit = cleanUnit.replace(/box$/i, 'Boxes');
+  } else if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('ch') || lower.endsWith('sh')) {
+    pluralUnit = `${cleanUnit}es`;
+  } else if (lower.endsWith('y') && !/[aeiou]y$/i.test(lower)) {
+    pluralUnit = cleanUnit.slice(0, -1) + 'ies';
+  } else if (!lower.endsWith('s')) {
+    pluralUnit = `${cleanUnit}s`;
+  }
+
+  return count !== undefined ? `${count} ${pluralUnit}` : pluralUnit;
+}
+
 export function formatDate(dateStr?: string | null): string {
   if (!dateStr) return 'N/A';
   try {
@@ -292,8 +312,7 @@ function ProductTableRow({
               className="font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1 text-left"
               title="Click to inspect FEFO Batch Breakdown"
             >
-              <span>{totalStock}</span>
-              <span className="text-xs font-normal text-muted-foreground">{product.unit}s</span>
+              <span className="text-xs font-semibold">{formatUnitPlural(product.unit, totalStock)}</span>
             </button>
 
             {product.batchCount !== undefined && product.batchCount > 0 && (
@@ -481,7 +500,7 @@ function ProductCardItem({
           <div>
             <span className="text-muted-foreground block text-[11px]">Stock Level</span>
             <span className="font-bold text-foreground">
-              {totalStock} {product.unit}s
+              {formatUnitPlural(product.unit, totalStock)}
             </span>
           </div>
           <div>
@@ -564,6 +583,7 @@ export function ProductList() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedStockStatus, setSelectedStockStatus] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [meta, setMeta] = useState({
@@ -606,6 +626,7 @@ export function ProductList() {
         limit,
         search: debouncedSearch.trim() || undefined,
         category: selectedCategory !== 'ALL' ? selectedCategory : undefined,
+        stockStatus: selectedStockStatus !== 'ALL' ? selectedStockStatus : undefined,
       });
 
       setProducts(res.data || []);
@@ -624,7 +645,7 @@ export function ProductList() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, debouncedSearch, selectedCategory]);
+  }, [page, limit, debouncedSearch, selectedCategory, selectedStockStatus]);
 
   useEffect(() => {
     fetchProducts();
@@ -723,9 +744,11 @@ export function ProductList() {
             )}
           </div>
 
-          {/* Category Dropdown Filter */}
-          <div className="w-full sm:w-56 shrink-0 flex items-center gap-2">
+          {/* Filters (Category & Stock Status) */}
+          <div className="w-full sm:w-auto shrink-0 flex flex-col sm:flex-row items-center gap-2">
             <Filter className="size-4 text-muted-foreground shrink-0 hidden sm:inline" />
+
+            {/* Category Filter */}
             <Select
               value={selectedCategory}
               onValueChange={(val) => {
@@ -733,7 +756,7 @@ export function ProductList() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-9 text-xs sm:text-sm w-full">
+              <SelectTrigger className="h-9 text-xs sm:text-sm w-full sm:w-44">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
@@ -743,6 +766,26 @@ export function ProductList() {
                     {cat.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            {/* Stock Status Filter */}
+            <Select
+              value={selectedStockStatus}
+              onValueChange={(val) => {
+                setSelectedStockStatus(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-9 text-xs sm:text-sm w-full sm:w-44">
+                <SelectValue placeholder="All Stock Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Stock Statuses</SelectItem>
+                <SelectItem value="LOW">⚠️ Low Stock</SelectItem>
+                <SelectItem value="OUT">🚫 Out of Stock</SelectItem>
+                <SelectItem value="EXPIRED">🔴 Expired Stock</SelectItem>
+                <SelectItem value="NEAR_EXPIRY">🕒 Near Expiry</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -127,12 +127,14 @@ export class ProductsService {
         : {}),
     };
 
-    const [total, products] = await Promise.all([
+    // If stock status filter is provided, fetch all matching products to apply computed stock filters
+    const isFilteredByStatus = !!query.stockStatus && query.stockStatus !== 'ALL';
+
+    const [totalRaw, rawProducts] = await Promise.all([
       this.prisma.product.count({ where }),
       this.prisma.product.findMany({
         where,
-        skip,
-        take: limit,
+        ...(isFilteredByStatus ? {} : { skip, take: limit }),
         orderBy: { createdAt: 'desc' },
         include: {
           batches: {
@@ -146,7 +148,7 @@ export class ProductsService {
     const sixtyDaysFromNow = new Date();
     sixtyDaysFromNow.setDate(now.getDate() + 60);
 
-    const items = products.map((product) => {
+    const allMapped = rawProducts.map((product) => {
       const activeStockBatches = product.batches.filter((b) => b.quantityRemaining > 0);
       const totalStock = product.batches.reduce(
         (sum, batch) => sum + batch.quantityRemaining,
@@ -175,10 +177,29 @@ export class ProductsService {
       };
     });
 
-    const totalPages = Math.ceil(total / limit);
+    let filteredItems = allMapped;
+    if (isFilteredByStatus && query.stockStatus) {
+      const status = query.stockStatus.toUpperCase();
+      if (status === 'LOW') {
+        filteredItems = allMapped.filter((p) => p.totalStock > 0 && p.totalStock <= p.lowStockThreshold);
+      } else if (status === 'OUT') {
+        filteredItems = allMapped.filter((p) => p.totalStock === 0);
+      } else if (status === 'EXPIRED') {
+        filteredItems = allMapped.filter((p) => p.expiredBatchCount > 0);
+      } else if (status === 'NEAR_EXPIRY') {
+        filteredItems = allMapped.filter((p) => p.nearExpiryBatchCount > 0);
+      }
+    }
+
+    const total = isFilteredByStatus ? filteredItems.length : totalRaw;
+    const paginatedItems = isFilteredByStatus
+      ? filteredItems.slice(skip, skip + limit)
+      : filteredItems;
+
+    const totalPages = Math.ceil(total / limit) || 1;
 
     return {
-      data: items,
+      data: paginatedItems,
       meta: {
         total,
         page,

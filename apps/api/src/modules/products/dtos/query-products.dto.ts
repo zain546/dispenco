@@ -39,4 +39,8 @@ export class QueryProductsDto {
   })
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  stockStatus?: string;
 }
