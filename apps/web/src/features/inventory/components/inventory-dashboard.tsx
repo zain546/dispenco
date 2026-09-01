@@ -30,7 +30,7 @@ import { ProductBatchesModal } from './product-batches-modal';
 import { getProductSeoUrl } from '../utils/seo-utils';
 
 export function InventoryDashboard() {
-  const [activeTab, setActiveTab] = useState<'low-stock' | 'expiring-soon' | 'full-catalog'>('low-stock');
+  const [activeTab, setActiveTab] = useState<'full-catalog' | 'expiring-soon' | 'low-stock'>('full-catalog');
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [data, setData] = useState<{
@@ -90,10 +90,8 @@ export function InventoryDashboard() {
   }, [activeTab, search]);
 
   useEffect(() => {
-    if (activeTab !== 'full-catalog') {
-      fetchAggregation();
-    }
-  }, [fetchAggregation, activeTab]);
+    fetchAggregation();
+  }, [fetchAggregation]);
 
   const handleInspectBatches = (productId: string, productName: string) => {
     setSelectedProductForModal({ id: productId, name: productName });
@@ -106,25 +104,41 @@ export function InventoryDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Boxes className="size-6 text-primary" />
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+            <Boxes className="size-6 text-primary shrink-0" />
+            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               Inventory & Exception Hub
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             FEFO-compliant inventory monitoring, stock alerts, and procurement management
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button asChild size="sm" className="gap-2 font-semibold shadow-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchAggregation()}
+            disabled={isLoading}
+            className="h-9 px-3 gap-1.5"
+            title="Refresh inventory data"
+          >
+            <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="h-9 px-3 gap-1.5 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+          >
             <Link href="/inventory/receive">
               <Boxes className="size-4" />
-              <span>Receive Stock Batch</span>
+              <span>Receive Stock</span>
             </Link>
           </Button>
-          <Button asChild variant="outline" size="sm" className="gap-2 font-semibold">
-            <Link href="/products/create">
+          <Button asChild size="sm" className="h-9 px-3 gap-1.5 font-semibold">
+            <Link href="/inventory/new">
               <Plus className="size-4" />
               <span>Add New Product</span>
             </Link>
@@ -132,57 +146,34 @@ export function InventoryDashboard() {
         </div>
       </div>
 
-      {/* Overview Metric Cards */}
+      {/* Overview Metric Cards (Reversed Order) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
-        {/* Card 1: Low Stock Exceptions */}
+        {/* Card 1: Full Catalog */}
         <Card
-          onClick={() => setActiveTab('low-stock')}
-          className={`cursor-pointer transition-all hover:border-amber-500/50 ${activeTab === 'low-stock' ? 'ring-2 ring-amber-500/40 border-amber-500/50 bg-amber-500/5' : 'bg-card'
-            }`}
+          onClick={() => setActiveTab('full-catalog')}
+          className={`cursor-pointer transition-all hover:border-primary/50 ${
+            activeTab === 'full-catalog' ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5' : 'bg-card'
+          }`}
         >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Low Stock Alerts
+                Total Catalog
               </p>
               <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl sm:text-3xl font-bold text-amber-600">
-                  {data.summary.lowStockCount}
+                <span className="text-2xl sm:text-3xl font-bold text-foreground">
+                  {data.summary.totalCatalogItems}
                 </span>
-                <span className="text-xs text-muted-foreground">items</span>
+                <span className="text-xs text-muted-foreground">medicines</span>
               </div>
             </div>
-            <div className="size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-              <AlertTriangle className="size-5" />
+            <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Package className="size-5" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Card 2: Expiring Soon */}
-        <Card
-          onClick={() => setActiveTab('expiring-soon')}
-          className={`cursor-pointer transition-all hover:border-rose-500/50 ${activeTab === 'expiring-soon' ? 'ring-2 ring-rose-500/40 border-rose-500/50 bg-rose-500/5' : 'bg-card'
-            }`}
-        >
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Expiring (90 Days)
-              </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl sm:text-3xl font-bold text-rose-600">
-                  {data.summary.expiringSoonCount}
-                </span>
-                <span className="text-xs text-muted-foreground">batches</span>
-              </div>
-            </div>
-            <div className="size-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
-              <Clock className="size-5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Out of Stock */}
+        {/* Card 2: Out of Stock */}
         <Card className="bg-card">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
@@ -202,50 +193,76 @@ export function InventoryDashboard() {
           </CardContent>
         </Card>
 
-        {/* Card 4: Full Catalog */}
+        {/* Card 3: Expiring Soon */}
         <Card
-          onClick={() => setActiveTab('full-catalog')}
-          className={`cursor-pointer transition-all hover:border-primary/50 ${activeTab === 'full-catalog' ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5' : 'bg-card'
-            }`}
+          onClick={() => setActiveTab('expiring-soon')}
+          className={`cursor-pointer transition-all hover:border-rose-500/50 ${
+            activeTab === 'expiring-soon' ? 'ring-2 ring-rose-500/40 border-rose-500/50 bg-rose-500/5' : 'bg-card'
+          }`}
         >
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Total Catalog
+                Expiring (90 Days)
               </p>
               <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl sm:text-3xl font-bold text-foreground">
-                  {data.summary.totalCatalogItems}
+                <span className="text-2xl sm:text-3xl font-bold text-rose-600">
+                  {data.summary.expiringSoonCount}
                 </span>
-                <span className="text-xs text-muted-foreground">medicines</span>
+                <span className="text-xs text-muted-foreground">batches</span>
               </div>
             </div>
-            <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Package className="size-5" />
+            <div className="size-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+              <Clock className="size-5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Low Stock Exceptions */}
+        <Card
+          onClick={() => setActiveTab('low-stock')}
+          className={`cursor-pointer transition-all hover:border-amber-500/50 ${
+            activeTab === 'low-stock' ? 'ring-2 ring-amber-500/40 border-amber-500/50 bg-amber-500/5' : 'bg-card'
+          }`}
+        >
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Low Stock Alerts
+              </p>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-2xl sm:text-3xl font-bold text-amber-600">
+                  {data.summary.lowStockCount}
+                </span>
+                <span className="text-xs text-muted-foreground">items</span>
+              </div>
+            </div>
+            <div className="size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="size-5" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Dashboard Tabs Navigation */}
+      {/* Dashboard Tabs Navigation (Reversed Order) */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'low-stock' | 'expiring-soon' | 'full-catalog')}
+        onValueChange={(val) => setActiveTab(val as 'full-catalog' | 'expiring-soon' | 'low-stock')}
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
           <TabsList className="grid grid-cols-3 w-full sm:w-auto">
-            <TabsTrigger value="low-stock" className="gap-2 font-medium text-xs sm:text-sm">
-              <AlertTriangle className="size-3.5 text-amber-500" />
-              <span>Low Stock ({data.summary.lowStockCount})</span>
+            <TabsTrigger value="full-catalog" className="gap-2 font-medium text-xs sm:text-sm">
+              <Package className="size-3.5 text-primary" />
+              <span>Full Catalog ({data.summary.totalCatalogItems})</span>
             </TabsTrigger>
             <TabsTrigger value="expiring-soon" className="gap-2 font-medium text-xs sm:text-sm">
               <Clock className="size-3.5 text-rose-500" />
               <span>Expiring Soon ({data.summary.expiringSoonCount})</span>
             </TabsTrigger>
-            <TabsTrigger value="full-catalog" className="gap-2 font-medium text-xs sm:text-sm">
-              <Package className="size-3.5 text-primary" />
-              <span>Full Catalog ({data.summary.totalCatalogItems})</span>
+            <TabsTrigger value="low-stock" className="gap-2 font-medium text-xs sm:text-sm">
+              <AlertTriangle className="size-3.5 text-amber-500" />
+              <span>Low Stock ({data.summary.lowStockCount})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -459,7 +476,7 @@ export function InventoryDashboard() {
 
         {/* Tab 3: Full Catalog */}
         <TabsContent value="full-catalog" className="mt-0">
-          <ProductList />
+          <ProductList hideHeader />
         </TabsContent>
       </Tabs>
 

@@ -606,7 +606,11 @@ function ProductDeactivationModal({
 // 3. Main Container Component
 // ==========================================
 
-export function ProductList() {
+interface ProductListProps {
+  hideHeader?: boolean;
+}
+
+export function ProductList({ hideHeader = false }: ProductListProps = {}) {
   const [products, setProducts] = useState<ProductData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -711,47 +715,49 @@ export function ProductList() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Package className="size-6 text-primary" />
-            <span>Inventory Catalog</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage pharmacy products, batches, stock levels, and FEFO expiry tracking.
-          </p>
+      {!hideHeader && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Package className="size-6 text-primary" />
+              <span>Inventory Catalog</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Manage pharmacy products, batches, stock levels, and FEFO expiry tracking.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchProducts}
+              disabled={isLoading}
+              className="h-9 px-3 gap-1.5"
+              title="Refresh inventory list"
+            >
+              <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-9 px-3 gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
+            >
+              <Link href="/inventory/receive">
+                <Boxes className="size-4" />
+                <span>Receive Stock</span>
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="h-9 px-3 gap-1.5">
+              <Link href="/inventory/new">
+                <Plus className="size-4" />
+                <span>Add New Product</span>
+              </Link>
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchProducts}
-            disabled={isLoading}
-            className="h-9 px-3 gap-1.5"
-            title="Refresh inventory list"
-          >
-            <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="h-9 px-3 gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
-          >
-            <Link href="/inventory/receive">
-              <Boxes className="size-4" />
-              <span>Receive Stock</span>
-            </Link>
-          </Button>
-          <Button asChild size="sm" className="h-9 px-3 gap-1.5">
-            <Link href="/inventory/new">
-              <Plus className="size-4" />
-              <span>Add New Product</span>
-            </Link>
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* Search & Filter Bar */}
       <Card className="shadow-xs border-border">
