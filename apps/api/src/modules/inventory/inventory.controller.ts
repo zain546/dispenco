@@ -54,4 +54,23 @@ export class InventoryController {
   ) {
     return this.inventoryService.updateBatch(tenantId, batchId, dto);
   }
+
+  /**
+   * POST /api/v1/inventory/select-fefo-batches
+   * Calculate FEFO batch deduction plan for sale checkout
+   */
+  @Post('select-fefo-batches')
+  async selectFefoBatches(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: { productId: string; quantityNeeded: number; storeId?: string; allowExpired?: boolean },
+  ) {
+    return this.inventoryService.selectBatchesForSale(
+      tenantId,
+      dto.productId,
+      dto.quantityNeeded,
+      dto.storeId,
+      dto.allowExpired,
+    );
+  }
 }
+

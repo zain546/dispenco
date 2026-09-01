@@ -257,4 +257,93 @@ export class InventoryService {
       },
     };
   }
+
+  /**
+   * FEFO Stock Selection Logic: Select batches to deduct from for a sale
+   * Always prefers earliest expiring active non-expired stock first.
+   * Throws BadRequestException if available stock is insufficient.
+   */
+  async selectBatchesForSale(
+    tenantId: string,
+    productId: string,
+    quantityNeeded: number,
+    storeId?: string,
+    allowExpired: boolean = false,
+  ) {
+    if (!quantityNeeded || quantityNeeded <= 0) {
+      throw new BadRequestException('Requested quantity must be greater than zero');
+    }
+
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, tenantId },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID "${productId}" not found`);
+    }
+
+    const now = new Date();
+
+    // Query active batches with stock remaining > 0, ordered by expiry date ASC (FEFO)
+    const batches = await this.prisma.batch.findMany({
+      where: {
+        tenantId,
+        productId,
+        ...(storeId ? { storeId } : {}),
+        quantityRemaining: { gt: 0 },
+        ...(!allowExpired ? { expiryDate: { gt: now } } : {}),
+      },
+      orderBy: { expiryDate: 'asc' },
+    });
+
+    const totalAvailable = batches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+
+    if (totalAvailable < quantityNeeded) {
+      throw new BadRequestException(
+        `Insufficient available stock for medicine "${product.name}". Requested: ${quantityNeeded} ${product.unit}(s), Available non-expired stock: ${totalAvailable} ${product.unit}(s).`,
+      );
+    }
+
+    let remainingToDeduct = quantityNeeded;
+    const allocations: Array<{
+      batchId: string;
+      batchNumber: string;
+      expiryDate: Date;
+      costPrice: number;
+      sellPrice: number;
+      quantityToDeduct: number;
+      quantityRemainingBefore: number;
+      quantityRemainingAfter: number;
+    }> = [];
+
+    for (const batch of batches) {
+      if (remainingToDeduct <= 0) break;
+
+      const deductAmount = Math.min(batch.quantityRemaining, remainingToDeduct);
+      const remainingAfter = batch.quantityRemaining - deductAmount;
+
+      allocations.push({
+        batchId: batch.id,
+        batchNumber: batch.batchNumber,
+        expiryDate: batch.expiryDate,
+        costPrice: Number(batch.costPrice),
+        sellPrice: Number(batch.sellPrice),
+        quantityToDeduct: deductAmount,
+        quantityRemainingBefore: batch.quantityRemaining,
+        quantityRemainingAfter: remainingAfter,
+      });
+
+      remainingToDeduct -= deductAmount;
+    }
+
+    return {
+      productId: product.id,
+      productName: product.name,
+      unit: product.unit,
+      totalQuantityRequested: quantityNeeded,
+      totalQuantityAllocated: quantityNeeded - remainingToDeduct,
+      allocations,
+    };
+  }
 }
+
