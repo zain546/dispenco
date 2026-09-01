@@ -10,6 +10,7 @@ import {
 import { InventoryService } from './inventory.service';
 import { ReceiveStockDto } from './dtos/receive-stock.dto';
 import { UpdateBatchDto } from './dtos/update-batch.dto';
+import { AdjustStockDto } from './dtos/adjust-stock.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
@@ -72,5 +73,21 @@ export class InventoryController {
       dto.allowExpired,
     );
   }
+
+  /**
+   * POST /api/v1/inventory/batches/:batchId/adjust
+   * Step 1.11 — Manual stock adjustment (damage, recount, loss, writeoff)
+   * Writes an immutable AuditLog paper trail entry.
+   */
+  @Post('batches/:batchId/adjust')
+  async adjustBatchStock(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') userId: string,
+    @Param('batchId') batchId: string,
+    @Body() dto: AdjustStockDto,
+  ) {
+    return this.inventoryService.adjustBatchStock(tenantId, userId, batchId, dto);
+  }
 }
+
 

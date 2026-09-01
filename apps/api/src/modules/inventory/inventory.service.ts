@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ReceiveStockDto } from './dtos/receive-stock.dto';
 import { UpdateBatchDto } from './dtos/update-batch.dto';
+import { AdjustStockDto } from './dtos/adjust-stock.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -345,5 +346,91 @@ export class InventoryService {
       allocations,
     };
   }
+
+  /**
+   * Step 1.11 — Manual Stock Adjustment
+   * Lets staff correct batch stock counts (damage, loss, recount, expired writeoff)
+   * Creates an immutable AuditLog entry recording who made the change, when, and why.
+   */
+  async adjustBatchStock(
+    tenantId: string,
+    userId: string | undefined,
+    batchId: string,
+    dto: AdjustStockDto,
+  ) {
+    const existingBatch = await this.prisma.batch.findFirst({
+      where: { id: batchId, tenantId },
+      include: { product: true },
+    });
+
+    if (!existingBatch) {
+      throw new NotFoundException(`Stock batch with ID "${batchId}" not found`);
+    }
+
+    const oldQuantity = existingBatch.quantityRemaining;
+    const newQuantity = dto.newQuantity;
+    const difference = newQuantity - oldQuantity;
+
+    if (difference === 0) {
+      return {
+        success: true,
+        message: 'No stock adjustment needed (quantity unchanged)',
+        batch: {
+          id: existingBatch.id,
+          batchNumber: existingBatch.batchNumber,
+          quantityRemaining: existingBatch.quantityRemaining,
+        },
+      };
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Update batch quantity
+      const updatedBatch = await tx.batch.update({
+        where: { id: batchId },
+        data: {
+          quantityRemaining: newQuantity,
+        },
+      });
+
+      // 2. Create AuditLog paper trail entry
+      const auditLog = await (tx as any).auditLog.create({
+        data: {
+          tenantId,
+          userId: userId || null,
+          action: 'MANUAL_STOCK_ADJUSTMENT',
+          entityType: 'Batch',
+          entityId: batchId,
+          metadata: {
+            batchNumber: existingBatch.batchNumber,
+            productId: existingBatch.productId,
+            productName: existingBatch.product.name,
+            unit: existingBatch.product.unit,
+            oldQuantity,
+            newQuantity,
+            difference,
+            reason: dto.reason,
+            notes: dto.notes?.trim() || null,
+            adjustedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return { updatedBatch, auditLog };
+    });
+
+    return {
+      success: true,
+      message: `Batch ${result.updatedBatch.batchNumber} stock adjusted from ${oldQuantity} to ${newQuantity} (${difference > 0 ? '+' : ''}${difference} units). Reason: ${dto.reason}`,
+      batch: {
+        id: result.updatedBatch.id,
+        batchNumber: result.updatedBatch.batchNumber,
+        oldQuantity,
+        newQuantity: result.updatedBatch.quantityRemaining,
+        difference,
+      },
+      auditLogId: result.auditLog.id,
+    };
+  }
 }
+
 
