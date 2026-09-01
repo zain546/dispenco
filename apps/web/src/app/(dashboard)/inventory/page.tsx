@@ -1,11 +1,12 @@
 import React from 'react';
-import { ProductList } from '@/features/inventory';
+import { InventoryDashboard } from '@/features/inventory';
 
 export const metadata = {
-  title: 'Inventory & Stock Catalog - Dispenco',
-  description: 'Manage pharmacy products, batches, stock levels, and FEFO expiry tracking',
+  title: 'Inventory & Exception Hub - Dispenco',
+  description: 'Manage pharmacy products, low stock alerts, FEFO expiry tracking, and stock receiving',
 };
 
 export default function InventoryPage() {
-  return <ProductList />;
+  return <InventoryDashboard />;
 }
+

@@ -431,6 +431,112 @@ export class InventoryService {
       auditLogId: result.auditLog.id,
     };
   }
+
+  /**
+   * Step 1.10 — Inventory Aggregation & Exception Dashboard Data
+   * Computes real-time stock levels per store/product across batches.
+   * Supports filtering for lowStockOnly and expiringSoonOnly exceptions.
+   */
+  async getInventoryAggregation(
+    tenantId: string,
+    query: {
+      storeId?: string;
+      lowStockOnly?: boolean;
+      expiringSoonOnly?: boolean;
+      expiryAlertDays?: number;
+      lowStockThreshold?: number;
+      search?: string;
+    },
+  ) {
+    const expiryWindowDays = Number(query.expiryAlertDays) || 90;
+    const defaultLowThreshold = Number(query.lowStockThreshold) || 20;
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        ...(query.search
+          ? {
+              OR: [
+                { name: { contains: query.search, mode: 'insensitive' } },
+                { genericName: { contains: query.search, mode: 'insensitive' } },
+                { barcode: { contains: query.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        batches: {
+          where: {
+            ...(query.storeId ? { storeId: query.storeId } : {}),
+            quantityRemaining: { gt: 0 },
+          },
+          orderBy: { expiryDate: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const now = new Date();
+    const cutoffDate = new Date(now.getTime() + expiryWindowDays * 24 * 60 * 60 * 1000);
+
+    const aggregated = products.map((prod) => {
+      const totalStock = prod.batches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+      const earliestBatch = prod.batches[0] || null;
+
+      let daysUntilEarliestExpiry: number | null = null;
+      if (earliestBatch) {
+        const diffMs = new Date(earliestBatch.expiryDate).getTime() - now.getTime();
+        daysUntilEarliestExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      }
+
+      const threshold = prod.lowStockThreshold || defaultLowThreshold;
+      const isOutofStock = totalStock <= 0;
+      const isLowStock = totalStock > 0 && totalStock <= threshold;
+      const isExpiringSoon =
+        earliestBatch !== null &&
+        new Date(earliestBatch.expiryDate) <= cutoffDate;
+
+      return {
+        id: prod.id,
+        name: prod.name,
+        genericName: prod.genericName || null,
+        category: prod.category,
+        unit: prod.unit,
+        barcode: prod.barcode || null,
+        lowStockThreshold: threshold,
+        totalStock,
+        batchCount: prod.batches.length,
+        earliestBatchNumber: earliestBatch ? earliestBatch.batchNumber : null,
+        earliestExpiryDate: earliestBatch ? earliestBatch.expiryDate.toISOString() : null,
+        daysUntilEarliestExpiry,
+        isOutofStock,
+        isLowStock,
+        isExpiringSoon,
+      };
+    });
+
+    // Filter if lowStockOnly or expiringSoonOnly specified
+    let filtered = aggregated;
+    if (query.lowStockOnly) {
+      filtered = filtered.filter((p) => p.isLowStock || p.isOutofStock);
+    }
+    if (query.expiringSoonOnly) {
+      filtered = filtered.filter((p) => p.isExpiringSoon);
+    }
+
+    return {
+      totalProducts: filtered.length,
+      summary: {
+        totalCatalogItems: aggregated.length,
+        outOfStockCount: aggregated.filter((p) => p.isOutofStock).length,
+        lowStockCount: aggregated.filter((p) => p.isLowStock).length,
+        expiringSoonCount: aggregated.filter((p) => p.isExpiringSoon).length,
+      },
+      products: filtered,
+    };
+  }
 }
+
 
 

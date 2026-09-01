@@ -202,4 +202,59 @@ export const productsApi = {
     const { data } = await apiClient.patch(`/inventory/batches/${batchId}`, payload);
     return data;
   },
+
+  async adjustBatchStock(
+    batchId: string,
+    payload: {
+      newQuantity: number;
+      reason: 'DAMAGED' | 'EXPIRED_WRITEOFF' | 'RECOUNT' | 'OTHER';
+      notes?: string;
+    },
+  ): Promise<{
+    success: boolean;
+    message: string;
+    batch: { id: string; batchNumber: string; oldQuantity: number; newQuantity: number; difference: number };
+    auditLogId: string;
+  }> {
+    const { data } = await apiClient.post(`/inventory/batches/${batchId}/adjust`, payload);
+    return data;
+  },
+
+  async getInventoryAggregation(params?: {
+    storeId?: string;
+    lowStockOnly?: boolean;
+    expiringSoonOnly?: boolean;
+    expiryAlertDays?: number;
+    lowStockThreshold?: number;
+    search?: string;
+  }): Promise<{
+    totalProducts: number;
+    summary: {
+      totalCatalogItems: number;
+      outOfStockCount: number;
+      lowStockCount: number;
+      expiringSoonCount: number;
+    };
+    products: Array<{
+      id: string;
+      name: string;
+      genericName: string | null;
+      category: string;
+      unit: string;
+      barcode: string | null;
+      lowStockThreshold: number;
+      totalStock: number;
+      batchCount: number;
+      earliestBatchNumber: string | null;
+      earliestExpiryDate: string | null;
+      daysUntilEarliestExpiry: number | null;
+      isOutofStock: boolean;
+      isLowStock: boolean;
+      isExpiringSoon: boolean;
+    }>;
+  }> {
+    const { data } = await apiClient.get('/inventory/aggregation', { params });
+    return data;
+  },
 };
+

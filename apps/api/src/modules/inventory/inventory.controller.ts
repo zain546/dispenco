@@ -5,6 +5,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
@@ -88,6 +89,53 @@ export class InventoryController {
   ) {
     return this.inventoryService.adjustBatchStock(tenantId, userId, batchId, dto);
   }
+
+  /**
+   * GET /api/v1/inventory/aggregation
+   * GET /api/v1/inventory
+   * Step 1.10 — Inventory aggregation per store / product across active batches
+   */
+  @Get('aggregation')
+  async getInventoryAggregation(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('storeId') storeId?: string,
+    @Query('lowStockOnly') lowStockOnly?: string,
+    @Query('expiringSoonOnly') expiringSoonOnly?: string,
+    @Query('expiryAlertDays') expiryAlertDays?: string,
+    @Query('lowStockThreshold') lowStockThreshold?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.inventoryService.getInventoryAggregation(tenantId, {
+      storeId,
+      lowStockOnly: lowStockOnly === 'true',
+      expiringSoonOnly: expiringSoonOnly === 'true',
+      expiryAlertDays: expiryAlertDays ? Number(expiryAlertDays) : undefined,
+      lowStockThreshold: lowStockThreshold ? Number(lowStockThreshold) : undefined,
+      search,
+    });
+  }
+
+  @Get()
+  async getInventoryOverview(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('storeId') storeId?: string,
+    @Query('lowStockOnly') lowStockOnly?: string,
+    @Query('expiringSoonOnly') expiringSoonOnly?: string,
+    @Query('expiryAlertDays') expiryAlertDays?: string,
+    @Query('lowStockThreshold') lowStockThreshold?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.getInventoryAggregation(
+      tenantId,
+      storeId,
+      lowStockOnly,
+      expiringSoonOnly,
+      expiryAlertDays,
+      lowStockThreshold,
+      search,
+    );
+  }
 }
+
 
 
