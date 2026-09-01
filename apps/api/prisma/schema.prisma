@@ -26,6 +26,7 @@ model Tenant {
   payments         Payment[]
   returns          Return[]
   notifications    Notification[]
+  auditLogs        AuditLog[]
 }
 
 model User {
@@ -46,6 +47,7 @@ model User {
   sales              Sale[]
   returns            Return[]
   notifications      Notification[]
+  auditLogs          AuditLog[]
 
   @@unique([tenantId, email])
 }
@@ -349,3 +351,20 @@ model Notification {
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  tenantId   String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId])
+}
+
