@@ -94,7 +94,7 @@ export function ProductBatchesModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6 gap-3">
+      <DialogContent className="w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6 gap-3">
         <DialogHeader className="pb-3 border-b border-border/80 pr-6 sm:pr-8 shrink-0">
           <div className="flex items-start gap-3">
             <div className="size-10 sm:size-11 rounded-xl bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/50">

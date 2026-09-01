@@ -114,81 +114,85 @@ export function InventoryDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
-            variant="outline"
+            asChild
             size="sm"
-            onClick={() => fetchAggregation()}
-            disabled={isLoading}
-            className="h-9 px-3 gap-1.5"
-            title="Refresh inventory data"
+            className="h-9 px-3 flex-1 sm:flex-initial gap-1.5 font-semibold text-xs sm:text-sm shadow-xs"
           >
-            <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <Link href="/inventory/receive">
+              <Boxes className="size-4 shrink-0" />
+              <span className="truncate">Receive Stock</span>
+            </Link>
           </Button>
           <Button
             asChild
             variant="outline"
             size="sm"
-            className="h-9 px-3 gap-1.5 border-primary/30 text-primary hover:bg-primary/5 font-semibold"
+            className="h-9 px-3 flex-1 sm:flex-initial gap-1.5 font-semibold text-xs sm:text-sm border-primary/30 text-primary hover:bg-primary/5"
           >
-            <Link href="/inventory/receive">
-              <Boxes className="size-4" />
-              <span>Receive Stock</span>
+            <Link href="/inventory/new">
+              <Plus className="size-4 shrink-0" />
+              <span className="truncate">Add Product</span>
             </Link>
           </Button>
-          <Button asChild size="sm" className="h-9 px-3 gap-1.5 font-semibold">
-            <Link href="/inventory/new">
-              <Plus className="size-4" />
-              <span>Add New Product</span>
-            </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchAggregation()}
+            disabled={isLoading}
+            className="h-9 w-9 p-0 sm:w-auto sm:px-3 flex items-center justify-center shrink-0 gap-1.5 text-xs sm:text-sm"
+            title="Refresh inventory data"
+          >
+            <RefreshCw className={`size-4 shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden md:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
-      {/* Overview Metric Cards (Reversed Order) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
+      {/* Overview Metric Cards (Scrollable on Mobile, Grid on Tablet/Desktop) */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 no-scrollbar pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
         {/* Card 1: Full Catalog */}
         <Card
           onClick={() => setActiveTab('full-catalog')}
-          className={`cursor-pointer transition-all hover:border-primary/50 ${
+          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-primary/50 ${
             activeTab === 'full-catalog' ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5' : 'bg-card'
           }`}
         >
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Total Catalog
               </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl sm:text-3xl font-bold text-foreground">
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-xl sm:text-3xl font-bold text-foreground">
                   {data.summary.totalCatalogItems}
                 </span>
-                <span className="text-xs text-muted-foreground">medicines</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">medicines</span>
               </div>
             </div>
-            <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Package className="size-5" />
+            <div className="size-9 sm:size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Package className="size-4.5 sm:size-5" />
             </div>
           </CardContent>
         </Card>
 
         {/* Card 2: Out of Stock */}
-        <Card className="bg-card">
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card className="w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto bg-card">
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Out of Stock
               </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl sm:text-3xl font-bold text-destructive">
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-xl sm:text-3xl font-bold text-destructive">
                   {data.summary.outOfStockCount}
                 </span>
-                <span className="text-xs text-muted-foreground">items</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">items</span>
               </div>
             </div>
-            <div className="size-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-              <TrendingDown className="size-5" />
+            <div className="size-9 sm:size-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+              <TrendingDown className="size-4.5 sm:size-5" />
             </div>
           </CardContent>
         </Card>
@@ -196,24 +200,24 @@ export function InventoryDashboard() {
         {/* Card 3: Expiring Soon */}
         <Card
           onClick={() => setActiveTab('expiring-soon')}
-          className={`cursor-pointer transition-all hover:border-rose-500/50 ${
+          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-rose-500/50 ${
             activeTab === 'expiring-soon' ? 'ring-2 ring-rose-500/40 border-rose-500/50 bg-rose-500/5' : 'bg-card'
           }`}
         >
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Expiring (90 Days)
               </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl sm:text-3xl font-bold text-rose-600">
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-xl sm:text-3xl font-bold text-rose-600">
                   {data.summary.expiringSoonCount}
                 </span>
-                <span className="text-xs text-muted-foreground">batches</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">batches</span>
               </div>
             </div>
-            <div className="size-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
-              <Clock className="size-5" />
+            <div className="size-9 sm:size-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+              <Clock className="size-4.5 sm:size-5" />
             </div>
           </CardContent>
         </Card>
@@ -221,24 +225,24 @@ export function InventoryDashboard() {
         {/* Card 4: Low Stock Exceptions */}
         <Card
           onClick={() => setActiveTab('low-stock')}
-          className={`cursor-pointer transition-all hover:border-amber-500/50 ${
+          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-amber-500/50 ${
             activeTab === 'low-stock' ? 'ring-2 ring-amber-500/40 border-amber-500/50 bg-amber-500/5' : 'bg-card'
           }`}
         >
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Low Stock Alerts
               </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl sm:text-3xl font-bold text-amber-600">
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="text-xl sm:text-3xl font-bold text-amber-600">
                   {data.summary.lowStockCount}
                 </span>
-                <span className="text-xs text-muted-foreground">items</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">items</span>
               </div>
             </div>
-            <div className="size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-              <AlertTriangle className="size-5" />
+            <div className="size-9 sm:size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="size-4.5 sm:size-5" />
             </div>
           </CardContent>
         </Card>
@@ -251,17 +255,17 @@ export function InventoryDashboard() {
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
-          <TabsList className="grid grid-cols-3 w-full sm:w-auto">
-            <TabsTrigger value="full-catalog" className="gap-2 font-medium text-xs sm:text-sm">
-              <Package className="size-3.5 text-primary" />
-              <span>Full Catalog ({data.summary.totalCatalogItems})</span>
+          <TabsList className="grid grid-cols-3 w-full sm:w-auto p-1 h-auto border border-border/40">
+            <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <Package className="size-3.5 text-primary shrink-0" />
+              <span>Catalog ({data.summary.totalCatalogItems})</span>
             </TabsTrigger>
-            <TabsTrigger value="expiring-soon" className="gap-2 font-medium text-xs sm:text-sm">
-              <Clock className="size-3.5 text-rose-500" />
-              <span>Expiring Soon ({data.summary.expiringSoonCount})</span>
+            <TabsTrigger value="expiring-soon" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <Clock className="size-3.5 text-rose-500 shrink-0" />
+              <span>Expiring ({data.summary.expiringSoonCount})</span>
             </TabsTrigger>
-            <TabsTrigger value="low-stock" className="gap-2 font-medium text-xs sm:text-sm">
-              <AlertTriangle className="size-3.5 text-amber-500" />
+            <TabsTrigger value="low-stock" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
               <span>Low Stock ({data.summary.lowStockCount})</span>
             </TabsTrigger>
           </TabsList>

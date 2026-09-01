@@ -783,7 +783,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
           </div>
 
           {/* Filters (Category & Stock Status) */}
-          <div className="w-full sm:w-auto shrink-0 flex flex-col sm:flex-row items-center gap-2">
+          <div className="w-full sm:w-auto shrink-0 grid grid-cols-2 sm:flex sm:flex-row items-center gap-2">
             <Filter className="size-4 text-muted-foreground shrink-0 hidden sm:inline" />
 
             {/* Category Filter */}
