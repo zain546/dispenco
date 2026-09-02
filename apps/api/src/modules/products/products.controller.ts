@@ -42,6 +42,15 @@ export class ProductsController {
     return this.productsService.findAllProducts(tenantId, query);
   }
 
+  @Get('barcode/:barcode')
+  @RequirePermissions(Permission.INVENTORY_READ)
+  findByBarcode(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('barcode') barcode: string
+  ) {
+    return this.productsService.lookupByBarcode(tenantId, barcode);
+  }
+
   @Get(':id')
   @RequirePermissions(Permission.INVENTORY_READ)
   findOne(

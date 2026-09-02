@@ -256,5 +256,14 @@ export const productsApi = {
     const { data } = await apiClient.get('/inventory/aggregation', { params });
     return data;
   },
+
+  async lookupByBarcode(barcode: string): Promise<{
+    success: boolean;
+    product: ProductData;
+    batches: BatchData[];
+  }> {
+    const { data } = await apiClient.get(`/inventory/barcode/${encodeURIComponent(barcode)}`);
+    return data;
+  },
 };
 

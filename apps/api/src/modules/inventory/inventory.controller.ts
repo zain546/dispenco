@@ -33,6 +33,18 @@ export class InventoryController {
   }
 
   /**
+   * GET /api/v1/inventory/barcode/:barcode
+   * Step 1.13 — Lookup product and active FEFO-ordered batches by barcode
+   */
+  @Get('barcode/:barcode')
+  async lookupByBarcode(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('barcode') barcode: string,
+  ) {
+    return this.inventoryService.lookupByBarcode(tenantId, barcode);
+  }
+
+  /**
    * GET /api/v1/inventory/products/:productId/batches
    * Get FEFO-ordered batches for a product
    */
