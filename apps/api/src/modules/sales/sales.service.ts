@@ -281,6 +281,7 @@ export class SalesService {
           name: sale.store.name,
           address: sale.store.address,
           currency: sale.store.currency,
+          receiptFooter: sale.store.receiptFooter,
         },
         payment: sale.payments[0]
           ? {
