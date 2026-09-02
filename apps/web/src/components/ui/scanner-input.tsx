@@ -27,29 +27,34 @@ export interface ScannerInputProps {
   showCameraToggle?: boolean;
 }
 
-export function ScannerInput({
-  value = '',
-  onChange,
-  onScan,
-  placeholder = 'Scan barcode or type...',
-  autoFocus = false,
-  disabled = false,
-  className = '',
-  id,
-  name,
-  showCameraToggle = true,
-}: ScannerInputProps) {
-  const [internalValue, setInternalValue] = useState(value);
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(undefined);
+export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps>(
+  (
+    {
+      value = '',
+      onChange,
+      onScan,
+      placeholder = 'Scan barcode or type...',
+      autoFocus = false,
+      disabled = false,
+      className = '',
+      id,
+      name,
+      showCameraToggle = true,
+    },
+    ref
+  ) => {
+    const [internalValue, setInternalValue] = useState(value);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
+    const [isScanning, setIsScanning] = useState(false);
+    const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(undefined);
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
-  const controlsRef = useRef<{ stop: () => void } | null>(null);
+    const internalInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = (ref as React.RefObject<HTMLInputElement>) || internalInputRef;
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+    const controlsRef = useRef<{ stop: () => void } | null>(null);
 
   // Sync internal value with controlled value prop
   useEffect(() => {
@@ -213,7 +218,7 @@ export function ScannerInput({
   }, [isCameraOpen, startCamera, stopCamera]);
 
   return (
-    <div className={`relative flex items-center w-full gap-1.5 ${className}`}>
+    <div className="relative flex items-center w-full gap-1.5">
       <div className="relative flex-1">
         <Input
           ref={inputRef}
@@ -226,7 +231,7 @@ export function ScannerInput({
           placeholder={placeholder}
           autoFocus={autoFocus}
           disabled={disabled}
-          className="pr-9 font-mono text-sm tracking-wide focus-visible:ring-2 focus-visible:ring-primary"
+          className={`pr-9 font-mono text-sm tracking-wide focus-visible:ring-2 focus-visible:ring-primary ${className}`}
         />
         <QrCode className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none opacity-60" />
       </div>
@@ -239,9 +244,9 @@ export function ScannerInput({
           onClick={() => setIsCameraOpen(true)}
           disabled={disabled}
           title="Open camera barcode scanner"
-          className="h-9 w-9 shrink-0 border-primary/30 text-primary hover:bg-primary/5"
+          className="h-11 w-11 shrink-0 border-primary/30 text-primary hover:bg-primary/5"
         >
-          <Camera className="size-4" />
+          <Camera className="size-5" />
         </Button>
       )}
 
@@ -323,3 +328,5 @@ export function ScannerInput({
     </div>
   );
 }
+);
+ScannerInput.displayName = 'ScannerInput';
