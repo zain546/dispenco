@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { InventoryService } from './inventory.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { StockAdjustmentReason } from './dtos/adjust-stock.dto';
 
 describe('InventoryService', () => {
   let service: InventoryService;
@@ -236,7 +237,7 @@ describe('InventoryService', () => {
       await expect(
         service.adjustBatchStock('tenant-1', 'user-1', 'invalid-batch', {
           newQuantity: 5,
-          reason: 'RECOUNT',
+          reason: StockAdjustmentReason.RECOUNT,
         }),
       ).rejects.toThrow(NotFoundException);
     });
@@ -251,7 +252,7 @@ describe('InventoryService', () => {
 
       const result = await service.adjustBatchStock('tenant-1', 'user-1', 'batch-1', {
         newQuantity: 10,
-        reason: 'RECOUNT',
+        reason: StockAdjustmentReason.RECOUNT,
       });
 
       expect(result.success).toBe(true);
