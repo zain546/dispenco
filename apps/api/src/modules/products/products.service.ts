@@ -18,6 +18,18 @@ export class ProductsService {
    * Create a new product and optional initial stock batch in a single flow
    */
   async createProduct(tenantId: string, dto: CreateProductDto) {
+    const cleanBarcode = dto.barcode?.trim() || null;
+    if (cleanBarcode) {
+      const existingWithBarcode = await this.prisma.product.findFirst({
+        where: { tenantId, barcode: cleanBarcode },
+      });
+      if (existingWithBarcode) {
+        throw new BadRequestException(
+          `A product with barcode "${cleanBarcode}" already exists in your inventory ("${existingWithBarcode.name}")`
+        );
+      }
+    }
+
     const mergedAttributes: Record<string, unknown> = {
       ...((dto.attributes as Record<string, unknown>) || {}),
       ...(dto.rackNumber ? { rackNumber: dto.rackNumber.trim() } : {}),
@@ -47,7 +59,7 @@ export class ProductsService {
           genericName: dto.genericName?.trim() || null,
           category: dto.category.trim(),
           unit: dto.unit.trim(),
-          barcode: dto.barcode?.trim() || null,
+          barcode: cleanBarcode,
           images: dto.images || [],
           taxCode: dto.taxCode?.trim() || null,
           isControlledSubstance: dto.isControlledSubstance ?? false,
@@ -265,6 +277,18 @@ export class ProductsService {
   async updateProduct(tenantId: string, id: string, dto: UpdateProductDto) {
     const existingProduct = await this.getProductById(tenantId, id);
 
+    const cleanBarcode = dto.barcode !== undefined ? (dto.barcode?.trim() || null) : undefined;
+    if (cleanBarcode && cleanBarcode !== existingProduct.barcode) {
+      const existingWithBarcode = await this.prisma.product.findFirst({
+        where: { tenantId, barcode: cleanBarcode, id: { not: id } },
+      });
+      if (existingWithBarcode) {
+        throw new BadRequestException(
+          `A product with barcode "${cleanBarcode}" already exists in your inventory ("${existingWithBarcode.name}")`
+        );
+      }
+    }
+
     const existingAttrs = (existingProduct.attributes as Record<string, unknown>) || {};
     const mergedAttributes: Record<string, unknown> = {
       ...existingAttrs,
@@ -293,7 +317,7 @@ export class ProductsService {
         ...(dto.genericName !== undefined ? { genericName: dto.genericName?.trim() || null } : {}),
         ...(dto.category ? { category: dto.category.trim() } : {}),
         ...(dto.unit ? { unit: dto.unit.trim() } : {}),
-        ...(dto.barcode !== undefined ? { barcode: dto.barcode?.trim() || null } : {}),
+        ...(dto.barcode !== undefined ? { barcode: cleanBarcode } : {}),
         ...(dto.images ? { images: dto.images } : {}),
         ...(dto.taxCode !== undefined ? { taxCode: dto.taxCode?.trim() || null } : {}),
         ...(dto.isControlledSubstance !== undefined ? { isControlledSubstance: dto.isControlledSubstance } : {}),
@@ -304,6 +328,79 @@ export class ProductsService {
     });
 
     return this.getProductById(tenantId, updatedProduct.id);
+  }
+
+  /**
+   * Lookup product and active FEFO-ordered batches by barcode
+   */
+  async lookupByBarcode(tenantId: string, barcode: string) {
+    const cleanBarcode = barcode.trim();
+    if (!cleanBarcode) {
+      throw new BadRequestException('Barcode parameter is required');
+    }
+
+    const product = await this.prisma.product.findFirst({
+      where: { tenantId, barcode: cleanBarcode },
+      include: {
+        batches: {
+          where: { quantityRemaining: { gt: 0 } },
+          orderBy: { expiryDate: 'asc' },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`No product found with barcode "${cleanBarcode}"`);
+    }
+
+    const now = new Date();
+    const formattedBatches = product.batches.map((batch) => {
+      const expiry = new Date(batch.expiryDate);
+      const diffMs = expiry.getTime() - now.getTime();
+      const daysUntilExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+      return {
+        id: batch.id,
+        batchNumber: batch.batchNumber,
+        expiryDate: batch.expiryDate.toISOString(),
+        costPrice: Number(batch.costPrice),
+        sellPrice: Number(batch.sellPrice),
+        quantityReceived: batch.quantityReceived,
+        quantityRemaining: batch.quantityRemaining,
+        daysUntilExpiry,
+        isExpired: daysUntilExpiry <= 0,
+        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 60,
+        createdAt: batch.createdAt.toISOString(),
+      };
+    });
+
+    const totalStock = formattedBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+    const isLowStock = totalStock <= product.lowStockThreshold;
+    const latestBatch = formattedBatches[0] || null;
+
+    return {
+      success: true,
+      product: {
+        id: product.id,
+        name: product.name,
+        genericName: product.genericName,
+        category: product.category,
+        unit: product.unit,
+        barcode: product.barcode,
+        images: product.images,
+        taxCode: product.taxCode,
+        isControlledSubstance: product.isControlledSubstance,
+        isActive: product.isActive,
+        lowStockThreshold: product.lowStockThreshold,
+        attributes: product.attributes,
+        totalStock,
+        isLowStock,
+        latestCostPrice: latestBatch ? latestBatch.costPrice : null,
+        latestSellPrice: latestBatch ? latestBatch.sellPrice : null,
+        nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
+      },
+      batches: formattedBatches,
+    };
   }
 
   /**
