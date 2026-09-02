@@ -23,6 +23,7 @@ import {
   DollarSign,
   AlertCircle,
   Tag,
+  Download,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,136 @@ export function POSTerminal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedSale, setCompletedSale] = useState<SaleResponse | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  const handleDownloadSalePdf = async (sale: SaleResponse) => {
+    try {
+      setIsDownloadingPdf(true);
+      const { jsPDF } = await import('jspdf');
+
+      const items = sale.items || [];
+      const itemRowsCount = items.length;
+      const pdfHeight = Math.max(160, 90 + itemRowsCount * 10);
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, pdfHeight],
+      });
+
+      // Store Header
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(13);
+      pdf.text('Pharmacy Store', 40, 12, { align: 'center' });
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      let currentY = 17;
+      pdf.text(`Receipt #: ${sale.receiptNumber}`, 40, currentY, { align: 'center' });
+      currentY += 5;
+
+      // Divider Line
+      pdf.setDrawColor(180, 180, 180);
+      pdf.setLineDashPattern([1, 1], 0);
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Metadata
+      const formattedDate = new Date(sale.createdAt).toLocaleString('en-US', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+
+      pdf.setFontSize(8);
+      pdf.text(`Date & Time: ${formattedDate}`, 5, currentY);
+      currentY += 4;
+      pdf.text(`Cashier: ${sale.cashierName || 'Pharmacy Staff'}`, 5, currentY);
+      currentY += 4;
+      if (sale.customerName) {
+        pdf.text(`Customer: ${sale.customerName}`, 5, currentY);
+        currentY += 4;
+      }
+
+      // Divider Line
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Table Header
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('ITEM', 5, currentY);
+      pdf.text('QTY × PRICE', 42, currentY);
+      pdf.text('TOTAL', 75, currentY, { align: 'right' });
+      currentY += 2;
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Table Line Items
+      pdf.setFont('helvetica', 'normal');
+      items.forEach((item) => {
+        const lineTotal = item.lineTotal;
+        const nameTruncated = item.productName.length > 20 ? item.productName.substring(0, 20) + '...' : item.productName;
+        pdf.text(nameTruncated, 5, currentY);
+        pdf.text(`${item.quantity} ${item.unit || 'pc'} × ${item.unitPrice.toFixed(0)}`, 42, currentY);
+        pdf.text(`${lineTotal.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
+        currentY += 5;
+      });
+
+      // Divider Line
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Totals Summary
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Subtotal:', 5, currentY);
+      pdf.text(`${sale.subtotal.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
+      currentY += 5;
+
+      if (sale.discountAmount > 0) {
+        pdf.text('Discount:', 5, currentY);
+        pdf.text(`-${sale.discountAmount.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
+        currentY += 5;
+      }
+
+      if (sale.taxAmount > 0) {
+        pdf.text('Tax:', 5, currentY);
+        pdf.text(`+${sale.taxAmount.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
+        currentY += 5;
+      }
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text('GRAND TOTAL:', 5, currentY);
+      pdf.text(`${sale.totalAmount.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
+      currentY += 7;
+
+      // Payment Details
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Payment Method: ${sale.paymentMethod || 'CASH'} (PAID)`, 5, currentY);
+      currentY += 8;
+
+      // Footer
+      pdf.setLineDashPattern([1, 1], 0);
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(7);
+      const footerLines = pdf.splitTextToSize(
+        'Thank you for choosing us! Please retain receipt for returns within 7 days.',
+        70
+      );
+      pdf.text(footerLines, 40, currentY, { align: 'center' });
+
+      pdf.save(`Receipt-${sale.receiptNumber}.pdf`);
+      toast.success('Thermal Receipt PDF downloaded successfully!');
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error('Failed to generate PDF receipt.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   // Search Input Ref for keyboard focusing
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -992,7 +1123,7 @@ export function POSTerminal() {
 
       {/* Post-Checkout Receipt Success Modal Dialog */}
       <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md w-full">
           <DialogHeader className="text-center space-y-2">
             <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-500/20">
               <CheckCircle2 className="size-7" />
@@ -1052,18 +1183,34 @@ export function POSTerminal() {
             </div>
           )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <div className="flex flex-col gap-2 pt-2 w-full">
             {completedSale && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  window.open(`/pos/receipt/${completedSale.id}`, '_blank');
-                }}
-                className="w-full sm:w-auto h-9 text-xs gap-1.5"
-              >
-                <Printer className="size-3.5" /> Print Thermal Receipt
-              </Button>
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleDownloadSalePdf(completedSale)}
+                  disabled={isDownloadingPdf}
+                  className="w-full h-9 text-xs font-semibold gap-1.5"
+                >
+                  {isDownloadingPdf ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Download className="size-3.5 text-primary" />
+                  )}
+                  Download PDF
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    window.open(`/pos/receipt/${completedSale.id}`, '_blank');
+                  }}
+                  className="w-full h-9 text-xs gap-1.5"
+                >
+                  <Printer className="size-3.5" /> Print Receipt
+                </Button>
+              </div>
             )}
             <Button
               type="button"
@@ -1072,11 +1219,11 @@ export function POSTerminal() {
                 setCompletedSale(null);
                 focusSearchInput();
               }}
-              className="w-full sm:w-auto h-9 text-xs font-bold gap-1.5"
+              className="w-full h-10 text-xs font-bold gap-1.5"
             >
               Next Sale (Esc)
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
