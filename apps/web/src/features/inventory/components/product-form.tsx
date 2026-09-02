@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScannerInput } from '@/components/ui/scanner-input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -522,10 +523,12 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   <QrCode className="size-3.5 text-muted-foreground shrink-0" />
                   <span>Barcode / EAN (Optional)</span>
                 </Label>
-                <Input
+                <ScannerInput
                   id="barcode"
-                  placeholder="Enter Barcode / Scan EAN code"
-                  {...register('barcode')}
+                  placeholder="Enter Barcode or scan with camera/hardware scanner"
+                  value={watch('barcode') || ''}
+                  onChange={(val) => setValue('barcode', val, { shouldValidate: true, shouldDirty: true })}
+                  onScan={(scannedVal) => setValue('barcode', scannedVal, { shouldValidate: true, shouldDirty: true })}
                 />
               </div>
             </CardContent>

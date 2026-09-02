@@ -25,6 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScannerInput } from '@/components/ui/scanner-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -290,16 +291,27 @@ export function StockReceiveForm() {
               /* Medicine Live Search Input */
               <div className="space-y-3">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                    type="text"
+                  <ScannerInput
+                    placeholder="Search by medicine name, generic formula, or scan barcode..."
                     value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Search by medicine name, generic formula (e.g. Paracetamol), or barcode..."
-                    className="pl-9 h-10 text-xs sm:text-sm"
+                    onChange={(val) => setProductSearch(val)}
+                    onScan={async (scannedBarcode) => {
+                      setProductSearch(scannedBarcode);
+                      try {
+                        const res = await productsApi.lookupByBarcode(scannedBarcode);
+                        if (res?.product) {
+                          setSelectedProduct(res.product);
+                          if (res.product.latestCostPrice) setCostPrice(res.product.latestCostPrice);
+                          if (res.product.latestSellPrice) setSellPrice(res.product.latestSellPrice);
+                          toast.success(`Selected medicine: ${res.product.name}`);
+                        }
+                      } catch {
+                        // Fallback to standard search if lookup fails
+                      }
+                    }}
                   />
                   {isSearching && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin" />
+                    <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin pointer-events-none" />
                   )}
                 </div>
 
