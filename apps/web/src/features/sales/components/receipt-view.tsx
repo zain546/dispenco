@@ -22,6 +22,8 @@ import {
   CreditCard,
   Banknote,
   Receipt as ReceiptIcon,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,6 +38,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [saleData, setSaleData] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     async function fetchReceipt() {
@@ -80,6 +83,133 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
     setCopied(true);
     toast.success('Receipt link copied to clipboard!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsDownloading(true);
+      const { jsPDF } = await import('jspdf');
+
+      const itemRowsCount = items.length;
+      const pdfHeight = Math.max(160, 90 + itemRowsCount * 10);
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, pdfHeight],
+      });
+
+      // Store Header
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(13);
+      pdf.text(store?.name || 'Pharmacy Store', 40, 12, { align: 'center' });
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      let currentY = 17;
+      if (store?.address) {
+        pdf.text(store.address, 40, currentY, { align: 'center' });
+        currentY += 5;
+      }
+      pdf.text(`Receipt #: ${receiptNumber}`, 40, currentY, { align: 'center' });
+      currentY += 5;
+
+      // Divider Line
+      pdf.setDrawColor(180, 180, 180);
+      pdf.setLineDashPattern([1, 1], 0);
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Metadata
+      pdf.setFontSize(8);
+      pdf.text(`Date & Time: ${formattedDate}`, 5, currentY);
+      currentY += 4;
+      pdf.text(`Cashier: ${user?.name || 'Pharmacy Staff'}`, 5, currentY);
+      currentY += 4;
+      if (customer) {
+        pdf.text(`Customer: ${customer.name} ${customer.phone ? `(${customer.phone})` : ''}`, 5, currentY);
+        currentY += 4;
+      }
+
+      // Divider Line
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Table Header
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('ITEM', 5, currentY);
+      pdf.text('QTY × PRICE', 42, currentY);
+      pdf.text('TOTAL', 75, currentY, { align: 'right' });
+      currentY += 2;
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Table Line Items
+      pdf.setFont('helvetica', 'normal');
+      items.forEach((item: any) => {
+        const lineTotal = item.unitPrice * item.quantity - (item.discount || 0);
+        const nameTruncated = item.productName.length > 20 ? item.productName.substring(0, 20) + '...' : item.productName;
+        pdf.text(nameTruncated, 5, currentY);
+        pdf.text(`${item.quantity} ${item.unit || 'pc'} × ${item.unitPrice.toFixed(0)}`, 42, currentY);
+        pdf.text(`${lineTotal.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
+        currentY += 5;
+      });
+
+      // Divider Line
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      // Totals Summary
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Subtotal:', 5, currentY);
+      pdf.text(`${subtotal.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
+      currentY += 5;
+
+      if (discountAmount > 0) {
+        pdf.text('Discount:', 5, currentY);
+        pdf.text(`-${discountAmount.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
+        currentY += 5;
+      }
+
+      if (taxAmount > 0) {
+        pdf.text('Tax:', 5, currentY);
+        pdf.text(`+${taxAmount.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
+        currentY += 5;
+      }
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text('GRAND TOTAL:', 5, currentY);
+      pdf.text(`${totalAmount.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
+      currentY += 7;
+
+      // Payment Details
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Payment Method: ${payment?.method || 'CASH'} (PAID)`, 5, currentY);
+      currentY += 8;
+
+      // Footer
+      pdf.setLineDashPattern([1, 1], 0);
+      pdf.line(5, currentY, 75, currentY);
+      currentY += 5;
+
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(7);
+      const footerLines = pdf.splitTextToSize(
+        store?.receiptFooter || 'Thank you for choosing us! Please retain receipt for returns within 7 days.',
+        70
+      );
+      pdf.text(footerLines, 40, currentY, { align: 'center' });
+
+      pdf.save(`Receipt-${receiptNumber || 'POS'}.pdf`);
+      toast.success('Thermal Receipt PDF downloaded successfully!');
+    } catch (err) {
+      console.error('PDF download error:', err);
+      toast.error('Failed to generate PDF receipt.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (loading) {
@@ -140,15 +270,29 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   return (
     <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
       {/* Screen Action Bar (Hidden when printing) */}
-      <div className="max-w-md mx-auto mb-4 flex items-center justify-between gap-2 print:hidden">
+      <div className="max-w-md mx-auto mb-4 flex items-center justify-between gap-2 flex-wrap print:hidden">
         <Button variant="outline" size="sm" onClick={() => router.push('/pos')} className="gap-1.5 text-xs">
           <ArrowLeft className="size-3.5" /> POS Counter
         </Button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-1.5 text-xs">
             {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
             {copied ? 'Copied' : 'Share'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading}
+            className="gap-1.5 text-xs font-semibold"
+          >
+            {isDownloading ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Download className="size-3.5 text-primary" />
+            )}
+            Download PDF
           </Button>
           <Button variant="default" size="sm" onClick={handlePrint} className="gap-1.5 text-xs font-semibold shadow-xs">
             <Printer className="size-3.5" /> Print Receipt
@@ -157,7 +301,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       </div>
 
       {/* Main Thermal Receipt Box */}
-      <Card className="max-w-md mx-auto bg-card shadow-lg border-border/80 text-foreground font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full">
+      <Card id="thermal-receipt-card" className="max-w-md mx-auto bg-card shadow-lg border-border/80 text-foreground font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full">
         <CardContent className="p-5 sm:p-6 space-y-4 print:p-0 print:text-black">
           {/* Header & Store Information */}
           <div className="text-center space-y-1 pb-4 border-b border-dashed border-border/80">
