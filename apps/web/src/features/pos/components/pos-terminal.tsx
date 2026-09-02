@@ -1053,16 +1053,18 @@ export function POSTerminal() {
           )}
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                window.print();
-              }}
-              className="w-full sm:w-auto h-9 text-xs gap-1.5"
-            >
-              <Printer className="size-3.5" /> Print Receipt
-            </Button>
+            {completedSale && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  window.open(`/pos/receipt/${completedSale.id}`, '_blank');
+                }}
+                className="w-full sm:w-auto h-9 text-xs gap-1.5"
+              >
+                <Printer className="size-3.5" /> Print Thermal Receipt
+              </Button>
+            )}
             <Button
               type="button"
               onClick={() => {
