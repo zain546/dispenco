@@ -246,6 +246,7 @@ model Sale {
   storeId        String
   userId         String
   customerId     String?
+  receiptNumber  String?
   totalAmount    Decimal    @db.Decimal(12, 2)
   discountAmount Decimal    @default(0) @db.Decimal(12, 2)
   taxAmount      Decimal    @db.Decimal(12, 2)
@@ -260,6 +261,8 @@ model Sale {
   saleItems      SaleItem[]
   payments       Payment[]
   returns        Return[]
+
+  @@index([tenantId, receiptNumber])
 }
 
 enum DiscountType {

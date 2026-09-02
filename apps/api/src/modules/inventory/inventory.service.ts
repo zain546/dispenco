@@ -270,12 +270,15 @@ export class InventoryService {
     quantityNeeded: number,
     storeId?: string,
     allowExpired: boolean = false,
+    tx?: Prisma.TransactionClient,
   ) {
     if (!quantityNeeded || quantityNeeded <= 0) {
       throw new BadRequestException('Requested quantity must be greater than zero');
     }
 
-    const product = await this.prisma.product.findFirst({
+    const db = tx || this.prisma;
+
+    const product = await db.product.findFirst({
       where: { id: productId, tenantId },
     });
 
@@ -286,7 +289,7 @@ export class InventoryService {
     const now = new Date();
 
     // Query active batches with stock remaining > 0, ordered by expiry date ASC (FEFO)
-    const batches = await this.prisma.batch.findMany({
+    const batches = await db.batch.findMany({
       where: {
         tenantId,
         productId,
