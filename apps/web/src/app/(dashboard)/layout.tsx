@@ -21,6 +21,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { NotificationBell } from '@/components/layout/notification-bell';
 import {
   Sheet,
   SheetContent,
@@ -337,7 +338,8 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground shrink-0">
+              <NotificationBell />
               <span className="font-medium hidden sm:inline">System Status:</span>
               <Badge
                 variant="outline"

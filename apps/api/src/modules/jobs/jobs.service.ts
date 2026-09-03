@@ -15,23 +15,36 @@ export class JobsService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     try {
       this.logger.log('Enqueuing verification no-op job on scheduler queue...');
-      const job = await this.schedulerQueue.add(
+      await this.schedulerQueue.add(
         'noop',
         { test: true },
         { removeOnComplete: true, attempts: 1 },
       );
-      this.logger.log(`No-op test job enqueued successfully with ID: ${job.id}`);
+
+      this.logger.log('Scheduling hourly low-stock scan job...');
+      await (this.schedulerQueue.add as any)(
+        'scan-low-stock',
+        { source: 'scheduled' },
+        {
+          repeat: {
+            pattern: '0 * * * *',
+          },
+          jobId: 'hourly-low-stock-scan',
+          removeOnComplete: 100,
+        },
+      );
+      this.logger.log('Hourly low-stock scan job registered successfully.');
     } catch (err: any) {
-      this.logger.error(`Failed to enqueue no-op test job: ${err.message}`);
+      this.logger.error(`Failed to register BullMQ jobs: ${err.message}`);
     }
   }
 
-  async enqueueSchedulerJob(name: string, data: any, opts?: any) {
-    return this.schedulerQueue.add(name, data, opts);
-  }
-
-  async enqueueNotificationJob(name: string, data: any, opts?: any) {
-    return this.notificationsQueue.add(name, data, opts);
+  async triggerLowStockScan() {
+    return this.schedulerQueue.add(
+      'scan-low-stock',
+      { source: 'manual-trigger', timestamp: new Date().toISOString() },
+      { removeOnComplete: true },
+    );
   }
 
   async isHealthy(): Promise<boolean> {
