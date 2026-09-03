@@ -41,6 +41,7 @@ const NAV_ITEMS = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'POS Counter', href: '/pos', icon: ShoppingCart },
+  { name: 'Suppliers', href: '/suppliers', icon: Truck },
   { name: 'Purchases', href: '/purchases', icon: Truck },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
