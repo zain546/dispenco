@@ -71,4 +71,9 @@ export const salesApi = {
     const response = await apiClient.get(`/sales/${saleId}`);
     return response.data;
   },
+
+  voidSale: async (saleId: string, reason?: string) => {
+    const response = await apiClient.post(`/sales/${saleId}/void`, { reason });
+    return response.data;
+  },
 };
