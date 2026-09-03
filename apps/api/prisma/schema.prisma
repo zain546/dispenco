@@ -192,7 +192,9 @@ model PurchaseOrder {
   tenantId      String
   storeId       String
   supplierId    String
+  orderNumber   String?
   status        PurchaseOrderStatus @default(PENDING)
+  totalCost     Decimal             @default(0) @db.Decimal(12, 2)
   notes         String?
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -201,6 +203,8 @@ model PurchaseOrder {
   store         Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   purchaseItems PurchaseItem[]
+
+  @@index([tenantId, storeId])
 }
 
 model PurchaseItem {
