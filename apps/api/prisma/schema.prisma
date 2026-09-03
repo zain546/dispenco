@@ -27,6 +27,7 @@ model Tenant {
   returns          Return[]
   notifications    Notification[]
   auditLogs        AuditLog[]
+  taxRates         TaxRate[]
 }
 
 model User {
@@ -279,6 +280,7 @@ model SaleItem {
   unitPrice    Decimal      @db.Decimal(12, 2)
   discount     Decimal      @default(0) @db.Decimal(12, 2)
   discountType DiscountType @default(FLAT)
+  taxRate      Decimal      @default(0) @db.Decimal(5, 2)
   taxApplied   Decimal      @default(0) @db.Decimal(12, 2)
 
   sale         Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -369,5 +371,21 @@ model AuditLog {
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, entityType, entityId])
+}
+
+model TaxRate {
+  id          String   @id @default(uuid())
+  tenantId    String
+  code        String
+  name        String
+  ratePercent Decimal  @db.Decimal(5, 2)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
 }
 

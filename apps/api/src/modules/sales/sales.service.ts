@@ -72,6 +72,7 @@ export class SalesService {
         unitPrice: Prisma.Decimal;
         discount: Prisma.Decimal;
         discountType: DiscountType;
+        taxRate: Prisma.Decimal;
         taxApplied: Prisma.Decimal;
       }
 
@@ -85,6 +86,42 @@ export class SalesService {
 
         if (!product) {
           throw new NotFoundException(`Medicine product with ID "${item.productId}" not found`);
+        }
+
+        // Determine effective tax rate percent for product from taxCode or item override
+        let effectiveTaxRatePercent = item.taxRatePercent ?? 0;
+        if (effectiveTaxRatePercent === 0 && product.taxCode) {
+          const cleanCode = product.taxCode.toUpperCase().trim();
+          const taxRateRecord = await tx.taxRate.findUnique({
+            where: {
+              tenantId_code: {
+                tenantId,
+                code: cleanCode,
+              },
+            },
+          });
+
+          if (taxRateRecord) {
+            effectiveTaxRatePercent = Number(taxRateRecord.ratePercent);
+          } else {
+            switch (cleanCode) {
+              case 'EXEMPT':
+              case 'ZERO':
+                effectiveTaxRatePercent = 0;
+                break;
+              case 'REDUCED_5':
+              case 'REDUCED':
+                effectiveTaxRatePercent = 5;
+                break;
+              case 'STANDARD':
+              case 'GST_18':
+              case 'DEFAULT':
+                effectiveTaxRatePercent = 18;
+                break;
+              default:
+                effectiveTaxRatePercent = 0;
+            }
+          }
         }
 
         // FEFO batch allocation using current transaction client
@@ -126,9 +163,9 @@ export class SalesService {
 
           // Item-level tax calculation
           let itemTax = 0;
-          if (item.taxRatePercent && item.taxRatePercent > 0) {
+          if (effectiveTaxRatePercent > 0) {
             const taxableAmount = Math.max(0, itemSubtotal - itemDiscount);
-            itemTax = (taxableAmount * item.taxRatePercent) / 100;
+            itemTax = (taxableAmount * effectiveTaxRatePercent) / 100;
           }
 
           runningSubtotal += itemSubtotal;
@@ -142,6 +179,7 @@ export class SalesService {
             unitPrice: new Prisma.Decimal(unitPrice),
             discount: new Prisma.Decimal(itemDiscount),
             discountType: item.discountType || DiscountType.FLAT,
+            taxRate: new Prisma.Decimal(effectiveTaxRatePercent),
             taxApplied: new Prisma.Decimal(itemTax),
           });
         }

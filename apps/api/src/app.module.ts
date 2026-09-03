@@ -20,6 +20,7 @@ import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     CustomersModule,
     NotificationsModule,
     PaymentsModule,
+    TaxRatesModule,
   ],
   controllers: [AppController],
   providers: [
