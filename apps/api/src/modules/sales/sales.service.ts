@@ -373,4 +373,67 @@ export class SalesService {
       })),
     };
   }
+
+  async voidSale(tenantId: string, userId: string, saleId: string, reason?: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findFirst({
+        where: { id: saleId, tenantId },
+        include: {
+          saleItems: true,
+        },
+      });
+
+      if (!sale) {
+        throw new NotFoundException(`Sale with ID "${saleId}" not found`);
+      }
+
+      if (sale.status === SaleStatus.VOIDED) {
+        throw new BadRequestException(`Sale #${sale.receiptNumber} is already voided`);
+      }
+
+      // Restore quantityRemaining for each batch affected
+      for (const item of sale.saleItems) {
+        await tx.batch.update({
+          where: { id: item.batchId },
+          data: {
+            quantityRemaining: {
+              increment: item.quantity,
+            },
+          },
+        });
+      }
+
+      // Mark sale as VOIDED
+      const updatedSale = await tx.sale.update({
+        where: { id: sale.id },
+        data: {
+          status: SaleStatus.VOIDED,
+        },
+      });
+
+      // Write AuditLog entry
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: 'SALE_VOIDED',
+          entityType: 'Sale',
+          entityId: sale.id,
+          metadata: {
+            receiptNumber: sale.receiptNumber,
+            totalAmount: Number(sale.totalAmount),
+            reason: reason?.trim() || 'Voided by staff',
+            voidedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return {
+        success: true,
+        message: `Sale #${sale.receiptNumber} has been successfully voided and inventory stock was restored.`,
+        saleId: updatedSale.id,
+        status: updatedSale.status,
+      };
+    });
+  }
 }

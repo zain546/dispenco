@@ -7,6 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Printer,
   ArrowLeft,
@@ -24,6 +34,8 @@ import {
   Receipt as ReceiptIcon,
   Download,
   Loader2,
+  Ban,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,30 +51,49 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   const [saleData, setSaleData] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+  const [isVoiding, setIsVoiding] = useState(false);
+
+  const fetchReceipt = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await salesApi.getSaleById(saleId);
+      if (res.success && res.sale) {
+        setSaleData(res.sale);
+      } else {
+        setError(res.message || 'Failed to load receipt details.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching receipt:', err);
+      setError(err.response?.data?.message || 'Receipt not found or accessible.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchReceipt() {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await salesApi.getSaleById(saleId);
-        if (res.success && res.sale) {
-          setSaleData(res.sale);
-        } else {
-          setError(res.message || 'Failed to load receipt details.');
-        }
-      } catch (err: any) {
-        console.error('Error fetching receipt:', err);
-        setError(err.response?.data?.message || 'Receipt not found or accessible.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     if (saleId) {
       fetchReceipt();
     }
   }, [saleId]);
+
+  const handleVoidSale = async () => {
+    if (!saleId) return;
+    setIsVoiding(true);
+    try {
+      const res = await salesApi.voidSale(saleId, voidReason);
+      toast.success(res?.message || 'Sale voided and inventory restored successfully.');
+      setIsVoidModalOpen(false);
+      fetchReceipt();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to void sale. Ensure you have void sale permissions.';
+      toast.error(msg);
+    } finally {
+      setIsVoiding(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && saleData && autoPrint) {
@@ -297,6 +328,16 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           <Button variant="default" size="sm" onClick={handlePrint} className="gap-1.5 text-xs font-semibold shadow-xs">
             <Printer className="size-3.5" /> Print Receipt
           </Button>
+          {status !== 'VOIDED' && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsVoidModalOpen(true)}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Ban className="size-3.5" /> Void Sale
+            </Button>
+          )}
         </div>
       </div>
 
@@ -310,9 +351,16 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               <span>{store?.name || 'Pharmacy Store'}</span>
             </div>
             {store?.address && <p className="text-xs text-muted-foreground leading-snug">{store.address}</p>}
-            <p className="text-[11px] text-muted-foreground font-mono">
-              Receipt #: <span className="font-bold text-foreground">{receiptNumber}</span>
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-[11px] text-muted-foreground font-mono">
+                Receipt #: <span className="font-bold text-foreground">{receiptNumber}</span>
+              </p>
+              {status === 'VOIDED' && (
+                <Badge variant="destructive" className="text-[10px] font-extrabold uppercase tracking-wider">
+                  VOIDED
+                </Badge>
+              )}
+            </div>
           </div>
 
           {/* Meta Info: Cashier, Customer, Date & Status */}
@@ -417,8 +465,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             </div>
             <div className="flex items-center justify-between font-medium">
               <span className="text-muted-foreground">Payment Status:</span>
-              <span className="text-emerald-600 font-bold flex items-center gap-1">
-                <CheckCircle2 className="size-3" /> Paid
+              <span className={status === 'VOIDED' ? 'text-destructive font-bold' : 'text-emerald-600 font-bold flex items-center gap-1'}>
+                {status === 'VOIDED' ? 'VOIDED' : <><CheckCircle2 className="size-3" /> Paid</>}
               </span>
             </div>
           </div>
@@ -439,6 +487,58 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Void Sale Confirmation Dialog */}
+      <Dialog open={isVoidModalOpen} onOpenChange={setIsVoidModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="space-y-2">
+            <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
+              <AlertTriangle className="size-5" />
+            </div>
+            <DialogTitle className="text-base font-bold text-foreground">
+              Void Sale #{receiptNumber}?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              This action will mark the transaction as <strong>VOIDED</strong>, restore all item quantities back into their respective inventory batches, and log an audit trail entry.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label htmlFor="void-reason" className="text-xs font-medium">
+              Cancellation Reason (Optional)
+            </Label>
+            <Input
+              id="void-reason"
+              placeholder="e.g., Customer changed mind, wrong item scanned"
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              className="text-xs"
+            />
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsVoidModalOpen(false)}
+              disabled={isVoiding}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleVoidSale}
+              disabled={isVoiding}
+              className="text-xs font-bold gap-1.5"
+            >
+              {isVoiding && <Loader2 className="size-3.5 animate-spin" />}
+              Confirm Void Sale
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
