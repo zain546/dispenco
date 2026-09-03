@@ -1,5 +1,6 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { JobsService } from '../jobs/jobs.service';
 
 export interface HealthCheckResult {
   status: 'ok' | 'degraded';
@@ -10,11 +11,17 @@ export interface HealthCheckResult {
     status: 'connected' | 'disconnected';
     latencyMs?: number;
   };
+  redis: {
+    status: 'connected' | 'disconnected';
+  };
 }
 
 @Injectable()
 export class HealthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobsService: JobsService,
+  ) {}
 
   async checkHealth(): Promise<HealthCheckResult> {
     const startTime = Date.now();
@@ -29,14 +36,19 @@ export class HealthService {
       isDbConnected = false;
     }
 
+    const isRedisConnected = await this.jobsService.isHealthy();
+
     const result: HealthCheckResult = {
-      status: isDbConnected ? 'ok' : 'degraded',
+      status: isDbConnected && isRedisConnected ? 'ok' : 'degraded',
       service: 'dispenco-api',
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
       database: {
         status: isDbConnected ? 'connected' : 'disconnected',
         ...(isDbConnected && { latencyMs }),
+      },
+      redis: {
+        status: isRedisConnected ? 'connected' : 'disconnected',
       },
     };
 

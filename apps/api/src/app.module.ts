@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
+import { BullModule } from '@nestjs/bullmq';
 import { envValidationSchema } from './common/config/env.schema';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { AppController } from './app.controller';
@@ -21,6 +22,7 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 
 @Module({
   imports: [
@@ -28,6 +30,31 @@ import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
       isGlobal: true,
       envFilePath: ['.env', '.env.example'],
       validationSchema: envValidationSchema,
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const redisUrl = config.get<string>('REDIS_URL') || 'redis://localhost:6379';
+        try {
+          const url = new URL(redisUrl);
+          return {
+            connection: {
+              host: url.hostname || 'localhost',
+              port: url.port ? parseInt(url.port, 10) : 6379,
+              username: url.username || undefined,
+              password: url.password || undefined,
+            },
+          };
+        } catch {
+          return {
+            connection: {
+              host: 'localhost',
+              port: 6379,
+            },
+          };
+        }
+      },
     }),
     PrismaModule,
     AuthModule,
@@ -44,6 +71,7 @@ import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
     NotificationsModule,
     PaymentsModule,
     TaxRatesModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [
