@@ -263,9 +263,29 @@ export function POSTerminal() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const resolveTaxRateFromCode = (taxCode?: string | null): number => {
+    if (!taxCode) return 0;
+    const clean = taxCode.toUpperCase().trim();
+    switch (clean) {
+      case 'EXEMPT':
+      case 'ZERO':
+        return 0;
+      case 'REDUCED_5':
+      case 'REDUCED':
+        return 5;
+      case 'STANDARD':
+      case 'GST_18':
+      case 'DEFAULT':
+        return 18;
+      default:
+        return 0;
+    }
+  };
+
   // Handle adding product to cart
   const addToCart = (product: ProductData) => {
     const defaultPrice = product.latestSellPrice ?? 0;
+    const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
 
     setCart((prev) => {
       const existingIndex = prev.findIndex((item) => item.product.id === product.id);
@@ -293,7 +313,7 @@ export function POSTerminal() {
             unitPrice: defaultPrice,
             discount: 0,
             discountType: 'FLAT',
-            taxRatePercent: 0,
+            taxRatePercent: defaultTaxRate,
           },
         ];
       }
