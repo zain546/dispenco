@@ -59,4 +59,14 @@ export class NotificationsController {
       jobId: job.id,
     };
   }
+
+  @Post('scan-expiry')
+  async triggerExpiryScan() {
+    const job = await this.jobsService.triggerExpiryScan();
+    return {
+      success: true,
+      message: 'Expiry scan job enqueued',
+      jobId: job.id,
+    };
+  }
 }

@@ -33,7 +33,21 @@ export class JobsService implements OnApplicationBootstrap {
           removeOnComplete: 100,
         },
       );
-      this.logger.log('Hourly low-stock scan job registered successfully.');
+
+      this.logger.log('Scheduling daily batch expiry scan job...');
+      await (this.schedulerQueue.add as any)(
+        'scan-expiry',
+        { source: 'scheduled' },
+        {
+          repeat: {
+            pattern: '0 2 * * *',
+          },
+          jobId: 'daily-expiry-scan',
+          removeOnComplete: 100,
+        },
+      );
+
+      this.logger.log('BullMQ scheduled jobs registered successfully.');
     } catch (err: any) {
       this.logger.error(`Failed to register BullMQ jobs: ${err.message}`);
     }
@@ -42,6 +56,14 @@ export class JobsService implements OnApplicationBootstrap {
   async triggerLowStockScan() {
     return this.schedulerQueue.add(
       'scan-low-stock',
+      { source: 'manual-trigger', timestamp: new Date().toISOString() },
+      { removeOnComplete: true },
+    );
+  }
+
+  async triggerExpiryScan() {
+    return this.schedulerQueue.add(
+      'scan-expiry',
       { source: 'manual-trigger', timestamp: new Date().toISOString() },
       { removeOnComplete: true },
     );

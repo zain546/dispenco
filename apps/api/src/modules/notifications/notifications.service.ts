@@ -16,7 +16,6 @@ export class NotificationsService {
   ) {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Check if duplicate notification already exists within 24h
     const existing = await this.prisma.notification.findFirst({
       where: {
         tenantId,
@@ -35,7 +34,6 @@ export class NotificationsService {
       return { skipped: true };
     }
 
-    // Find all active users in tenant
     const users = await this.prisma.user.findMany({
       where: { tenantId },
       select: { id: true },
@@ -56,6 +54,58 @@ export class NotificationsService {
     });
 
     this.logger.log(`Created low stock alert for ${productName} for ${users.length} users.`);
+    return { created: users.length };
+  }
+
+  async createExpiryNotifications(
+    tenantId: string,
+    batchId: string,
+    productName: string,
+    batchNumber: string,
+    daysRemaining: number,
+  ) {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const existing = await this.prisma.notification.findFirst({
+      where: {
+        tenantId,
+        type: 'EXPIRY',
+        message: {
+          contains: batchNumber,
+        },
+        createdAt: {
+          gte: twentyFourHoursAgo,
+        },
+      },
+    });
+
+    if (existing) {
+      this.logger.debug(`Expiry notification for batch ${batchNumber} (${batchId}) already sent within 24h.`);
+      return { skipped: true };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: { tenantId },
+      select: { id: true },
+    });
+
+    if (users.length === 0) return { skipped: true };
+
+    const message = daysRemaining <= 0
+      ? `EXPIRATION ALERT: ${productName} (Batch ${batchNumber}) has EXPIRED!`
+      : `Expiry Warning: ${productName} (Batch ${batchNumber}) expires in ${daysRemaining} days.`;
+
+    await this.prisma.notification.createMany({
+      data: users.map((user) => ({
+        tenantId,
+        userId: user.id,
+        type: 'EXPIRY',
+        message,
+        read: false,
+      })),
+    });
+
+    this.logger.log(`Created expiry alert for batch ${batchNumber} for ${users.length} users.`);
     return { created: users.length };
   }
 
