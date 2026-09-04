@@ -12,6 +12,7 @@ export interface UserSession {
   tenantId: string;
   storeName?: string;
   role?: string;
+  permissions?: string[];
 }
 
 interface AuthContextType {

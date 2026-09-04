@@ -38,6 +38,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePermissions } from '@/hooks/use-permissions';
 
 interface ReceiptViewProps {
   saleId: string;
@@ -46,6 +47,7 @@ interface ReceiptViewProps {
 
 export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   const router = useRouter();
+  const { canVoidSales } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saleData, setSaleData] = useState<any | null>(null);
@@ -328,7 +330,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           <Button variant="default" size="sm" onClick={handlePrint} className="gap-1.5 text-xs font-semibold shadow-xs">
             <Printer className="size-3.5" /> Print Receipt
           </Button>
-          {status !== 'VOIDED' && (
+          {status !== 'VOIDED' && canVoidSales && (
             <Button
               variant="destructive"
               size="sm"
