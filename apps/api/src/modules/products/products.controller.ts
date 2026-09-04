@@ -13,6 +13,7 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dtos/create-product.dto';
 import { UpdateProductDto } from './dtos/update-product.dto';
 import { QueryProductsDto } from './dtos/query-products.dto';
+import { ParseCsvImportDto, ConfirmCsvImportDto } from './dtos/import-csv.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
@@ -23,6 +24,28 @@ import { Permission } from '@dispenco/types';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  @Post('import/parse')
+  @RequirePermissions(Permission.INVENTORY_CREATE)
+  parseCsvImport(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: ParseCsvImportDto,
+  ) {
+    return this.productsService.parseCsvImport(
+      tenantId,
+      dto.csvContent,
+      dto.columnMapping,
+    );
+  }
+
+  @Post('import/confirm')
+  @RequirePermissions(Permission.INVENTORY_CREATE)
+  confirmCsvImport(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: ConfirmCsvImportDto,
+  ) {
+    return this.productsService.confirmCsvImport(tenantId, dto.products);
+  }
 
   @Post()
   @RequirePermissions(Permission.INVENTORY_CREATE)

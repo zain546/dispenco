@@ -9,6 +9,7 @@ import { UpdateProductDto } from './dtos/update-product.dto';
 import { QueryProductsDto } from './dtos/query-products.dto';
 import { validateProductAttributes } from '@dispenco/types';
 import { Prisma } from '@prisma/client';
+import * as Papa from 'papaparse';
 
 @Injectable()
 export class ProductsService {
@@ -417,6 +418,264 @@ export class ProductsService {
     return {
       success: true,
       message: 'Product deactivated successfully',
+    };
+  }
+
+  /**
+   * Parse CSV content and validate rows for catalog import preview
+   */
+  async parseCsvImport(
+    tenantId: string,
+    csvContent: string,
+    columnMapping?: Record<string, string>,
+  ) {
+    if (!csvContent || !csvContent.trim()) {
+      throw new BadRequestException('CSV file content is empty');
+    }
+
+    const parsed = Papa.parse<Record<string, string>>(csvContent, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (header) => header.trim(),
+    });
+
+    if (parsed.errors && parsed.errors.length > 0 && parsed.data.length === 0) {
+      throw new BadRequestException(`Failed to parse CSV file: ${parsed.errors[0]?.message}`);
+    }
+
+    const headers = parsed.meta.fields || [];
+
+    const getFieldValue = (row: Record<string, string>, targetField: string): string => {
+      if (columnMapping && columnMapping[targetField]) {
+        const mappedHeader = columnMapping[targetField];
+        if (row[mappedHeader] !== undefined) {
+          return row[mappedHeader]?.trim() || '';
+        }
+      }
+
+      const targetLower = targetField.toLowerCase();
+      const matchedKey = Object.keys(row).find((key) => {
+        const keyLower = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (targetLower === 'name') return keyLower.includes('name') || keyLower.includes('title') || keyLower.includes('item') || keyLower.includes('medicine');
+        if (targetLower === 'unitprice') return keyLower.includes('unitprice') || keyLower.includes('sellprice') || keyLower.includes('mrp') || keyLower.includes('price');
+        if (targetLower === 'costprice') return keyLower.includes('costprice') || keyLower.includes('purchaseprice') || keyLower.includes('cost');
+        if (targetLower === 'category') return keyLower.includes('category') || keyLower.includes('type') || keyLower.includes('group');
+        if (targetLower === 'sku') return keyLower === 'sku' || keyLower.includes('code');
+        if (targetLower === 'barcode') return keyLower.includes('barcode') || keyLower.includes('upc') || keyLower.includes('ean');
+        if (targetLower === 'initialstock') return keyLower.includes('stock') || keyLower.includes('qty') || keyLower.includes('quantity');
+        if (targetLower === 'batchnumber') return keyLower.includes('batch') || keyLower.includes('lot');
+        if (targetLower === 'expirydate') return keyLower.includes('exp') || keyLower.includes('expiry');
+        return keyLower === targetLower;
+      });
+
+      return matchedKey ? (row[matchedKey]?.trim() || '') : '';
+    };
+
+    const existingProducts = await this.prisma.product.findMany({
+      where: { tenantId },
+      select: { barcode: true, name: true },
+    });
+    const existingBarcodes = new Set(
+      existingProducts.map((p) => p.barcode).filter(Boolean) as string[],
+    );
+
+    const rowsPreview: Array<{
+      rowNumber: number;
+      status: 'VALID' | 'INVALID';
+      data: {
+        name: string;
+        genericName?: string;
+        category: string;
+        unit: string;
+        unitPrice: number;
+        costPrice?: number;
+        sku?: string;
+        barcode?: string;
+        initialStockQuantity?: number;
+        batchNumber?: string;
+        expiryDate?: string;
+        isPriority?: boolean;
+      };
+      errors: string[];
+    }> = [];
+
+    const seenBarcodesInFile = new Set<string>();
+    let validCount = 0;
+    let invalidCount = 0;
+
+    parsed.data.forEach((row, index) => {
+      const rowNumber = index + 1;
+      const errors: string[] = [];
+
+      const rawName = getFieldValue(row, 'name');
+      const rawCategory = getFieldValue(row, 'category');
+      const rawUnitPrice = getFieldValue(row, 'unitprice');
+      const rawCostPrice = getFieldValue(row, 'costprice');
+      const rawBarcode = getFieldValue(row, 'barcode');
+      const rawStock = getFieldValue(row, 'initialstock');
+      const rawBatch = getFieldValue(row, 'batchnumber');
+      const rawExpiry = getFieldValue(row, 'expirydate');
+      const rawUnit = getFieldValue(row, 'unit');
+
+      if (!rawName || rawName.length < 2) {
+        errors.push('Product name is required (minimum 2 characters)');
+      }
+
+      const unitPrice = Number(rawUnitPrice);
+      if (isNaN(unitPrice) || unitPrice < 0) {
+        errors.push('Unit price must be a valid positive number');
+      }
+
+      let costPrice: number | undefined = undefined;
+      if (rawCostPrice) {
+        const parsedCost = Number(rawCostPrice);
+        if (!isNaN(parsedCost) && parsedCost >= 0) {
+          costPrice = parsedCost;
+        }
+      }
+
+      if (rawBarcode) {
+        if (existingBarcodes.has(rawBarcode)) {
+          errors.push(`Barcode "${rawBarcode}" already exists in database`);
+        } else if (seenBarcodesInFile.has(rawBarcode)) {
+          errors.push(`Duplicate barcode "${rawBarcode}" found within file`);
+        } else {
+          seenBarcodesInFile.add(rawBarcode);
+        }
+      }
+
+      const initialStock = rawStock ? Number(rawStock) : 0;
+      if (rawStock && (isNaN(initialStock) || initialStock < 0)) {
+        errors.push('Initial stock quantity must be a non-negative number');
+      }
+
+      const category = rawCategory
+        ? rawCategory.toUpperCase().replace(/\s+/g, '_')
+        : 'GENERAL_ITEM';
+
+      const unit = rawUnit || 'PACK';
+
+      const status = errors.length === 0 ? 'VALID' : 'INVALID';
+      if (status === 'VALID') validCount++;
+      else invalidCount++;
+
+      rowsPreview.push({
+        rowNumber,
+        status,
+        data: {
+          name: rawName || `Row ${rowNumber}`,
+          category,
+          unit,
+          unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
+          ...(costPrice !== undefined ? { costPrice } : {}),
+          ...(rawBarcode ? { barcode: rawBarcode } : {}),
+          ...(initialStock > 0 ? { initialStockQuantity: initialStock } : {}),
+          ...(rawBatch ? { batchNumber: rawBatch } : {}),
+          ...(rawExpiry ? { expiryDate: rawExpiry } : {}),
+          isPriority: true,
+        },
+        errors,
+      });
+    });
+
+    return {
+      success: true,
+      summary: {
+        totalRows: parsed.data.length,
+        validRows: validCount,
+        invalidRows: invalidCount,
+        headers,
+      },
+      preview: rowsPreview,
+    };
+  }
+
+  /**
+   * Confirm import of validated products
+   */
+  async confirmCsvImport(
+    tenantId: string,
+    productsToImport: Array<{
+      name: string;
+      genericName?: string;
+      category?: string;
+      unit?: string;
+      unitPrice: number;
+      costPrice?: number;
+      barcode?: string;
+      initialStockQuantity?: number;
+      batchNumber?: string;
+      expiryDate?: string;
+      isPriority?: boolean;
+    }>,
+  ) {
+    if (!productsToImport || productsToImport.length === 0) {
+      throw new BadRequestException('No items provided for import confirmation');
+    }
+
+    let store = await this.prisma.store.findFirst({
+      where: { tenantId },
+    });
+
+    if (!store) {
+      store = await this.prisma.store.create({
+        data: { tenantId, name: 'Main Pharmacy Store' },
+      });
+    }
+
+    const createdProducts = await this.prisma.$transaction(async (tx) => {
+      const results = [];
+
+      for (const item of productsToImport) {
+        const cleanBarcode = item.barcode?.trim() || null;
+
+        const product = await tx.product.create({
+          data: {
+            tenantId,
+            name: item.name.trim(),
+            genericName: item.genericName?.trim() || null,
+            category: item.category || 'GENERAL_ITEM',
+            unit: item.unit || 'PACK',
+            barcode: cleanBarcode,
+            isActive: true,
+            lowStockThreshold: 10,
+            attributes: { isPriority: item.isPriority ?? true },
+          },
+        });
+
+        if (item.initialStockQuantity && item.initialStockQuantity > 0) {
+          const costPrice = item.costPrice ?? item.unitPrice * 0.8;
+          const expiry = item.expiryDate
+            ? new Date(item.expiryDate)
+            : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+          await tx.batch.create({
+            data: {
+              tenantId,
+              storeId: store.id,
+              productId: product.id,
+              batchNumber:
+                item.batchNumber ||
+                `IMP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
+              expiryDate: expiry,
+              costPrice: new Prisma.Decimal(costPrice),
+              sellPrice: new Prisma.Decimal(item.unitPrice),
+              quantityReceived: item.initialStockQuantity,
+              quantityRemaining: item.initialStockQuantity,
+            },
+          });
+        }
+
+        results.push(product);
+      }
+
+      return results;
+    });
+
+    return {
+      success: true,
+      message: `Successfully imported ${createdProducts.length} products into inventory`,
+      importedCount: createdProducts.length,
     };
   }
 }
