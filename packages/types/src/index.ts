@@ -24,5 +24,5 @@ export interface ApiResponse<T = unknown> {
   timestamp: string;
 }
 
-export * from './product-attributes';
-export * from './permissions';
+export * from './product-attributes.js';
+export * from './permissions.js';

@@ -18,6 +18,7 @@ import {
   Loader2,
   Calendar,
   Building2,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { productsApi } from '../services/products-api';
 import { ProductList, formatCategory, formatUnitPlural } from './product-list';
 import { ProductBatchesModal } from './product-batches-modal';
+import { ImportProductsModal } from './import-products-modal';
 import { getProductSeoUrl } from '../utils/seo-utils';
 
 export function InventoryDashboard() {
@@ -69,9 +71,10 @@ export function InventoryDashboard() {
     products: [],
   });
 
-  // Batch inspect modal state
+  // Batch inspect & CSV Import modal states
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [selectedProductForModal, setSelectedProductForModal] = useState<{ id: string; name: string } | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const fetchAggregation = useCallback(async () => {
     setIsLoading(true);
@@ -135,6 +138,15 @@ export function InventoryDashboard() {
               <Plus className="size-4 shrink-0" />
               <span className="truncate">Add Product</span>
             </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportModalOpen(true)}
+            className="h-9 px-3 flex-1 sm:flex-initial gap-1.5 font-semibold text-xs sm:text-sm border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+          >
+            <FileSpreadsheet className="size-4 shrink-0" />
+            <span className="truncate">Import CSV</span>
           </Button>
           <Button
             variant="outline"
@@ -495,6 +507,13 @@ export function InventoryDashboard() {
           productId={selectedProductForModal.id}
         />
       )}
+
+      {/* CSV Import Modal */}
+      <ImportProductsModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => fetchAggregation()}
+      />
     </div>
   );
 }
