@@ -23,6 +23,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PaymentsModule } from './modules/payments/payments.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
     PaymentsModule,
     TaxRatesModule,
     JobsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
