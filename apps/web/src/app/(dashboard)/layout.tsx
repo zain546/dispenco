@@ -36,17 +36,18 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/context/auth-context';
+import { usePermissions } from '@/hooks/use-permissions';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Inventory', href: '/inventory', icon: Package },
-  { name: 'POS Counter', href: '/pos', icon: ShoppingCart },
-  { name: 'Suppliers', href: '/suppliers', icon: Truck },
-  { name: 'Purchases', href: '/purchases', icon: Truck },
-  { name: 'Customers', href: '/customers', icon: Users },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null },
+  { name: 'Inventory', href: '/inventory', icon: Package, permission: null },
+  { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null },
+  { name: 'Suppliers', href: '/suppliers', icon: Truck, permission: 'canManageSuppliers' },
+  { name: 'Purchases', href: '/purchases', icon: Truck, permission: null },
+  { name: 'Customers', href: '/customers', icon: Users, permission: null },
+  { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
+  { name: 'Settings', href: '/settings', icon: Settings, permission: 'canManageSettings' },
 ];
 
 export default function DashboardLayout({
@@ -56,6 +57,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const { user, storeName, logout } = useAuth();
+  const permissions = usePermissions();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -88,9 +90,14 @@ export default function DashboardLayout({
 
   const userInitials = getInitials(userName);
 
+  const filteredNavItems = NAV_ITEMS.filter((item) => {
+    if (!item.permission) return true;
+    return Boolean((permissions as any)[item.permission]);
+  });
+
   const renderNavLinks = (inMobile = false) => (
     <nav className="flex flex-col gap-1.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-      {NAV_ITEMS.map((item) => {
+      {filteredNavItems.map((item) => {
         const Icon = item.icon;
         const isActive =
           pathname === item.href || pathname.startsWith(`${item.href}/`);
