@@ -25,6 +25,9 @@ import {
   Tag,
   Download,
   Star,
+  History,
+  Ban,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,6 +77,47 @@ export function POSTerminal() {
   const [completedSale, setCompletedSale] = useState<SaleResponse | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  // Recent Sales History State
+  const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
+  const [recentSales, setRecentSales] = useState<SaleResponse[]>([]);
+  const [isLoadingRecentSales, setIsLoadingRecentSales] = useState(false);
+  const [voidingSaleId, setVoidingSaleId] = useState<string | null>(null);
+
+  const fetchRecentSales = async () => {
+    setIsLoadingRecentSales(true);
+    try {
+      const res = await salesApi.getRecentSales(25);
+      setRecentSales(res?.sales || []);
+    } catch (err) {
+      console.error('Failed to fetch recent sales:', err);
+      toast.error('Failed to load recent sales history');
+    } finally {
+      setIsLoadingRecentSales(false);
+    }
+  };
+
+  const handleOpenRecentSales = () => {
+    setIsRecentSalesOpen(true);
+    fetchRecentSales();
+  };
+
+  const handleVoidSale = async (saleId: string) => {
+    const reasonPrompt = window.prompt('Enter reason for voiding this sale (e.g. Customer Return, Entry Error):');
+    if (reasonPrompt === null) return;
+
+    setVoidingSaleId(saleId);
+    try {
+      await salesApi.voidSale(saleId, reasonPrompt || 'Cashier Void');
+      toast.success('Sale voided successfully! Stock restored.');
+      fetchRecentSales();
+    } catch (err: any) {
+      console.error('Void sale error:', err);
+      toast.error(err?.response?.data?.message || 'Failed to void sale');
+    } finally {
+      setVoidingSaleId(null);
+    }
+  };
 
   const handleDownloadSalePdf = async (sale: SaleResponse) => {
     try {
@@ -534,17 +578,30 @@ export function POSTerminal() {
           </p>
         </div>
 
-        {/* Quick Keyboard Hints (Desktop only) */}
-        <div className="hidden md:flex items-center gap-2 text-xs flex-wrap">
-          <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-[11px] font-mono font-medium text-muted-foreground shadow-2xs">
-            F2 Focus Search
-          </kbd>
-          <kbd className="px-2 py-1 bg-primary/10 border border-primary/20 text-primary rounded-md text-[11px] font-mono font-semibold shadow-2xs">
-            F9 Complete Sale
-          </kbd>
-          <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-[11px] font-mono font-medium text-muted-foreground shadow-2xs">
-            Esc Clear Search
-          </kbd>
+        {/* Quick Keyboard Hints & Recent Sales History */}
+        <div className="flex items-center gap-2 text-xs flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleOpenRecentSales}
+            className="h-8 text-xs font-semibold gap-1.5 border-border bg-background hover:bg-muted/40 text-foreground"
+          >
+            <History className="size-3.5 text-primary" />
+            <span>Recent Transactions</span>
+          </Button>
+
+          <div className="hidden md:flex items-center gap-1.5">
+            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-[11px] font-mono font-medium text-muted-foreground shadow-2xs">
+              F2 Focus Search
+            </kbd>
+            <kbd className="px-2 py-1 bg-primary/10 border border-primary/20 text-primary rounded-md text-[11px] font-mono font-semibold shadow-2xs">
+              F9 Complete Sale
+            </kbd>
+            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-[11px] font-mono font-medium text-muted-foreground shadow-2xs">
+              Esc Clear Search
+            </kbd>
+          </div>
         </div>
       </div>
 
@@ -1297,6 +1354,121 @@ export function POSTerminal() {
             >
               Next Sale (Esc)
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recent Sales History & Void Dialog Modal */}
+      <Dialog open={isRecentSalesOpen} onOpenChange={setIsRecentSalesOpen}>
+        <DialogContent className="sm:max-w-3xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-5 border-b border-border flex flex-row items-center justify-between">
+            <div>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <History className="size-4.5 text-primary" />
+                <span>Recent Pharmacy Transactions</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Audit past customer sales, reprint thermal receipt PDFs, or void transactions with automatic stock restoration.
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={fetchRecentSales}
+              disabled={isLoadingRecentSales}
+              className="size-8 p-0 shrink-0"
+            >
+              <RefreshCw className={`size-4 ${isLoadingRecentSales ? 'animate-spin' : ''}`} />
+            </Button>
+          </DialogHeader>
+
+          <div className="p-4 overflow-y-auto space-y-3 flex-1">
+            {isLoadingRecentSales ? (
+              <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+                <Loader2 className="size-6 animate-spin text-primary" />
+                <span className="text-xs">Loading sales history ledger...</span>
+              </div>
+            ) : recentSales.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground space-y-2">
+                <History className="size-8 text-muted-foreground/50 mx-auto" />
+                <p className="font-semibold text-sm text-foreground">No Sales Logged Yet</p>
+                <p className="text-xs">Completed transactions will appear here for reprint and void management.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border border border-border/80 rounded-xl overflow-hidden bg-card">
+                {recentSales.map((sale) => {
+                  const isVoided = sale.status === 'VOIDED';
+                  const formattedDate = new Date(sale.createdAt).toLocaleString('en-US', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  });
+
+                  return (
+                    <div
+                      key={sale.id}
+                      className={`p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                        isVoided ? 'bg-destructive/5 opacity-75' : 'hover:bg-muted/30'
+                      }`}
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-foreground">#{sale.receiptNumber}</span>
+                          <Badge variant={isVoided ? 'destructive' : 'outline'} className="text-[10px] font-semibold">
+                            {sale.paymentMethod} • {isVoided ? 'VOIDED' : 'COMPLETED'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{formattedDate}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Customer: <strong className="text-foreground">{sale.customerName || 'Walk-in Customer'}</strong> • Cashier: <strong className="text-foreground">{sale.cashierName || 'Staff'}</strong>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Items ({sale.itemsCount}): {sale.items?.map((i) => `${i.productName} (${i.quantity})`).join(', ')}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                        <div className="text-right mr-1">
+                          <p className={`font-extrabold text-sm ${isVoided ? 'line-through text-muted-foreground' : 'text-primary'}`}>
+                            {sale.totalAmount.toFixed(2)} PKR
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadSalePdf(sale)}
+                            disabled={isDownloadingPdf}
+                            className="h-8 text-xs gap-1 font-semibold"
+                          >
+                            <Download className="size-3.5 text-primary" />
+                            <span className="hidden xs:inline">PDF</span>
+                          </Button>
+                          {!isVoided && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleVoidSale(sale.id)}
+                              disabled={voidingSaleId === sale.id}
+                              className="h-8 text-xs gap-1 font-semibold text-destructive border-destructive/30 hover:bg-destructive/10"
+                            >
+                              {voidingSaleId === sale.id ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <Ban className="size-3.5" />
+                              )}
+                              <span>Void</span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
