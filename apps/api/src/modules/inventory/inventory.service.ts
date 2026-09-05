@@ -447,6 +447,7 @@ export class InventoryService {
       lowStockOnly?: boolean;
       expiringSoonOnly?: boolean;
       priorityOnly?: boolean;
+      unstockedOnly?: boolean;
       expiryAlertDays?: number;
       lowStockThreshold?: number;
       search?: string;
@@ -522,7 +523,7 @@ export class InventoryService {
       };
     });
 
-    // Filter if lowStockOnly, expiringSoonOnly or priorityOnly specified
+    // Filter if lowStockOnly, expiringSoonOnly, priorityOnly or unstockedOnly specified
     let filtered = aggregated;
     if (query.lowStockOnly) {
       filtered = filtered.filter((p) => p.isLowStock || p.isOutofStock);
@@ -533,11 +534,27 @@ export class InventoryService {
     if (query.priorityOnly) {
       filtered = filtered.filter((p) => p.isPriority);
     }
+    if ((query as any).unstockedOnly) {
+      filtered = filtered.filter((p) => p.totalStock === 0 || p.batchCount === 0);
+    }
+
+    const totalCatalogItems = aggregated.length;
+    const stockedCount = aggregated.filter((p) => p.totalStock > 0).length;
+    const unstockedCount = totalCatalogItems - stockedCount;
+    const priorityUnstockedCount = aggregated.filter(
+      (p) => p.isPriority && (p.totalStock === 0 || p.batchCount === 0),
+    ).length;
+    const completionPercentage =
+      totalCatalogItems > 0 ? Math.round((stockedCount / totalCatalogItems) * 100) : 100;
 
     return {
       totalProducts: filtered.length,
       summary: {
-        totalCatalogItems: aggregated.length,
+        totalCatalogItems,
+        stockedCount,
+        unstockedCount,
+        priorityUnstockedCount,
+        completionPercentage,
         outOfStockCount: aggregated.filter((p) => p.isOutofStock).length,
         lowStockCount: aggregated.filter((p) => p.isLowStock).length,
         expiringSoonCount: aggregated.filter((p) => p.isExpiringSoon).length,

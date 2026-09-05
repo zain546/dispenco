@@ -226,6 +226,7 @@ export const productsApi = {
     lowStockOnly?: boolean;
     expiringSoonOnly?: boolean;
     priorityOnly?: boolean;
+    unstockedOnly?: boolean;
     expiryAlertDays?: number;
     lowStockThreshold?: number;
     search?: string;
@@ -233,6 +234,10 @@ export const productsApi = {
     totalProducts: number;
     summary: {
       totalCatalogItems: number;
+      stockedCount: number;
+      unstockedCount: number;
+      priorityUnstockedCount: number;
+      completionPercentage: number;
       outOfStockCount: number;
       lowStockCount: number;
       expiringSoonCount: number;

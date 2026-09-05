@@ -34,13 +34,17 @@ import { ImportProductsModal } from './import-products-modal';
 import { getProductSeoUrl } from '../utils/seo-utils';
 
 export function InventoryDashboard() {
-  const [activeTab, setActiveTab] = useState<'full-catalog' | 'priority-top-sellers' | 'expiring-soon' | 'low-stock'>('full-catalog');
+  const [activeTab, setActiveTab] = useState<'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock'>('full-catalog');
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [data, setData] = useState<{
     totalProducts: number;
     summary: {
       totalCatalogItems: number;
+      stockedCount?: number;
+      unstockedCount?: number;
+      priorityUnstockedCount?: number;
+      completionPercentage?: number;
       outOfStockCount: number;
       lowStockCount: number;
       expiringSoonCount: number;
@@ -68,6 +72,10 @@ export function InventoryDashboard() {
     totalProducts: 0,
     summary: {
       totalCatalogItems: 0,
+      stockedCount: 0,
+      unstockedCount: 0,
+      priorityUnstockedCount: 0,
+      completionPercentage: 100,
       outOfStockCount: 0,
       lowStockCount: 0,
       expiringSoonCount: 0,
@@ -75,6 +83,23 @@ export function InventoryDashboard() {
     },
     products: [],
   });
+
+  // Read URL query parameter on mount for tab selection
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'unstocked') {
+        setActiveTab('unstocked');
+      } else if (tabParam === 'priority-top-sellers' || tabParam === 'priority') {
+        setActiveTab('priority-top-sellers');
+      } else if (tabParam === 'expiring') {
+        setActiveTab('expiring-soon');
+      } else if (tabParam === 'low_stock') {
+        setActiveTab('low-stock');
+      }
+    }
+  }, []);
 
   // Batch inspect & CSV Import modal states
   const [batchModalOpen, setBatchModalOpen] = useState(false);
@@ -88,6 +113,7 @@ export function InventoryDashboard() {
         lowStockOnly: activeTab === 'low-stock' ? true : undefined,
         expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
         priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
+        unstockedOnly: activeTab === 'unstocked' ? true : undefined,
         search: search.trim() || undefined,
       });
       setData(res);
@@ -301,11 +327,11 @@ export function InventoryDashboard() {
       {/* Dashboard Tabs Navigation */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'full-catalog' | 'priority-top-sellers' | 'expiring-soon' | 'low-stock')}
+        onValueChange={(val) => setActiveTab(val as 'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock')}
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
-          <TabsList className="grid grid-cols-4 w-full sm:w-auto p-1 h-auto border border-border/40">
+          <TabsList className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 w-full sm:w-auto p-1 h-auto border border-border/40 gap-1">
             <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Package className="size-3.5 text-primary shrink-0" />
               <span>Catalog ({data.summary.totalCatalogItems})</span>
@@ -313,6 +339,10 @@ export function InventoryDashboard() {
             <TabsTrigger value="priority-top-sellers" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />
               <span>Top Sellers ({data.summary.priorityCount})</span>
+            </TabsTrigger>
+            <TabsTrigger value="unstocked" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <TrendingDown className="size-3.5 text-amber-600 shrink-0" />
+              <span>Unstocked ({data.summary.unstockedCount ?? 0})</span>
             </TabsTrigger>
             <TabsTrigger value="expiring-soon" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Clock className="size-3.5 text-rose-500 shrink-0" />
@@ -435,6 +465,93 @@ export function InventoryDashboard() {
                             </Link>
                           </Button>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab: Unstocked Products Queue */}
+        <TabsContent value="unstocked" className="space-y-4 mt-0">
+          <Card>
+            <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <TrendingDown className="size-4 text-amber-600" />
+                  <span>Unstocked Catalog Queue (Pending Initial Batch Setup)</span>
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  Products registered in store catalog that do not have active inventory batches yet
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchAggregation()}
+                disabled={isLoading}
+                className="size-8 p-0 shrink-0"
+              >
+                <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+                  <Loader2 className="size-6 animate-spin text-primary" />
+                  <span className="text-xs">Loading unstocked items queue...</span>
+                </div>
+              ) : data.products.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground space-y-2">
+                  <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
+                    <Package className="size-6" />
+                  </div>
+                  <p className="font-semibold text-sm text-foreground">Catalog 100% Stocked!</p>
+                  <p className="text-xs">All products in your inventory catalog have active stock batches.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {data.products.map((product) => (
+                    <div
+                      key={product.id}
+                      className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-foreground">{product.name}</span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {formatCategory(product.category)}
+                          </Badge>
+                          {product.isPriority && (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+                            >
+                              <Star className="size-3 fill-amber-500 text-amber-500" />
+                              <span>Top Seller</span>
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]">
+                            0 Stock / 0 Batches
+                          </Badge>
+                        </div>
+                        {product.genericName && (
+                          <p className="text-xs text-muted-foreground">{product.genericName}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground pt-0.5">
+                          Unit: <strong className="text-foreground">{product.unit}</strong> | Low Stock Threshold: <strong className="text-foreground">{product.lowStockThreshold}</strong>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                        <Button asChild size="sm" className="gap-1.5 h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground">
+                          <Link href={`/inventory/receive?productId=${product.id}`}>
+                            <Boxes className="size-3.5" />
+                            <span>Intake Initial Batch</span>
+                          </Link>
+                        </Button>
                       </div>
                     </div>
                   ))}
