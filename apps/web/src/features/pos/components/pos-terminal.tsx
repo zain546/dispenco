@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Tag,
   Download,
+  Star,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -212,6 +213,25 @@ export function POSTerminal() {
       searchInputRef.current?.focus();
     }, 50);
   };
+
+  const [topSellers, setTopSellers] = useState<ProductData[]>([]);
+
+  // Load top seller products for quick-add speed dial bar
+  useEffect(() => {
+    const loadTopSellers = async () => {
+      try {
+        const res = await productsApi.getProducts({ limit: 50 });
+        const items: ProductData[] = res?.data || [];
+        const priorityItems = items.filter((p) =>
+          Boolean((p.attributes as Record<string, unknown>)?.isPriority)
+        );
+        setTopSellers(priorityItems);
+      } catch (err) {
+        console.error('Failed to load top seller quick-add products:', err);
+      }
+    };
+    loadTopSellers();
+  }, []);
 
   useEffect(() => {
     focusSearchInput();
@@ -554,6 +574,36 @@ export function POSTerminal() {
                     <Loader2 className="absolute right-14 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin pointer-events-none" />
                   )}
                 </div>
+
+                {/* Top Seller Speed-Dial Quick-Add Bar */}
+                {topSellers.length > 0 && (
+                  <div className="pt-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold mb-1.5">
+                      <Star className="size-3.5 fill-amber-500 text-amber-500" />
+                      <span>Top Seller Speed Dial:</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {topSellers.map((prod) => (
+                        <Button
+                          key={prod.id}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addToCart(prod)}
+                          className="h-7 text-xs gap-1.5 bg-amber-500/5 hover:bg-amber-500/15 border-amber-500/30 text-foreground font-semibold rounded-lg shadow-2xs"
+                        >
+                          <Star className="size-3 fill-amber-500 text-amber-500" />
+                          <span>{prod.name}</span>
+                          {prod.latestSellPrice !== null && prod.latestSellPrice !== undefined && (
+                            <span className="text-[11px] text-amber-700 dark:text-amber-300 font-bold">
+                              ({prod.latestSellPrice.toFixed(0)} PKR)
+                            </span>
+                          )}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Search Results Dropdown List */}
@@ -564,6 +614,7 @@ export function POSTerminal() {
                     const ItemIcon = itemConfig.Icon;
                     const stock = prod.totalStock ?? 0;
                     const price = prod.latestSellPrice ?? 0;
+                    const isPriority = Boolean((prod.attributes as Record<string, unknown>)?.isPriority);
 
                     return (
                       <div
@@ -578,7 +629,10 @@ export function POSTerminal() {
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-foreground leading-snug truncate">{prod.name}</span>
+                              <span className="font-bold text-foreground leading-snug truncate flex items-center gap-1">
+                                {prod.name}
+                                {isPriority && <Star className="size-3 fill-amber-500 text-amber-500 shrink-0" />}
+                              </span>
                               {prod.genericName && (
                                 <span className="text-[11px] text-muted-foreground truncate">({prod.genericName})</span>
                               )}
