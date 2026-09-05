@@ -294,6 +294,7 @@ export class ProductsService {
     const mergedAttributes: Record<string, unknown> = {
       ...existingAttrs,
       ...((dto.attributes as Record<string, unknown>) || {}),
+      ...(dto.isPriority !== undefined ? { isPriority: dto.isPriority } : {}),
       ...(dto.rackNumber !== undefined ? { rackNumber: dto.rackNumber?.trim() || null } : {}),
       ...(dto.vendorName !== undefined ? { vendorName: dto.vendorName?.trim() || null } : {}),
       ...(dto.mfgDate !== undefined ? { mfgDate: dto.mfgDate?.trim() || null } : {}),

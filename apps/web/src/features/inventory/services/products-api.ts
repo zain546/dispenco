@@ -88,6 +88,7 @@ export interface ReceiveStockPayload {
 
 export interface UpdateProductPayload extends Partial<CreateProductPayload> {
   isActive?: boolean;
+  isPriority?: boolean;
 }
 
 export interface QueryProductsParams {
@@ -224,6 +225,7 @@ export const productsApi = {
     storeId?: string;
     lowStockOnly?: boolean;
     expiringSoonOnly?: boolean;
+    priorityOnly?: boolean;
     expiryAlertDays?: number;
     lowStockThreshold?: number;
     search?: string;
@@ -234,6 +236,7 @@ export const productsApi = {
       outOfStockCount: number;
       lowStockCount: number;
       expiringSoonCount: number;
+      priorityCount: number;
     };
     products: Array<{
       id: string;
@@ -251,6 +254,7 @@ export const productsApi = {
       isOutofStock: boolean;
       isLowStock: boolean;
       isExpiringSoon: boolean;
+      isPriority: boolean;
     }>;
   }> {
     const { data } = await apiClient.get('/inventory/aggregation', { params });

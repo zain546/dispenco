@@ -26,6 +26,8 @@ import {
   Clock,
   LucideIcon,
   MoreVertical,
+  Star,
+  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -205,9 +207,22 @@ function ProductStockStatusBadges({
   const isOutOfStock = totalStock === 0;
   const isLowStock = totalStock > 0 && totalStock <= lowStockThreshold;
   const hasExpiryWarning = expiredBatchCount > 0 || nearExpiryBatchCount > 0;
+  const isPriority = Boolean((product.attributes as Record<string, unknown>)?.isPriority);
 
   return (
     <div className="flex items-center gap-1 flex-wrap">
+      {/* Priority Top Seller Badge */}
+      {isPriority && (
+        <Badge
+          variant="outline"
+          className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+          title="Top Seller Priority Onboarding Item"
+        >
+          <Star className="size-3 fill-amber-500 text-amber-500" />
+          <span>Top Seller</span>
+        </Badge>
+      )}
+
       {/* Quantity Warnings (Out of Stock / Low Stock) */}
       {isOutOfStock ? (
         <Badge variant="destructive" className="text-[10px]">
@@ -261,14 +276,17 @@ function ProductTableRow({
   product,
   onDelete,
   onViewBatches,
+  onTogglePriority,
 }: {
   product: ProductData;
   onDelete: (product: ProductData) => void;
   onViewBatches: (product: ProductData) => void;
+  onTogglePriority: (product: ProductData) => void;
 }) {
   const totalStock = product.totalStock ?? 0;
   const iconConfig = getMedicineIconConfig(product.category, product.name, product.unit);
   const CategoryIcon = iconConfig.Icon;
+  const isPriority = Boolean((product.attributes as Record<string, unknown>)?.isPriority);
 
   return (
     <tr className="hover:bg-muted/30 transition-colors">
@@ -382,6 +400,15 @@ function ProductTableRow({
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => onTogglePriority(product)}
+            className={`size-8 ${isPriority ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground/60 hover:text-amber-500'}`}
+            title={isPriority ? 'Remove Top Seller Priority' : 'Mark as Top Seller Priority'}
+          >
+            <Star className={`size-4 ${isPriority ? 'fill-amber-500' : ''}`} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => onViewBatches(product)}
             className="size-8 text-muted-foreground hover:text-primary"
             title="Inspect FEFO Batches"
@@ -417,14 +444,17 @@ function ProductCardItem({
   product,
   onDelete,
   onViewBatches,
+  onTogglePriority,
 }: {
   product: ProductData;
   onDelete: (product: ProductData) => void;
   onViewBatches: (product: ProductData) => void;
+  onTogglePriority: (product: ProductData) => void;
 }) {
   const totalStock = product.totalStock ?? 0;
   const iconConfig = getMedicineIconConfig(product.category, product.name, product.unit);
   const CategoryIcon = iconConfig.Icon;
+  const isPriority = Boolean((product.attributes as Record<string, unknown>)?.isPriority);
 
   return (
     <Card className="shadow-2xs border-border/80 hover:border-primary/40 transition-all bg-card overflow-hidden">
@@ -436,8 +466,9 @@ function ProductCardItem({
               <CategoryIcon className="size-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-sm text-foreground leading-snug break-words">
+              <h3 className="font-bold text-sm text-foreground leading-snug break-words flex items-center gap-1.5">
                 {product.name}
+                {isPriority && <Star className="size-3.5 fill-amber-500 text-amber-500 shrink-0" />}
               </h3>
               {product.genericName && (
                 <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
@@ -459,6 +490,10 @@ function ProductCardItem({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => onTogglePriority(product)} className="gap-2 cursor-pointer">
+                <Star className={`size-3.5 ${isPriority ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}`} />
+                <span>{isPriority ? 'Remove Top Seller' : 'Mark as Top Seller'}</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onViewBatches(product)} className="gap-2 cursor-pointer">
                 <Layers className="size-3.5 text-primary" />
                 <span>Inspect FEFO Batches</span>
@@ -687,6 +722,22 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
     fetchProducts();
   }, [fetchProducts]);
 
+  const handleTogglePriority = async (product: ProductData) => {
+    const currentPriority = Boolean((product.attributes as Record<string, unknown>)?.isPriority);
+    const newPriority = !currentPriority;
+    try {
+      await productsApi.updateProduct(product.id, { isPriority: newPriority });
+      toast.success(
+        newPriority
+          ? `Marked "${product.name}" as Top Seller Priority`
+          : `Removed Top Seller Priority from "${product.name}"`
+      );
+      fetchProducts();
+    } catch {
+      toast.error('Failed to update priority status');
+    }
+  };
+
   // Handle Deactivation / Soft-Delete
   const confirmDelete = (product: ProductData) => {
     setDeletingProduct(product);
@@ -897,6 +948,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
                       product={prod}
                       onDelete={confirmDelete}
                       onViewBatches={handleViewBatches}
+                      onTogglePriority={handleTogglePriority}
                     />
                   ))}
                 </tbody>
@@ -912,6 +964,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
                 product={prod}
                 onDelete={confirmDelete}
                 onViewBatches={handleViewBatches}
+                onTogglePriority={handleTogglePriority}
               />
             ))}
           </div>

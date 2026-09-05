@@ -446,6 +446,7 @@ export class InventoryService {
       storeId?: string;
       lowStockOnly?: boolean;
       expiringSoonOnly?: boolean;
+      priorityOnly?: boolean;
       expiryAlertDays?: number;
       lowStockThreshold?: number;
       search?: string;
@@ -499,6 +500,7 @@ export class InventoryService {
       const isExpiringSoon =
         earliestBatch !== null &&
         new Date(earliestBatch.expiryDate) <= cutoffDate;
+      const isPriority = Boolean((prod.attributes as Record<string, unknown>)?.isPriority);
 
       return {
         id: prod.id,
@@ -516,16 +518,20 @@ export class InventoryService {
         isOutofStock,
         isLowStock,
         isExpiringSoon,
+        isPriority,
       };
     });
 
-    // Filter if lowStockOnly or expiringSoonOnly specified
+    // Filter if lowStockOnly, expiringSoonOnly or priorityOnly specified
     let filtered = aggregated;
     if (query.lowStockOnly) {
       filtered = filtered.filter((p) => p.isLowStock || p.isOutofStock);
     }
     if (query.expiringSoonOnly) {
       filtered = filtered.filter((p) => p.isExpiringSoon);
+    }
+    if (query.priorityOnly) {
+      filtered = filtered.filter((p) => p.isPriority);
     }
 
     return {
@@ -535,6 +541,7 @@ export class InventoryService {
         outOfStockCount: aggregated.filter((p) => p.isOutofStock).length,
         lowStockCount: aggregated.filter((p) => p.isLowStock).length,
         expiringSoonCount: aggregated.filter((p) => p.isExpiringSoon).length,
+        priorityCount: aggregated.filter((p) => p.isPriority).length,
       },
       products: filtered,
     };

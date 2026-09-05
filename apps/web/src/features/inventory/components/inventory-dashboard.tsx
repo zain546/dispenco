@@ -19,6 +19,8 @@ import {
   Calendar,
   Building2,
   FileSpreadsheet,
+  Star,
+  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,7 +34,7 @@ import { ImportProductsModal } from './import-products-modal';
 import { getProductSeoUrl } from '../utils/seo-utils';
 
 export function InventoryDashboard() {
-  const [activeTab, setActiveTab] = useState<'full-catalog' | 'expiring-soon' | 'low-stock'>('full-catalog');
+  const [activeTab, setActiveTab] = useState<'full-catalog' | 'priority-top-sellers' | 'expiring-soon' | 'low-stock'>('full-catalog');
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [data, setData] = useState<{
@@ -42,6 +44,7 @@ export function InventoryDashboard() {
       outOfStockCount: number;
       lowStockCount: number;
       expiringSoonCount: number;
+      priorityCount: number;
     };
     products: Array<{
       id: string;
@@ -59,6 +62,7 @@ export function InventoryDashboard() {
       isOutofStock: boolean;
       isLowStock: boolean;
       isExpiringSoon: boolean;
+      isPriority: boolean;
     }>;
   }>({
     totalProducts: 0,
@@ -67,6 +71,7 @@ export function InventoryDashboard() {
       outOfStockCount: 0,
       lowStockCount: 0,
       expiringSoonCount: 0,
+      priorityCount: 0,
     },
     products: [],
   });
@@ -82,6 +87,7 @@ export function InventoryDashboard() {
       const res = await productsApi.getInventoryAggregation({
         lowStockOnly: activeTab === 'low-stock' ? true : undefined,
         expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
+        priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
         search: search.trim() || undefined,
       });
       setData(res);
@@ -162,6 +168,33 @@ export function InventoryDashboard() {
         </div>
       </div>
 
+      {/* Onboarding Priority Alert Banner */}
+      {data.summary.priorityCount > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-2xs">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="size-9 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+              <Star className="size-5 fill-amber-500 text-amber-500" />
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-snug">
+                {data.summary.priorityCount} Top Seller Product{data.summary.priorityCount > 1 ? 's' : ''} Flagged for Onboarding Priority
+              </p>
+              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
+                Complete stock intake and FEFO batch details for your highest turnover inventory items first.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setActiveTab('priority-top-sellers')}
+            className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-8.5 px-3 shrink-0 gap-1.5 shadow-xs"
+          >
+            <Sparkles className="size-3.5" />
+            <span>Review Top Sellers ({data.summary.priorityCount})</span>
+          </Button>
+        </div>
+      )}
+
       {/* Overview Metric Cards (Scrollable on Mobile, Grid on Tablet/Desktop) */}
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 no-scrollbar pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
         {/* Card 1: Full Catalog */}
@@ -189,22 +222,27 @@ export function InventoryDashboard() {
           </CardContent>
         </Card>
 
-        {/* Card 2: Out of Stock */}
-        <Card className="w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto bg-card">
+        {/* Card 2: Top Sellers Priority */}
+        <Card
+          onClick={() => setActiveTab('priority-top-sellers')}
+          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-amber-500/50 ${
+            activeTab === 'priority-top-sellers' ? 'ring-2 ring-amber-500/40 border-amber-500/50 bg-amber-500/5' : 'bg-card'
+          }`}
+        >
           <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Out of Stock
+                Top Sellers
               </p>
               <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-xl sm:text-3xl font-bold text-destructive">
-                  {data.summary.outOfStockCount}
+                <span className="text-xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">
+                  {data.summary.priorityCount}
                 </span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground">items</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">priority</span>
               </div>
             </div>
-            <div className="size-9 sm:size-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-              <TrendingDown className="size-4.5 sm:size-5" />
+            <div className="size-9 sm:size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+              <Star className="size-4.5 sm:size-5 fill-amber-500 text-amber-500" />
             </div>
           </CardContent>
         </Card>
@@ -260,17 +298,21 @@ export function InventoryDashboard() {
         </Card>
       </div>
 
-      {/* Dashboard Tabs Navigation (Reversed Order) */}
+      {/* Dashboard Tabs Navigation */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'full-catalog' | 'expiring-soon' | 'low-stock')}
+        onValueChange={(val) => setActiveTab(val as 'full-catalog' | 'priority-top-sellers' | 'expiring-soon' | 'low-stock')}
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
-          <TabsList className="grid grid-cols-3 w-full sm:w-auto p-1 h-auto border border-border/40">
+          <TabsList className="grid grid-cols-4 w-full sm:w-auto p-1 h-auto border border-border/40">
             <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Package className="size-3.5 text-primary shrink-0" />
               <span>Catalog ({data.summary.totalCatalogItems})</span>
+            </TabsTrigger>
+            <TabsTrigger value="priority-top-sellers" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />
+              <span>Top Sellers ({data.summary.priorityCount})</span>
             </TabsTrigger>
             <TabsTrigger value="expiring-soon" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Clock className="size-3.5 text-rose-500 shrink-0" />
@@ -294,6 +336,113 @@ export function InventoryDashboard() {
             </div>
           )}
         </div>
+
+        {/* Tab: Priority Top Sellers Queue */}
+        <TabsContent value="priority-top-sellers" className="space-y-4 mt-0">
+          <Card>
+            <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Star className="size-4 text-amber-500 fill-amber-500" />
+                  <span>Top Sellers Onboarding Priority Queue</span>
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  High-turnover products flagged for fast-track stock intake during tenant onboarding
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchAggregation()}
+                disabled={isLoading}
+                className="size-8 p-0 shrink-0"
+              >
+                <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+                  <Loader2 className="size-6 animate-spin text-primary" />
+                  <span className="text-xs">Loading priority top sellers...</span>
+                </div>
+              ) : data.products.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground space-y-2">
+                  <div className="size-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
+                    <Star className="size-6 text-amber-500" />
+                  </div>
+                  <p className="font-semibold text-sm text-foreground">No Top Sellers Flagged</p>
+                  <p className="text-xs">Import a CSV with top-sellers marked or click the star icon on catalog items to flag them.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {data.products.map((product) => (
+                    <div
+                      key={product.id}
+                      className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-foreground">{product.name}</span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {formatCategory(product.category)}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+                          >
+                            <Star className="size-3 fill-amber-500 text-amber-500" />
+                            <span>Top Seller</span>
+                          </Badge>
+                          {product.isOutofStock ? (
+                            <Badge variant="destructive" className="text-[10px]">
+                              Stock Intake Needed
+                            </Badge>
+                          ) : product.isLowStock ? (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                              Low Stock
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                              In Stock ({product.totalStock} {product.unit}s)
+                            </Badge>
+                          )}
+                        </div>
+                        {product.genericName && (
+                          <p className="text-xs text-muted-foreground">{product.genericName}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5">
+                          <span>Available Stock: <strong className="text-foreground">{formatUnitPlural(product.unit, product.totalStock)}</strong></span>
+                          <span>Active Batches: <strong className="text-foreground">{product.batchCount}</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleInspectBatches(product.id, product.name)}
+                            className="gap-1.5 h-8 text-xs font-semibold"
+                          >
+                            <Layers className="size-3.5 text-primary" />
+                            <span>Batches</span>
+                          </Button>
+                          <Button asChild size="sm" className="gap-1.5 h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white">
+                            <Link href={`/inventory/receive?productId=${product.id}`}>
+                              <Boxes className="size-3.5" />
+                              <span>Intake Stock</span>
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab 1: Low Stock Exceptions */}
         <TabsContent value="low-stock" className="space-y-4 mt-0">

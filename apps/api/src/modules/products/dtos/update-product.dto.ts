@@ -78,4 +78,8 @@ export class UpdateProductDto {
   @IsString()
   @IsOptional()
   purchaseInvoiceDate?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isPriority?: boolean;
 }
