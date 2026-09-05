@@ -118,7 +118,7 @@ export class PurchasesService {
           );
         }
 
-        const newReceivedQty = item.receivedQuantity + item.receivedQuantity;
+        const newReceivedQty = item.receivedQuantity + itemDto.receivedQuantity;
         const sellPrice = itemDto.sellPrice ?? Number(item.unitCost) * 1.25;
 
         // Create inventory batch if stock was received
