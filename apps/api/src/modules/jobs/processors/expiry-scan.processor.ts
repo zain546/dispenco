@@ -1,20 +1,16 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { QUEUE_SCHEDULER } from '../jobs.constants';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 
-@Processor(QUEUE_SCHEDULER)
-export class ExpiryScanProcessor extends WorkerHost {
+@Injectable()
+export class ExpiryScanProcessor {
   private readonly logger = new Logger(ExpiryScanProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
-  ) {
-    super();
-  }
+  ) {}
 
   async process(job: Job<any, any, string>): Promise<any> {
     if (job.name === 'scan-expiry') {

@@ -66,11 +66,14 @@ export function NotificationBell() {
 
   const handleManualScan = async () => {
     try {
-      await notificationsApi.triggerLowStockScan();
-      toast.success('Low-stock scan triggered successfully');
-      setTimeout(fetchNotifications, 1500);
+      await Promise.all([
+        notificationsApi.triggerLowStockScan(),
+        notificationsApi.triggerExpiryScan(),
+      ]);
+      toast.success('Inventory alert scan completed successfully');
+      setTimeout(fetchNotifications, 1000);
     } catch {
-      toast.error('Failed to trigger low-stock scan');
+      toast.error('Failed to trigger inventory scan');
     }
   };
 

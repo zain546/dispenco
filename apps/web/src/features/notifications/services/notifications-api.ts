@@ -39,4 +39,9 @@ export const notificationsApi = {
     const res = await apiClient.post('/notifications/scan-low-stock');
     return res.data;
   },
+
+  triggerExpiryScan: async () => {
+    const res = await apiClient.post('/notifications/scan-expiry');
+    return res.data;
+  },
 };
