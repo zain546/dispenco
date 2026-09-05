@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useTransition } from 'react';
+import React, { useState, useEffect, useRef, useTransition, useCallback } from 'react';
 import {
   ShoppingCart,
   Search,
@@ -28,6 +28,9 @@ import {
   History,
   Ban,
   RefreshCw,
+  Wifi,
+  WifiOff,
+  Database,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +49,8 @@ import {
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { getMedicineIconConfig } from '@/features/inventory/components/product-list';
+import { posOfflineService } from '../services/pos-offline-service';
+import { OfflineSyncModal } from './offline-sync-modal';
 import { toast } from 'sonner';
 
 export interface CartItem {
@@ -77,6 +82,50 @@ export function POSTerminal() {
   const [completedSale, setCompletedSale] = useState<SaleResponse | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  // Offline IndexedDB Queue State
+  const [isOnline, setIsOnline] = useState(true);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
+  const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
+
+  const checkPendingOfflineSales = useCallback(async () => {
+    try {
+      const count = await posOfflineService.getPendingCount();
+      setPendingOfflineCount(count);
+    } catch (err) {
+      console.error('Failed to check pending offline sales count:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+      checkPendingOfflineSales();
+
+      const handleOnline = async () => {
+        setIsOnline(true);
+        toast.success('Internet reconnected! Syncing offline sales queue...');
+        const res = await posOfflineService.syncQueuedSales();
+        if (res.successCount > 0) {
+          toast.success(`Auto-synced ${res.successCount} offline transaction(s)!`);
+        }
+        checkPendingOfflineSales();
+      };
+
+      const handleOffline = () => {
+        setIsOnline(false);
+        toast.warning('Internet connection lost. Switched to Local-First Offline POS Mode.', { duration: 4000 });
+      };
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, [checkPendingOfflineSales]);
 
   // Recent Sales History State
   const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
@@ -524,23 +573,48 @@ export function POSTerminal() {
     }
 
     setIsSubmitting(true);
-    try {
-      const payload = {
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerPhone.trim() || undefined,
-        overallDiscount: overallDiscount > 0 ? overallDiscount : undefined,
-        overallDiscountType,
-        paymentMethod,
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount > 0 ? item.discount : undefined,
-          discountType: item.discountType,
-          taxRatePercent: item.taxRatePercent > 0 ? item.taxRatePercent : undefined,
-        })),
-      };
+    const payload = {
+      customerName: customerName.trim() || undefined,
+      customerPhone: customerPhone.trim() || undefined,
+      overallDiscount: overallDiscount > 0 ? overallDiscount : undefined,
+      overallDiscountType,
+      paymentMethod,
+      items: cart.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        unit: item.product.unit,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount > 0 ? item.discount : undefined,
+        discountType: item.discountType,
+        taxRatePercent: item.taxRatePercent > 0 ? item.taxRatePercent : undefined,
+      })),
+    };
 
+    // If browser is offline, directly save locally to IndexedDB queue
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      try {
+        const { sale } = await posOfflineService.saveOfflineSale(payload, totals);
+        setCompletedSale(sale);
+        setIsReceiptOpen(true);
+        setCart([]);
+        setCustomerName('');
+        setCustomerPhone('');
+        setCashTendered('');
+        setOverallDiscount(0);
+        checkPendingOfflineSales();
+        toast.success(`Offline Sale Saved! Local Receipt #${sale.receiptNumber}`);
+      } catch (err) {
+        console.error('Offline sale save error:', err);
+        toast.error('Failed to store sale in offline IndexedDB database');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Try online API checkout, fallback to IndexedDB if network error
+    try {
       const res = await salesApi.createSale(payload);
 
       if (res?.sale) {
@@ -555,8 +629,28 @@ export function POSTerminal() {
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
-      const errMsg = err?.response?.data?.message || err?.message || 'Failed to complete sale checkout';
-      toast.error(errMsg);
+      const isNetworkError = !err?.response || err.code === 'ERR_NETWORK' || err.message === 'Network Error';
+
+      if (isNetworkError) {
+        try {
+          const { sale } = await posOfflineService.saveOfflineSale(payload, totals);
+          setCompletedSale(sale);
+          setIsReceiptOpen(true);
+          setCart([]);
+          setCustomerName('');
+          setCustomerPhone('');
+          setCashTendered('');
+          setOverallDiscount(0);
+          checkPendingOfflineSales();
+          toast.warning(`Network disconnect. Sale saved locally to IndexedDB! #${sale.receiptNumber}`);
+        } catch (saveErr) {
+          console.error('Offline fallback save error:', saveErr);
+          toast.error('Failed to store sale in offline database');
+        }
+      } else {
+        const errMsg = err?.response?.data?.message || err?.message || 'Failed to complete sale checkout';
+        toast.error(errMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -574,12 +668,39 @@ export function POSTerminal() {
             </h1>
           </div>
           <p className="text-xs text-muted-foreground">
-            Fast keyboard & scanner-driven pharmacy sales counter.
+            Fast keyboard & scanner-driven pharmacy sales counter with local-first offline resilience.
           </p>
         </div>
 
-        {/* Quick Keyboard Hints & Recent Sales History */}
+        {/* Quick Keyboard Hints & Recent Sales / Offline Queue */}
         <div className="flex items-center gap-2 text-xs flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsOfflineModalOpen(true)}
+            className={`h-8 text-xs font-semibold gap-1.5 border-border ${
+              !isOnline
+                ? 'bg-rose-500/10 text-rose-600 border-rose-500/30'
+                : pendingOfflineCount > 0
+                ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
+                : 'bg-background text-foreground'
+            }`}
+          >
+            {!isOnline ? (
+              <WifiOff className="size-3.5 text-rose-500 animate-pulse" />
+            ) : (
+              <Database className="size-3.5 text-primary" />
+            )}
+            <span>
+              {!isOnline
+                ? 'Offline Mode'
+                : pendingOfflineCount > 0
+                ? `Offline Queue (${pendingOfflineCount})`
+                : 'Offline Queue'}
+            </span>
+          </Button>
+
           <Button
             type="button"
             variant="outline"
@@ -1472,6 +1593,13 @@ export function POSTerminal() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* IndexedDB Offline Transaction Queue Modal */}
+      <OfflineSyncModal
+        open={isOfflineModalOpen}
+        onOpenChange={setIsOfflineModalOpen}
+        onSyncComplete={checkPendingOfflineSales}
+      />
     </div>
   );
 }
