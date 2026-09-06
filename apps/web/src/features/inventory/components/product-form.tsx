@@ -680,7 +680,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   <Label htmlFor="dosageForm" className="text-xs sm:text-sm">Dosage Form</Label>
                   <Input
                     id="dosageForm"
-                    placeholder="e.g. Film-Coated Tablet"
+                    placeholder="e.g. Tablet, Capsule, Softgel, Dispersible"
                     {...register('dosageForm')}
                   />
                 </div>

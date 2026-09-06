@@ -21,13 +21,13 @@ export class ExpiryScanProcessor {
   private async handleExpiryScan() {
     this.logger.log('Starting automated inventory batch expiry scan...');
 
-    const ninetyDaysFromNow = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+    const oneHundredEightyDaysFromNow = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
 
     const batches = await this.prisma.batch.findMany({
       where: {
         quantityRemaining: { gt: 0 },
         expiryDate: {
-          lte: ninetyDaysFromNow,
+          lte: oneHundredEightyDaysFromNow,
         },
       },
       include: {

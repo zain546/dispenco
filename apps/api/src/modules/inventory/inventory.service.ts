@@ -155,7 +155,7 @@ export class InventoryService {
         quantityRemaining: batch.quantityRemaining,
         daysUntilExpiry,
         isExpired: daysUntilExpiry <= 0,
-        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 60,
+        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 180,
         createdAt: batch.createdAt.toISOString(),
         vendorName: (productAttrs.vendorName as string) || null,
         mfgDate: (productAttrs.mfgDate as string) || null,
@@ -453,7 +453,7 @@ export class InventoryService {
       search?: string;
     },
   ) {
-    const expiryWindowDays = Number(query.expiryAlertDays) || 90;
+    const expiryWindowDays = Number(query.expiryAlertDays) || 180;
     const defaultLowThreshold = Number(query.lowStockThreshold) || 20;
 
     const products = await this.prisma.product.findMany({
@@ -603,7 +603,7 @@ export class InventoryService {
         quantityRemaining: batch.quantityRemaining,
         daysUntilExpiry,
         isExpired: daysUntilExpiry <= 0,
-        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 60,
+        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 180,
         createdAt: batch.createdAt.toISOString(),
       };
     });

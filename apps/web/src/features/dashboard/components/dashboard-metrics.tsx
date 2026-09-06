@@ -174,7 +174,7 @@ export function DashboardMetrics() {
                   {metrics.expiringSoonCount === 0 ? (
                     <>
                       <ShieldCheck className="size-3.5 text-emerald-500 shrink-0" />
-                      <span>No batches expiring within 90 days</span>
+                      <span>No batches expiring within 180 days</span>
                     </>
                   ) : (
                     <>

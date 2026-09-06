@@ -283,7 +283,7 @@ export function InventoryDashboard() {
           <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Expiring (90 Days)
+                Expiring (180 Days)
               </p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-xl sm:text-3xl font-bold text-rose-600">
@@ -661,7 +661,7 @@ export function InventoryDashboard() {
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Clock className="size-4 text-rose-500" />
-                  <span>FEFO Expiry Warning Queue (90 Days Window)</span>
+                  <span>FEFO Expiry Warning Queue (180 Days Window)</span>
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
                   Batches approaching expiration date to prioritize for sales or vendor returns

@@ -33,12 +33,12 @@ export function getBatchExpiryDetails(expiryDateStr: string | Date | undefined |
   const diffTime = exp.getTime() - now.getTime();
   const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   const isExpired = days <= 0;
-  const isNear = days > 0 && days <= 60;
+  const isNear = days > 0 && days <= 180;
 
   let label = '';
   if (isExpired) {
     label = 'Expired';
-  } else if (days <= 60) {
+  } else if (days <= 180) {
     label = `${days} days left`;
   } else {
     const months = Math.round(days / 30);

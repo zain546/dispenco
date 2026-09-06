@@ -158,8 +158,8 @@ export class ProductsService {
     ]);
 
     const now = new Date();
-    const sixtyDaysFromNow = new Date();
-    sixtyDaysFromNow.setDate(now.getDate() + 60);
+    const hundredEightyDaysFromNow = new Date();
+    hundredEightyDaysFromNow.setDate(now.getDate() + 180);
 
     const allMapped = rawProducts.map((product) => {
       const activeStockBatches = product.batches.filter((b) => b.quantityRemaining > 0);
@@ -174,7 +174,7 @@ export class ProductsService {
       const expiredBatchCount = product.batches.filter((b) => new Date(b.expiryDate) <= now).length;
       const nearExpiryBatchCount = product.batches.filter((b) => {
         const exp = new Date(b.expiryDate);
-        return exp > now && exp <= sixtyDaysFromNow;
+        return exp > now && exp <= hundredEightyDaysFromNow;
       }).length;
 
       return {
@@ -371,7 +371,7 @@ export class ProductsService {
         quantityRemaining: batch.quantityRemaining,
         daysUntilExpiry,
         isExpired: daysUntilExpiry <= 0,
-        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 60,
+        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 180,
         createdAt: batch.createdAt.toISOString(),
       };
     });
