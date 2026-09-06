@@ -24,6 +24,7 @@ import {
   Edit3,
   Layers,
   Plus,
+  Info,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -469,47 +470,64 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
                 {/* Retail POS Unit Conversion Breakdown Preview */}
                 {(packSizeVal > 1 || costPriceVal > 0 || sellPriceVal > 0) && (
-                  <div className="col-span-1 sm:col-span-2 p-3.5 rounded-lg bg-primary/5 border border-primary/20 space-y-2 text-xs">
-                    <div className="font-semibold text-primary flex items-center justify-between gap-2">
-                      <span className="flex items-center gap-1.5">
-                        <Layers className="size-4" />
-                        <span>Retail POS Unit Conversion Breakdown</span>
-                      </span>
+                  <div className="col-span-1 sm:col-span-2 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-2xs">
+                    {/* Top Header */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="size-6 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <Layers className="size-3.5" />
+                        </div>
+                        <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
+                          <span className="hidden sm:inline">Retail POS Unit Conversion Breakdown</span>
+                          <span className="sm:hidden font-bold">POS Unit Breakdown</span>
+                        </span>
+                      </div>
                       {packSizeVal > 1 && (
-                        <Badge variant="secondary" className="text-[10px] font-medium">
-                          {packSizeVal} Tablets/Sub-units per {selectedUnit}
+                        <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 text-[10px] font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
+                          {packSizeVal} Units / {selectedUnit}
                         </Badge>
                       )}
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-foreground">
-                      <div className="p-2 rounded bg-background/80 border border-border/50">
-                        <span className="text-[10px] text-muted-foreground block">Cost per Sub-unit / Tablet</span>
-                        <strong className="font-bold text-foreground">
+
+                    {/* Metrics Ribbon */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-emerald-500/15 pt-0.5">
+                      <div className="sm:px-3 first:pl-0 space-y-0.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Cost / Tablet</span>
+                        <p className="text-xs sm:text-sm font-bold text-foreground">
                           PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
-                        </strong>
+                        </p>
                       </div>
-                      <div className="p-2 rounded bg-background/80 border border-border/50">
-                        <span className="text-[10px] text-muted-foreground block">Retail Price per Tablet</span>
-                        <strong className="font-bold text-emerald-600 dark:text-emerald-400">
+
+                      <div className="sm:px-3 space-y-0.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Retail / Tablet</span>
+                        <p className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
                           PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
-                        </strong>
+                        </p>
                       </div>
-                      <div className="p-2 rounded bg-background/80 border border-border/50">
-                        <span className="text-[10px] text-muted-foreground block">Total Loose Selling Units</span>
-                        <strong className="font-bold text-foreground">
-                          {(stockQtyVal * packSizeVal).toLocaleString()} Units
-                        </strong>
+
+                      <div className="sm:px-3 space-y-0.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Total Loose Stock</span>
+                        <p className="text-xs sm:text-sm font-bold text-foreground">
+                          {(stockQtyVal * packSizeVal).toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">Units</span>
+                        </p>
                       </div>
-                      <div className="p-2 rounded bg-background/80 border border-border/50">
-                        <span className="text-[10px] text-muted-foreground block">Gross Margin</span>
-                        <strong className="font-bold text-primary">
+
+                      <div className="sm:px-3 last:pr-0 space-y-0.5">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
+                        <p className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
                           {costPriceVal > 0 ? (((sellPriceVal - costPriceVal) / costPriceVal) * 100).toFixed(1) : '0.0'}%
-                        </strong>
+                        </p>
                       </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground italic">
-                      💡 Pharmacy stores purchase by the <strong>{selectedUnit}</strong> from distributors and can sell either by <strong>full {selectedUnit}</strong> or by <strong>individual tablet/sub-unit</strong> at POS counter.
-                    </p>
+
+                    {/* Micro-copy Note */}
+                    <div className="pt-2 border-t border-emerald-500/15 flex items-center gap-1.5 text-[11px] text-muted-foreground leading-tight">
+                      <Info className="size-3.5 text-emerald-500 shrink-0" />
+                      <span>
+                        <span className="hidden sm:inline">Supports selling full <strong>{selectedUnit}s</strong> or individual loose sub-units at POS checkout.</span>
+                        <span className="sm:hidden">Supports full <strong>{selectedUnit}</strong> & loose sub-unit POS sales.</span>
+                      </span>
+                    </div>
                   </div>
                 )}
               </>

@@ -22,6 +22,7 @@ import {
   Building2,
   Hash,
   Layers,
+  Info,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -502,36 +503,79 @@ export function StockReceiveForm() {
               </div>
             </div>
 
-            {/* Estimated Margin Preview */}
+            {/* Estimated Margin & Loose Sub-unit Conversion Breakdown Preview */}
             {numCost > 0 && numSell > 0 && (
-              <div className="space-y-2">
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                  <span className="text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1">
-                    <TrendingUp className="size-3.5" />
-                    <span>Estimated Batch Profit Margin per {selectedProduct?.unit || 'Box'}:</span>
-                  </span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    +PKR {marginPkr.toFixed(2)} / {selectedProduct?.unit || 'Box'} ({marginPercent}% Gross Margin)
-                  </span>
+              <div className="rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent p-3.5 sm:p-4 space-y-3 shadow-2xs">
+                {/* Top Header */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="size-6 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <Layers className="size-3.5" />
+                    </div>
+                    <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
+                      <span className="hidden sm:inline">Stock Receiving Profit & POS Sub-unit Breakdown</span>
+                      <span className="sm:hidden font-bold">Receiving & POS Breakdown</span>
+                    </span>
+                  </div>
+                  {(() => {
+                    const rawPackSize = selectedProduct?.attributes ? (selectedProduct.attributes as Record<string, any>).packSize : null;
+                    const packSizeValNum = Number(rawPackSize) || 1;
+                    if (packSizeValNum <= 1) return null;
+                    return (
+                      <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 text-[10px] font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
+                        {packSizeValNum} Units / {selectedProduct?.unit || 'Box'}
+                      </Badge>
+                    );
+                  })()}
                 </div>
 
+                {/* Metrics Ribbon */}
                 {(() => {
                   const rawPackSize = selectedProduct?.attributes ? (selectedProduct.attributes as Record<string, any>).packSize : null;
                   const packSizeValNum = Number(rawPackSize) || 1;
-                  if (packSizeValNum <= 1) return null;
+                  const recvQty = Number(quantity) || 0;
 
                   return (
-                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                      <span className="text-primary font-medium flex items-center gap-1">
-                        <Layers className="size-3.5" />
-                        <span>Loose Unit Sale Breakdown ({packSizeValNum} Tablets/Units in 1 {selectedProduct?.unit || 'Box'}):</span>
-                      </span>
-                      <span className="font-bold text-foreground">
-                        PKR {(numSell / packSizeValNum).toFixed(2)} / tablet (Cost: PKR {(numCost / packSizeValNum).toFixed(2)})
-                      </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-emerald-500/15 pt-0.5">
+                      <div className="sm:px-3 first:pl-0 space-y-0.5">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Cost / {packSizeValNum > 1 ? 'Tablet' : selectedProduct?.unit || 'Unit'}</span>
+                        <p className="text-xs sm:text-sm font-bold text-foreground">
+                          PKR {(numCost / packSizeValNum).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="sm:px-3 space-y-0.5">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Retail / {packSizeValNum > 1 ? 'Tablet' : selectedProduct?.unit || 'Unit'}</span>
+                        <p className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                          PKR {(numSell / packSizeValNum).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="sm:px-3 space-y-0.5">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">New Stock Total</span>
+                        <p className="text-xs sm:text-sm font-bold text-foreground">
+                          {(recvQty * packSizeValNum).toLocaleString()} <span className="text-[11px] font-normal text-muted-foreground">{packSizeValNum > 1 ? 'Units' : selectedProduct?.unit || 'Boxes'}</span>
+                        </p>
+                      </div>
+
+                      <div className="sm:px-3 last:pr-0 space-y-0.5">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
+                        <p className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
+                          {marginPercent}% (+PKR {marginPkr.toFixed(2)})
+                        </p>
+                      </div>
                     </div>
                   );
                 })()}
+
+                {/* Micro-copy Note */}
+                <div className="pt-2 border-t border-emerald-500/15 flex items-center gap-1.5 text-[11px] text-muted-foreground leading-tight">
+                  <Info className="size-3.5 text-emerald-500 shrink-0" />
+                  <span>
+                    <span className="hidden sm:inline">Batch will be instantly registered under FEFO stock tracking for POS loose sales.</span>
+                    <span className="sm:hidden">Registered under FEFO tracking for POS sales.</span>
+                  </span>
+                </div>
               </div>
             )}
           </CardContent>
