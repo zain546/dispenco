@@ -186,9 +186,15 @@ export function StockReceiveForm() {
     }
   };
 
+  const preventNegativeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+    }
+  };
+
   // Calculate gross margin preview
-  const numCost = Number(costPrice) || 0;
-  const numSell = Number(sellPrice) || 0;
+  const numCost = Math.max(0, Number(costPrice) || 0);
+  const numSell = Math.max(0, Number(sellPrice) || 0);
   const marginPkr = numSell - numCost;
   const marginPercent = numCost > 0 ? ((marginPkr / numCost) * 100).toFixed(1) : '0.0';
 
@@ -403,8 +409,9 @@ export function StockReceiveForm() {
                 id="quantity"
                 type="number"
                 min="1"
+                onKeyDown={preventNegativeKeyDown}
                 value={quantity}
-                onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                onChange={(e) => setQuantity(e.target.value === '' ? '' : Math.max(1, Number(e.target.value)))}
                 placeholder="e.g. 50"
                 className="h-9 text-xs sm:text-sm font-bold text-foreground"
                 required
@@ -466,8 +473,9 @@ export function StockReceiveForm() {
                   type="number"
                   step="0.01"
                   min="0"
+                  onKeyDown={preventNegativeKeyDown}
                   value={costPrice}
-                  onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => setCostPrice(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
                   placeholder="e.g. 150.00"
                   className="h-9 text-xs sm:text-sm"
                   required
@@ -484,8 +492,9 @@ export function StockReceiveForm() {
                   type="number"
                   step="0.01"
                   min="0"
+                  onKeyDown={preventNegativeKeyDown}
                   value={sellPrice}
-                  onChange={(e) => setSellPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => setSellPrice(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
                   placeholder="e.g. 180.00"
                   className="h-9 text-xs sm:text-sm font-semibold text-primary"
                   required

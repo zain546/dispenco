@@ -139,10 +139,16 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
   const selectedUnit = watch('unit') || 'Box';
   const isControlled = watch('isControlledSubstance');
 
-  const packSizeVal = Number(watch('packSize')) || 1;
-  const costPriceVal = Number(watch('costPrice')) || 0;
-  const sellPriceVal = Number(watch('sellPrice')) || 0;
-  const stockQtyVal = Number(watch('initialStockQuantity')) || 0;
+  const preventNegativeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+    }
+  };
+
+  const packSizeVal = Math.max(1, Number(watch('packSize')) || 1);
+  const costPriceVal = Math.max(0, Number(watch('costPrice')) || 0);
+  const sellPriceVal = Math.max(0, Number(watch('sellPrice')) || 0);
+  const stockQtyVal = Math.max(0, Number(watch('initialStockQuantity')) || 0);
 
   const onSubmit = handleSubmit(async (values) => {
     setIsLoading(true);
@@ -369,8 +375,14 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   <Input
                     id="initialStockQuantity"
                     type="number"
+                    min="0"
                     placeholder="e.g. 50"
-                    {...register('initialStockQuantity')}
+                    onKeyDown={preventNegativeKeyDown}
+                    {...register('initialStockQuantity', {
+                      onChange: (e) => {
+                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
+                      },
+                    })}
                   />
                   <p className="text-[11px] text-muted-foreground">
                     Quantity measured in full <strong>{selectedUnit}s</strong>.
@@ -386,8 +398,14 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   <Input
                     id="packSize"
                     type="number"
+                    min="1"
                     placeholder="e.g. 100"
-                    {...register('packSize')}
+                    onKeyDown={preventNegativeKeyDown}
+                    {...register('packSize', {
+                      onChange: (e) => {
+                        if (parseFloat(e.target.value) < 1 && e.target.value !== '') e.target.value = '1';
+                      },
+                    })}
                   />
                   <p className="text-[11px] text-muted-foreground">
                     Number of tablets/sub-units inside 1 <strong>{selectedUnit}</strong>.
@@ -417,8 +435,14 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                     id="costPrice"
                     type="number"
                     step="0.01"
+                    min="0"
                     placeholder="e.g. 150.00"
-                    {...register('costPrice')}
+                    onKeyDown={preventNegativeKeyDown}
+                    {...register('costPrice', {
+                      onChange: (e) => {
+                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
+                      },
+                    })}
                   />
                 </div>
 
@@ -432,8 +456,14 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                     id="sellPrice"
                     type="number"
                     step="0.01"
+                    min="0"
                     placeholder="e.g. 200.00"
-                    {...register('sellPrice')}
+                    onKeyDown={preventNegativeKeyDown}
+                    {...register('sellPrice', {
+                      onChange: (e) => {
+                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
+                      },
+                    })}
                   />
                 </div>
 
@@ -757,8 +787,14 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
               <Input
                 id="lowStockThreshold"
                 type="number"
+                min="0"
                 placeholder="10"
-                {...register('lowStockThreshold')}
+                onKeyDown={preventNegativeKeyDown}
+                {...register('lowStockThreshold', {
+                  onChange: (e) => {
+                    if (parseFloat(e.target.value) < 0) e.target.value = '0';
+                  },
+                })}
               />
               <p className="text-[11px] text-muted-foreground">
                 Triggers alert when remaining stock falls below this amount.

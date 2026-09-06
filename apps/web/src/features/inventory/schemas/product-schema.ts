@@ -30,13 +30,25 @@ export const productFormSchema = z.object({
   barcode: z.string().optional(),
   taxCode: z.string().optional(),
   isControlledSubstance: z.boolean().default(false),
-  lowStockThreshold: z.coerce.number().min(0, 'Threshold must be 0 or greater').default(10),
+  lowStockThreshold: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? 10 : Number(v)),
+    z.number().min(0, 'Threshold must be 0 or greater').default(10)
+  ),
 
-  // Mandatory Initial Stock & Pricing Fields (MediStock style)
-  initialStockQuantity: z.coerce.number().optional(),
+  // Mandatory Initial Stock & Pricing Fields
+  initialStockQuantity: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v)),
+    z.number().min(0, 'Stock quantity cannot be negative').optional()
+  ),
   expiryDate: z.string().optional(),
-  costPrice: z.coerce.number().optional(),
-  sellPrice: z.coerce.number().optional(),
+  costPrice: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v)),
+    z.number().min(0, 'Purchase price cannot be negative').optional()
+  ),
+  sellPrice: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v)),
+    z.number().min(0, 'Retail price cannot be negative').optional()
+  ),
 
   // Optional Batch, Invoice & Manufacturing Info
   batchNumber: z.string().optional(),
@@ -49,14 +61,23 @@ export const productFormSchema = z.object({
   // Dynamic category attributes
   dosageForm: z.string().optional(),
   strength: z.string().optional(),
-  packSize: z.coerce.number().optional(),
+  packSize: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v)),
+    z.number().min(1, 'Pack size must be at least 1').optional()
+  ),
   manufacturer: z.string().optional(),
-  volumeMl: z.coerce.number().optional(),
+  volumeMl: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v)),
+    z.number().min(0, 'Volume cannot be negative').optional()
+  ),
   flavor: z.string().optional(),
   route: z.string().optional(),
   storageTemp: z.string().optional(),
   modelNumber: z.string().optional(),
-  warrantyMonths: z.coerce.number().optional(),
+  warrantyMonths: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? undefined : Number(v)),
+    z.number().min(0, 'Warranty months cannot be negative').optional()
+  ),
   brand: z.string().optional(),
   description: z.string().optional(),
 });
