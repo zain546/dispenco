@@ -21,6 +21,7 @@ import {
   MapPin,
   Building2,
   Hash,
+  Layers,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -494,14 +495,34 @@ export function StockReceiveForm() {
 
             {/* Estimated Margin Preview */}
             {numCost > 0 && numSell > 0 && (
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                <span className="text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1">
-                  <TrendingUp className="size-3.5" />
-                  <span>Estimated Batch Profit Margin:</span>
-                </span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  +PKR {marginPkr.toFixed(2)} / unit ({marginPercent}% Gross Margin)
-                </span>
+              <div className="space-y-2">
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <span className="text-emerald-700 dark:text-emerald-300 font-medium flex items-center gap-1">
+                    <TrendingUp className="size-3.5" />
+                    <span>Estimated Batch Profit Margin per {selectedProduct?.unit || 'Box'}:</span>
+                  </span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                    +PKR {marginPkr.toFixed(2)} / {selectedProduct?.unit || 'Box'} ({marginPercent}% Gross Margin)
+                  </span>
+                </div>
+
+                {(() => {
+                  const rawPackSize = selectedProduct?.attributes ? (selectedProduct.attributes as Record<string, any>).packSize : null;
+                  const packSizeValNum = Number(rawPackSize) || 1;
+                  if (packSizeValNum <= 1) return null;
+
+                  return (
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <span className="text-primary font-medium flex items-center gap-1">
+                        <Layers className="size-3.5" />
+                        <span>Loose Unit Sale Breakdown ({packSizeValNum} Tablets/Units in 1 {selectedProduct?.unit || 'Box'}):</span>
+                      </span>
+                      <span className="font-bold text-foreground">
+                        PKR {(numSell / packSizeValNum).toFixed(2)} / tablet (Cost: PKR {(numCost / packSizeValNum).toFixed(2)})
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </CardContent>

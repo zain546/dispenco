@@ -139,6 +139,11 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
   const selectedUnit = watch('unit') || 'Box';
   const isControlled = watch('isControlledSubstance');
 
+  const packSizeVal = Number(watch('packSize')) || 1;
+  const costPriceVal = Number(watch('costPrice')) || 0;
+  const sellPriceVal = Number(watch('sellPrice')) || 0;
+  const stockQtyVal = Number(watch('initialStockQuantity')) || 0;
+
   const onSubmit = handleSubmit(async (values) => {
     setIsLoading(true);
     setError(null);
@@ -372,6 +377,23 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   </p>
                 </div>
 
+                {/* Pack Size (Units per Box) */}
+                <div className="space-y-1.5 col-span-1">
+                  <Label htmlFor="packSize" className="text-xs sm:text-sm flex items-center gap-1.5">
+                    <Layers className="size-3.5 text-primary shrink-0" />
+                    <span>Pack Size (Units per {selectedUnit})</span>
+                  </Label>
+                  <Input
+                    id="packSize"
+                    type="number"
+                    placeholder="e.g. 100"
+                    {...register('packSize')}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Number of tablets/sub-units inside 1 <strong>{selectedUnit}</strong>.
+                  </p>
+                </div>
+
                 {/* Expiry Date */}
                 <div className="space-y-1.5 col-span-1">
                   <Label htmlFor="expiryDate" className="text-xs sm:text-sm flex items-center gap-1.5">
@@ -414,6 +436,52 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                     {...register('sellPrice')}
                   />
                 </div>
+
+                {/* Retail POS Unit Conversion Breakdown Preview */}
+                {(packSizeVal > 1 || costPriceVal > 0 || sellPriceVal > 0) && (
+                  <div className="col-span-1 sm:col-span-2 p-3.5 rounded-lg bg-primary/5 border border-primary/20 space-y-2 text-xs">
+                    <div className="font-semibold text-primary flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        <Layers className="size-4" />
+                        <span>Retail POS Unit Conversion Breakdown</span>
+                      </span>
+                      {packSizeVal > 1 && (
+                        <Badge variant="secondary" className="text-[10px] font-medium">
+                          {packSizeVal} Tablets/Sub-units per {selectedUnit}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-foreground">
+                      <div className="p-2 rounded bg-background/80 border border-border/50">
+                        <span className="text-[10px] text-muted-foreground block">Cost per Sub-unit / Tablet</span>
+                        <strong className="font-bold text-foreground">
+                          PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
+                        </strong>
+                      </div>
+                      <div className="p-2 rounded bg-background/80 border border-border/50">
+                        <span className="text-[10px] text-muted-foreground block">Retail Price per Tablet</span>
+                        <strong className="font-bold text-emerald-600 dark:text-emerald-400">
+                          PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
+                        </strong>
+                      </div>
+                      <div className="p-2 rounded bg-background/80 border border-border/50">
+                        <span className="text-[10px] text-muted-foreground block">Total Loose Selling Units</span>
+                        <strong className="font-bold text-foreground">
+                          {(stockQtyVal * packSizeVal).toLocaleString()} Units
+                        </strong>
+                      </div>
+                      <div className="p-2 rounded bg-background/80 border border-border/50">
+                        <span className="text-[10px] text-muted-foreground block">Gross Margin</span>
+                        <strong className="font-bold text-primary">
+                          {costPriceVal > 0 ? (((sellPriceVal - costPriceVal) / costPriceVal) * 100).toFixed(1) : '0.0'}%
+                        </strong>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground italic">
+                      💡 Pharmacy stores purchase by the <strong>{selectedUnit}</strong> from distributors and can sell either by <strong>full {selectedUnit}</strong> or by <strong>individual tablet/sub-unit</strong> at POS counter.
+                    </p>
+                  </div>
+                )}
               </>
             )}
           </CardContent>
@@ -575,18 +643,6 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                     placeholder="e.g. 500mg, 20mg"
                     {...register('strength')}
                   />
-                </div>
-                <div className="space-y-1.5 col-span-1">
-                  <Label htmlFor="packSize" className="text-xs sm:text-sm">Pack Size (Units in {selectedUnit})</Label>
-                  <Input
-                    id="packSize"
-                    type="number"
-                    placeholder="e.g. 100"
-                    {...register('packSize')}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Enables loose tablet selling at POS counter.
-                  </p>
                 </div>
               </>
             )}
