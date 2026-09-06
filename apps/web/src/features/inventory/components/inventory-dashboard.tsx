@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   Star,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ import { getProductSeoUrl } from '../utils/seo-utils';
 
 export function InventoryDashboard() {
   const [activeTab, setActiveTab] = useState<'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock'>('full-catalog');
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [data, setData] = useState<{
@@ -67,6 +69,8 @@ export function InventoryDashboard() {
       isLowStock: boolean;
       isExpiringSoon: boolean;
       isPriority: boolean;
+      vendorName?: string | null;
+      manufacturer?: string | null;
     }>;
   }>({
     totalProducts: 0,
@@ -195,9 +199,9 @@ export function InventoryDashboard() {
       </div>
 
       {/* Onboarding Priority Alert Banner */}
-      {data.summary.priorityCount > 0 && (
+      {data.summary.priorityCount > 0 && activeTab !== 'priority-top-sellers' && !isBannerDismissed && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-2xs">
-          <div className="flex items-start sm:items-center gap-3">
+          <div className="flex items-start sm:items-center gap-3 pr-6 sm:pr-0">
             <div className="size-9 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
               <Star className="size-5 fill-amber-500 text-amber-500" />
             </div>
@@ -210,14 +214,25 @@ export function InventoryDashboard() {
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => setActiveTab('priority-top-sellers')}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-8.5 px-3 shrink-0 gap-1.5 shadow-xs"
-          >
-            <Sparkles className="size-3.5" />
-            <span>Review Top Sellers ({data.summary.priorityCount})</span>
-          </Button>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            <Button
+              size="sm"
+              onClick={() => setActiveTab('priority-top-sellers')}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-8.5 px-3 gap-1.5 shadow-xs"
+            >
+              <Sparkles className="size-3.5" />
+              <span>Review Top Sellers ({data.summary.priorityCount})</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsBannerDismissed(true)}
+              className="size-7 text-amber-700 hover:text-amber-900 hover:bg-amber-500/20 dark:text-amber-300 dark:hover:text-amber-100 rounded-lg shrink-0"
+              title="Dismiss alert"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
         </div>
       )}
 
@@ -258,13 +273,15 @@ export function InventoryDashboard() {
           <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Top Sellers
+                Top-Selling Products
               </p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">
                   {data.summary.priorityCount}
                 </span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground">priority</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">
+                  {data.summary.priorityCount === 1 ? 'product' : 'products'}
+                </span>
               </div>
             </div>
             <div className="size-9 sm:size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
@@ -374,7 +391,7 @@ export function InventoryDashboard() {
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Star className="size-4 text-amber-500 fill-amber-500" />
-                  <span>Top Sellers Onboarding Priority Queue</span>
+                  <span>Top-Selling Medicines & Priority Products Queue</span>
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
                   High-turnover products flagged for fast-track stock intake during tenant onboarding
@@ -441,8 +458,23 @@ export function InventoryDashboard() {
                         {product.genericName && (
                           <p className="text-xs text-muted-foreground">{product.genericName}</p>
                         )}
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5 flex-wrap">
+                          {product.vendorName ? (
+                            <span className="bg-amber-500/10 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-500/20 font-medium">
+                              Vendor / Supplier: <strong className="text-foreground">{product.vendorName}</strong>
+                            </span>
+                          ) : product.manufacturer ? (
+                            <span className="bg-muted/60 px-2 py-0.5 rounded border border-border/40 font-medium">
+                              Manufacturer: <strong className="text-foreground">{product.manufacturer}</strong>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/80 font-medium">
+                              Vendor / Supplier: <span className="text-muted-foreground italic">Listed per Batch</span>
+                            </span>
+                          )}
+                          <span>•</span>
                           <span>Available Stock: <strong className="text-foreground">{formatUnitPlural(product.unit, product.totalStock)}</strong></span>
+                          <span>•</span>
                           <span>Active Batches: <strong className="text-foreground">{product.batchCount}</strong></span>
                         </div>
                       </div>

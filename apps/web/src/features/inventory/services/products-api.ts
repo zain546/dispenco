@@ -260,6 +260,8 @@ export const productsApi = {
       isLowStock: boolean;
       isExpiringSoon: boolean;
       isPriority: boolean;
+      vendorName?: string | null;
+      manufacturer?: string | null;
     }>;
   }> {
     const { data } = await apiClient.get('/inventory/aggregation', { params });

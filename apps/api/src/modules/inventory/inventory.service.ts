@@ -502,6 +502,9 @@ export class InventoryService {
         earliestBatch !== null &&
         new Date(earliestBatch.expiryDate) <= cutoffDate;
       const isPriority = Boolean((prod.attributes as Record<string, unknown>)?.isPriority);
+      const attrs = (prod.attributes as Record<string, unknown>) || {};
+      const vendorName = (attrs.vendorName as string) || (earliestBatch ? ((earliestBatch as Record<string, unknown>)?.vendorName as string) : null) || null;
+      const manufacturer = (attrs.manufacturer as string) || null;
 
       return {
         id: prod.id,
@@ -520,6 +523,8 @@ export class InventoryService {
         isLowStock,
         isExpiringSoon,
         isPriority,
+        vendorName,
+        manufacturer,
       };
     });
 
