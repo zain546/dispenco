@@ -688,8 +688,10 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
   }, [search]);
 
   // Fetch products
-  const fetchProducts = useCallback(async () => {
-    setIsLoading(true);
+  const fetchProducts = useCallback(async (isSilent = false) => {
+    if (!isSilent) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const res = await productsApi.getProducts({
@@ -714,7 +716,9 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
       setError(msg);
       toast.error(msg);
     } finally {
-      setIsLoading(false);
+      if (!isSilent) {
+        setIsLoading(false);
+      }
     }
   }, [page, limit, debouncedSearch, selectedCategory, selectedStockStatus]);
 
@@ -725,16 +729,51 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
   const handleTogglePriority = async (product: ProductData) => {
     const currentPriority = Boolean((product.attributes as Record<string, unknown>)?.isPriority);
     const newPriority = !currentPriority;
+
+    // 1. Optimistic Local State Update (Instant UI feedback, zero layout shifts)
+    setProducts((prevProducts) =>
+      prevProducts.map((p) => {
+        if (p.id === product.id) {
+          const currentAttrs = (p.attributes as Record<string, unknown>) || {};
+          return {
+            ...p,
+            attributes: {
+              ...currentAttrs,
+              isPriority: newPriority,
+            },
+          };
+        }
+        return p;
+      })
+    );
+
     try {
       await productsApi.updateProduct(product.id, { isPriority: newPriority });
       toast.success(
         newPriority
-          ? `Marked "${product.name}" as Top Seller Priority`
-          : `Removed Top Seller Priority from "${product.name}"`
+          ? `Marked "${product.name}" as Top Seller`
+          : `Removed Top Seller status from "${product.name}"`
       );
-      fetchProducts();
+      // Silent background refresh to keep state perfectly in sync without layout shifts
+      fetchProducts(true);
     } catch {
-      toast.error('Failed to update priority status');
+      // Revert optimistic update on error
+      setProducts((prevProducts) =>
+        prevProducts.map((p) => {
+          if (p.id === product.id) {
+            const currentAttrs = (p.attributes as Record<string, unknown>) || {};
+            return {
+              ...p,
+              attributes: {
+                ...currentAttrs,
+                isPriority: currentPriority,
+              },
+            };
+          }
+          return p;
+        })
+      );
+      toast.error('Failed to update top seller status');
     }
   };
 
@@ -781,7 +820,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchProducts}
+              onClick={() => fetchProducts()}
               disabled={isLoading}
               className="h-9 px-3 gap-1.5"
               title="Refresh inventory list"
