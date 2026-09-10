@@ -581,8 +581,6 @@ export function POSTerminal() {
       paymentMethod,
       items: cart.map((item) => ({
         productId: item.product.id,
-        productName: item.product.name,
-        unit: item.product.unit,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discount: item.discount > 0 ? item.discount : undefined,
