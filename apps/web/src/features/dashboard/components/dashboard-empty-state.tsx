@@ -1,10 +1,32 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, ShoppingCart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { productsApi } from '@/features/inventory/services/products-api';
 
 export function DashboardEmptyState() {
+  const [productCount, setProductCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    productsApi
+      .getProducts({ limit: 1 })
+      .then((res) => {
+        const count = res.meta?.total ?? (Array.isArray(res.data) ? res.data.length : 0);
+        setProductCount(count);
+      })
+      .catch(() => {
+        setProductCount(0);
+      });
+  }, []);
+
+  // Do not display welcome box if store already has products
+  if (productCount === null || productCount > 0) {
+    return null;
+  }
+
   return (
     <Card className="border-dashed bg-card/60">
       <CardHeader className="text-center pb-3">
