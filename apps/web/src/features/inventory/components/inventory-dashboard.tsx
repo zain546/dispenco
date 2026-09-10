@@ -36,7 +36,6 @@ import { getProductSeoUrl } from '../utils/seo-utils';
 
 export function InventoryDashboard() {
   const [activeTab, setActiveTab] = useState<'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock'>('full-catalog');
-  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [data, setData] = useState<{
@@ -198,43 +197,7 @@ export function InventoryDashboard() {
         </div>
       </div>
 
-      {/* Onboarding Priority Alert Banner */}
-      {data.summary.priorityCount > 0 && activeTab !== 'priority-top-sellers' && !isBannerDismissed && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 dark:text-amber-200 shadow-2xs">
-          <div className="flex items-start sm:items-center gap-3 pr-6 sm:pr-0">
-            <div className="size-9 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-              <Star className="size-5 fill-amber-500 text-amber-500" />
-            </div>
-            <div>
-              <p className="font-bold text-sm leading-snug">
-                {data.summary.priorityCount} Top Seller Product{data.summary.priorityCount > 1 ? 's' : ''} Flagged for Onboarding Priority
-              </p>
-              <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
-                Complete stock intake and FEFO batch details for your highest turnover inventory items first.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-            <Button
-              size="sm"
-              onClick={() => setActiveTab('priority-top-sellers')}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs h-8.5 px-3 gap-1.5 shadow-xs"
-            >
-              <Sparkles className="size-3.5" />
-              <span>Review Top Sellers ({data.summary.priorityCount})</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsBannerDismissed(true)}
-              className="size-7 text-amber-700 hover:text-amber-900 hover:bg-amber-500/20 dark:text-amber-300 dark:hover:text-amber-100 rounded-lg shrink-0"
-              title="Dismiss alert"
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+
 
       {/* Overview Metric Cards (Scrollable on Mobile, Grid on Tablet/Desktop) */}
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 no-scrollbar pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
@@ -348,7 +311,7 @@ export function InventoryDashboard() {
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
-          <TabsList className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-5 w-full sm:w-auto p-1 h-auto border border-border/40 gap-1">
+          <TabsList className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 h-auto border border-border/40 scrollbar-none">
             <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Package className="size-3.5 text-primary shrink-0" />
               <span>Catalog ({data.summary.totalCatalogItems})</span>

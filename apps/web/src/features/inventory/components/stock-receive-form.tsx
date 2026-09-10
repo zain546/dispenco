@@ -197,7 +197,7 @@ export function StockReceiveForm() {
   const numCost = Math.max(0, Number(costPrice) || 0);
   const numSell = Math.max(0, Number(sellPrice) || 0);
   const marginPkr = numSell - numCost;
-  const marginPercent = numCost > 0 ? ((marginPkr / numCost) * 100).toFixed(1) : '0.0';
+  const marginPercent = numSell > 0 ? ((marginPkr / numSell) * 100).toFixed(1) : '0.0';
 
   const iconConfig = selectedProduct
     ? getMedicineIconConfig(selectedProduct.category, selectedProduct.name, selectedProduct.unit)

@@ -81,9 +81,15 @@ export function getBatchHealthStats<T extends { expiryDate?: string | Date; quan
     }
   });
 
-  const sorted = [...batches].sort((a, b) => {
-    const dateA = a.expiryDate ? new Date(a.expiryDate).getTime() : 0;
-    const dateB = b.expiryDate ? new Date(b.expiryDate).getTime() : 0;
+  const validBatches = batches.filter((b) => {
+    if (!b.expiryDate) return false;
+    const t = new Date(b.expiryDate).getTime();
+    return !isNaN(t);
+  });
+
+  const sorted = [...validBatches].sort((a, b) => {
+    const dateA = new Date(a.expiryDate!).getTime();
+    const dateB = new Date(b.expiryDate!).getTime();
     return dateA - dateB;
   });
 

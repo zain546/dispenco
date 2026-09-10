@@ -344,6 +344,7 @@ export function ProductBatchesModal({
         {/* Nested Edit Batch Modal */}
         <EditBatchModal
           batch={editingBatch}
+          unit={productInfo?.unit}
           open={!!editingBatch}
           onOpenChange={(isOpen) => {
             if (!isOpen) setEditingBatch(null);

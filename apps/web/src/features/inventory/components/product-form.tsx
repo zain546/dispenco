@@ -153,7 +153,11 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
   const onSubmit = handleSubmit(async (values) => {
     setIsLoading(true);
-    setError(null);
+    if (!isEditing && values.initialStockQuantity && Number(values.initialStockQuantity) > 0 && !values.expiryDate) {
+      toast.error('Please select an expiry date for the initial stock batch');
+      setIsLoading(false);
+      return;
+    }
 
     // Build attributes payload based on category
     const attributes: Record<string, any> = {};
