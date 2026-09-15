@@ -31,6 +31,8 @@ import {
   Wifi,
   WifiOff,
   Database,
+  Pill,
+  Package,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -57,10 +59,22 @@ export interface CartItem {
   product: ProductData;
   quantity: number;
   unitPrice: number;
+  unitType: 'BOX' | 'UNIT';
   discount: number;
   discountType: 'FLAT' | 'PERCENT';
   taxRatePercent: number;
 }
+
+const getPackSize = (product: ProductData): number => {
+  const attrs = (product.attributes || {}) as Record<string, unknown>;
+  return Math.max(1, Number(attrs.packSize) || 1);
+};
+
+const getSingleUnitPrice = (product: ProductData): number => {
+  const boxPrice = product.latestSellPrice ?? 0;
+  const packSize = getPackSize(product);
+  return packSize > 0 ? Number((boxPrice / packSize).toFixed(2)) : boxPrice;
+};
 
 export function POSTerminal() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -395,20 +409,30 @@ export function POSTerminal() {
     }
   };
 
-  // Handle adding product to cart
-  const addToCart = (product: ProductData) => {
-    const defaultPrice = product.latestSellPrice ?? 0;
+  // Handle adding product to cart (supports full Box or Single Tablet/Sub-unit)
+  const addToCart = (product: ProductData, initialUnitType: 'BOX' | 'UNIT' = 'BOX') => {
+    const packSize = getPackSize(product);
+    const boxPrice = product.latestSellPrice ?? 0;
+    const singleUnitPrice = getSingleUnitPrice(product);
+    const defaultPrice = initialUnitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
+      const existingIndex = prev.findIndex(
+        (item) => item.product.id === product.id && item.unitType === initialUnitType
+      );
       if (existingIndex > -1) {
         const updated = [...prev];
         const currentQty = updated[existingIndex].quantity;
         const availableStock = product.totalStock ?? 999;
+        const maxStockAllowed = initialUnitType === 'UNIT' ? availableStock * packSize : availableStock;
 
-        if (currentQty + 1 > availableStock) {
-          toast.warning(`Maximum available stock reached for ${product.name} (${availableStock} ${product.unit}s)`);
+        if (currentQty + 1 > maxStockAllowed) {
+          toast.warning(
+            `Maximum available stock reached for ${product.name} (${maxStockAllowed} ${
+              initialUnitType === 'UNIT' ? 'tablet/unit' : product.unit
+            }s)`
+          );
           return prev;
         }
 
@@ -423,6 +447,7 @@ export function POSTerminal() {
           {
             product,
             quantity: 1,
+            unitType: initialUnitType,
             unitPrice: defaultPrice,
             discount: 0,
             discountType: 'FLAT',
@@ -434,8 +459,82 @@ export function POSTerminal() {
 
     setSearchQuery('');
     setSearchResults([]);
-    toast.success(`Added "${product.name}" to cart`, { duration: 1500 });
+    toast.success(
+      `Added "${product.name}" (${initialUnitType === 'UNIT' ? 'Single Tablet/Unit' : 'Full Box'}) to cart`,
+      { duration: 1500 }
+    );
     focusSearchInput();
+  };
+
+  // Toggle cart line item unit type (Box vs Single Unit)
+  const toggleUnitType = (index: number, targetUnitType: 'BOX' | 'UNIT') => {
+    setCart((prev) => {
+      const updated = [...prev];
+      const item = updated[index];
+      if (item.unitType === targetUnitType) return prev;
+
+      const packSize = getPackSize(item.product);
+      const boxPrice = item.product.latestSellPrice ?? 0;
+      const singleUnitPrice = getSingleUnitPrice(item.product);
+
+      if (targetUnitType === 'UNIT') {
+        updated[index] = {
+          ...item,
+          unitType: 'UNIT',
+          unitPrice: singleUnitPrice,
+          quantity: item.quantity === 1 ? 1 : item.quantity,
+        };
+        toast.info(`Switched ${item.product.name} to Single Tablet/Unit (${singleUnitPrice.toFixed(2)} PKR/unit)`);
+      } else {
+        updated[index] = {
+          ...item,
+          unitType: 'BOX',
+          unitPrice: boxPrice,
+          quantity: Math.max(1, Math.round(item.quantity / packSize)),
+        };
+        toast.info(`Switched ${item.product.name} to Full ${item.product.unit} (${boxPrice.toFixed(2)} PKR/box)`);
+      }
+
+      return updated;
+    });
+  };
+
+  // Dynamically update pack size (units per box) for a product directly from cart
+  const updatePackSize = async (index: number, newPackSize: number) => {
+    if (newPackSize <= 0) return;
+    const item = cart[index];
+    if (!item) return;
+
+    const existingAttrs = (item.product.attributes || {}) as Record<string, unknown>;
+    const updatedAttrs = { ...existingAttrs, packSize: newPackSize };
+    const boxPrice = item.product.latestSellPrice ?? 0;
+    const newSingleUnitPrice = Number((boxPrice / newPackSize).toFixed(2));
+
+    setCart((prev) => {
+      const updated = [...prev];
+      const cur = updated[index];
+      if (!cur) return prev;
+      updated[index] = {
+        ...cur,
+        product: {
+          ...cur.product,
+          attributes: updatedAttrs,
+        },
+        unitPrice: cur.unitType === 'UNIT' ? newSingleUnitPrice : cur.unitPrice,
+      };
+      return updated;
+    });
+
+    try {
+      await productsApi.updateProduct(item.product.id, {
+        attributes: updatedAttrs,
+      });
+      toast.success(
+        `Updated ${item.product.name} to ${newPackSize} units/box (${newSingleUnitPrice.toFixed(2)} PKR/unit)`
+      );
+    } catch {
+      toast.info(`Updated pack size to ${newPackSize} units/box locally`);
+    }
   };
 
   // Handle barcode scan
@@ -464,9 +563,15 @@ export function POSTerminal() {
     }
     setCart((prev) => {
       const updated = [...prev];
-      const maxStock = updated[index].product.totalStock ?? 999;
+      const item = updated[index];
+      const packSize = getPackSize(item.product);
+      const availableStockBoxes = item.product.totalStock ?? 999;
+      const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
+
       if (newQty > maxStock) {
-        toast.warning(`Cannot exceed available stock of ${maxStock} ${updated[index].product.unit}(s)`);
+        toast.warning(
+          `Cannot exceed available stock of ${maxStock} ${item.unitType === 'UNIT' ? 'tablet/unit' : item.product.unit}(s)`
+        );
         updated[index].quantity = maxStock;
       } else {
         updated[index].quantity = newQty;
@@ -784,49 +889,89 @@ export function POSTerminal() {
 
               {/* Search Results Dropdown List */}
               {searchResults.length > 0 && (
-                <div className="border border-border rounded-xl bg-card shadow-xl divide-y divide-border/60 max-h-72 overflow-y-auto">
+                <div className="border border-border rounded-xl bg-card shadow-xl divide-y divide-border/60 max-h-80 overflow-y-auto">
                   {searchResults.map((prod, idx) => {
                     const itemConfig = getMedicineIconConfig(prod.category, prod.name, prod.unit);
                     const ItemIcon = itemConfig.Icon;
                     const stock = prod.totalStock ?? 0;
-                    const price = prod.latestSellPrice ?? 0;
+                    const boxPrice = prod.latestSellPrice ?? 0;
+                    const packSize = getPackSize(prod);
+                    const singlePrice = getSingleUnitPrice(prod);
                     const isPriority = Boolean((prod.attributes as Record<string, unknown>)?.isPriority);
 
                     return (
                       <div
                         key={prod.id}
-                        onClick={() => addToCart(prod)}
-                        className={`p-3 hover:bg-primary/5 transition-colors cursor-pointer flex items-center justify-between gap-3 text-xs sm:text-sm ${idx === selectedResultIndex ? 'bg-primary/10' : ''
-                          }`}
+                        className={`p-3 hover:bg-primary/5 transition-colors text-xs sm:text-sm ${
+                          idx === selectedResultIndex ? 'bg-primary/10' : ''
+                        }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${itemConfig.bgClass}`}>
-                            <ItemIcon className="size-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-foreground leading-snug truncate flex items-center gap-1">
-                                {prod.name}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                          {/* Product Info Column */}
+                          <div
+                            onClick={() => addToCart(prod, 'BOX')}
+                            className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                          >
+                            <div className={`size-8 sm:size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
+                              <ItemIcon className="size-4" />
+                            </div>
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-foreground leading-snug break-words">
+                                  {prod.name}
+                                </span>
                                 {isPriority && <Star className="size-3 fill-amber-500 text-amber-500 shrink-0" />}
-                              </span>
-                              {prod.genericName && (
-                                <span className="text-[11px] text-muted-foreground truncate">({prod.genericName})</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                {prod.category}
-                              </Badge>
-                              {prod.barcode && <span>EAN: {prod.barcode}</span>}
+                                {prod.genericName && (
+                                  <span className="text-[11px] text-muted-foreground truncate">({prod.genericName})</span>
+                                )}
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-medium shrink-0">
+                                  {prod.category}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+                                {packSize > 1 ? (
+                                  <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                                    {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit
+                                  </span>
+                                ) : (
+                                  <span>Stock: {stock} {prod.unit}s</span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-primary text-sm">{price.toFixed(2)} PKR</p>
-                          <p className={`text-[11px] font-medium ${stock > 0 ? 'text-emerald-600' : 'text-destructive'}`}>
-                            {stock > 0 ? `${stock} ${prod.unit}s in stock` : 'Out of stock'}
-                          </p>
+                          {/* Quick Add Action Buttons */}
+                          <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-border/30">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addToCart(prod, 'UNIT');
+                              }}
+                              className="h-8 text-xs font-semibold gap-1.5 flex-1 sm:flex-initial bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 whitespace-nowrap"
+                              title={`Add 1 Tablet/Unit (${singlePrice.toFixed(2)} PKR)`}
+                            >
+                              <Pill className="size-3.5" />
+                              <span>+1 Unit ({singlePrice.toFixed(0)} PKR)</span>
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="default"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addToCart(prod, 'BOX');
+                              }}
+                              className="h-8 text-xs font-bold gap-1.5 flex-1 sm:flex-initial shadow-2xs whitespace-nowrap"
+                              title={`Add full ${prod.unit} (${boxPrice.toFixed(2)} PKR)`}
+                            >
+                              <Package className="size-3.5" />
+                              <span>+ Box ({boxPrice.toFixed(0)} PKR)</span>
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -891,23 +1036,73 @@ export function POSTerminal() {
                             : Math.min(lineSub, item.discount);
                       }
                       const lineTotal = Math.max(0, lineSub - lineDisc);
-                      const availableStock = item.product.totalStock ?? 999;
+                      const packSize = getPackSize(item.product);
+                      const boxPrice = item.product.latestSellPrice ?? 0;
+                      const singleUnitPrice = getSingleUnitPrice(item.product);
+                      const availableStockBoxes = item.product.totalStock ?? 999;
+                      const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
 
                       return (
-                        <div key={item.product.id} className="p-3.5 space-y-2.5 bg-card hover:bg-muted/20 transition-colors">
-                          {/* Card Header: Product Name, Category & Trash Button */}
+                        <div key={`${item.product.id}-${item.unitType}`} className="p-3.5 space-y-2.5 bg-card hover:bg-muted/20 transition-colors">
+                          {/* Card Header: Product Name, Unit Mode Toggle & Trash Button */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="space-y-1 min-w-0">
                               <p className="font-bold text-sm text-foreground leading-snug break-words">
                                 {item.product.name}
                               </p>
-                              <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
-                                  {item.product.unit}
-                                </Badge>
-                                <span className="text-[11px] text-muted-foreground">
-                                  Stock: {availableStock}
-                                </span>
+
+                              {/* Minimal Glassmorphic Segmented Toggle Control */}
+                              <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleUnitType(idx, 'BOX')}
+                                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                    item.unitType === 'BOX'
+                                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs dark:bg-primary/25 dark:text-primary-foreground'
+                                      : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                  }`}
+                                >
+                                  📦 Box
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleUnitType(idx, 'UNIT')}
+                                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                    item.unitType === 'UNIT'
+                                      ? 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 shadow-2xs dark:bg-emerald-500/25 dark:text-emerald-300'
+                                      : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                  }`}
+                                >
+                                  💊 Tablet / Unit
+                                </button>
+                              </div>
+
+                              {/* Minimal Single-Line Subtext */}
+                              <div className="text-[10px] pt-0.5 truncate">
+                                {item.unitType === 'UNIT' ? (
+                                  <span className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1.5 flex-wrap">
+                                    <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
+                                    {packSize === 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const sizeStr = prompt(`Set Pack Size (Units/Box) for ${item.product.name}:`, '100');
+                                          if (sizeStr) {
+                                            const parsed = parseInt(sizeStr, 10);
+                                            if (parsed > 0) updatePackSize(idx, parsed);
+                                          }
+                                        }}
+                                        className="text-[9px] underline font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                                      >
+                                        ⚙️ Set Pack Size
+                                      </button>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    {packSize} units/box • Stock: {availableStockBoxes}
+                                  </span>
+                                )}
                               </div>
                             </div>
 
@@ -927,7 +1122,9 @@ export function POSTerminal() {
                           <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40 text-xs">
                             {/* Quantity Controls */}
                             <div className="space-y-1">
-                              <span className="text-[11px] text-muted-foreground font-medium">Quantity:</span>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] text-muted-foreground font-medium">Qty ({item.unitType === 'UNIT' ? 'Units' : 'Boxes'}):</span>
+                              </div>
                               <div className="flex items-center gap-1">
                                 <Button
                                   type="button"
@@ -942,10 +1139,10 @@ export function POSTerminal() {
                                 <Input
                                   type="number"
                                   min="1"
-                                  max={availableStock}
+                                  max={maxStock}
                                   value={item.quantity}
                                   onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
-                                  className="h-8 w-12 text-xs text-center font-bold px-1"
+                                  className="h-8 w-14 text-xs text-center font-bold px-1"
                                 />
 
                                 <Button
@@ -953,7 +1150,7 @@ export function POSTerminal() {
                                   variant="outline"
                                   size="icon"
                                   onClick={() => updateQuantity(idx, item.quantity + 1)}
-                                  disabled={item.quantity >= availableStock}
+                                  disabled={item.quantity >= maxStock}
                                   className="size-8 shrink-0 text-muted-foreground"
                                 >
                                   <Plus className="size-3.5" />
@@ -1022,9 +1219,9 @@ export function POSTerminal() {
                     <table className="w-full text-left text-xs sm:text-sm">
                       <thead className="bg-muted/40 text-muted-foreground text-[11px] font-semibold uppercase tracking-wider">
                         <tr>
-                          <th className="p-3 pl-4">Item & Formula</th>
+                          <th className="p-3 pl-4">Item & Unit Type</th>
                           <th className="p-3 w-28 text-center">Unit Price</th>
-                          <th className="p-3 w-32 text-center">Quantity</th>
+                          <th className="p-3 w-36 text-center">Quantity</th>
                           <th className="p-3 w-32 text-center">Discount</th>
                           <th className="p-3 pr-4 text-right">Line Total</th>
                           <th className="p-3 w-10"></th>
@@ -1041,23 +1238,73 @@ export function POSTerminal() {
                                 : Math.min(lineSub, item.discount);
                           }
                           const lineTotal = Math.max(0, lineSub - lineDisc);
-                          const availableStock = item.product.totalStock ?? 999;
+                          const packSize = getPackSize(item.product);
+                          const boxPrice = item.product.latestSellPrice ?? 0;
+                          const singleUnitPrice = getSingleUnitPrice(item.product);
+                          const availableStockBoxes = item.product.totalStock ?? 999;
+                          const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
 
                           return (
-                            <tr key={item.product.id} className="hover:bg-muted/30 transition-colors">
-                              {/* Medicine Name & Category */}
-                              <td className="p-3 pl-4 align-middle min-w-[160px]">
-                                <div className="space-y-0.5">
+                            <tr key={`${item.product.id}-${item.unitType}`} className="hover:bg-muted/30 transition-colors">
+                              {/* Medicine Name & Unit Mode Toggle */}
+                              <td className="p-3 pl-4 align-middle min-w-[240px]">
+                                <div className="space-y-1">
                                   <p className="font-bold text-foreground leading-snug break-words">
                                     {item.product.name}
                                   </p>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
-                                      {item.product.unit}
-                                    </Badge>
-                                    <span className="text-[11px] text-muted-foreground">
-                                      Stock: {availableStock}
-                                    </span>
+
+                                  {/* Minimal Glassmorphic Segmented Toggle Control */}
+                                  <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleUnitType(idx, 'BOX')}
+                                      className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                        item.unitType === 'BOX'
+                                          ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs dark:bg-primary/25 dark:text-primary-foreground'
+                                          : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                      }`}
+                                    >
+                                      📦 Box
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleUnitType(idx, 'UNIT')}
+                                      className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                        item.unitType === 'UNIT'
+                                          ? 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 shadow-2xs dark:bg-emerald-500/25 dark:text-emerald-300'
+                                          : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                      }`}
+                                    >
+                                      💊 Tablet / Unit
+                                    </button>
+                                  </div>
+
+                                  {/* Minimal Single-Line Subtext */}
+                                  <div className="text-[10px] pt-0.5 truncate">
+                                    {item.unitType === 'UNIT' ? (
+                                      <span className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1.5 flex-wrap">
+                                        <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
+                                        {packSize === 1 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const sizeStr = prompt(`Set Pack Size (Units/Box) for ${item.product.name}:`, '100');
+                                              if (sizeStr) {
+                                                const parsed = parseInt(sizeStr, 10);
+                                                if (parsed > 0) updatePackSize(idx, parsed);
+                                              }
+                                            }}
+                                            className="text-[9px] underline font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                                          >
+                                            ⚙️ Set Pack Size
+                                          </button>
+                                        )}
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground">
+                                        {packSize} units/box • Stock: {availableStockBoxes}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -1078,36 +1325,38 @@ export function POSTerminal() {
 
                               {/* Quantity Controls */}
                               <td className="p-3 align-middle text-center">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => updateQuantity(idx, item.quantity - 1)}
-                                    className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                                  >
-                                    <Minus className="size-3" />
-                                  </Button>
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => updateQuantity(idx, item.quantity - 1)}
+                                      className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                                    >
+                                      <Minus className="size-3" />
+                                    </Button>
 
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max={availableStock}
-                                    value={item.quantity}
-                                    onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
-                                    className="h-8 w-12 text-xs text-center font-bold px-1 focus-visible:ring-1"
-                                  />
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max={maxStock}
+                                      value={item.quantity}
+                                      onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
+                                      className="h-8 w-14 text-xs text-center font-bold px-1 focus-visible:ring-1"
+                                    />
 
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => updateQuantity(idx, item.quantity + 1)}
-                                    disabled={item.quantity >= availableStock}
-                                    className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => updateQuantity(idx, item.quantity + 1)}
+                                      disabled={item.quantity >= maxStock}
+                                      className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                                    >
+                                      <Plus className="size-3" />
+                                    </Button>
+                                  </div>
                                 </div>
                               </td>
 

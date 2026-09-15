@@ -168,11 +168,11 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
     if (values.mfgDate) attributes.mfgDate = values.mfgDate;
     if (values.purchaseInvoiceNumber) attributes.purchaseInvoiceNumber = values.purchaseInvoiceNumber;
     if (values.purchaseInvoiceDate) attributes.purchaseInvoiceDate = values.purchaseInvoiceDate;
+    if (values.packSize) attributes.packSize = Number(values.packSize);
 
     if (selectedCategory === 'TABLET_CAPSULE') {
       if (values.dosageForm) attributes.dosageForm = values.dosageForm;
       if (values.strength) attributes.strength = values.strength;
-      if (values.packSize) attributes.packSize = Number(values.packSize);
     } else if (selectedCategory === 'SYRUP_LIQUID') {
       if (values.volumeMl) attributes.volumeMl = Number(values.volumeMl);
       if (values.flavor) attributes.flavor = values.flavor;
