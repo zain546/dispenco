@@ -4,6 +4,7 @@ export interface CartItemInput {
   productId: string;
   quantity: number;
   unitPrice?: number;
+  unitType?: 'BOX' | 'UNIT';
   discount?: number;
   discountType?: 'FLAT' | 'PERCENT';
   taxRatePercent?: number;

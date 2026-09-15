@@ -17,13 +17,17 @@ export class CartItemDto {
   productId!: string;
 
   @IsNumber()
-  @Min(1)
+  @Min(0.0001)
   quantity!: number;
 
   @IsNumber()
   @Min(0)
   @IsOptional()
   unitPrice?: number;
+
+  @IsString()
+  @IsOptional()
+  unitType?: 'BOX' | 'UNIT';
 
   @IsNumber()
   @Min(0)

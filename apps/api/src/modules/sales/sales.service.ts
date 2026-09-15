@@ -124,11 +124,17 @@ export class SalesService {
           }
         }
 
+        const packSize = Number((product.attributes as Record<string, unknown>)?.packSize) || 1;
+        const isSingleUnit = item.unitType === 'UNIT';
+        const stockQuantityToDeduct = isSingleUnit
+          ? Math.max(1, Math.ceil(item.quantity / packSize))
+          : Math.max(1, Math.ceil(item.quantity));
+
         // FEFO batch allocation using current transaction client
         const fefoResult = await this.inventoryService.selectBatchesForSale(
           tenantId,
           item.productId,
-          item.quantity,
+          stockQuantityToDeduct,
           targetStoreId,
           false,
           tx,
@@ -146,9 +152,10 @@ export class SalesService {
             },
           });
 
-          // Determine item price (provided unitPrice or batch sell price)
-          const unitPrice = item.unitPrice !== undefined ? item.unitPrice : alloc.sellPrice;
-          const itemSubtotal = unitPrice * alloc.quantityToDeduct;
+          // Determine item price (provided unitPrice or batch sell price converted for unit)
+          const defaultBasePrice = isSingleUnit && packSize > 1 ? alloc.sellPrice / packSize : alloc.sellPrice;
+          const unitPrice = item.unitPrice !== undefined ? item.unitPrice : defaultBasePrice;
+          const itemSubtotal = unitPrice * item.quantity;
 
           // Item-level discount calculation
           let itemDiscount = 0;
@@ -175,7 +182,7 @@ export class SalesService {
           preparedSaleItems.push({
             productId: item.productId,
             batchId: alloc.batchId,
-            quantity: alloc.quantityToDeduct,
+            quantity: item.quantity,
             unitPrice: new Prisma.Decimal(unitPrice),
             discount: new Prisma.Decimal(itemDiscount),
             discountType: item.discountType || DiscountType.FLAT,
