@@ -458,14 +458,22 @@ export class ProductsService {
       const matchedKey = Object.keys(row).find((key) => {
         const keyLower = key.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (targetLower === 'name') return keyLower.includes('name') || keyLower.includes('title') || keyLower.includes('item') || keyLower.includes('medicine');
+        if (targetLower === 'genericname') return keyLower.includes('generic') || keyLower.includes('salt') || keyLower.includes('formula');
         if (targetLower === 'unitprice') return keyLower.includes('unitprice') || keyLower.includes('sellprice') || keyLower.includes('mrp') || keyLower.includes('price');
         if (targetLower === 'costprice') return keyLower.includes('costprice') || keyLower.includes('purchaseprice') || keyLower.includes('cost');
         if (targetLower === 'category') return keyLower.includes('category') || keyLower.includes('type') || keyLower.includes('group');
-        if (targetLower === 'sku') return keyLower === 'sku' || keyLower.includes('code');
+        if (targetLower === 'unit') return keyLower === 'unit' || keyLower.includes('pack') || keyLower.includes('uom');
         if (targetLower === 'barcode') return keyLower.includes('barcode') || keyLower.includes('upc') || keyLower.includes('ean');
         if (targetLower === 'initialstock') return keyLower.includes('stock') || keyLower.includes('qty') || keyLower.includes('quantity');
         if (targetLower === 'batchnumber') return keyLower.includes('batch') || keyLower.includes('lot');
         if (targetLower === 'expirydate') return keyLower.includes('exp') || keyLower.includes('expiry');
+        if (targetLower === 'manufacturer') return keyLower.includes('manufacturer') || keyLower.includes('company') || keyLower.includes('vendor') || keyLower.includes('brand');
+        if (targetLower === 'racknumber') return keyLower.includes('rack') || keyLower.includes('shelf') || keyLower.includes('location');
+        if (targetLower === 'lowstockthreshold') return keyLower.includes('threshold') || keyLower.includes('reorder') || keyLower.includes('lowstock');
+        if (targetLower === 'strength') return keyLower.includes('strength') || keyLower.includes('dose');
+        if (targetLower === 'dosageform') return keyLower.includes('form') || keyLower.includes('dosage');
+        if (targetLower === 'iscontrolledsubstance') return keyLower.includes('controlled') || keyLower.includes('schedule') || keyLower.includes('narcotic');
+        if (targetLower === 'prescriptionrequired') return keyLower.includes('prescription') || keyLower.includes('rx');
         return keyLower === targetLower;
       });
 
@@ -495,6 +503,14 @@ export class ProductsService {
         initialStockQuantity?: number;
         batchNumber?: string;
         expiryDate?: string;
+        manufacturer?: string;
+        vendorName?: string;
+        rackNumber?: string;
+        lowStockThreshold?: number;
+        strength?: string;
+        dosageForm?: string;
+        isControlledSubstance?: boolean;
+        prescriptionRequired?: boolean;
         isPriority?: boolean;
       };
       errors: string[];
@@ -509,6 +525,7 @@ export class ProductsService {
       const errors: string[] = [];
 
       const rawName = getFieldValue(row, 'name');
+      const rawGenericName = getFieldValue(row, 'genericname');
       const rawCategory = getFieldValue(row, 'category');
       const rawUnitPrice = getFieldValue(row, 'unitprice');
       const rawCostPrice = getFieldValue(row, 'costprice');
@@ -517,6 +534,13 @@ export class ProductsService {
       const rawBatch = getFieldValue(row, 'batchnumber');
       const rawExpiry = getFieldValue(row, 'expirydate');
       const rawUnit = getFieldValue(row, 'unit');
+      const rawManufacturer = getFieldValue(row, 'manufacturer');
+      const rawRackNumber = getFieldValue(row, 'racknumber');
+      const rawThreshold = getFieldValue(row, 'lowstockthreshold');
+      const rawStrength = getFieldValue(row, 'strength');
+      const rawDosageForm = getFieldValue(row, 'dosageform');
+      const rawControlled = getFieldValue(row, 'iscontrolledsubstance');
+      const rawRx = getFieldValue(row, 'prescriptionrequired');
 
       if (!rawName || rawName.length < 2) {
         errors.push('Product name is required (minimum 2 characters)');
@@ -550,11 +574,16 @@ export class ProductsService {
         errors.push('Initial stock quantity must be a non-negative number');
       }
 
+      const lowStockThreshold = rawThreshold ? Number(rawThreshold) : 10;
+
       const category = rawCategory
         ? rawCategory.toUpperCase().replace(/\s+/g, '_')
         : 'GENERAL_ITEM';
 
-      const unit = rawUnit || 'PACK';
+      const unit = rawUnit ? rawUnit.toUpperCase() : 'PACK';
+
+      const isControlledSubstance = rawControlled ? ['true', '1', 'yes'].includes(rawControlled.toLowerCase()) : false;
+      const prescriptionRequired = rawRx ? ['true', '1', 'yes'].includes(rawRx.toLowerCase()) : false;
 
       const status = errors.length === 0 ? 'VALID' : 'INVALID';
       if (status === 'VALID') validCount++;
@@ -565,6 +594,7 @@ export class ProductsService {
         status,
         data: {
           name: rawName || `Row ${rowNumber}`,
+          ...(rawGenericName ? { genericName: rawGenericName } : {}),
           category,
           unit,
           unitPrice: isNaN(unitPrice) ? 0 : unitPrice,
@@ -573,6 +603,13 @@ export class ProductsService {
           ...(initialStock > 0 ? { initialStockQuantity: initialStock } : {}),
           ...(rawBatch ? { batchNumber: rawBatch } : {}),
           ...(rawExpiry ? { expiryDate: rawExpiry } : {}),
+          ...(rawManufacturer ? { manufacturer: rawManufacturer, vendorName: rawManufacturer } : {}),
+          ...(rawRackNumber ? { rackNumber: rawRackNumber } : {}),
+          ...(lowStockThreshold !== 10 ? { lowStockThreshold } : {}),
+          ...(rawStrength ? { strength: rawStrength } : {}),
+          ...(rawDosageForm ? { dosageForm: rawDosageForm } : {}),
+          ...(isControlledSubstance ? { isControlledSubstance } : {}),
+          ...(prescriptionRequired ? { prescriptionRequired } : {}),
           isPriority: true,
         },
         errors,
@@ -607,6 +644,14 @@ export class ProductsService {
       initialStockQuantity?: number;
       batchNumber?: string;
       expiryDate?: string;
+      manufacturer?: string;
+      vendorName?: string;
+      rackNumber?: string;
+      lowStockThreshold?: number;
+      strength?: string;
+      dosageForm?: string;
+      isControlledSubstance?: boolean;
+      prescriptionRequired?: boolean;
       isPriority?: boolean;
     }>,
   ) {
@@ -630,6 +675,16 @@ export class ProductsService {
       for (const item of productsToImport) {
         const cleanBarcode = item.barcode?.trim() || null;
 
+        const attributesJson = {
+          isPriority: item.isPriority ?? true,
+          ...(item.manufacturer ? { manufacturer: item.manufacturer.trim(), vendorName: item.manufacturer.trim() } : {}),
+          ...(item.vendorName ? { vendorName: item.vendorName.trim() } : {}),
+          ...(item.rackNumber ? { rackNumber: item.rackNumber.trim() } : {}),
+          ...(item.strength ? { strength: item.strength.trim() } : {}),
+          ...(item.dosageForm ? { dosageForm: item.dosageForm.trim() } : {}),
+          ...(item.prescriptionRequired !== undefined ? { prescriptionRequired: item.prescriptionRequired } : {}),
+        };
+
         const product = await tx.product.create({
           data: {
             tenantId,
@@ -638,9 +693,10 @@ export class ProductsService {
             category: item.category || 'GENERAL_ITEM',
             unit: item.unit || 'PACK',
             barcode: cleanBarcode,
+            isControlledSubstance: item.isControlledSubstance ?? false,
             isActive: true,
-            lowStockThreshold: 10,
-            attributes: { isPriority: item.isPriority ?? true },
+            lowStockThreshold: item.lowStockThreshold ?? 10,
+            attributes: attributesJson as Prisma.InputJsonValue,
           },
         });
 

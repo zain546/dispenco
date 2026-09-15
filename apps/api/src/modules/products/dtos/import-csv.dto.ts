@@ -53,6 +53,39 @@ export class CsvProductImportItemDto {
   expiryDate?: string;
 
   @IsOptional()
+  @IsString()
+  manufacturer?: string;
+
+  @IsOptional()
+  @IsString()
+  vendorName?: string;
+
+  @IsOptional()
+  @IsString()
+  rackNumber?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  lowStockThreshold?: number;
+
+  @IsOptional()
+  @IsString()
+  strength?: string;
+
+  @IsOptional()
+  @IsString()
+  dosageForm?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isControlledSubstance?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  prescriptionRequired?: boolean;
+
+  @IsOptional()
   @IsBoolean()
   isPriority?: boolean;
 }
@@ -63,3 +96,4 @@ export class ConfirmCsvImportDto {
   @Type(() => CsvProductImportItemDto)
   products!: CsvProductImportItemDto[];
 }
+

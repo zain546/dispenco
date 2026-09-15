@@ -14,6 +14,14 @@ export interface CsvPreviewRow {
     initialStockQuantity?: number;
     batchNumber?: string;
     expiryDate?: string;
+    manufacturer?: string;
+    vendorName?: string;
+    rackNumber?: string;
+    lowStockThreshold?: number;
+    strength?: string;
+    dosageForm?: string;
+    isControlledSubstance?: boolean;
+    prescriptionRequired?: boolean;
     isPriority?: boolean;
   };
   errors: string[];
@@ -42,6 +50,14 @@ export interface ConfirmImportRequest {
     initialStockQuantity?: number;
     batchNumber?: string;
     expiryDate?: string;
+    manufacturer?: string;
+    vendorName?: string;
+    rackNumber?: string;
+    lowStockThreshold?: number;
+    strength?: string;
+    dosageForm?: string;
+    isControlledSubstance?: boolean;
+    prescriptionRequired?: boolean;
     isPriority?: boolean;
   }>;
 }

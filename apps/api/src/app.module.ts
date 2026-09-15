@@ -45,6 +45,7 @@ import { ReportsModule } from './modules/reports/reports.module';
               port: url.port ? parseInt(url.port, 10) : 6379,
               username: url.username || undefined,
               password: url.password || undefined,
+              maxRetriesPerRequest: null,
             },
           };
         } catch {
@@ -52,6 +53,7 @@ import { ReportsModule } from './modules/reports/reports.module';
             connection: {
               host: 'localhost',
               port: 6379,
+              maxRetriesPerRequest: null,
             },
           };
         }
