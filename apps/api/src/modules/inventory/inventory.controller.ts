@@ -13,10 +13,13 @@ import { ReceiveStockDto } from './dtos/receive-stock.dto';
 import { UpdateBatchDto } from './dtos/update-batch.dto';
 import { AdjustStockDto } from './dtos/adjust-stock.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Permission } from '@dispenco/types';
 
 @Controller('inventory')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
@@ -25,6 +28,7 @@ export class InventoryController {
    * Receive incoming stock shipment batch for an existing medicine
    */
   @Post('receive')
+  @RequirePermissions(Permission.INVENTORY_CREATE)
   async receiveStock(
     @CurrentUser('tenantId') tenantId: string,
     @Body() dto: ReceiveStockDto,
@@ -95,6 +99,7 @@ export class InventoryController {
    * Writes an immutable AuditLog paper trail entry.
    */
   @Post('batches/:batchId/adjust')
+  @RequirePermissions(Permission.INVENTORY_ADJUST)
   async adjustBatchStock(
     @CurrentUser('tenantId') tenantId: string,
     @CurrentUser('userId') userId: string,

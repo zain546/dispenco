@@ -13,6 +13,7 @@ import { HealthModule } from './modules/health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { StoresModule } from './modules/stores/stores.module';
 import { UsersModule } from './modules/users/users.module';
+import { RolesModule } from './modules/roles/roles.module';
 import { ProductsModule } from './modules/products/products.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { SalesModule } from './modules/sales/sales.module';
@@ -65,6 +66,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     TenantsModule,
     StoresModule,
     UsersModule,
+    RolesModule,
     ProductsModule,
     InventoryModule,
     SalesModule,

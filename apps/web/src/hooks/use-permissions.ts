@@ -30,9 +30,13 @@ export function usePermissions() {
   // Specific Action Flags
   const canVoidSales = isOwner || isManager || hasPermission(Permission.SALES_VOID);
   const canViewReports = isOwner || isManager || hasPermission(Permission.REPORTS_READ);
-  const canManageSuppliers = isOwner || isManager || hasPermission(Permission.SETTINGS_MANAGE) || hasPermission(Permission.PURCHASES_CREATE);
+  const canExportReports = isOwner || isManager || hasPermission(Permission.REPORTS_EXPORT);
+  const canManageSuppliers = isOwner || isManager || hasPermission(Permission.SUPPLIERS_MANAGE) || hasPermission(Permission.SETTINGS_MANAGE);
   const canDeleteProducts = isOwner || isManager || hasPermission(Permission.INVENTORY_DELETE);
-  const canManageUsers = isOwner || isManager || hasPermission(Permission.USERS_MANAGE);
+  const canAdjustStock = isOwner || isManager || hasPermission(Permission.INVENTORY_ADJUST);
+  const canViewCostPrice = isOwner || isManager || hasPermission(Permission.INVENTORY_VIEW_COST);
+  const canManageStaff = isOwner || isManager || hasPermission(Permission.STAFF_MANAGE) || hasPermission(Permission.USERS_MANAGE);
+  const canManageRoles = isOwner || hasPermission(Permission.ROLES_MANAGE);
   const canManageSettings = isOwner || isManager || hasPermission(Permission.SETTINGS_MANAGE);
 
   return {
@@ -44,9 +48,14 @@ export function usePermissions() {
     hasAllPermissions,
     canVoidSales,
     canViewReports,
+    canExportReports,
     canManageSuppliers,
     canDeleteProducts,
-    canManageUsers,
+    canAdjustStock,
+    canViewCostPrice,
+    canManageStaff,
+    canManageRoles,
+    canManageUsers: canManageStaff,
     canManageSettings,
   };
 }
