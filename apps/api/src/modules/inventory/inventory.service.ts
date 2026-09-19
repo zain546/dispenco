@@ -26,18 +26,27 @@ export class InventoryService {
       throw new NotFoundException(`Product with ID "${dto.productId}" not found`);
     }
 
-    // 2. Locate or create default Store for Tenant
-    let store = await this.prisma.store.findFirst({
-      where: { tenantId, isActive: true },
-    });
-
-    if (!store) {
-      store = await this.prisma.store.create({
-        data: {
-          tenantId,
-          name: 'Main Pharmacy Store',
-        },
+    // 2. Locate target Store for Tenant
+    let store: { id: string; name: string } | null = null;
+    if (dto.storeId) {
+      store = await this.prisma.store.findFirst({
+        where: { id: dto.storeId, tenantId, isActive: true },
       });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${dto.storeId}" not found for this tenant`);
+      }
+    } else {
+      store = await this.prisma.store.findFirst({
+        where: { tenantId, isActive: true },
+      });
+      if (!store) {
+        store = await this.prisma.store.create({
+          data: {
+            tenantId,
+            name: 'Main Pharmacy Store',
+          },
+        });
+      }
     }
 
     // 3. Format/generate batch number
@@ -123,7 +132,7 @@ export class InventoryService {
   /**
    * Get FEFO-ordered active batches for a product
    */
-  async getProductBatches(tenantId: string, productId: string) {
+  async getProductBatches(tenantId: string, productId: string, storeId?: string) {
     const product = await this.prisma.product.findFirst({
       where: { id: productId, tenantId },
     });
@@ -132,8 +141,22 @@ export class InventoryService {
       throw new NotFoundException(`Product with ID "${productId}" not found`);
     }
 
+    const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
+    }
+
     const batches = await this.prisma.batch.findMany({
-      where: { productId, tenantId },
+      where: {
+        productId,
+        tenantId,
+        ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+      },
       orderBy: { expiryDate: 'asc' },
     });
 
@@ -286,6 +309,25 @@ export class InventoryService {
       throw new NotFoundException(`Product with ID "${productId}" not found`);
     }
 
+    let targetStoreId = storeId && storeId !== 'all' ? storeId : undefined;
+    if (targetStoreId) {
+      const store = await db.store.findFirst({
+        where: { id: targetStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${targetStoreId}" not found for this tenant`);
+      }
+    } else {
+      const primaryStore = await db.store.findFirst({
+        where: { tenantId, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!primaryStore) {
+        throw new NotFoundException('No active store found for this tenant to allocate batches from');
+      }
+      targetStoreId = primaryStore.id;
+    }
+
     const now = new Date();
 
     // Query active batches with stock remaining > 0, ordered by expiry date ASC (FEFO)
@@ -293,7 +335,7 @@ export class InventoryService {
       where: {
         tenantId,
         productId,
-        ...(storeId ? { storeId } : {}),
+        storeId: targetStoreId,
         quantityRemaining: { gt: 0 },
         ...(!allowExpired ? { expiryDate: { gt: now } } : {}),
       },
@@ -444,6 +486,7 @@ export class InventoryService {
     tenantId: string,
     query: {
       storeId?: string;
+      inStockOnly?: boolean;
       lowStockOnly?: boolean;
       expiringSoonOnly?: boolean;
       priorityOnly?: boolean;
@@ -455,6 +498,16 @@ export class InventoryService {
   ) {
     const expiryWindowDays = Number(query.expiryAlertDays) || 180;
     const defaultLowThreshold = Number(query.lowStockThreshold) || 20;
+
+    const effectiveStoreId = query.storeId && query.storeId !== 'all' ? query.storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
+    }
 
     const products = await this.prisma.product.findMany({
       where: {
@@ -473,7 +526,7 @@ export class InventoryService {
       include: {
         batches: {
           where: {
-            ...(query.storeId ? { storeId: query.storeId } : {}),
+            ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
             quantityRemaining: { gt: 0 },
           },
           orderBy: { expiryDate: 'asc' },
@@ -528,8 +581,11 @@ export class InventoryService {
       };
     });
 
-    // Filter if lowStockOnly, expiringSoonOnly, priorityOnly or unstockedOnly specified
+    // Filter if inStockOnly, lowStockOnly, expiringSoonOnly, priorityOnly or unstockedOnly specified
     let filtered = aggregated;
+    if (query.inStockOnly) {
+      filtered = filtered.filter((p) => p.totalStock > 0);
+    }
     if (query.lowStockOnly) {
       filtered = filtered.filter((p) => p.isLowStock || p.isOutofStock);
     }
@@ -572,17 +628,30 @@ export class InventoryService {
   /**
    * Step 1.13 — Lookup product and active FEFO-ordered batches by barcode
    */
-  async lookupByBarcode(tenantId: string, barcode: string) {
+  async lookupByBarcode(tenantId: string, barcode: string, storeId?: string) {
     const cleanBarcode = barcode?.trim();
     if (!cleanBarcode) {
       throw new BadRequestException('Barcode parameter is required');
+    }
+
+    const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
     }
 
     const product = await this.prisma.product.findFirst({
       where: { tenantId, barcode: cleanBarcode },
       include: {
         batches: {
-          where: { quantityRemaining: { gt: 0 } },
+          where: {
+            ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+            quantityRemaining: { gt: 0 },
+          },
           orderBy: { expiryDate: 'asc' },
         },
       },

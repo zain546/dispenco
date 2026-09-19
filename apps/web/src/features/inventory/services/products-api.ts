@@ -58,6 +58,7 @@ export interface CreateProductPayload {
   attributes?: Record<string, unknown>;
 
   // Unified Initial Stock & Batch Fields
+  storeId?: string;
   initialStockQuantity?: number;
   expiryDate?: string;
   costPrice?: number;
@@ -73,6 +74,7 @@ export interface CreateProductPayload {
 }
 
 export interface ReceiveStockPayload {
+  storeId?: string;
   productId: string;
   quantity: number;
   expiryDate: string;
@@ -99,6 +101,8 @@ export interface QueryProductsParams {
   stockStatus?: string;
   isControlledSubstance?: boolean;
   isActive?: boolean;
+  storeId?: string;
+  inStockOnly?: boolean;
 }
 
 export interface PaginatedProductsResponse {
@@ -127,8 +131,10 @@ export const productsApi = {
     return data;
   },
 
-  async getProductById(id: string): Promise<{ success: boolean; data: ProductData }> {
-    const { data } = await apiClient.get(`/products/${id}`);
+  async getProductById(id: string, storeId?: string): Promise<{ success: boolean; data: ProductData }> {
+    const { data } = await apiClient.get(`/products/${id}`, {
+      params: storeId ? { storeId } : undefined,
+    });
     return data;
   },
 
@@ -170,7 +176,7 @@ export const productsApi = {
     return data;
   },
 
-  async getProductBatches(productId: string): Promise<{
+  async getProductBatches(productId: string, storeId?: string): Promise<{
     product: {
       id: string;
       name: string;
@@ -180,7 +186,9 @@ export const productsApi = {
     };
     batches: BatchData[];
   }> {
-    const { data } = await apiClient.get(`/inventory/products/${productId}/batches`);
+    const { data } = await apiClient.get(`/inventory/products/${productId}/batches`, {
+      params: storeId ? { storeId } : undefined,
+    });
     return data;
   },
 
@@ -223,6 +231,7 @@ export const productsApi = {
 
   async getInventoryAggregation(params?: {
     storeId?: string;
+    inStockOnly?: boolean;
     lowStockOnly?: boolean;
     expiringSoonOnly?: boolean;
     priorityOnly?: boolean;
@@ -268,12 +277,14 @@ export const productsApi = {
     return data;
   },
 
-  async lookupByBarcode(barcode: string): Promise<{
+  async lookupByBarcode(barcode: string, storeId?: string): Promise<{
     success: boolean;
     product: ProductData;
     batches: BatchData[];
   }> {
-    const { data } = await apiClient.get(`/inventory/barcode/${encodeURIComponent(barcode)}`);
+    const { data } = await apiClient.get(`/inventory/barcode/${encodeURIComponent(barcode)}`, {
+      params: storeId ? { storeId } : undefined,
+    });
     return data;
   },
 };

@@ -33,9 +33,13 @@ import { ProductList, formatCategory, formatUnitPlural } from './product-list';
 import { ProductBatchesModal } from './product-batches-modal';
 import { ImportProductsModal } from './import-products-modal';
 import { getProductSeoUrl } from '../utils/seo-utils';
+import { useStore } from '@/context/store-context';
+
+export type InventoryTab = 'in-stock' | 'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock';
 
 export function InventoryDashboard() {
-  const [activeTab, setActiveTab] = useState<'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock'>('full-catalog');
+  const { activeStoreId, isAllStores } = useStore();
+  const [activeTab, setActiveTab] = useState<InventoryTab>(!isAllStores ? 'in-stock' : 'full-catalog');
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [data, setData] = useState<{
@@ -100,6 +104,10 @@ export function InventoryDashboard() {
         setActiveTab('expiring-soon');
       } else if (tabParam === 'low_stock') {
         setActiveTab('low-stock');
+      } else if (tabParam === 'in-stock' || tabParam === 'in_stock') {
+        setActiveTab('in-stock');
+      } else if (tabParam === 'catalog' || tabParam === 'full-catalog') {
+        setActiveTab('full-catalog');
       }
     }
   }, []);
@@ -113,6 +121,8 @@ export function InventoryDashboard() {
     setIsLoading(true);
     try {
       const res = await productsApi.getInventoryAggregation({
+        storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+        inStockOnly: activeTab === 'in-stock' ? true : undefined,
         lowStockOnly: activeTab === 'low-stock' ? true : undefined,
         expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
         priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
@@ -125,7 +135,7 @@ export function InventoryDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, search]);
+  }, [activeTab, search, activeStoreId, isAllStores]);
 
   useEffect(() => {
     fetchAggregation();
@@ -201,27 +211,31 @@ export function InventoryDashboard() {
 
       {/* Overview Metric Cards (Scrollable on Mobile, Grid on Tablet/Desktop) */}
       <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 no-scrollbar pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
-        {/* Card 1: Full Catalog */}
+        {/* Card 1: Branch In-Stock / Master Catalog */}
         <Card
-          onClick={() => setActiveTab('full-catalog')}
+          onClick={() => setActiveTab(!isAllStores ? 'in-stock' : 'full-catalog')}
           className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-primary/50 ${
-            activeTab === 'full-catalog' ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5' : 'bg-card'
+            (activeTab === 'in-stock' || (isAllStores && activeTab === 'full-catalog'))
+              ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5'
+              : 'bg-card'
           }`}
         >
           <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
             <div>
               <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Total Catalog
+                {!isAllStores ? 'Branch In-Stock' : 'Total Catalog'}
               </p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-xl sm:text-3xl font-bold text-foreground">
-                  {data.summary.totalCatalogItems}
+                  {!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
                 </span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground">medicines</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">
+                  {!isAllStores ? `of ${data.summary.totalCatalogItems} catalog items` : 'medicines'}
+                </span>
               </div>
             </div>
             <div className="size-9 sm:size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Package className="size-4.5 sm:size-5" />
+              <Boxes className="size-4.5 sm:size-5" />
             </div>
           </CardContent>
         </Card>
@@ -307,14 +321,18 @@ export function InventoryDashboard() {
       {/* Dashboard Tabs Navigation */}
       <Tabs
         value={activeTab}
-        onValueChange={(val) => setActiveTab(val as 'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock')}
+        onValueChange={(val) => setActiveTab(val as InventoryTab)}
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
           <TabsList className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 h-auto border border-border/40 scrollbar-none">
+            <TabsTrigger value="in-stock" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <Boxes className="size-3.5 text-emerald-600 shrink-0" />
+              <span>In-Stock ({data.summary.stockedCount ?? 0})</span>
+            </TabsTrigger>
             <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Package className="size-3.5 text-primary shrink-0" />
-              <span>Catalog ({data.summary.totalCatalogItems})</span>
+              <span>Master Catalog ({data.summary.totalCatalogItems})</span>
             </TabsTrigger>
             <TabsTrigger value="priority-top-sellers" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />
@@ -346,6 +364,148 @@ export function InventoryDashboard() {
             </div>
           )}
         </div>
+
+        {/* Tab: In-Stock Available Products */}
+        <TabsContent value="in-stock" className="space-y-4 mt-0">
+          <Card>
+            <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Boxes className="size-4 text-emerald-600" />
+                  <span>
+                    {!isAllStores ? 'Available Branch Inventory' : 'Available Network Stock'}
+                  </span>
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  {!isAllStores
+                    ? 'Medicines currently stocked with active, non-zero quantity batches in this branch'
+                    : 'Medicines with active stock across your company store locations'}
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchAggregation()}
+                disabled={isLoading}
+                className="size-8 p-0 shrink-0"
+              >
+                <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+                  <Loader2 className="size-6 animate-spin text-primary" />
+                  <span className="text-xs">Loading in-stock medicines...</span>
+                </div>
+              ) : data.products.length === 0 ? (
+                <div className="py-14 px-4 text-center text-muted-foreground space-y-4 max-w-md mx-auto">
+                  <div className="size-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
+                    <Boxes className="size-7" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="font-bold text-base text-foreground">No Medicines In Stock Yet</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      This branch has <strong>0 stocked medicines</strong>. You have{' '}
+                      <strong>{data.summary.totalCatalogItems} medicines</strong> in your Master Catalog ready for stock intake.
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center gap-2.5 pt-1">
+                    <Button asChild size="sm" className="gap-1.5 font-semibold text-xs shadow-xs">
+                      <Link href="/inventory/receive">
+                        <Boxes className="size-3.5" />
+                        <span>Receive Stock</span>
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab('full-catalog')}
+                      className="gap-1.5 font-semibold text-xs border-primary/30 text-primary hover:bg-primary/5"
+                    >
+                      <Package className="size-3.5" />
+                      <span>Browse Master Catalog</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {data.products.map((product) => (
+                    <div
+                      key={product.id}
+                      className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-foreground">{product.name}</span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {formatCategory(product.category)}
+                          </Badge>
+                          {product.isPriority && (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+                            >
+                              <Star className="size-3 fill-amber-500 text-amber-500" />
+                              <span>Top Seller</span>
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                            In Stock ({product.totalStock} {product.unit}s)
+                          </Badge>
+                          {product.isLowStock && (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                              Low Stock
+                            </Badge>
+                          )}
+                          {product.isExpiringSoon && (
+                            <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/20 text-[10px]">
+                              Expiring Soon
+                            </Badge>
+                          )}
+                        </div>
+                        {product.genericName && (
+                          <p className="text-xs text-muted-foreground">{product.genericName}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5 flex-wrap">
+                          <span>Available Stock: <strong className="text-foreground">{formatUnitPlural(product.unit, product.totalStock)}</strong></span>
+                          <span>•</span>
+                          <span>Active Batches: <strong className="text-foreground">{product.batchCount}</strong></span>
+                          {product.earliestExpiryDate && (
+                            <>
+                              <span>•</span>
+                              <span>Nearest Expiry: <strong className="text-foreground">{new Date(product.earliestExpiryDate).toLocaleDateString()}</strong></span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleInspectBatches(product.id, product.name)}
+                            className="gap-1.5 h-8 text-xs font-semibold"
+                          >
+                            <Layers className="size-3.5 text-primary" />
+                            <span>Batches</span>
+                          </Button>
+                          <Button asChild size="sm" className="gap-1.5 h-8 text-xs font-semibold">
+                            <Link href={`/inventory/receive?productId=${product.id}`}>
+                              <Boxes className="size-3.5" />
+                              <span>Receive Stock</span>
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab: Priority Top Sellers Queue */}
         <TabsContent value="priority-top-sellers" className="space-y-4 mt-0">
@@ -766,6 +926,7 @@ export function InventoryDashboard() {
             if (!open) setSelectedProductForModal(null);
           }}
           productId={selectedProductForModal.id}
+          storeId={(!isAllStores && activeStoreId) ? activeStoreId : undefined}
         />
       )}
 

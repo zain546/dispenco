@@ -40,6 +40,39 @@ export interface GetSalesReportParams {
   storeId?: string;
 }
 
+export interface StorePerformanceBreakdown {
+  storeId: string;
+  storeName: string;
+  address?: string | null;
+  currency: string;
+  totalRevenue: number;
+  totalTransactions: number;
+  totalItemsSold: number;
+  averageOrderValue: number;
+  revenueSharePercent: number;
+  activeBatchesCount: number;
+  uniqueProductsStocked: number;
+  totalUnitsInStock: number;
+}
+
+export interface OrgOverviewResponse {
+  success: boolean;
+  data: {
+    summary: {
+      totalRevenue: number;
+      totalTransactions: number;
+      totalItemsSold: number;
+      averageOrderValue: number;
+      totalStoresCount: number;
+      dateRange: {
+        startDate: string;
+        endDate: string;
+      };
+    };
+    stores: StorePerformanceBreakdown[];
+  };
+}
+
 export const reportsApi = {
   getSalesReport: async (params?: GetSalesReportParams): Promise<SalesReportResponse> => {
     const query = new URLSearchParams();
@@ -50,6 +83,16 @@ export const reportsApi = {
 
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const res = await apiClient.get(`/reports/sales${queryString}`);
+    return res.data;
+  },
+
+  getOrgOverview: async (params?: { startDate?: string; endDate?: string }): Promise<OrgOverviewResponse> => {
+    const query = new URLSearchParams();
+    if (params?.startDate) query.append('startDate', params.startDate);
+    if (params?.endDate) query.append('endDate', params.endDate);
+
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    const res = await apiClient.get(`/reports/org-overview${queryString}`);
     return res.data;
   },
 };

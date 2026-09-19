@@ -79,17 +79,26 @@ export class ProductsService {
         dto.expiryDate
       ) {
         // Find or fallback to primary store for tenant
-        let store = await tx.store.findFirst({
-          where: { tenantId },
-        });
-
-        if (!store) {
-          store = await tx.store.create({
-            data: {
-              tenantId,
-              name: 'Main Pharmacy Store',
-            },
+        let store: { id: string; name: string } | null = null;
+        if (dto.storeId) {
+          store = await tx.store.findFirst({
+            where: { id: dto.storeId, tenantId, isActive: true },
           });
+          if (!store) {
+            throw new NotFoundException(`Active store with ID "${dto.storeId}" not found for this tenant`);
+          }
+        } else {
+          store = await tx.store.findFirst({
+            where: { tenantId, isActive: true },
+          });
+          if (!store) {
+            store = await tx.store.create({
+              data: {
+                tenantId,
+                name: 'Main Pharmacy Store',
+              },
+            });
+          }
         }
 
         const generatedBatchNumber =
@@ -140,8 +149,18 @@ export class ProductsService {
         : {}),
     };
 
-    // If stock status filter is provided, fetch all matching products to apply computed stock filters
-    const isFilteredByStatus = !!query.stockStatus && query.stockStatus !== 'ALL';
+    const effectiveStoreId = query.storeId && query.storeId !== 'all' ? query.storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
+    }
+
+    // If stock status filter or inStockOnly is provided, fetch matching products to apply computed stock filters
+    const isFilteredByStatus = (!!query.stockStatus && query.stockStatus !== 'ALL') || Boolean(query.inStockOnly);
 
     const [totalRaw, rawProducts] = await Promise.all([
       this.prisma.product.count({ where }),
@@ -151,6 +170,9 @@ export class ProductsService {
         orderBy: { createdAt: 'desc' },
         include: {
           batches: {
+            where: {
+              ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+            },
             orderBy: { expiryDate: 'asc' },
           },
         },
@@ -191,16 +213,21 @@ export class ProductsService {
     });
 
     let filteredItems = allMapped;
-    if (isFilteredByStatus && query.stockStatus) {
+    if (query.inStockOnly) {
+      filteredItems = filteredItems.filter((p) => p.totalStock > 0);
+    }
+    if (query.stockStatus && query.stockStatus !== 'ALL') {
       const status = query.stockStatus.toUpperCase();
-      if (status === 'LOW') {
-        filteredItems = allMapped.filter((p) => p.totalStock > 0 && p.totalStock <= p.lowStockThreshold);
+      if (status === 'IN_STOCK') {
+        filteredItems = filteredItems.filter((p) => p.totalStock > 0);
+      } else if (status === 'LOW') {
+        filteredItems = filteredItems.filter((p) => p.totalStock > 0 && p.totalStock <= p.lowStockThreshold);
       } else if (status === 'OUT') {
-        filteredItems = allMapped.filter((p) => p.totalStock === 0);
+        filteredItems = filteredItems.filter((p) => p.totalStock === 0);
       } else if (status === 'EXPIRED') {
-        filteredItems = allMapped.filter((p) => p.expiredBatchCount > 0);
+        filteredItems = filteredItems.filter((p) => p.expiredBatchCount > 0);
       } else if (status === 'NEAR_EXPIRY') {
-        filteredItems = allMapped.filter((p) => p.nearExpiryBatchCount > 0);
+        filteredItems = filteredItems.filter((p) => p.nearExpiryBatchCount > 0);
       }
     }
 
@@ -234,11 +261,24 @@ export class ProductsService {
   /**
    * Get a single product by ID with stock batches
    */
-  async getProductById(tenantId: string, id: string) {
+  async getProductById(tenantId: string, id: string, storeId?: string) {
+    const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
+    }
+
     const product = await this.prisma.product.findFirst({
       where: { id, tenantId },
       include: {
         batches: {
+          where: {
+            ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+          },
           orderBy: { expiryDate: 'asc' },
         },
       },
@@ -268,8 +308,8 @@ export class ProductsService {
   /**
    * Alias for getProductById
    */
-  async findOneProduct(tenantId: string, id: string) {
-    return this.getProductById(tenantId, id);
+  async findOneProduct(tenantId: string, id: string, storeId?: string) {
+    return this.getProductById(tenantId, id, storeId);
   }
 
   /**
@@ -335,17 +375,30 @@ export class ProductsService {
   /**
    * Lookup product and active FEFO-ordered batches by barcode
    */
-  async lookupByBarcode(tenantId: string, barcode: string) {
+  async lookupByBarcode(tenantId: string, barcode: string, storeId?: string) {
     const cleanBarcode = barcode.trim();
     if (!cleanBarcode) {
       throw new BadRequestException('Barcode parameter is required');
+    }
+
+    const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
     }
 
     const product = await this.prisma.product.findFirst({
       where: { tenantId, barcode: cleanBarcode },
       include: {
         batches: {
-          where: { quantityRemaining: { gt: 0 } },
+          where: {
+            ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+            quantityRemaining: { gt: 0 },
+          },
           orderBy: { expiryDate: 'asc' },
         },
       },

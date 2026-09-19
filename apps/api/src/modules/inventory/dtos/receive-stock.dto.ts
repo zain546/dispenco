@@ -10,6 +10,10 @@ import { Type } from 'class-transformer';
 
 export class ReceiveStockDto {
   @IsString()
+  @IsOptional()
+  storeId?: string;
+
+  @IsString()
   @IsNotEmpty()
   productId!: string;
 

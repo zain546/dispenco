@@ -33,11 +33,11 @@ export class PurchasesService {
     }
 
     const store = await this.prisma.store.findFirst({
-      where: { id: dto.storeId, tenantId },
+      where: { id: dto.storeId, tenantId, isActive: true },
     });
 
     if (!store) {
-      throw new NotFoundException(`Store with ID "${dto.storeId}" not found`);
+      throw new NotFoundException(`Active store with ID "${dto.storeId}" not found for this tenant`);
     }
 
     const totalCost = dto.items.reduce(
@@ -215,7 +215,16 @@ export class PurchasesService {
 
   async findAll(tenantId: string, storeId?: string, status?: string) {
     const where: any = { tenantId };
-    if (storeId) where.storeId = storeId;
+    const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
+      where.storeId = effectiveStoreId;
+    }
     if (status && status in PurchaseOrderStatus) {
       where.status = status as PurchaseOrderStatus;
     }

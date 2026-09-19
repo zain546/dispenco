@@ -44,8 +44,9 @@ export class SalesController {
   async getRecentSales(
     @CurrentUser('tenantId') tenantId: string,
     @Query('limit') limit?: string,
+    @Query('storeId') storeId?: string,
   ) {
-    return this.salesService.getRecentSales(tenantId, limit ? Number(limit) : 20);
+    return this.salesService.getRecentSales(tenantId, limit ? Number(limit) : 20, storeId);
   }
 
   /**

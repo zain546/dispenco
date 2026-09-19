@@ -18,7 +18,14 @@ export class SalesService {
 
     // Determine target store
     let targetStoreId = dto.storeId;
-    if (!targetStoreId) {
+    if (targetStoreId) {
+      const storeExists = await this.prisma.store.findFirst({
+        where: { id: targetStoreId, tenantId, isActive: true },
+      });
+      if (!storeExists) {
+        throw new NotFoundException(`Active store with ID "${targetStoreId}" not found for this tenant`);
+      }
+    } else {
       const defaultStore = await this.prisma.store.findFirst({
         where: { tenantId, isActive: true },
       });
@@ -352,9 +359,22 @@ export class SalesService {
     };
   }
 
-  async getRecentSales(tenantId: string, limit: number = 20) {
+  async getRecentSales(tenantId: string, limit: number = 20, storeId?: string) {
+    const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
+    if (effectiveStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: effectiveStoreId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+      }
+    }
+
     const sales = await this.prisma.sale.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+      },
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {

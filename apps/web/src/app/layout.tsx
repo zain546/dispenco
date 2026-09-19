@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import React from 'react';
 import { QueryProvider } from '@/lib/query-provider';
 import { AuthProvider } from '@/context/auth-context';
+import { StoreProvider } from '@/context/store-context';
 import './globals.css';
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -25,8 +26,10 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
         <QueryProvider>
           <AuthProvider>
-            {children}
-            <Toaster closeButton position="top-right" richColors />
+            <StoreProvider>
+              {children}
+              <Toaster closeButton position="top-right" richColors />
+            </StoreProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

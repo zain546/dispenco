@@ -5,7 +5,9 @@ import {
   reportsApi,
   SalesReportResponse,
   GetSalesReportParams,
+  OrgOverviewResponse,
 } from '../services/reports-api';
+import { useStore } from '@/context/store-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +24,7 @@ import {
   RefreshCw,
   Trophy,
   Layers,
+  Building2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -38,12 +41,14 @@ import {
 type PresetRange = 'today' | '7d' | '30d' | 'month' | 'custom';
 
 export function ReportsView() {
+  const { activeStoreId, activeStore, isAllStores, setActiveStoreId } = useStore();
   const [preset, setPreset] = useState<PresetRange>('30d');
   const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState<SalesReportResponse['data'] | null>(null);
+  const [orgOverviewData, setOrgOverviewData] = useState<OrgOverviewResponse['data'] | null>(null);
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
 
@@ -82,9 +87,25 @@ export function ReportsView() {
         if (endDate) params.endDate = endDate;
       }
 
+      if (!isAllStores && activeStoreId) {
+        params.storeId = activeStoreId;
+      }
+
       const res = await reportsApi.getSalesReport(params);
       if (res.success) {
         setReportData(res.data);
+      }
+
+      if (isAllStores) {
+        const orgRes = await reportsApi.getOrgOverview({
+          startDate: params.startDate,
+          endDate: params.endDate,
+        });
+        if (orgRes.success) {
+          setOrgOverviewData(orgRes.data);
+        }
+      } else {
+        setOrgOverviewData(null);
       }
     } catch (err) {
       console.error('Failed to load sales report:', err);
@@ -95,7 +116,7 @@ export function ReportsView() {
 
   useEffect(() => {
     fetchReport();
-  }, [preset, groupBy]);
+  }, [preset, groupBy, activeStoreId, isAllStores]);
 
   const handleApplyCustomDates = () => {
     if (preset === 'custom') {
@@ -115,10 +136,22 @@ export function ReportsView() {
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <BarChart3 className="size-6 text-primary" />
-            Pharmacy Sales Analytics
-          </h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Pharmacy Sales Analytics
+            </h1>
+            <Badge
+              variant="outline"
+              className={`text-xs font-semibold ${
+                isAllStores
+                  ? 'bg-purple-500/10 text-purple-600 border-purple-500/30 dark:text-purple-400'
+                  : 'bg-primary/10 text-primary border-primary/30'
+              }`}
+            >
+              {isAllStores ? 'Org Overview (All Branches)' : (activeStore?.name || 'Active Branch')}
+            </Badge>
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             Real-time revenue performance, sales trends over time, and top-selling pharmaceutical products.
           </p>
@@ -315,6 +348,109 @@ export function ReportsView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Multi-Branch Comparative Performance Card */}
+      {isAllStores && orgOverviewData && orgOverviewData.stores.length > 0 && (
+        <Card className="border-border/60 shadow-xs overflow-hidden">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+                  <Building2 className="size-4 text-purple-600 dark:text-purple-400" />
+                  <span>Branch-by-Branch Comparative Matrix</span>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Sales breakdown, revenue contributions, and stock inventory across all registered pharmacy stores
+                </CardDescription>
+              </div>
+              <Badge variant="secondary" className="text-xs font-medium w-fit">
+                {orgOverviewData.stores.length} Active {orgOverviewData.stores.length === 1 ? 'Branch' : 'Branches'}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-y border-border/60">
+                  <tr>
+                    <th className="px-4 py-2.5 font-semibold">Store / Branch</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Revenue</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Share (%)</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Transactions</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Avg Order</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Items Sold</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Stocked Items</th>
+                    <th className="px-4 py-2.5 font-semibold text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {orgOverviewData.stores.map((s) => (
+                    <tr key={s.storeId} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="size-3.5 text-primary shrink-0" />
+                          <div>
+                            <span className="font-semibold block">{s.storeName}</span>
+                            <span className="text-[11px] text-muted-foreground">{s.address || 'Counter / Branch'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-foreground">
+                        {s.currency} {s.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="font-semibold text-foreground">{s.revenueSharePercent}%</span>
+                          <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, s.revenueSharePercent)}%` }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground font-medium">
+                        {s.totalTransactions}
+                      </td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">
+                        {s.currency} {s.averageOrderValue.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground">
+                        {s.totalItemsSold}
+                      </td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {s.uniqueProductsStocked} Products ({s.totalUnitsInStock} Units)
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setActiveStoreId(s.storeId)}
+                          className="h-7 text-xs px-2 text-primary hover:bg-primary/10"
+                        >
+                          Focus Branch
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Zero Store Branches Fallback for Org Overview */}
+      {isAllStores && orgOverviewData && orgOverviewData.stores.length === 0 && (
+        <Card className="border-border/60 shadow-2xs p-6 text-center">
+          <div className="flex flex-col items-center justify-center text-muted-foreground space-y-2">
+            <Building2 className="size-8 text-muted-foreground/50" />
+            <p className="text-sm font-semibold text-foreground">No Active Store Branches Found</p>
+            <p className="text-xs max-w-sm">
+              You do not have any registered active branches yet. Click on the store switcher in the header to register your first pharmacy branch.
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Main Revenue Chart Section */}
       <Card className="border-border/60 shadow-2xs">

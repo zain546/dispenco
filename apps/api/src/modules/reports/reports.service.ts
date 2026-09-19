@@ -1,20 +1,183 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { GetSalesReportDto, GroupByFrequency } from './dto/get-sales-report.dto';
+import { GetOrgOverviewDto } from './dto/get-org-overview.dto';
 import { SaleStatus } from '@prisma/client';
 
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSalesReport(tenantId: string, query: GetSalesReportDto) {
-    const startDate = query.startDate
-      ? new Date(query.startDate)
-      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // default last 30 days
-    const endDate = query.endDate ? new Date(query.endDate) : new Date();
+  /**
+   * Org-level summary aggregating analytics and side-by-side branch comparison across all stores
+   */
+  async getOrgOverview(tenantId: string, query: GetOrgOverviewDto) {
+    let startDate: Date;
+    if (query.startDate) {
+      startDate = new Date(query.startDate);
+      if (isNaN(startDate.getTime())) {
+        throw new BadRequestException('Invalid startDate format');
+      }
+    } else {
+      startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // default last 30 days
+    }
+    startDate.setHours(0, 0, 0, 0);
 
-    // Standardize endDate to end of day
+    let endDate: Date;
+    if (query.endDate) {
+      endDate = new Date(query.endDate);
+      if (isNaN(endDate.getTime())) {
+        throw new BadRequestException('Invalid endDate format');
+      }
+    } else {
+      endDate = new Date();
+    }
     endDate.setHours(23, 59, 59, 999);
+
+    if (startDate.getTime() > endDate.getTime()) {
+      const temp = startDate;
+      startDate = endDate;
+      endDate = temp;
+    }
+
+    // 1. Fetch all active stores for this tenant
+    const stores = await this.prisma.store.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // 2. Fetch all completed sales within date range
+    const sales = await this.prisma.sale.findMany({
+      where: {
+        tenantId,
+        status: SaleStatus.COMPLETED,
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        saleItems: true,
+      },
+    });
+
+    // 3. Fetch active batches per store for inventory health
+    const batches = await this.prisma.batch.findMany({
+      where: {
+        tenantId,
+        quantityRemaining: { gt: 0 },
+      },
+      select: {
+        storeId: true,
+        productId: true,
+        quantityRemaining: true,
+      },
+    });
+
+    // 4. Overall Org Totals
+    let totalRevenue = 0;
+    let totalItemsSold = 0;
+    const totalTransactions = sales.length;
+
+    sales.forEach((s) => {
+      totalRevenue += Number(s.totalAmount);
+      s.saleItems.forEach((si) => {
+        totalItemsSold += si.quantity;
+      });
+    });
+
+    const averageOrderValue =
+      totalTransactions > 0 ? Number((totalRevenue / totalTransactions).toFixed(2)) : 0;
+
+    // 5. Per-Store Breakdown
+    const storeBreakdowns = stores.map((store) => {
+      const storeSales = sales.filter((s) => s.storeId === store.id);
+      const storeBatches = batches.filter((b) => b.storeId === store.id);
+
+      let storeRevenue = 0;
+      let storeItemsSold = 0;
+
+      storeSales.forEach((s) => {
+        storeRevenue += Number(s.totalAmount);
+        s.saleItems.forEach((si) => {
+          storeItemsSold += si.quantity;
+        });
+      });
+
+      const storeTransactions = storeSales.length;
+      const storeAov =
+        storeTransactions > 0
+          ? Number((storeRevenue / storeTransactions).toFixed(2))
+          : 0;
+
+      const uniqueProductsStocked = new Set(storeBatches.map((b) => b.productId)).size;
+      const totalUnitsInStock = storeBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+      const revenueSharePercent =
+        totalRevenue > 0 ? Number(((storeRevenue / totalRevenue) * 100).toFixed(1)) : 0;
+
+      return {
+        storeId: store.id,
+        storeName: store.name,
+        address: store.address,
+        currency: store.currency,
+        totalRevenue: Number(storeRevenue.toFixed(2)),
+        totalTransactions: storeTransactions,
+        totalItemsSold: storeItemsSold,
+        averageOrderValue: storeAov,
+        revenueSharePercent,
+        activeBatchesCount: storeBatches.length,
+        uniqueProductsStocked,
+        totalUnitsInStock,
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        summary: {
+          totalRevenue: Number(totalRevenue.toFixed(2)),
+          totalTransactions,
+          totalItemsSold,
+          averageOrderValue,
+          totalStoresCount: stores.length,
+          dateRange: {
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+          },
+        },
+        stores: storeBreakdowns,
+      },
+    };
+  }
+
+  async getSalesReport(tenantId: string, query: GetSalesReportDto) {
+    let startDate: Date;
+    if (query.startDate) {
+      startDate = new Date(query.startDate);
+      if (isNaN(startDate.getTime())) {
+        throw new BadRequestException('Invalid startDate format');
+      }
+    } else {
+      startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // default last 30 days
+    }
+    startDate.setHours(0, 0, 0, 0);
+
+    let endDate: Date;
+    if (query.endDate) {
+      endDate = new Date(query.endDate);
+      if (isNaN(endDate.getTime())) {
+        throw new BadRequestException('Invalid endDate format');
+      }
+    } else {
+      endDate = new Date();
+    }
+    endDate.setHours(23, 59, 59, 999);
+
+    if (startDate.getTime() > endDate.getTime()) {
+      const temp = startDate;
+      startDate = endDate;
+      endDate = temp;
+    }
 
     const whereCondition: any = {
       tenantId,
@@ -25,7 +188,13 @@ export class ReportsService {
       },
     };
 
-    if (query.storeId) {
+    if (query.storeId && query.storeId !== 'all') {
+      const store = await this.prisma.store.findFirst({
+        where: { id: query.storeId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${query.storeId}" not found for this tenant`);
+      }
       whereCondition.storeId = query.storeId;
     }
 

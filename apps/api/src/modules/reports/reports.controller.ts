@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { GetSalesReportDto } from './dto/get-sales-report.dto';
+import { GetOrgOverviewDto } from './dto/get-org-overview.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
@@ -19,5 +20,14 @@ export class ReportsController {
     @Query() query: GetSalesReportDto,
   ) {
     return this.reportsService.getSalesReport(tenantId, query);
+  }
+
+  @Get('org-overview')
+  @RequirePermissions(Permission.REPORTS_READ)
+  getOrgOverview(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query() query: GetOrgOverviewDto,
+  ) {
+    return this.reportsService.getOrgOverview(tenantId, query);
   }
 }

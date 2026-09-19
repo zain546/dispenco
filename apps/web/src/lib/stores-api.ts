@@ -4,16 +4,23 @@ export interface StoreData {
   id: string;
   tenantId: string;
   name: string;
-  address?: string;
+  address?: string | null;
   currency: string;
   taxRate: number;
-  receiptFooter?: string;
+  receiptFooter?: string | null;
+  expiryAlertDays?: number | null;
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateStorePayload {
   name: string;
   address?: string;
+  currency?: string;
+  taxRate?: number;
+  receiptFooter?: string;
+  expiryAlertDays?: number;
 }
 
 export const storesApi = {

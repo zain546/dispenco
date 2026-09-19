@@ -43,4 +43,17 @@ export class QueryProductsDto {
   @IsOptional()
   @IsString()
   stockStatus?: string;
+
+  @IsOptional()
+  @IsString()
+  storeId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  inStockOnly?: boolean;
 }

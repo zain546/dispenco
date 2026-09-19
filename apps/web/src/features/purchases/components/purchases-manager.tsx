@@ -38,10 +38,12 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { storesApi, StoreData } from '@/lib/stores-api';
+import { useStore } from '@/context/store-context';
 import { toast } from 'sonner';
 
 export function PurchasesManager() {
   const { user } = useAuth();
+  const { stores, activeStoreId, isAllStores } = useStore();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -49,9 +51,6 @@ export function PurchasesManager() {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  // Stores State
-  const [stores, setStores] = useState<StoreData[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
 
   // Form State for PO Creation
@@ -91,23 +90,9 @@ export function PurchasesManager() {
   };
 
   useEffect(() => {
-    const initStores = async () => {
-      try {
-        const storeRes = await storesApi.getStores();
-        if (storeRes.success && storeRes.data && storeRes.data.length > 0) {
-          setStores(storeRes.data);
-          const firstStoreId = storeRes.data[0].id;
-          setSelectedStoreId(firstStoreId);
-          fetchOrders(firstStoreId);
-        } else {
-          fetchOrders();
-        }
-      } catch {
-        fetchOrders();
-      }
-    };
-    initStores();
-  }, [statusFilter]);
+    const effectiveStoreId = !isAllStores && activeStoreId ? activeStoreId : undefined;
+    fetchOrders(effectiveStoreId);
+  }, [statusFilter, activeStoreId, isAllStores]);
 
   const loadCreateDependencies = async () => {
     try {
@@ -161,9 +146,9 @@ export function PurchasesManager() {
       toast.error('Please select a supplier');
       return;
     }
-    const activeStoreId = selectedStoreId || stores[0]?.id;
-    if (!activeStoreId) {
-      toast.error('Active store is missing');
+    const targetStoreId = selectedStoreId || (!isAllStores && activeStoreId ? activeStoreId : stores[0]?.id);
+    if (!targetStoreId) {
+      toast.error('Please select an active store branch');
       return;
     }
     if (poItems.length === 0) {
@@ -174,7 +159,7 @@ export function PurchasesManager() {
     setSubmitting(true);
     try {
       const res = await purchasesApi.createPurchaseOrder({
-        storeId: activeStoreId,
+        storeId: targetStoreId,
         supplierId: selectedSupplierId,
         notes: poNotes,
         items: poItems,

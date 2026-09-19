@@ -130,6 +130,7 @@ export class AuthService {
         email: result.user.email,
         name: result.user.name,
         tenantId: result.tenant.id,
+        storeId: result.store?.id || null,
         storeName: result.store?.name || null,
         role: 'Owner',
         permissions: userPermissions,
@@ -174,7 +175,9 @@ export class AuthService {
 
     const primaryRole = user.userRoles[0]?.role;
     const roleName = primaryRole?.name || 'User';
-    const storeName = user.tenant.stores[0]?.name || null;
+    const store = user.tenant.stores[0] || null;
+    const storeName = store?.name || null;
+    const storeId = store?.id || null;
 
     const userPermissions = primaryRole?.rolePermissions.map(
       (rp) => rp.permission.name
@@ -200,6 +203,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         tenantId: user.tenantId,
+        storeId,
         storeName,
         role: roleName,
         permissions: userPermissions,

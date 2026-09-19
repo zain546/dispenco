@@ -36,7 +36,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAuth } from '@/context/auth-context';
+import { useStore } from '@/context/store-context';
 import { usePermissions } from '@/hooks/use-permissions';
+import { StoreSwitcher } from '@/components/store-switcher';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -57,6 +59,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const { user, storeName, logout } = useAuth();
+  const { activeStore, isAllStores } = useStore();
   const permissions = usePermissions();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -77,7 +80,9 @@ export default function DashboardLayout({
   };
 
   const userName = user?.name || 'Owner Pharmacy';
-  const displayStoreName = storeName || user?.storeName || 'Main Branch';
+  const displayStoreName = isAllStores
+    ? 'All Stores (Org View)'
+    : (activeStore?.name || storeName || user?.storeName || 'Main Branch');
   const role = user?.role || 'Owner';
 
   const getInitials = (name: string) => {
@@ -334,15 +339,7 @@ export default function DashboardLayout({
                 </SheetContent>
               </Sheet>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground min-w-0">
-                <Store className="size-4 sm:size-5 text-primary shrink-0" />
-                <span className="truncate">
-                  <span className="hidden sm:inline">Active Store: </span>
-                  <strong className="text-foreground font-semibold">
-                    {displayStoreName}
-                  </strong>
-                </span>
-              </div>
+              <StoreSwitcher />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground shrink-0">

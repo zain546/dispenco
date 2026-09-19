@@ -10,6 +10,7 @@ export interface UserSession {
   email: string;
   name: string;
   tenantId: string;
+  storeId?: string;
   storeName?: string;
   role?: string;
   permissions?: string[];

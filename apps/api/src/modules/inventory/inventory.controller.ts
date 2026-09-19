@@ -40,8 +40,9 @@ export class InventoryController {
   async lookupByBarcode(
     @CurrentUser('tenantId') tenantId: string,
     @Param('barcode') barcode: string,
+    @Query('storeId') storeId?: string,
   ) {
-    return this.inventoryService.lookupByBarcode(tenantId, barcode);
+    return this.inventoryService.lookupByBarcode(tenantId, barcode, storeId);
   }
 
   /**
@@ -52,8 +53,9 @@ export class InventoryController {
   async getProductBatches(
     @CurrentUser('tenantId') tenantId: string,
     @Param('productId') productId: string,
+    @Query('storeId') storeId?: string,
   ) {
-    return this.inventoryService.getProductBatches(tenantId, productId);
+    return this.inventoryService.getProductBatches(tenantId, productId, storeId);
   }
 
   /**
@@ -111,6 +113,7 @@ export class InventoryController {
   async getInventoryAggregation(
     @CurrentUser('tenantId') tenantId: string,
     @Query('storeId') storeId?: string,
+    @Query('inStockOnly') inStockOnly?: string,
     @Query('lowStockOnly') lowStockOnly?: string,
     @Query('expiringSoonOnly') expiringSoonOnly?: string,
     @Query('priorityOnly') priorityOnly?: string,
@@ -121,6 +124,7 @@ export class InventoryController {
   ) {
     return this.inventoryService.getInventoryAggregation(tenantId, {
       storeId,
+      inStockOnly: inStockOnly === 'true',
       lowStockOnly: lowStockOnly === 'true',
       expiringSoonOnly: expiringSoonOnly === 'true',
       priorityOnly: priorityOnly === 'true',
@@ -135,6 +139,7 @@ export class InventoryController {
   async getInventoryOverview(
     @CurrentUser('tenantId') tenantId: string,
     @Query('storeId') storeId?: string,
+    @Query('inStockOnly') inStockOnly?: string,
     @Query('lowStockOnly') lowStockOnly?: string,
     @Query('expiringSoonOnly') expiringSoonOnly?: string,
     @Query('priorityOnly') priorityOnly?: string,
@@ -146,6 +151,7 @@ export class InventoryController {
     return this.getInventoryAggregation(
       tenantId,
       storeId,
+      inStockOnly,
       lowStockOnly,
       expiringSoonOnly,
       priorityOnly,

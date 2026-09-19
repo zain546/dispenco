@@ -69,18 +69,20 @@ export class ProductsController {
   @RequirePermissions(Permission.INVENTORY_READ)
   findByBarcode(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('barcode') barcode: string
+    @Param('barcode') barcode: string,
+    @Query('storeId') storeId?: string,
   ) {
-    return this.productsService.lookupByBarcode(tenantId, barcode);
+    return this.productsService.lookupByBarcode(tenantId, barcode, storeId);
   }
 
   @Get(':id')
   @RequirePermissions(Permission.INVENTORY_READ)
   findOne(
     @CurrentUser('tenantId') tenantId: string,
-    @Param('id') id: string
+    @Param('id') id: string,
+    @Query('storeId') storeId?: string,
   ) {
-    return this.productsService.findOneProduct(tenantId, id);
+    return this.productsService.findOneProduct(tenantId, id, storeId);
   }
 
   @Patch(':id')

@@ -59,6 +59,7 @@ import {
 import { productsApi, type ProductData } from '../services/products-api';
 import { PRODUCT_CATEGORIES } from '../schemas/product-schema';
 import { ProductBatchesModal } from './product-batches-modal';
+import { useStore } from '@/context/store-context';
 
 // ==========================================
 // 1. Helper Utilities (SRP & Pure Functions)
@@ -643,9 +644,11 @@ function ProductDeactivationModal({
 
 interface ProductListProps {
   hideHeader?: boolean;
+  defaultStockStatus?: string;
 }
 
-export function ProductList({ hideHeader = false }: ProductListProps = {}) {
+export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: ProductListProps = {}) {
+  const { activeStoreId, isAllStores } = useStore();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -654,7 +657,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [selectedStockStatus, setSelectedStockStatus] = useState<string>('ALL');
+  const [selectedStockStatus, setSelectedStockStatus] = useState<string>(defaultStockStatus);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [meta, setMeta] = useState({
@@ -700,6 +703,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
         search: debouncedSearch.trim() || undefined,
         category: selectedCategory !== 'ALL' ? selectedCategory : undefined,
         stockStatus: selectedStockStatus !== 'ALL' ? selectedStockStatus : undefined,
+        storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
       });
 
       setProducts(res.data || []);
@@ -720,7 +724,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
         setIsLoading(false);
       }
     }
-  }, [page, limit, debouncedSearch, selectedCategory, selectedStockStatus]);
+  }, [page, limit, debouncedSearch, selectedCategory, selectedStockStatus, activeStoreId, isAllStores]);
 
   useEffect(() => {
     fetchProducts();
@@ -910,6 +914,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Stock Statuses</SelectItem>
+                <SelectItem value="IN_STOCK">✅ In Stock Only</SelectItem>
                 <SelectItem value="LOW">⚠️ Low Stock</SelectItem>
                 <SelectItem value="OUT">🚫 Out of Stock</SelectItem>
                 <SelectItem value="EXPIRED">🔴 Expired Stock</SelectItem>
@@ -1054,6 +1059,7 @@ export function ProductList({ hideHeader = false }: ProductListProps = {}) {
         productId={selectedProductForBatches?.id || null}
         open={batchModalOpen}
         onOpenChange={setBatchModalOpen}
+        storeId={(!isAllStores && activeStoreId) ? activeStoreId : undefined}
       />
     </div>
   );

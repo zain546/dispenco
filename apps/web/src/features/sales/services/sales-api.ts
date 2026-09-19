@@ -63,8 +63,10 @@ export const salesApi = {
     return response.data;
   },
 
-  getRecentSales: async (limit: number = 20) => {
-    const response = await apiClient.get(`/sales/recent?limit=${limit}`);
+  getRecentSales: async (limit: number = 20, storeId?: string) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (storeId) params.append('storeId', storeId);
+    const response = await apiClient.get(`/sales/recent?${params.toString()}`);
     return response.data;
   },
 

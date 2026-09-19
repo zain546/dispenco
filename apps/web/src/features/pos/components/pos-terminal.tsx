@@ -53,6 +53,7 @@ import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { getMedicineIconConfig } from '@/features/inventory/components/product-list';
 import { posOfflineService } from '../services/pos-offline-service';
 import { OfflineSyncModal } from './offline-sync-modal';
+import { useStore } from '@/context/store-context';
 import { toast } from 'sonner';
 
 export interface CartItem {
@@ -77,6 +78,9 @@ const getSingleUnitPrice = (product: ProductData): number => {
 };
 
 export function POSTerminal() {
+  const { activeStoreId, activeStore, isAllStores, stores } = useStore();
+
+  // Cart & Search State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ProductData[]>([]);
@@ -150,7 +154,7 @@ export function POSTerminal() {
   const fetchRecentSales = async () => {
     setIsLoadingRecentSales(true);
     try {
-      const res = await salesApi.getRecentSales(25);
+      const res = await salesApi.getRecentSales(25, !isAllStores && activeStoreId ? activeStoreId : undefined);
       setRecentSales(res?.sales || []);
     } catch (err) {
       console.error('Failed to fetch recent sales:', err);
@@ -327,7 +331,10 @@ export function POSTerminal() {
   useEffect(() => {
     const loadTopSellers = async () => {
       try {
-        const res = await productsApi.getProducts({ limit: 50 });
+        const res = await productsApi.getProducts({
+          limit: 50,
+          storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+        });
         const items: ProductData[] = res?.data || [];
         const priorityItems = items.filter((p) =>
           Boolean((p.attributes as Record<string, unknown>)?.isPriority)
@@ -338,7 +345,7 @@ export function POSTerminal() {
       }
     };
     loadTopSellers();
-  }, []);
+  }, [activeStoreId, isAllStores]);
 
   useEffect(() => {
     focusSearchInput();
@@ -376,7 +383,10 @@ export function POSTerminal() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await productsApi.getProducts({ search: searchQuery.trim() });
+        const res = await productsApi.getProducts({
+          search: searchQuery.trim(),
+          storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+        });
         const items: ProductData[] = res?.data || [];
         setSearchResults(items);
         setSelectedResultIndex(0);
@@ -388,7 +398,7 @@ export function POSTerminal() {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, activeStoreId, isAllStores]);
 
   const resolveTaxRateFromCode = (taxCode?: string | null): number => {
     if (!taxCode) return 0;
@@ -541,7 +551,10 @@ export function POSTerminal() {
   const handleBarcodeScan = async (scannedCode: string) => {
     if (!scannedCode.trim()) return;
     try {
-      const res = await productsApi.lookupByBarcode(scannedCode.trim());
+      const res = await productsApi.lookupByBarcode(
+        scannedCode.trim(),
+        (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+      );
       if (res?.product) {
         addToCart(res.product);
       } else {
@@ -677,8 +690,25 @@ export function POSTerminal() {
       return;
     }
 
+    if (stores.length === 0) {
+      toast.error('No active store branch found. Please add a store branch in settings before processing sales.');
+      return;
+    }
+
+    if (isAllStores) {
+      toast.error('Please select a specific store branch from the header switcher to process sales.');
+      return;
+    }
+
+    const currentBranchId = activeStoreId || stores[0]?.id;
+    if (!currentBranchId) {
+      toast.error('No valid store branch selected. Please select a branch to process sales.');
+      return;
+    }
+
     setIsSubmitting(true);
     const payload = {
+      storeId: currentBranchId || undefined,
       customerName: customerName.trim() || undefined,
       customerPhone: customerPhone.trim() || undefined,
       overallDiscount: overallDiscount > 0 ? overallDiscount : undefined,
@@ -769,6 +799,9 @@ export function POSTerminal() {
               <ShoppingCart className="size-5 sm:size-6 text-primary shrink-0" />
               <span>POS Billing Counter</span>
             </h1>
+            <Badge variant="outline" className="text-[11px] font-semibold border-primary/30 text-primary bg-primary/10">
+              {isAllStores ? 'Org Overview (Select branch to bill)' : (activeStore?.name || 'Main Counter')}
+            </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
             Fast keyboard & scanner-driven pharmacy sales counter with local-first offline resilience.
@@ -828,6 +861,28 @@ export function POSTerminal() {
           </div>
         </div>
       </div>
+
+      {/* Edge-case Store Selection Alerts */}
+      {stores.length === 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-lg text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>No active store branch found:</strong> You must create or activate a store branch in the header switcher before processing sales.
+            </span>
+          </div>
+        </div>
+      )}
+      {isAllStores && (
+        <div className="bg-purple-500/10 border border-purple-500/30 text-purple-900 dark:text-purple-200 px-4 py-3 rounded-lg text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 text-purple-600 shrink-0" />
+            <span>
+              <strong>Org Overview Active:</strong> Sales must be linked to a physical store branch for FEFO batch deductions. Please select a specific branch from the header to transact.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main POS Interface Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
@@ -1850,3 +1905,6 @@ export function POSTerminal() {
     </div>
   );
 }
+
+export const PosTerminal = POSTerminal;
+

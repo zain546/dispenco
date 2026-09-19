@@ -35,11 +35,13 @@ import {
   type ProductData,
   type ReceiveStockPayload,
 } from '../services/products-api';
+import { useStore } from '@/context/store-context';
 import { formatCategory, getMedicineIconConfig, formatUnitPlural } from './product-list';
 
 export function StockReceiveForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { activeStoreId, activeStore, isAllStores } = useStore();
   const preselectedProductId = searchParams.get('productId');
 
   // Search & Product Selection State
@@ -159,6 +161,7 @@ export function StockReceiveForm() {
     }
 
     const payload: ReceiveStockPayload = {
+      storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
       productId: selectedProduct.id,
       quantity: Number(quantity),
       expiryDate,

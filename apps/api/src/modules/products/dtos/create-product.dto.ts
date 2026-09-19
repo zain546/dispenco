@@ -58,6 +58,10 @@ export class CreateProductDto {
   attributes?: Record<string, unknown>;
 
   // Unified Initial Stock & Batch Fields
+  @IsString()
+  @IsOptional()
+  storeId?: string;
+
   @IsInt()
   @Min(0, { message: 'Stock quantity must be 0 or greater' })
   @IsOptional()

@@ -32,12 +32,14 @@ interface ProductBatchesModalProps {
   productId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  storeId?: string;
 }
 
 export function ProductBatchesModal({
   productId,
   open,
   onOpenChange,
+  storeId,
 }: ProductBatchesModalProps) {
   const [loading, setLoading] = useState(false);
   const [productInfo, setProductInfo] = useState<{
@@ -54,7 +56,7 @@ export function ProductBatchesModal({
     if (!productId) return;
     setLoading(true);
     productsApi
-      .getProductBatches(productId)
+      .getProductBatches(productId, storeId)
       .then((res) => {
         setProductInfo(res.product);
         setBatches(res.batches || []);
