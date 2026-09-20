@@ -64,7 +64,7 @@ export class RolesService {
         tenantId,
         'Manager',
         DEFAULT_MANAGER_PERMISSIONS,
-        false
+        true
       );
     }
 
@@ -74,7 +74,7 @@ export class RolesService {
         tenantId,
         'Pharmacist',
         DEFAULT_PHARMACIST_PERMISSIONS,
-        false
+        true
       );
     }
 
@@ -84,7 +84,7 @@ export class RolesService {
         tenantId,
         'Cashier',
         DEFAULT_CASHIER_PERMISSIONS,
-        false
+        true
       );
     }
   }
@@ -147,10 +147,12 @@ export class RolesService {
       ],
     });
 
+    const standardRoleNames = new Set(['owner', 'manager', 'pharmacist', 'cashier', 'staff']);
+
     return roles.map((role) => ({
       id: role.id,
       name: role.name,
-      isDefault: role.isDefault,
+      isDefault: role.isDefault || standardRoleNames.has(role.name.toLowerCase()),
       userCount: role._count.userRoles,
       permissions: role.rolePermissions.map((rp) => rp.permission.name),
       createdAt: role.createdAt.toISOString(),

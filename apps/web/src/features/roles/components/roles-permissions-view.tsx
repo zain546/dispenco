@@ -46,55 +46,67 @@ export function RolesPermissionsView() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
-            <Shield className="size-6 text-primary" />
-            <span>Team & Access Control Hub</span>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Shield className="size-4" />
+            </div>
+            <span>Team & Access Control</span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Enterprise RBAC: manage employee accounts, define custom roles, and configure granular permissions.
+            Configure staff member accounts, assign roles, and define granular operational permissions.
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchData}
-          disabled={isLoading}
-          className="h-9 px-3 gap-1.5 self-start sm:self-auto text-xs"
-          title="Refresh team data"
-        >
-          <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchData}
+            disabled={isLoading}
+            className="h-9 px-3 gap-1.5 text-xs shadow-2xs"
+            title="Refresh team data"
+          >
+            <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+        </div>
       </div>
 
       {/* Tabs Navigation */}
       <Tabs
         value={activeTab}
         onValueChange={(val) => setActiveTab(val as 'team' | 'roles')}
-        className="space-y-4"
+        className="space-y-5"
       >
-        <TabsList className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 h-auto border border-border/40">
-          <TabsTrigger
-            value="team"
-            className="gap-1.5 font-medium text-xs sm:text-sm px-3 py-1.5"
-          >
-            <Users className="size-3.5 text-primary shrink-0" />
-            <span>Staff Members ({users.length})</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="roles"
-            className="gap-1.5 font-medium text-xs sm:text-sm px-3 py-1.5"
-          >
-            <Shield className="size-3.5 text-indigo-500 shrink-0" />
-            <span>Roles & Permissions ({roles.length})</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-3">
+          <TabsList className="h-9 p-1 bg-muted/70 rounded-lg border border-border/60 inline-flex items-center gap-1 w-auto">
+            <TabsTrigger
+              value="team"
+              className="gap-2 px-3.5 py-1 text-xs font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs rounded-md transition-all cursor-pointer"
+            >
+              <Users className="size-3.5 text-primary shrink-0" />
+              <span>Staff Members</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {users.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="roles"
+              className="gap-2 px-3.5 py-1 text-xs font-medium data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs rounded-md transition-all cursor-pointer"
+            >
+              <Shield className="size-3.5 text-primary shrink-0" />
+              <span>Roles & Permissions</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {roles.length}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        {/* Tab 1: Team Members */}
-        <TabsContent value="team" className="mt-0">
+        {/* Tab 1: Staff Members */}
+        <TabsContent value="team" className="mt-0 focus-visible:outline-hidden">
           <TeamMembersList
             users={users}
             roles={roles}
@@ -104,7 +116,7 @@ export function RolesPermissionsView() {
         </TabsContent>
 
         {/* Tab 2: Roles Matrix */}
-        <TabsContent value="roles" className="mt-0">
+        <TabsContent value="roles" className="mt-0 focus-visible:outline-hidden">
           <RolesList
             roles={roles}
             permissionsData={permissionsData}

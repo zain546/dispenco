@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { UserPlus, UserCheck, Loader2 } from 'lucide-react';
+import { UserPlus, UserCheck, Loader2, CircleAlert, ShieldCheck, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { rolesApi, RoleItem, StaffUserItem } from '../services/roles-api';
+import { PERMISSION_CATEGORIES } from '@dispenco/types';
+
+const PERM_DEF_MAP = new Map(
+  PERMISSION_CATEGORIES.flatMap((c) => c.permissions).map((p) => [p.code as string, p])
+);
+
+function getRoleTooltipText(roleName: string, perms: string[]): string {
+  const lower = roleName.toLowerCase();
+  if (lower === 'owner') {
+    return 'Full unrestricted administrative authority across all store branches, inventory, POS sales, financial ledgers, staff accounts, and system settings.';
+  }
+  if (perms.length === 0) {
+    return 'No active permissions assigned.';
+  }
+  const names = perms.map((p) => PERM_DEF_MAP.get(p)?.name || p);
+  return names.join(', ');
+}
 
 interface InviteStaffModalProps {
   isOpen: boolean;
@@ -126,26 +149,27 @@ export function InviteStaffModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              {isEditing ? <UserCheck className="size-4" /> : <UserPlus className="size-4" />}
+      <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden shadow-2xl rounded-2xl border border-border bg-background">
+        <DialogHeader className="p-4 sm:p-5 border-b border-border/80 shrink-0 bg-muted/20">
+          <div className="flex items-center gap-2.5">
+            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              {isEditing ? <UserCheck className="size-5" /> : <UserPlus className="size-5" />}
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
+              <DialogTitle className="text-base font-bold text-foreground">
                 {isEditing ? `Edit Team Member: ${userToEdit?.name}` : 'Add Staff Team Member'}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                 {isEditing
-                  ? 'Update staff profile details or reassign access role.'
+                  ? 'Update staff profile details or reassign operational role.'
                   : 'Invite a pharmacist, cashier, or store manager to your pharmacy.'}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
           {/* Full Name */}
           <div className="space-y-1.5">
             <Label htmlFor="staff-name" className="text-xs font-semibold">
@@ -217,35 +241,115 @@ export function InviteStaffModal({
 
           {/* Role Selection */}
           <div className="space-y-1.5">
-            <Label htmlFor="staff-role" className="text-xs font-semibold">
-              Assigned Role <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="staff-role" className="text-xs font-semibold">
+                Assigned Role <span className="text-destructive">*</span>
+              </Label>
+            </div>
+
             <Select value={roleId} onValueChange={setRoleId}>
-              <SelectTrigger id="staff-role" className="h-9 text-sm">
+              <SelectTrigger id="staff-role" className="h-9 text-xs sm:text-sm bg-background">
                 <SelectValue placeholder="Select an access role" />
               </SelectTrigger>
-              <SelectContent>
-                {roles.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    <div className="flex items-center justify-between gap-3 w-full">
-                      <span className="font-medium">{r.name}</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {r.permissions.length} perms
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+              <SelectContent
+                position="popper"
+                side="bottom"
+                align="start"
+                className="w-[var(--radix-select-trigger-width)] max-h-60"
+              >
+                {roles.map((r) => {
+                  const isOwner = r.name.toLowerCase() === 'owner';
+                  const tooltipText = getRoleTooltipText(r.name, r.permissions);
+
+                  return (
+                    <SelectItem
+                      key={r.id}
+                      value={r.id}
+                      textValue={r.name}
+                      className="cursor-pointer py-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-3 w-full pr-4">
+                        <span className="font-medium text-xs">{r.name}</span>
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <span className="text-[10px] font-mono">
+                            {isOwner ? '17 perms' : `${r.permissions.length} perms`}
+                          </span>
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="inline-flex items-center justify-center size-4 rounded-full hover:text-foreground transition-colors cursor-pointer"
+                                  title={`${r.name}: ${tooltipText}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <CircleAlert className="size-3 text-muted-foreground hover:text-foreground" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="right"
+                                align="center"
+                                className="flex flex-col items-start w-64 p-3 bg-popover text-popover-foreground border border-border shadow-xl rounded-lg z-50 text-left [&>.rotate-45]:hidden"
+                              >
+                                <div className="flex items-center justify-between gap-2 w-full border-b border-border/60 pb-1.5">
+                                  <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
+                                    <ShieldCheck className="size-3.5 text-primary shrink-0" />
+                                    <span>{r.name} Permissions</span>
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    {isOwner ? '17 perms' : `${r.permissions.length} perms`}
+                                  </span>
+                                </div>
+
+                                {isOwner ? (
+                                  <div className="pt-1 space-y-1">
+                                    <p className="font-medium text-foreground text-xs">
+                                      Full Administrator Authority
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                      Complete unrestricted access across all store branches, stock intake, billing, financial ledgers, staff accounts, and store settings.
+                                    </p>
+                                  </div>
+                                ) : r.permissions.length === 0 ? (
+                                  <p className="text-[11px] text-muted-foreground italic pt-1">
+                                    No permissions assigned to this role.
+                                  </p>
+                                ) : (
+                                  <div className="flex flex-col gap-1 w-full pt-1 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                                    {r.permissions.map((p) => {
+                                      const def = PERM_DEF_MAP.get(p);
+                                      return (
+                                        <div
+                                          key={p}
+                                          className="flex items-center gap-1.5 text-[11px] text-foreground/90"
+                                        >
+                                          <Check className="size-3 text-primary shrink-0" />
+                                          <span className="truncate">{def?.name || p}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
+          </div>
 
-          <DialogFooter className="pt-2 gap-2 sm:gap-0">
+          <DialogFooter className="p-4 sm:p-5 border-t border-border/80 shrink-0 bg-muted/20 flex flex-row items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onClose}
               disabled={isSubmitting}
+              className="cursor-pointer"
             >
               Cancel
             </Button>
@@ -253,7 +357,7 @@ export function InviteStaffModal({
               type="submit"
               size="sm"
               disabled={isSubmitting}
-              className="gap-2 font-semibold"
+              className="gap-2 font-semibold cursor-pointer shadow-xs"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
               <span>{isEditing ? 'Save Changes' : 'Create Staff Member'}</span>

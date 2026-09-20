@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { StaffUserItem, RoleItem, rolesApi } from '../services/roles-api';
 import { InviteStaffModal } from './invite-staff-modal';
+import { RolePermissionsPopover } from './role-permissions-popover';
 import { useAuth } from '@/context/auth-context';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -98,45 +98,15 @@ export function TeamMembersList({
       return (
         <Badge
           variant="outline"
-          className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold gap-1"
+          className="bg-primary/5 text-primary border-primary/25 text-[10px] font-medium gap-1"
         >
-          <Sparkles className="size-3 fill-amber-500 text-amber-500" />
+          <ShieldCheck className="size-3" />
           <span>Owner</span>
         </Badge>
       );
     }
-    if (lower === 'manager') {
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20 text-[10px] font-semibold"
-        >
-          Manager
-        </Badge>
-      );
-    }
-    if (lower === 'pharmacist') {
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20 text-[10px] font-semibold"
-        >
-          Pharmacist
-        </Badge>
-      );
-    }
-    if (lower === 'cashier' || lower === 'staff') {
-      return (
-        <Badge
-          variant="secondary"
-          className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 text-[10px] font-semibold"
-        >
-          Cashier
-        </Badge>
-      );
-    }
     return (
-      <Badge variant="outline" className="text-[10px] font-medium border-border">
+      <Badge variant="secondary" className="text-[10px] font-medium">
         {roleName}
       </Badge>
     );
@@ -215,6 +185,11 @@ export function TeamMembersList({
                 <tbody className="divide-y divide-border">
                   {filteredUsers.map((u) => {
                     const isSelf = u.id === currentUser?.id;
+                    const matchedRole = roles.find(
+                      (r) =>
+                        (u.roleId && r.id === u.roleId) ||
+                        r.name.toLowerCase() === u.role.toLowerCase()
+                    );
 
                     return (
                       <tr
@@ -248,7 +223,15 @@ export function TeamMembersList({
 
                         {/* Role */}
                         <td className="py-3 px-4">
-                          {getRoleBadge(u.role)}
+                          <div className="flex items-center gap-1.5">
+                            {getRoleBadge(u.role)}
+                            <RolePermissionsPopover
+                              roleName={u.role}
+                              permissions={matchedRole?.permissions}
+                              isOwner={u.isOwner}
+                              triggerVariant="icon"
+                            />
+                          </div>
                         </td>
 
                         {/* Contact Phone */}
