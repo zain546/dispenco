@@ -14,6 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatCurrency } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import { customersApi, CustomerItem } from '../services/customers-api';
 
 interface RecordKhataPaymentModalProps {
@@ -73,10 +75,7 @@ export function RecordKhataPaymentModal({
       onSuccess(res.newCreditBalance);
       onClose();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Failed to record payment';
-      toast.error(msg);
+      toast.error(getErrorMessage(err, 'Failed to record payment'));
     } finally {
       setIsSubmitting(false);
     }
@@ -88,7 +87,7 @@ export function RecordKhataPaymentModal({
         {/* Pinned Header */}
         <DialogHeader className="p-4 sm:p-5 border-b border-border/80 shrink-0 bg-muted/20">
           <div className="flex items-center gap-2.5">
-            <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="size-9 rounded-xl bg-success/10 text-success flex items-center justify-center shrink-0">
               <ArrowDownCircle className="size-5" />
             </div>
             <div>
@@ -108,15 +107,15 @@ export function RecordKhataPaymentModal({
             {/* Balance Overview Card */}
             <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 flex items-center justify-between">
               <div>
-                <p className="text-[11px] text-muted-foreground font-medium">Current Khata Debt</p>
-                <p className="text-lg font-bold font-mono text-foreground mt-0.5">
-                  PKR {currentBalance.toLocaleString()}
+                <p className="text-micro text-muted-foreground font-medium uppercase text-overline">Current Khata Debt</p>
+                <p className="text-lg font-bold tabular-nums text-foreground mt-0.5">
+                  {formatCurrency(currentBalance)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[11px] text-muted-foreground font-medium">After Payment</p>
-                <p className={`text-lg font-bold font-mono mt-0.5 ${remainingBalance === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary'}`}>
-                  PKR {remainingBalance.toLocaleString()}
+                <p className="text-micro text-muted-foreground font-medium uppercase text-overline">After Payment</p>
+                <p className={`text-lg font-bold tabular-nums mt-0.5 ${remainingBalance === 0 ? 'text-success' : 'text-primary'}`}>
+                  {formatCurrency(remainingBalance)}
                 </p>
               </div>
             </div>
@@ -253,7 +252,7 @@ export function RecordKhataPaymentModal({
               className="gap-2 font-semibold cursor-pointer shadow-xs"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-              <span>Confirm PKR {numAmount > 0 ? numAmount.toLocaleString() : '0'} Payment</span>
+              <span>Confirm {formatCurrency(numAmount)} Payment</span>
             </Button>
           </DialogFooter>
         </form>

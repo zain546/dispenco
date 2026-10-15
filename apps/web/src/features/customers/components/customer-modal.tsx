@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getErrorMessage } from '@/lib/errors';
 import { customersApi, CustomerItem } from '../services/customers-api';
 
 interface CustomerModalProps {
@@ -86,10 +87,7 @@ export function CustomerModal({
       }
       onClose();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Failed to save customer';
-      toast.error(msg);
+      toast.error(getErrorMessage(err, 'Failed to save customer'));
     } finally {
       setIsSubmitting(false);
     }

@@ -4,15 +4,20 @@ DISPENCO DESIGN RULES:
 All colors, radii, and spacing must come from these CSS variables. 
 No hardcoded hex values or arbitrary Tailwind values (e.g. mt-[13px]) anywhere in the codebase.
 
-TYPOGRAPHY REFERENCE SCALE:
-- Page Title (h1):       `text-3xl font-bold tracking-tight text-foreground`
-- Section Heading (h2):  `text-xl font-semibold tracking-tight text-foreground`
-- Subsection/Card (h3):  `text-lg font-semibold text-foreground`
-- Body Text:             `text-sm text-foreground`
+TYPOGRAPHY REFERENCE SCALE (use these, never text-[Npx]):
+- Page Title (h1):       <PageHeader />  -> `text-2xl font-semibold tracking-tight`
+- Section Heading (h2):  `text-lg font-semibold tracking-tight text-foreground`
+- Card Title (h3):       `text-sm font-semibold text-foreground`
+- Body / Table Data:     `text-sm text-foreground`
 - Secondary / Muted:     `text-sm text-muted-foreground`
-- Component Labels:      `text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70`
-- Table Data:            `text-sm font-normal text-foreground`
-- Captions/Small:        `text-xs text-muted-foreground`
+- Captions / Meta:       `text-xs text-muted-foreground`
+- Overline (labels):     `text-overline` (11px, uppercase, tracked)
+- Numbers / Money:       `tabular-nums` (never font-mono for figures)
+
+STATUS COLORS (use tokens, never emerald-500 / amber-500):
+- Success: text-success, bg-success/10, border-success/20
+- Warning: text-warning, bg-warning/10, border-warning/20
+- Danger:  text-destructive, bg-destructive/10, border-destructive/20
 ================================================================================
 */
 
@@ -23,50 +28,6 @@ TYPOGRAPHY REFERENCE SCALE:
 @custom-variant dark (&:is(.dark *));
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 199 89% 48%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 199 89% 48%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 199 89% 48%;
-  }
   * {
     @apply border-border outline-ring/50;
   }
@@ -94,6 +55,10 @@ TYPOGRAPHY REFERENCE SCALE:
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -137,6 +102,10 @@ TYPOGRAPHY REFERENCE SCALE:
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.56 0.13 155);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.64 0.15 65);
+  --warning-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -172,6 +141,10 @@ TYPOGRAPHY REFERENCE SCALE:
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.72 0.14 155);
+  --success-foreground: oklch(0.205 0 0);
+  --warning: oklch(0.78 0.14 75);
+  --warning-foreground: oklch(0.205 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -188,6 +161,20 @@ TYPOGRAPHY REFERENCE SCALE:
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Named type utilities (replace arbitrary text-[10px]/text-[11px]) */
+@utility text-overline {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@utility text-micro {
+  font-size: 0.6875rem;
+  line-height: 1rem;
 }
 
 /* Custom Minimalist Scrollbar */

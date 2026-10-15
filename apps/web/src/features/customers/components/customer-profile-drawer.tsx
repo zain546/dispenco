@@ -7,8 +7,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  Calendar,
-  CreditCard,
   Banknote,
   Receipt,
   ArrowUpRight,
@@ -20,6 +18,8 @@ import {
   BadgeAlert,
   CheckCircle2,
   Clock,
+  CreditCard,
+  ShoppingBag,
 } from 'lucide-react';
 import {
   Dialog,
@@ -30,6 +30,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { StatCard } from '@/components/ui/stat-card';
+import { formatCurrency, formatDate, formatDateTime, getInitials } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import {
   customersApi,
   CustomerItem,
@@ -69,8 +72,8 @@ export function CustomerProfileDrawer({
       ]);
       setCustomer(custData);
       setLedger(ledgerData);
-    } catch {
-      toast.error('Failed to load customer profile and ledger');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to load customer profile and ledger'));
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +107,7 @@ export function CustomerProfileDrawer({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="size-11 rounded-full bg-primary/10 text-primary font-bold text-base flex items-center justify-center shrink-0">
-                  {customer?.name ? customer.name.slice(0, 2).toUpperCase() : <User className="size-5" />}
+                  {customer?.name ? getInitials(customer.name) : <User className="size-5" />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -112,22 +115,20 @@ export function CustomerProfileDrawer({
                       {customer?.name || 'Customer Profile'}
                     </DialogTitle>
                     {hasDebt ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full border border-destructive/20">
-                        <BadgeAlert className="size-3" />
-                        <span>PKR {creditBalance.toLocaleString()} Khata Balance</span>
-                      </span>
+                      <Badge variant="destructive" className="tabular-nums font-mono font-semibold">
+                        {formatCurrency(creditBalance)} Balance
+                      </Badge>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                        <CheckCircle2 className="size-3" />
-                        <span>Account Settled</span>
-                      </span>
+                      <Badge variant="success" className="font-medium">
+                        Settled
+                      </Badge>
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
                     {customer?.phone && (
                       <span className="flex items-center gap-1">
                         <Phone className="size-3" />
-                        <span>{customer.phone}</span>
+                        <span className="tabular-nums font-mono">{customer.phone}</span>
                       </span>
                     )}
                     {customer?.email && (
@@ -139,7 +140,7 @@ export function CustomerProfileDrawer({
                     {customer?.address && (
                       <span className="flex items-center gap-1">
                         <MapPin className="size-3" />
-                        <span>{customer.address}</span>
+                        <span className="truncate max-w-xs">{customer.address}</span>
                       </span>
                     )}
                   </div>
@@ -195,30 +196,30 @@ export function CustomerProfileDrawer({
               <>
                 {/* Financial Summary KPI Row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                  <div className="p-3 rounded-xl bg-card border border-border/80 shadow-2xs">
-                    <p className="text-[11px] text-muted-foreground font-medium">Khata Debt</p>
-                    <p className={`text-base font-bold font-mono mt-0.5 ${hasDebt ? 'text-destructive' : 'text-foreground'}`}>
-                      PKR {creditBalance.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-card border border-border/80 shadow-2xs">
-                    <p className="text-[11px] text-muted-foreground font-medium">Lifetime Spend</p>
-                    <p className="text-base font-bold font-mono text-foreground mt-0.5">
-                      PKR {(customer?.totalSpent || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-card border border-border/80 shadow-2xs">
-                    <p className="text-[11px] text-muted-foreground font-medium">Total Orders</p>
-                    <p className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {customer?.totalSalesCount || 0} receipts
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-card border border-border/80 shadow-2xs">
-                    <p className="text-[11px] text-muted-foreground font-medium">Repayments</p>
-                    <p className="text-base font-bold font-mono text-foreground mt-0.5">
-                      {customer?.totalPaymentsCount || 0} payments
-                    </p>
-                  </div>
+                  <StatCard
+                    label="Khata Debt"
+                    value={formatCurrency(creditBalance)}
+                    variant={hasDebt ? 'destructive' : 'default'}
+                    icon={CreditCard}
+                  />
+                  <StatCard
+                    label="Lifetime Spend"
+                    value={formatCurrency(customer?.totalSpent || 0)}
+                    variant="default"
+                    icon={ShoppingBag}
+                  />
+                  <StatCard
+                    label="Total Receipts"
+                    value={customer?.totalSalesCount || 0}
+                    variant="default"
+                    icon={Receipt}
+                  />
+                  <StatCard
+                    label="Repayments"
+                    value={customer?.totalPaymentsCount || 0}
+                    variant="default"
+                    icon={Banknote}
+                  />
                 </div>
 
                 {/* Tabs Navigation */}
@@ -234,7 +235,7 @@ export function CustomerProfileDrawer({
                     >
                       <Receipt className="size-3.5 text-primary" />
                       <span>Khata Credit Statement</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      <span className="text-micro font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
                         {ledger?.entries.length || 0}
                       </span>
                     </TabsTrigger>
@@ -244,7 +245,7 @@ export function CustomerProfileDrawer({
                     >
                       <FileText className="size-3.5 text-primary" />
                       <span>Invoices & Sales</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      <span className="text-micro font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
                         {customer?.recentSales.length || 0}
                       </span>
                     </TabsTrigger>
@@ -256,7 +257,7 @@ export function CustomerProfileDrawer({
                       <div className="p-8 text-center border border-dashed rounded-xl bg-card/40 space-y-1">
                         <CheckCircle2 className="size-8 text-muted-foreground/50 mx-auto" />
                         <p className="text-xs font-semibold text-foreground pt-1">No Khata Transactions</p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-micro text-muted-foreground">
                           This customer has no credit sales or repayments on file.
                         </p>
                       </div>
@@ -264,7 +265,7 @@ export function CustomerProfileDrawer({
                       <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs text-left">
-                            <thead className="bg-muted/40 border-b border-border/60 text-[11px] text-muted-foreground font-semibold">
+                            <thead className="bg-muted/40 border-b border-border/60 text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                               <tr>
                                 <th className="py-2.5 px-3.5">Date & Time</th>
                                 <th className="py-2.5 px-3.5">Reference</th>
@@ -281,44 +282,41 @@ export function CustomerProfileDrawer({
                                 return (
                                   <tr key={entry.id} className="hover:bg-muted/30 transition-colors">
                                     <td className="py-2.5 px-3.5 text-muted-foreground whitespace-nowrap">
-                                      {new Date(entry.date).toLocaleString([], {
-                                        dateStyle: 'medium',
-                                        timeStyle: 'short',
-                                      })}
+                                      {formatDateTime(entry.date)}
                                     </td>
-                                    <td className="py-2.5 px-3.5 font-mono text-[11px] font-semibold text-foreground whitespace-nowrap">
+                                    <td className="py-2.5 px-3.5 font-mono text-micro font-semibold text-foreground whitespace-nowrap">
                                       {entry.reference}
                                     </td>
                                     <td className="py-2.5 px-3.5 text-foreground/90 max-w-xs truncate">
                                       <div className="flex items-center gap-1.5">
                                         {isDebit ? (
-                                          <ArrowUpRight className="size-3.5 text-amber-500 shrink-0" />
+                                          <ArrowUpRight className="size-3.5 text-warning shrink-0" />
                                         ) : (
-                                          <ArrowDownLeft className="size-3.5 text-emerald-500 shrink-0" />
+                                          <ArrowDownLeft className="size-3.5 text-success shrink-0" />
                                         )}
                                         <span className="truncate">{entry.description}</span>
                                       </div>
                                     </td>
-                                    <td className="py-2.5 px-3.5 text-right font-mono font-medium whitespace-nowrap">
+                                    <td className="py-2.5 px-3.5 text-right font-mono tabular-nums font-medium whitespace-nowrap">
                                       {entry.debit > 0 ? (
-                                        <span className="text-amber-600 dark:text-amber-400">
+                                        <span className="text-warning">
                                           +{entry.debit.toLocaleString()}
                                         </span>
                                       ) : (
                                         <span className="text-muted-foreground/40">—</span>
                                       )}
                                     </td>
-                                    <td className="py-2.5 px-3.5 text-right font-mono font-medium whitespace-nowrap">
+                                    <td className="py-2.5 px-3.5 text-right font-mono tabular-nums font-medium whitespace-nowrap">
                                       {entry.credit > 0 ? (
-                                        <span className="text-emerald-600 dark:text-emerald-400">
+                                        <span className="text-success">
                                           -{entry.credit.toLocaleString()}
                                         </span>
                                       ) : (
                                         <span className="text-muted-foreground/40">—</span>
                                       )}
                                     </td>
-                                    <td className="py-2.5 px-3.5 text-right font-mono font-bold text-foreground whitespace-nowrap">
-                                      PKR {entry.balance.toLocaleString()}
+                                    <td className="py-2.5 px-3.5 text-right font-mono tabular-nums font-bold text-foreground whitespace-nowrap">
+                                      {formatCurrency(entry.balance)}
                                     </td>
                                   </tr>
                                 );
@@ -329,14 +327,14 @@ export function CustomerProfileDrawer({
                                 <td colSpan={3} className="py-2.5 px-3.5 text-foreground">
                                   Ledger Summary Total
                                 </td>
-                                <td className="py-2.5 px-3.5 text-right font-mono text-amber-600 dark:text-amber-400">
+                                <td className="py-2.5 px-3.5 text-right font-mono tabular-nums text-warning">
                                   +{(ledger?.summary.totalDebits || 0).toLocaleString()}
                                 </td>
-                                <td className="py-2.5 px-3.5 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                                <td className="py-2.5 px-3.5 text-right font-mono tabular-nums text-success">
                                   -{(ledger?.summary.totalCredits || 0).toLocaleString()}
                                 </td>
-                                <td className="py-2.5 px-3.5 text-right font-mono text-foreground">
-                                  PKR {(ledger?.summary.currentBalance || 0).toLocaleString()}
+                                <td className="py-2.5 px-3.5 text-right font-mono tabular-nums text-foreground">
+                                  {formatCurrency(ledger?.summary.currentBalance || 0)}
                                 </td>
                               </tr>
                             </tfoot>
@@ -352,7 +350,7 @@ export function CustomerProfileDrawer({
                       <div className="p-8 text-center border border-dashed rounded-xl bg-card/40 space-y-1">
                         <FileText className="size-8 text-muted-foreground/50 mx-auto" />
                         <p className="text-xs font-semibold text-foreground pt-1">No Purchases Found</p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-micro text-muted-foreground">
                           This customer hasn&apos;t completed any store sales yet.
                         </p>
                       </div>
@@ -360,7 +358,7 @@ export function CustomerProfileDrawer({
                       <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs text-left">
-                            <thead className="bg-muted/40 border-b border-border/60 text-[11px] text-muted-foreground font-semibold">
+                            <thead className="bg-muted/40 border-b border-border/60 text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                               <tr>
                                 <th className="py-2.5 px-3.5">Date</th>
                                 <th className="py-2.5 px-3.5">Receipt #</th>
@@ -374,34 +372,34 @@ export function CustomerProfileDrawer({
                               {customer?.recentSales.map((sale) => (
                                 <tr key={sale.id} className="hover:bg-muted/30 transition-colors">
                                   <td className="py-2.5 px-3.5 text-muted-foreground whitespace-nowrap">
-                                    {new Date(sale.createdAt).toLocaleDateString()}
+                                    {formatDate(sale.createdAt)}
                                   </td>
-                                  <td className="py-2.5 px-3.5 font-mono font-semibold text-foreground">
+                                  <td className="py-2.5 px-3.5 font-mono text-micro font-semibold text-foreground">
                                     {sale.receiptNumber || `SALE-${sale.id.slice(0, 6)}`}
                                   </td>
                                   <td className="py-2.5 px-3.5 text-muted-foreground">
                                     {sale.storeName}
                                   </td>
-                                  <td className="py-2.5 px-3.5 font-mono text-muted-foreground">
+                                  <td className="py-2.5 px-3.5 font-mono tabular-nums text-muted-foreground">
                                     {sale.itemsCount} items
                                   </td>
                                   <td className="py-2.5 px-3.5">
                                     {sale.status === 'ON_CREDIT' ? (
-                                      <span className="inline-flex items-center text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                      <Badge variant="warning">
                                         On Credit
-                                      </span>
+                                      </Badge>
                                     ) : sale.status === 'COMPLETED' ? (
-                                      <span className="inline-flex items-center text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                      <Badge variant="success">
                                         Paid
-                                      </span>
+                                      </Badge>
                                     ) : (
-                                      <span className="inline-flex items-center text-[10px] font-semibold text-zinc-500 bg-zinc-500/10 px-2 py-0.5 rounded-full border border-zinc-500/20">
+                                      <Badge variant="outline">
                                         {sale.status}
-                                      </span>
+                                      </Badge>
                                     )}
                                   </td>
-                                  <td className="py-2.5 px-3.5 text-right font-mono font-bold text-foreground whitespace-nowrap">
-                                    PKR {sale.totalAmount.toLocaleString()}
+                                  <td className="py-2.5 px-3.5 text-right font-mono tabular-nums font-bold text-foreground whitespace-nowrap">
+                                    {formatCurrency(sale.totalAmount)}
                                   </td>
                                 </tr>
                               ))}
