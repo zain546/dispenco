@@ -32,6 +32,10 @@ import {
   Building2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { getErrorMessage } from '@/lib/errors';
 
 export function SuppliersManager() {
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
@@ -59,9 +63,8 @@ export function SuppliersManager() {
       if (res.success) {
         setSuppliers(res.data || []);
       }
-    } catch (err: any) {
-      console.error('Fetch suppliers error:', err);
-      toast.error('Failed to load suppliers directory');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to load suppliers directory'));
     } finally {
       setLoading(false);
     }
@@ -118,9 +121,8 @@ export function SuppliersManager() {
       }
       setIsAddModalOpen(false);
       fetchSuppliers(search);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to save supplier details';
-      toast.error(msg);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to save supplier details'));
     } finally {
       setSubmitting(false);
     }
@@ -134,30 +136,26 @@ export function SuppliersManager() {
       toast.success(`Supplier "${deletingSupplier.name}" deleted successfully`);
       setDeletingSupplier(null);
       fetchSuppliers(search);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to delete supplier';
-      toast.error(msg);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to delete supplier'));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto font-sans">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Truck className="size-7 text-primary" /> Supplier Directory
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage pharmaceutical vendors, lead delivery times, and procurement contact info.
-          </p>
-        </div>
-        <Button onClick={handleOpenAddModal} className="gap-2 font-bold shadow-xs sm:w-auto w-full">
-          <Plus className="size-4" /> Add New Supplier
-        </Button>
-      </div>
+      <PageHeader
+        title="Supplier Directory"
+        description="Manage pharmaceutical vendors, lead delivery times, and procurement contact info."
+        icon={Truck}
+        actions={
+          <Button onClick={handleOpenAddModal} className="gap-2 font-bold shadow-xs">
+            <Plus className="size-4" /> Add New Supplier
+          </Button>
+        }
+      />
 
       {/* Search Filter */}
       <div className="flex items-center gap-3">
@@ -184,18 +182,20 @@ export function SuppliersManager() {
           ))}
         </div>
       ) : suppliers.length === 0 ? (
-        <Card className="p-12 text-center space-y-3">
-          <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-            <Truck className="size-6" />
-          </div>
-          <h3 className="text-base font-bold text-foreground">No Suppliers Found</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            {search ? `No suppliers matched "${search}".` : 'Add your first supplier vendor to start tracking purchase orders.'}
-          </p>
-          <Button variant="outline" size="sm" onClick={handleOpenAddModal} className="gap-1.5 text-xs font-semibold">
-            <Plus className="size-3.5" /> Add Supplier
-          </Button>
-        </Card>
+        <EmptyState
+          icon={Truck}
+          title={search ? 'No Matching Suppliers' : 'No Suppliers Found'}
+          description={
+            search
+              ? `No suppliers matched "${search}".`
+              : 'Add your first supplier vendor to start tracking purchase orders.'
+          }
+          action={
+            <Button variant="outline" size="sm" onClick={handleOpenAddModal} className="gap-1.5 text-xs font-semibold">
+              <Plus className="size-3.5" /> Add Supplier
+            </Button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {suppliers.map((supplier) => (
@@ -397,25 +397,24 @@ export function SuppliersManager() {
       </Dialog>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={!!deletingSupplier} onOpenChange={() => setDeletingSupplier(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-destructive">Delete Supplier?</DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to delete supplier <strong>{deletingSupplier?.name}</strong>? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={() => setDeletingSupplier(null)} disabled={submitting} className="text-xs">
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteSupplier} disabled={submitting} className="text-xs font-bold gap-1.5">
-              {submitting && <Loader2 className="size-3.5 animate-spin" />}
-              Delete Supplier
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deletingSupplier}
+        onOpenChange={() => setDeletingSupplier(null)}
+        title="Delete Supplier"
+        description={
+          deletingSupplier ? (
+            <span>
+              Are you sure you want to delete supplier <strong>{deletingSupplier.name}</strong>? This action cannot be undone.
+            </span>
+          ) : (
+            'Are you sure you want to delete this supplier?'
+          )
+        }
+        confirmLabel="Delete Supplier"
+        variant="destructive"
+        isLoading={submitting}
+        onConfirm={handleDeleteSupplier}
+      />
     </div>
   );
 }

@@ -40,6 +40,10 @@ import {
 import { storesApi, StoreData } from '@/lib/stores-api';
 import { useStore } from '@/context/store-context';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { formatCurrency, formatDate } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 
 export function PurchasesManager() {
   const { user } = useAuth();
@@ -81,9 +85,8 @@ export function PurchasesManager() {
       if (res.success) {
         setOrders(res.data || []);
       }
-    } catch (err: any) {
-      console.error('Fetch PO error:', err);
-      toast.error('Failed to load purchase orders');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to load purchase orders'));
     } finally {
       setLoading(false);
     }
@@ -167,9 +170,8 @@ export function PurchasesManager() {
       toast.success(res.message || 'Purchase Order created successfully');
       setIsCreateModalOpen(false);
       fetchOrders();
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to create purchase order';
-      toast.error(msg);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to create purchase order'));
     } finally {
       setSubmitting(false);
     }
@@ -199,8 +201,8 @@ export function PurchasesManager() {
         setReceiveItems(initialReceives);
         setIsReceiveModalOpen(true);
       }
-    } catch (err: any) {
-      toast.error('Failed to load purchase order details');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to load purchase order details'));
     } finally {
       setLoading(false);
     }
@@ -224,9 +226,8 @@ export function PurchasesManager() {
       toast.success(res.message || 'Shipment received and batches updated!');
       setIsReceiveModalOpen(false);
       fetchOrders();
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to receive shipment';
-      toast.error(msg);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to receive shipment'));
     } finally {
       setSubmitting(false);
     }
@@ -235,13 +236,13 @@ export function PurchasesManager() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'RECEIVED':
-        return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px]">RECEIVED</Badge>;
+        return <Badge variant="success" className="text-[10px]">RECEIVED</Badge>;
       case 'PARTIAL':
-        return <Badge className="bg-blue-500/15 text-blue-600 border-blue-500/30 text-[10px]">PARTIAL</Badge>;
+        return <Badge variant="warning" className="text-[10px]">PARTIAL</Badge>;
       case 'CANCELLED':
         return <Badge variant="secondary" className="text-[10px]">CANCELLED</Badge>;
       default:
-        return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]">PENDING</Badge>;
+        return <Badge variant="warning" className="text-[10px]">PENDING</Badge>;
     }
   };
 
@@ -251,21 +252,18 @@ export function PurchasesManager() {
   );
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto font-sans">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Truck className="size-7 text-primary" /> Purchase Orders & Shipments
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Create supplier orders, track incoming stock deliveries, and check-in inventory batches.
-          </p>
-        </div>
-        <Button onClick={handleOpenCreateModal} className="gap-2 font-bold shadow-xs sm:w-auto w-full">
-          <Plus className="size-4" /> Create Purchase Order
-        </Button>
-      </div>
+      <PageHeader
+        title="Purchase Orders & Shipments"
+        description="Create supplier orders, track incoming stock deliveries, and check-in inventory batches."
+        icon={Truck}
+        actions={
+          <Button onClick={handleOpenCreateModal} className="gap-2 font-bold shadow-xs">
+            <Plus className="size-4" /> Create Purchase Order
+          </Button>
+        }
+      />
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
@@ -290,20 +288,20 @@ export function PurchasesManager() {
           ))}
         </div>
       ) : orders.length === 0 ? (
-        <Card className="p-12 text-center space-y-3">
-          <div className="size-12 rounded-full bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-            <Box className="size-6" />
-          </div>
-          <h3 className="text-base font-bold text-foreground">No Purchase Orders Found</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            {statusFilter !== 'ALL'
+        <EmptyState
+          icon={Box}
+          title={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} Orders` : 'No Purchase Orders Found'}
+          description={
+            statusFilter !== 'ALL'
               ? `No purchase orders found with status "${statusFilter}".`
-              : 'Create a new purchase order to start tracking shipments from suppliers.'}
-          </p>
-          <Button variant="outline" size="sm" onClick={handleOpenCreateModal} className="gap-1.5 text-xs font-semibold">
-            <Plus className="size-3.5" /> Create Purchase Order
-          </Button>
-        </Card>
+              : 'Create a new purchase order to start tracking shipments from suppliers.'
+          }
+          action={
+            <Button variant="outline" size="sm" onClick={handleOpenCreateModal} className="gap-1.5 text-xs font-semibold">
+              <Plus className="size-3.5" /> Create Purchase Order
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {orders.map((po) => (
@@ -318,7 +316,7 @@ export function PurchasesManager() {
                     {getStatusBadge(po.status)}
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Calendar className="size-3" />
-                      {new Date(po.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}
+                      {formatDate(po.createdAt)}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
@@ -328,8 +326,8 @@ export function PurchasesManager() {
                     <span className="flex items-center gap-1">
                       <Layers className="size-3.5" /> {po.itemCount} Product Items
                     </span>
-                    <span className="flex items-center gap-1 font-bold text-foreground">
-                      <DollarSign className="size-3.5 text-emerald-600" /> PKR {po.totalCost.toFixed(2)}
+                    <span className="flex items-center gap-1 font-bold text-foreground tabular-nums">
+                      <DollarSign className="size-3.5 text-success" /> {formatCurrency(po.totalCost)}
                     </span>
                   </div>
                 </div>
@@ -494,7 +492,7 @@ export function PurchasesManager() {
             {/* Total Cost Display */}
             <div className="flex justify-between items-center pt-2 border-t border-border text-sm font-bold">
               <span>Estimated Order Total:</span>
-              <span className="text-primary text-base">PKR {calculatedTotalCost.toFixed(2)}</span>
+              <span className="text-primary text-base tabular-nums">{formatCurrency(calculatedTotalCost)}</span>
             </div>
 
             <DialogFooter className="pt-2">
