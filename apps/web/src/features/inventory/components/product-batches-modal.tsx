@@ -26,6 +26,7 @@ import {
   type BatchData,
 } from '../services/products-api';
 import { formatCategory, formatDate, getMedicineIconConfig, formatUnitPlural } from './product-list';
+import { formatCurrency } from '@/lib/format';
 import { EditBatchModal } from './edit-batch-modal';
 
 interface ProductBatchesModalProps {
@@ -228,22 +229,22 @@ export function ProductBatchesModal({
                           </span>
 
                           {batch.isExpired ? (
-                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] gap-1 font-semibold shrink-0">
+                            <Badge variant="destructive" className="text-[10px] gap-1 font-semibold shrink-0">
                               <AlertTriangle className="size-3" />
                               <span>Expired ({Math.abs(batch.daysUntilExpiry)} days ago)</span>
                             </Badge>
                           ) : batch.isNearExpiry ? (
                             <Badge
-                              variant="outline"
-                              className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px] gap-1 font-semibold shrink-0"
+                              variant="warning"
+                              className="text-[10px] gap-1 font-semibold shrink-0"
                             >
                               <Clock className="size-3" />
                               <span>Near Expiry ({batch.daysUntilExpiry} days left)</span>
                             </Badge>
                           ) : (
                             <Badge
-                              variant="outline"
-                              className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px] gap-1 font-medium shrink-0"
+                              variant="success"
+                              className="text-[10px] gap-1 font-medium shrink-0"
                             >
                               <CheckCircle2 className="size-3" />
                               <span>Active FEFO Batch</span>
@@ -286,8 +287,8 @@ export function ProductBatchesModal({
                         <div>
                           <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider block">Financial Audit</span>
                           <div className="mt-0.5 text-foreground flex items-baseline gap-1 flex-wrap">
-                            <span>MRP: <strong className="text-primary font-bold">PKR {batch.sellPrice.toFixed(2)}</strong></span>
-                            <span className="text-[10px] text-muted-foreground">(Cost: PKR {batch.costPrice.toFixed(2)})</span>
+                            <span>MRP: <strong className="text-primary font-bold tabular-nums">{formatCurrency(batch.sellPrice)}</strong></span>
+                            <span className="text-[10px] text-muted-foreground tabular-nums">(Cost: {formatCurrency(batch.costPrice)})</span>
                           </div>
                         </div>
 

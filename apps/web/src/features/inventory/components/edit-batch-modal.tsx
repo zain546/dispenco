@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, Save, TrendingUp, Truck, Building2, MapPin, Calendar, Clock } from 'lucide-react';
 import { productsApi, type BatchData } from '../services/products-api';
+import { getErrorMessage } from '@/lib/errors';
 
 interface EditBatchModalProps {
   batch: BatchData | null;
@@ -111,10 +112,7 @@ export function EditBatchModal({
       onOpenChange(false);
       onBatchUpdated();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Failed to update stock batch';
-      toast.error(msg);
+      toast.error(getErrorMessage(err, 'Failed to update stock batch'));
     } finally {
       setIsSubmitting(false);
     }

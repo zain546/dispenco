@@ -28,6 +28,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { formatDate } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import { productsApi } from '../services/products-api';
 import { ProductList, formatCategory, formatUnitPlural } from './product-list';
 import { ProductBatchesModal } from './product-batches-modal';
@@ -130,8 +135,8 @@ export function InventoryDashboard() {
         search: search.trim() || undefined,
       });
       setData(res);
-    } catch {
-      toast.error('Failed to load inventory aggregation metrics');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to load inventory aggregation metrics'));
     } finally {
       setIsLoading(false);
     }
@@ -149,173 +154,101 @@ export function InventoryDashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 pb-12">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Boxes className="size-6 text-primary shrink-0" />
-            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Inventory & Exception Hub
-            </h1>
+      <PageHeader
+        title="Inventory & Exception Hub"
+        description="FEFO-compliant inventory monitoring, stock alerts, and procurement management"
+        icon={Boxes}
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              asChild
+              size="sm"
+              className="h-9 px-3 gap-1.5 font-semibold text-xs shadow-xs"
+            >
+              <Link href="/inventory/receive">
+                <Boxes className="size-4 shrink-0" />
+                <span>Receive Stock</span>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-9 px-3 gap-1.5 font-semibold text-xs border-primary/30 text-primary hover:bg-primary/5"
+            >
+              <Link href="/inventory/new">
+                <Plus className="size-4 shrink-0" />
+                <span>Add Product</span>
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportModalOpen(true)}
+              className="h-9 px-3 gap-1.5 font-semibold text-xs border-success/40 text-success hover:bg-success/10"
+            >
+              <FileSpreadsheet className="size-4 shrink-0" />
+              <span>Import CSV</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchAggregation()}
+              disabled={isLoading}
+              className="h-9 px-3 gap-1.5 text-xs font-semibold"
+              title="Refresh inventory data"
+            >
+              <RefreshCw className={`size-4 shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            FEFO-compliant inventory monitoring, stock alerts, and procurement management
-          </p>
+        }
+      />
+
+      {/* Overview Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div onClick={() => setActiveTab(!isAllStores ? 'in-stock' : 'full-catalog')} className="cursor-pointer">
+          <StatCard
+            label={!isAllStores ? 'Branch In-Stock' : 'Total Catalog'}
+            value={!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
+            caption={!isAllStores ? `of ${data.summary.totalCatalogItems} catalog items` : 'medicines'}
+            icon={Boxes}
+            className={(activeTab === 'in-stock' || (isAllStores && activeTab === 'full-catalog')) ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5' : undefined}
+          />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button
-            asChild
-            size="sm"
-            className="h-9 px-3 flex-1 sm:flex-initial gap-1.5 font-semibold text-xs sm:text-sm shadow-xs"
-          >
-            <Link href="/inventory/receive">
-              <Boxes className="size-4 shrink-0" />
-              <span className="truncate">Receive Stock</span>
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="h-9 px-3 flex-1 sm:flex-initial gap-1.5 font-semibold text-xs sm:text-sm border-primary/30 text-primary hover:bg-primary/5"
-          >
-            <Link href="/inventory/new">
-              <Plus className="size-4 shrink-0" />
-              <span className="truncate">Add Product</span>
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setImportModalOpen(true)}
-            className="h-9 px-3 flex-1 sm:flex-initial gap-1.5 font-semibold text-xs sm:text-sm border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
-          >
-            <FileSpreadsheet className="size-4 shrink-0" />
-            <span className="truncate">Import CSV</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchAggregation()}
-            disabled={isLoading}
-            className="h-9 w-9 p-0 sm:w-auto sm:px-3 flex items-center justify-center shrink-0 gap-1.5 text-xs sm:text-sm"
-            title="Refresh inventory data"
-          >
-            <RefreshCw className={`size-4 shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden md:inline">Refresh</span>
-          </Button>
+        <div onClick={() => setActiveTab('priority-top-sellers')} className="cursor-pointer">
+          <StatCard
+            label="Top Sellers"
+            value={data.summary.priorityCount}
+            caption={data.summary.priorityCount === 1 ? 'product' : 'products'}
+            icon={Star}
+            variant="warning"
+            className={activeTab === 'priority-top-sellers' ? 'ring-2 ring-warning/40 border-warning/50 bg-warning/5' : undefined}
+          />
         </div>
-      </div>
 
+        <div onClick={() => setActiveTab('expiring-soon')} className="cursor-pointer">
+          <StatCard
+            label="Expiring (180 Days)"
+            value={data.summary.expiringSoonCount}
+            caption="batches"
+            icon={Clock}
+            variant="destructive"
+            className={activeTab === 'expiring-soon' ? 'ring-2 ring-destructive/40 border-destructive/50 bg-destructive/5' : undefined}
+          />
+        </div>
 
-
-      {/* Overview Metric Cards (Scrollable on Mobile, Grid on Tablet/Desktop) */}
-      <div className="flex overflow-x-auto snap-x snap-mandatory gap-3 no-scrollbar pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible">
-        {/* Card 1: Branch In-Stock / Master Catalog */}
-        <Card
-          onClick={() => setActiveTab(!isAllStores ? 'in-stock' : 'full-catalog')}
-          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-primary/50 ${
-            (activeTab === 'in-stock' || (isAllStores && activeTab === 'full-catalog'))
-              ? 'ring-2 ring-primary/40 border-primary/50 bg-primary/5'
-              : 'bg-card'
-          }`}
-        >
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {!isAllStores ? 'Branch In-Stock' : 'Total Catalog'}
-              </p>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-xl sm:text-3xl font-bold text-foreground">
-                  {!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
-                </span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground">
-                  {!isAllStores ? `of ${data.summary.totalCatalogItems} catalog items` : 'medicines'}
-                </span>
-              </div>
-            </div>
-            <div className="size-9 sm:size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Boxes className="size-4.5 sm:size-5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 2: Top Sellers Priority */}
-        <Card
-          onClick={() => setActiveTab('priority-top-sellers')}
-          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-amber-500/50 ${
-            activeTab === 'priority-top-sellers' ? 'ring-2 ring-amber-500/40 border-amber-500/50 bg-amber-500/5' : 'bg-card'
-          }`}
-        >
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Top-Selling Products
-              </p>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">
-                  {data.summary.priorityCount}
-                </span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground">
-                  {data.summary.priorityCount === 1 ? 'product' : 'products'}
-                </span>
-              </div>
-            </div>
-            <div className="size-9 sm:size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-              <Star className="size-4.5 sm:size-5 fill-amber-500 text-amber-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Expiring Soon */}
-        <Card
-          onClick={() => setActiveTab('expiring-soon')}
-          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-rose-500/50 ${
-            activeTab === 'expiring-soon' ? 'ring-2 ring-rose-500/40 border-rose-500/50 bg-rose-500/5' : 'bg-card'
-          }`}
-        >
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Expiring (180 Days)
-              </p>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-xl sm:text-3xl font-bold text-rose-600">
-                  {data.summary.expiringSoonCount}
-                </span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground">batches</span>
-              </div>
-            </div>
-            <div className="size-9 sm:size-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
-              <Clock className="size-4.5 sm:size-5" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: Low Stock Exceptions */}
-        <Card
-          onClick={() => setActiveTab('low-stock')}
-          className={`w-[210px] xs:w-[230px] sm:w-auto shrink-0 snap-start md:shrink md:w-auto cursor-pointer transition-all hover:border-amber-500/50 ${
-            activeTab === 'low-stock' ? 'ring-2 ring-amber-500/40 border-amber-500/50 bg-amber-500/5' : 'bg-card'
-          }`}
-        >
-          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Low Stock Alerts
-              </p>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-xl sm:text-3xl font-bold text-amber-600">
-                  {data.summary.lowStockCount}
-                </span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground">items</span>
-              </div>
-            </div>
-            <div className="size-9 sm:size-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-              <AlertTriangle className="size-4.5 sm:size-5" />
-            </div>
-          </CardContent>
-        </Card>
+        <div onClick={() => setActiveTab('low-stock')} className="cursor-pointer">
+          <StatCard
+            label="Low Stock Alerts"
+            value={data.summary.lowStockCount}
+            caption="items"
+            icon={AlertTriangle}
+            variant="warning"
+            className={activeTab === 'low-stock' ? 'ring-2 ring-warning/40 border-warning/50 bg-warning/5' : undefined}
+          />
+        </div>
       </div>
 
       {/* Dashboard Tabs Navigation */}
@@ -399,35 +332,23 @@ export function InventoryDashboard() {
                   <span className="text-xs">Loading in-stock medicines...</span>
                 </div>
               ) : data.products.length === 0 ? (
-                <div className="py-14 px-4 text-center text-muted-foreground space-y-4 max-w-md mx-auto">
-                  <div className="size-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                    <Boxes className="size-7" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <p className="font-bold text-base text-foreground">No Medicines In Stock Yet</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      This branch has <strong>0 stocked medicines</strong>. You have{' '}
-                      <strong>{data.summary.totalCatalogItems} medicines</strong> in your Master Catalog ready for stock intake.
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-center gap-2.5 pt-1">
+                <EmptyState
+                  icon={Boxes}
+                  title="No Medicines In Stock Yet"
+                  description={
+                    !isAllStores
+                      ? `This branch has 0 stocked medicines. You have ${data.summary.totalCatalogItems} medicines in your Master Catalog ready for stock intake.`
+                      : 'No stocked medicines found across your active store locations.'
+                  }
+                  action={
                     <Button asChild size="sm" className="gap-1.5 font-semibold text-xs shadow-xs">
                       <Link href="/inventory/receive">
                         <Boxes className="size-3.5" />
                         <span>Receive Stock</span>
                       </Link>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveTab('full-catalog')}
-                      className="gap-1.5 font-semibold text-xs border-primary/30 text-primary hover:bg-primary/5"
-                    >
-                      <Package className="size-3.5" />
-                      <span>Browse Master Catalog</span>
-                    </Button>
-                  </div>
-                </div>
+                  }
+                />
               ) : (
                 <div className="divide-y divide-border">
                   {data.products.map((product) => (
@@ -537,13 +458,22 @@ export function InventoryDashboard() {
                   <span className="text-xs">Loading priority top sellers...</span>
                 </div>
               ) : data.products.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground space-y-2">
-                  <div className="size-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
-                    <Star className="size-6 text-amber-500" />
-                  </div>
-                  <p className="font-semibold text-sm text-foreground">No Top Sellers Flagged</p>
-                  <p className="text-xs">Import a CSV with top-sellers marked or click the star icon on catalog items to flag them.</p>
-                </div>
+                <EmptyState
+                  icon={Star}
+                  title="No Top Sellers Flagged"
+                  description="Import a CSV with top-sellers marked or click the star icon on catalog items to flag them."
+                  action={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setImportModalOpen(true)}
+                      className="gap-1.5 font-semibold text-xs border-success/40 text-success hover:bg-success/10"
+                    >
+                      <FileSpreadsheet className="size-3.5" />
+                      <span>Import CSV</span>
+                    </Button>
+                  }
+                />
               ) : (
                 <div className="divide-y divide-border">
                   {data.products.map((product) => (
@@ -659,13 +589,11 @@ export function InventoryDashboard() {
                   <span className="text-xs">Loading unstocked items queue...</span>
                 </div>
               ) : data.products.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground space-y-2">
-                  <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
-                    <Package className="size-6" />
-                  </div>
-                  <p className="font-semibold text-sm text-foreground">Catalog 100% Stocked!</p>
-                  <p className="text-xs">All products in your inventory catalog have active stock batches.</p>
-                </div>
+                <EmptyState
+                  icon={Package}
+                  title="Catalog 100% Stocked!"
+                  description="All products in your inventory catalog have active stock batches."
+                />
               ) : (
                 <div className="divide-y divide-border">
                   {data.products.map((product) => (
@@ -746,13 +674,11 @@ export function InventoryDashboard() {
                   <span className="text-xs">Loading stock alert exceptions...</span>
                 </div>
               ) : data.products.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground space-y-2">
-                  <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
-                    <Package className="size-6" />
-                  </div>
-                  <p className="font-semibold text-sm text-foreground">No Low Stock Alerts</p>
-                  <p className="text-xs">All active medicine items meet or exceed minimum stock thresholds.</p>
-                </div>
+                <EmptyState
+                  icon={Package}
+                  title="No Low Stock Alerts"
+                  description="All active medicine items meet or exceed minimum stock thresholds."
+                />
               ) : (
                 <div className="divide-y divide-border">
                   {data.products.map((product) => (
@@ -839,13 +765,11 @@ export function InventoryDashboard() {
                   <span className="text-xs">Loading FEFO expiry warnings...</span>
                 </div>
               ) : data.products.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground space-y-2">
-                  <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
-                    <Clock className="size-6" />
-                  </div>
-                  <p className="font-semibold text-sm text-foreground">No Near-Expiry Batches</p>
-                  <p className="text-xs">All active stock batches have clean shelf life remaining.</p>
-                </div>
+                <EmptyState
+                  icon={Clock}
+                  title="No Near-Expiry Batches"
+                  description="All active stock batches have clean shelf life remaining."
+                />
               ) : (
                 <div className="divide-y divide-border">
                   {data.products.map((product) => {
@@ -873,7 +797,7 @@ export function InventoryDashboard() {
                             <p className="text-xs text-muted-foreground">{product.genericName}</p>
                           )}
                           <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5">
-                            <span>Expiry Date: <strong className="text-foreground">{product.earliestExpiryDate ? new Date(product.earliestExpiryDate).toLocaleDateString() : 'N/A'}</strong></span>
+                            <span>Expiry Date: <strong className="text-foreground">{formatDate(product.earliestExpiryDate)}</strong></span>
                             <span>Remaining Stock: <strong className="text-foreground">{formatUnitPlural(product.unit, product.totalStock)}</strong></span>
                           </div>
                         </div>

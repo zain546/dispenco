@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Boxes, Calendar, Layers, Plus, Edit3, Truck, MapPin } from 'lucide-react';
 import type { BatchData } from '../services/products-api';
 import { formatUnitPlural, formatDate } from './product-list';
+import { formatCurrency } from '@/lib/format';
 import { getBatchExpiryDetails, getBatchHealthStats } from '../utils/batch-utils';
 
 interface FefoBatchBreakdownProps {
@@ -159,14 +160,8 @@ export function FefoBatchBreakdown({
                   {/* Badges Row: Expiry, Vendor, Shelf */}
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Badge
-                      variant="outline"
-                      className={`text-[10px] sm:text-[11px] gap-1 px-2 py-0.5 ${
-                        expiryInfo.isExpired
-                          ? 'bg-destructive/10 text-destructive border-destructive/30 font-semibold'
-                          : expiryInfo.isNear
-                          ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 font-semibold'
-                          : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-medium'
-                      }`}
+                      variant={expiryInfo.isExpired ? 'destructive' : expiryInfo.isNear ? 'warning' : 'success'}
+                      className="text-[10px] sm:text-[11px] gap-1 px-2 py-0.5"
                     >
                       <Calendar className="size-3" />
                       <span>
@@ -211,8 +206,8 @@ export function FefoBatchBreakdown({
                       <span className="text-[9px] sm:text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider truncate">
                         Cost
                       </span>
-                      <p className="font-bold text-foreground text-xs sm:text-sm mt-0.5 truncate">
-                        PKR {Number(batch.costPrice || 0).toFixed(0)}
+                      <p className="font-bold text-foreground text-xs sm:text-sm mt-0.5 truncate tabular-nums">
+                        {formatCurrency(batch.costPrice)}
                       </p>
                     </div>
 
@@ -221,8 +216,8 @@ export function FefoBatchBreakdown({
                       <span className="text-[9px] sm:text-[10px] text-primary/80 block font-semibold uppercase tracking-wider truncate">
                         MRP Price
                       </span>
-                      <p className="font-bold text-primary text-xs sm:text-sm mt-0.5 truncate">
-                        PKR {Number(batch.sellPrice || 0).toFixed(0)}
+                      <p className="font-bold text-primary text-xs sm:text-sm mt-0.5 truncate tabular-nums">
+                        {formatCurrency(batch.sellPrice)}
                       </p>
                     </div>
                   </div>

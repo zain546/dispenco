@@ -48,18 +48,16 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { getProductSeoUrl } from '../utils/seo-utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { productsApi, type ProductData } from '../services/products-api';
 import { PRODUCT_CATEGORIES } from '../schemas/product-schema';
 import { ProductBatchesModal } from './product-batches-modal';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
+import { formatCurrency, formatDate } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
+
+export { formatDate };
 
 // ==========================================
 // 1. Helper Utilities (SRP & Pure Functions)
@@ -88,21 +86,6 @@ export function formatUnitPlural(unit: string = 'Unit', count?: number): string 
   }
 
   return count !== undefined ? `${count} ${pluralUnit}` : pluralUnit;
-}
-
-export function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return 'N/A';
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return 'N/A';
-  }
 }
 
 interface MedicineIconConfig {
@@ -373,15 +356,15 @@ function ProductTableRow({
         <div className="text-xs space-y-0.5">
           <div>
             <span className="text-muted-foreground">MRP: </span>
-            <strong className="text-foreground">
+            <strong className="text-foreground tabular-nums">
               {product.latestSellPrice !== null && product.latestSellPrice !== undefined
-                ? `PKR ${product.latestSellPrice.toFixed(2)}`
+                ? formatCurrency(product.latestSellPrice)
                 : 'N/A'}
             </strong>
           </div>
           {product.latestCostPrice !== null && product.latestCostPrice !== undefined && (
-            <div className="text-muted-foreground text-[11px]">
-              Cost: PKR {product.latestCostPrice.toFixed(2)}
+            <div className="text-muted-foreground text-[11px] tabular-nums">
+              Cost: {formatCurrency(product.latestCostPrice)}
             </div>
           )}
         </div>
@@ -573,68 +556,15 @@ function ProductCardItem({
             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider block">
               Retail MRP
             </span>
-            <span className="font-bold text-primary text-xs mt-0.5 block">
+            <span className="font-bold text-primary text-xs mt-0.5 block tabular-nums">
               {product.latestSellPrice !== null && product.latestSellPrice !== undefined
-                ? `PKR ${product.latestSellPrice.toFixed(2)}`
+                ? formatCurrency(product.latestSellPrice)
                 : 'N/A'}
             </span>
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function ProductDeactivationModal({
-  isOpen,
-  product,
-  isDeleting,
-  onClose,
-  onConfirm,
-}: {
-  isOpen: boolean;
-  product: ProductData | null;
-  isDeleting: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Deactivate Medicine Product</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to deactivate <strong>{product?.name}</strong>? Deactivating will hide
-            it from active POS sales while preserving stock audit records.
-          </DialogDescription>
-        </DialogHeader>
-
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" size="sm" onClick={onClose} disabled={isDeleting}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="gap-2"
-          >
-            {isDeleting ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                <span>Deactivating...</span>
-              </>
-            ) : (
-              <>
-                <Trash2 className="size-4" />
-                <span>Deactivate</span>
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -797,10 +727,7 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
       setDeletingProduct(null);
       fetchProducts();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Failed to deactivate product';
-      toast.error(msg);
+      toast.error(getErrorMessage(err, 'Failed to deactivate product'));
     } finally {
       setIsDeleting(false);
     }
@@ -942,32 +869,23 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
           </CardContent>
         </Card>
       ) : products.length === 0 ? (
-        /* Empty State */
-        <Card className="border-dashed bg-card/60">
-          <CardContent className="p-8 sm:p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-            <div className="size-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-              <Package className="size-6" />
-            </div>
-            <div className="space-y-1 max-w-sm">
-              <p className="text-base font-semibold text-foreground">
-                {debouncedSearch || selectedCategory !== 'ALL'
-                  ? 'No Products Found'
-                  : 'Product Catalog Empty'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {debouncedSearch || selectedCategory !== 'ALL'
-                  ? 'Try adjusting your search filter or clear the category filter.'
-                  : 'Start populating your catalog by adding tablets, syrups, injections, or medical supplies.'}
-              </p>
-            </div>
-            <Button asChild size="sm" className="gap-2 mt-2">
+        <EmptyState
+          icon={Package}
+          title={debouncedSearch || selectedCategory !== 'ALL' ? 'No Products Found' : 'Product Catalog Empty'}
+          description={
+            debouncedSearch || selectedCategory !== 'ALL'
+              ? 'Try adjusting your search query or reset the category filter.'
+              : 'Start populating your catalog by adding tablets, syrups, injections, or medical supplies.'
+          }
+          action={
+            <Button asChild size="sm" className="gap-2">
               <Link href="/inventory/new">
                 <Plus className="size-4" />
                 <span>Add First Product</span>
               </Link>
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         /* Product Table / Cards */
         <div className="space-y-4">
@@ -1045,12 +963,19 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
         </div>
       )}
 
-      {/* Deactivation Modal */}
-      <ProductDeactivationModal
-        isOpen={deleteDialogOpen}
-        product={deletingProduct}
-        isDeleting={isDeleting}
-        onClose={() => setDeleteDialogOpen(false)}
+      {/* Deactivation Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Deactivate Medicine Product"
+        description={
+          deletingProduct
+            ? `Are you sure you want to deactivate ${deletingProduct.name}? Deactivating will hide it from active POS sales while preserving stock audit records.`
+            : 'Are you sure you want to deactivate this product?'
+        }
+        confirmLabel="Deactivate"
+        variant="destructive"
+        isLoading={isDeleting}
         onConfirm={handleDelete}
       />
 

@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { importApi, CsvParseResult, CsvPreviewRow } from '../services/import-api';
+import { getErrorMessage } from '@/lib/errors';
 
 interface ImportProductsModalProps {
   isOpen: boolean;
@@ -210,8 +211,7 @@ export function ImportProductsModal({
       setPreviewRows(res.preview);
       toast.success('Updated column mapping & revalidated');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to apply custom mapping';
-      toast.error(msg);
+      toast.error(getErrorMessage(err, 'Failed to apply custom mapping'));
     } finally {
       setIsParsing(false);
     }
@@ -258,8 +258,7 @@ export function ImportProductsModal({
       resetState();
     } catch (err: unknown) {
       console.error('Confirm import error:', err);
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to confirm product import';
-      toast.error(msg);
+      toast.error(getErrorMessage(err, 'Failed to confirm product import'));
     } finally {
       setIsConfirming(false);
     }

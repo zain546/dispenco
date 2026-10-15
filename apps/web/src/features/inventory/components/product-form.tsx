@@ -52,6 +52,7 @@ import { formatCategory, formatDate, formatUnitPlural } from './product-list';
 import { EditBatchModal } from './edit-batch-modal';
 import { FefoBatchBreakdown } from './fefo-batch-breakdown';
 import { getBatchExpiryDetails } from '../utils/batch-utils';
+import { getErrorMessage } from '@/lib/errors';
 
 interface ProductFormProps {
   initialData?: ProductData;
@@ -233,9 +234,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
       router.push('/inventory');
       router.refresh();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Failed to save product');
+      const msg = getErrorMessage(err, 'Failed to save product');
       setError(msg);
       toast.error(msg);
     } finally {

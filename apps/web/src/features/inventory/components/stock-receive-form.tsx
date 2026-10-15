@@ -37,6 +37,8 @@ import {
 } from '../services/products-api';
 import { useStore } from '@/context/store-context';
 import { formatCategory, getMedicineIconConfig, formatUnitPlural } from './product-list';
+import { formatCurrency } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 
 export function StockReceiveForm() {
   const router = useRouter();
@@ -80,8 +82,8 @@ export function StockReceiveForm() {
             if (attrs.vendorName) setVendorName(attrs.vendorName);
           }
         })
-        .catch(() => {
-          toast.error('Failed to load preselected medicine product');
+        .catch((err) => {
+          toast.error(getErrorMessage(err, 'Failed to load preselected medicine product'));
         });
     }
   }, [preselectedProductId]);
@@ -181,10 +183,7 @@ export function StockReceiveForm() {
       toast.success(res.message || 'Stock batch received successfully!');
       router.push('/inventory');
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Failed to receive stock batch';
-      toast.error(msg);
+      toast.error(getErrorMessage(err, 'Failed to receive stock batch'));
     } finally {
       setIsSubmitting(false);
     }
