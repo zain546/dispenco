@@ -45,14 +45,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScannerInput } from '@/components/ui/scanner-input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
@@ -60,6 +52,10 @@ import { CustomerModal } from '@/features/customers/components/customer-modal';
 import { getMedicineIconConfig } from '@/features/inventory/components/product-list';
 import { posOfflineService } from '../services/pos-offline-service';
 import { OfflineSyncModal } from './offline-sync-modal';
+import { ReceiptModal } from './receipt-modal';
+import { RecentSalesModal } from './recent-sales-modal';
+import { formatCurrency } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
 import { toast } from 'sonner';
 
@@ -113,7 +109,6 @@ export function POSTerminal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completedSale, setCompletedSale] = useState<SaleResponse | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   // Offline IndexedDB Queue State
   const [isOnline, setIsOnline] = useState(true);
@@ -197,7 +192,6 @@ export function POSTerminal() {
   const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
   const [recentSales, setRecentSales] = useState<SaleResponse[]>([]);
   const [isLoadingRecentSales, setIsLoadingRecentSales] = useState(false);
-  const [voidingSaleId, setVoidingSaleId] = useState<string | null>(null);
 
   const fetchRecentSales = async () => {
     setIsLoadingRecentSales(true);
@@ -215,152 +209,6 @@ export function POSTerminal() {
   const handleOpenRecentSales = () => {
     setIsRecentSalesOpen(true);
     fetchRecentSales();
-  };
-
-  const handleVoidSale = async (saleId: string) => {
-    const reasonPrompt = window.prompt('Enter reason for voiding this sale (e.g. Customer Return, Entry Error):');
-    if (reasonPrompt === null) return;
-
-    setVoidingSaleId(saleId);
-    try {
-      await salesApi.voidSale(saleId, reasonPrompt || 'Cashier Void');
-      toast.success('Sale voided successfully! Stock restored.');
-      fetchRecentSales();
-    } catch (err: any) {
-      console.error('Void sale error:', err);
-      toast.error(err?.response?.data?.message || 'Failed to void sale');
-    } finally {
-      setVoidingSaleId(null);
-    }
-  };
-
-  const handleDownloadSalePdf = async (sale: SaleResponse) => {
-    try {
-      setIsDownloadingPdf(true);
-      const { jsPDF } = await import('jspdf');
-
-      const items = sale.items || [];
-      const itemRowsCount = items.length;
-      const pdfHeight = Math.max(160, 90 + itemRowsCount * 10);
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: [80, pdfHeight],
-      });
-
-      // Store Header
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(13);
-      pdf.text('Pharmacy Store', 40, 12, { align: 'center' });
-
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-      let currentY = 17;
-      pdf.text(`Receipt #: ${sale.receiptNumber}`, 40, currentY, { align: 'center' });
-      currentY += 5;
-
-      // Divider Line
-      pdf.setDrawColor(180, 180, 180);
-      pdf.setLineDashPattern([1, 1], 0);
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Metadata
-      const formattedDate = new Date(sale.createdAt).toLocaleString('en-US', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      });
-
-      pdf.setFontSize(8);
-      pdf.text(`Date & Time: ${formattedDate}`, 5, currentY);
-      currentY += 4;
-      pdf.text(`Cashier: ${sale.cashierName || 'Pharmacy Staff'}`, 5, currentY);
-      currentY += 4;
-      if (sale.customerName) {
-        pdf.text(`Customer: ${sale.customerName}`, 5, currentY);
-        currentY += 4;
-      }
-
-      // Divider Line
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Table Header
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('ITEM', 5, currentY);
-      pdf.text('QTY × PRICE', 42, currentY);
-      pdf.text('TOTAL', 75, currentY, { align: 'right' });
-      currentY += 2;
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Table Line Items
-      pdf.setFont('helvetica', 'normal');
-      items.forEach((item) => {
-        const lineTotal = item.lineTotal;
-        const nameTruncated = item.productName.length > 20 ? item.productName.substring(0, 20) + '...' : item.productName;
-        pdf.text(nameTruncated, 5, currentY);
-        pdf.text(`${item.quantity} ${item.unit || 'pc'} × ${item.unitPrice.toFixed(0)}`, 42, currentY);
-        pdf.text(`${lineTotal.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
-        currentY += 5;
-      });
-
-      // Divider Line
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Totals Summary
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Subtotal:', 5, currentY);
-      pdf.text(`${sale.subtotal.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
-      currentY += 5;
-
-      if (sale.discountAmount > 0) {
-        pdf.text('Discount:', 5, currentY);
-        pdf.text(`-${sale.discountAmount.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
-        currentY += 5;
-      }
-
-      if (sale.taxAmount > 0) {
-        pdf.text('Tax:', 5, currentY);
-        pdf.text(`+${sale.taxAmount.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
-        currentY += 5;
-      }
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text('GRAND TOTAL:', 5, currentY);
-      pdf.text(`${sale.totalAmount.toFixed(2)} PKR`, 75, currentY, { align: 'right' });
-      currentY += 7;
-
-      // Payment Details
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Payment Method: ${sale.paymentMethod || 'CASH'} (PAID)`, 5, currentY);
-      currentY += 8;
-
-      // Footer
-      pdf.setLineDashPattern([1, 1], 0);
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      pdf.setFont('helvetica', 'italic');
-      pdf.setFontSize(7);
-      const footerLines = pdf.splitTextToSize(
-        'Thank you for choosing us! Please retain receipt for returns within 7 days.',
-        70
-      );
-      pdf.text(footerLines, 40, currentY, { align: 'center' });
-
-      pdf.save(`Receipt-${sale.receiptNumber}.pdf`);
-      toast.success('Thermal Receipt PDF downloaded successfully!');
-    } catch (err) {
-      console.error('PDF download error:', err);
-      toast.error('Failed to generate PDF receipt.');
-    } finally {
-      setIsDownloadingPdf(false);
-    }
   };
 
   // Search Input Ref for keyboard focusing
@@ -734,7 +582,7 @@ export function POSTerminal() {
     }
 
     if (paymentMethod === 'CASH' && cashTendered && tenderedNum < totals.grandTotal) {
-      toast.error(`Cash tendered (${tenderedNum} PKR) is less than total amount (${totals.grandTotal.toFixed(2)} PKR)`);
+      toast.error(`Cash tendered (${formatCurrency(tenderedNum)}) is less than total amount (${formatCurrency(totals.grandTotal)})`);
       return;
     }
 
@@ -838,7 +686,7 @@ export function POSTerminal() {
           toast.error('Failed to store sale in offline database');
         }
       } else {
-        const errMsg = err?.response?.data?.message || err?.message || 'Failed to complete sale checkout';
+        const errMsg = getErrorMessage(err, 'Failed to complete sale checkout');
         toast.error(errMsg);
       }
     } finally {
@@ -874,14 +722,14 @@ export function POSTerminal() {
             onClick={() => setIsOfflineModalOpen(true)}
             className={`h-8 text-xs font-semibold gap-1.5 border-border ${
               !isOnline
-                ? 'bg-rose-500/10 text-rose-600 border-rose-500/30'
+                ? 'bg-destructive/10 text-destructive border-destructive/30'
                 : pendingOfflineCount > 0
-                ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
+                ? 'bg-warning/10 text-warning border-warning/30'
                 : 'bg-background text-foreground'
             }`}
           >
             {!isOnline ? (
-              <WifiOff className="size-3.5 text-rose-500 animate-pulse" />
+              <WifiOff className="size-3.5 text-destructive animate-pulse" />
             ) : (
               <Database className="size-3.5 text-primary" />
             )}
@@ -1903,225 +1751,27 @@ export function POSTerminal() {
       </div>
 
       {/* Post-Checkout Receipt Success Modal Dialog */}
-      <Dialog open={isReceiptOpen} onOpenChange={setIsReceiptOpen}>
-        <DialogContent className="sm:max-w-md w-full">
-          <DialogHeader className="text-center space-y-2">
-            <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-500/20">
-              <CheckCircle2 className="size-7" />
-            </div>
-            <DialogTitle className="text-lg font-bold text-foreground">
-              Sale Completed Successfully!
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Receipt <strong className="text-foreground">{completedSale?.receiptNumber}</strong> recorded in pharmacy ledger.
-            </DialogDescription>
-          </DialogHeader>
-
-          {completedSale && (
-            <div className="space-y-4 my-2 text-xs">
-              <div className="p-3 rounded-xl bg-muted/40 border border-border/80 space-y-2">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Receipt #:</span>
-                  <span className="font-bold text-foreground">{completedSale.receiptNumber}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Customer:</span>
-                  <span className="font-semibold text-foreground">{completedSale.customerName || 'Walk-in Customer'}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Payment Method:</span>
-                  <Badge variant="outline" className="text-[10px] font-semibold">
-                    {completedSale.paymentMethod}
-                  </Badge>
-                </div>
-                <div className="flex justify-between text-muted-foreground pt-1 border-t border-border/60">
-                  <span>Total Amount Paid:</span>
-                  <span className="font-extrabold text-sm text-primary">
-                    {completedSale.totalAmount.toFixed(2)} PKR
-                  </span>
-                </div>
-              </div>
-
-              {/* Items Summary */}
-              <div className="space-y-1">
-                <p className="font-semibold text-muted-foreground text-[11px] uppercase tracking-wider">
-                  Purchased Items ({completedSale.items.length})
-                </p>
-                <div className="max-h-40 overflow-y-auto divide-y divide-border/60 border border-border/60 rounded-lg p-2 bg-card">
-                  {completedSale.items.map((item) => (
-                    <div key={item.id} className="py-1.5 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-semibold text-foreground leading-tight">{item.productName}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {item.quantity} {item.unit} x {item.unitPrice.toFixed(2)} PKR (Batch {item.batchNumber})
-                        </p>
-                      </div>
-                      <span className="font-bold text-foreground">{item.lineTotal.toFixed(2)} PKR</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2 pt-2 w-full">
-            {completedSale && (
-              <div className="grid grid-cols-2 gap-2 w-full">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleDownloadSalePdf(completedSale)}
-                  disabled={isDownloadingPdf}
-                  className="w-full h-9 text-xs font-semibold gap-1.5"
-                >
-                  {isDownloadingPdf ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : (
-                    <Download className="size-3.5 text-primary" />
-                  )}
-                  Download PDF
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    window.open(`/pos/receipt/${completedSale.id}`, '_blank');
-                  }}
-                  className="w-full h-9 text-xs gap-1.5"
-                >
-                  <Printer className="size-3.5" /> Print Receipt
-                </Button>
-              </div>
-            )}
-            <Button
-              type="button"
-              onClick={() => {
-                setIsReceiptOpen(false);
-                setCompletedSale(null);
-                focusSearchInput();
-              }}
-              className="w-full h-10 text-xs font-bold gap-1.5"
-            >
-              Next Sale (Esc)
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ReceiptModal
+        open={isReceiptOpen}
+        onOpenChange={setIsReceiptOpen}
+        sale={completedSale}
+        storeName={activeStore?.name}
+        onNextSale={() => {
+          setIsReceiptOpen(false);
+          setCompletedSale(null);
+          focusSearchInput();
+        }}
+      />
 
       {/* Recent Sales History & Void Dialog Modal */}
-      <Dialog open={isRecentSalesOpen} onOpenChange={setIsRecentSalesOpen}>
-        <DialogContent className="sm:max-w-3xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="p-4 sm:p-5 border-b border-border flex flex-row items-center justify-between">
-            <div>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <History className="size-4.5 text-primary" />
-                <span>Recent Pharmacy Transactions</span>
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Audit past customer sales, reprint thermal receipt PDFs, or void transactions with automatic stock restoration.
-              </DialogDescription>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={fetchRecentSales}
-              disabled={isLoadingRecentSales}
-              className="size-8 p-0 shrink-0"
-            >
-              <RefreshCw className={`size-4 ${isLoadingRecentSales ? 'animate-spin' : ''}`} />
-            </Button>
-          </DialogHeader>
-
-          <div className="p-4 overflow-y-auto space-y-3 flex-1">
-            {isLoadingRecentSales ? (
-              <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-                <Loader2 className="size-6 animate-spin text-primary" />
-                <span className="text-xs">Loading sales history ledger...</span>
-              </div>
-            ) : recentSales.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground space-y-2">
-                <History className="size-8 text-muted-foreground/50 mx-auto" />
-                <p className="font-semibold text-sm text-foreground">No Sales Logged Yet</p>
-                <p className="text-xs">Completed transactions will appear here for reprint and void management.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border border border-border/80 rounded-xl overflow-hidden bg-card">
-                {recentSales.map((sale) => {
-                  const isVoided = sale.status === 'VOIDED';
-                  const formattedDate = new Date(sale.createdAt).toLocaleString('en-US', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  });
-
-                  return (
-                    <div
-                      key={sale.id}
-                      className={`p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                        isVoided ? 'bg-destructive/5 opacity-75' : 'hover:bg-muted/30'
-                      }`}
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-foreground">#{sale.receiptNumber}</span>
-                          <Badge variant={isVoided ? 'destructive' : 'outline'} className="text-[10px] font-semibold">
-                            {sale.paymentMethod} • {isVoided ? 'VOIDED' : 'COMPLETED'}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{formattedDate}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Customer: <strong className="text-foreground">{sale.customerName || 'Walk-in Customer'}</strong> • Cashier: <strong className="text-foreground">{sale.cashierName || 'Staff'}</strong>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Items ({sale.itemsCount}): {sale.items?.map((i) => `${i.productName} (${i.quantity})`).join(', ')}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
-                        <div className="text-right mr-1">
-                          <p className={`font-extrabold text-sm ${isVoided ? 'line-through text-muted-foreground' : 'text-primary'}`}>
-                            {sale.totalAmount.toFixed(2)} PKR
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadSalePdf(sale)}
-                            disabled={isDownloadingPdf}
-                            className="h-8 text-xs gap-1 font-semibold"
-                          >
-                            <Download className="size-3.5 text-primary" />
-                            <span className="hidden xs:inline">PDF</span>
-                          </Button>
-                          {!isVoided && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleVoidSale(sale.id)}
-                              disabled={voidingSaleId === sale.id}
-                              className="h-8 text-xs gap-1 font-semibold text-destructive border-destructive/30 hover:bg-destructive/10"
-                            >
-                              {voidingSaleId === sale.id ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <Ban className="size-3.5" />
-                              )}
-                              <span>Void</span>
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <RecentSalesModal
+        open={isRecentSalesOpen}
+        onOpenChange={setIsRecentSalesOpen}
+        recentSales={recentSales}
+        isLoading={isLoadingRecentSales}
+        onRefresh={fetchRecentSales}
+        storeName={activeStore?.name}
+      />
 
       {/* IndexedDB Offline Transaction Queue Modal */}
       <OfflineSyncModal
