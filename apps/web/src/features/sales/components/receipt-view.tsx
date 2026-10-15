@@ -9,6 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { EmptyState } from '@/components/ui/empty-state';
+import { downloadThermalReceiptPdf } from '@/features/pos/utils/pos-receipt-pdf';
+import { formatCurrency, formatDateTime } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import {
   Dialog,
   DialogContent,
@@ -21,17 +25,12 @@ import {
   Printer,
   ArrowLeft,
   CheckCircle2,
-  Share2,
   Copy,
   Check,
   Building2,
   Calendar,
   User,
-  Phone,
   FileText,
-  CreditCard,
-  Banknote,
-  Receipt as ReceiptIcon,
   Download,
   Loader2,
   Ban,
@@ -67,9 +66,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       } else {
         setError(res.message || 'Failed to load receipt details.');
       }
-    } catch (err: any) {
-      console.error('Error fetching receipt:', err);
-      setError(err.response?.data?.message || 'Receipt not found or accessible.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Receipt not found or accessible.');
     } finally {
       setLoading(false);
     }
@@ -89,9 +87,10 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       toast.success(res?.message || 'Sale voided and inventory restored successfully.');
       setIsVoidModalOpen(false);
       fetchReceipt();
-    } catch (err: any) {
-      const msg = err.response?.data?.message || 'Failed to void sale. Ensure you have void sale permissions.';
-      toast.error(msg);
+    } catch (err: unknown) {
+      toast.error('Failed to void sale', {
+        description: getErrorMessage(err),
+      });
     } finally {
       setIsVoiding(false);
     }
@@ -119,127 +118,10 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   };
 
   const handleDownloadPdf = async () => {
+    if (!saleData) return;
     try {
       setIsDownloading(true);
-      const { jsPDF } = await import('jspdf');
-
-      const itemRowsCount = items.length;
-      const pdfHeight = Math.max(160, 90 + itemRowsCount * 10);
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: [80, pdfHeight],
-      });
-
-      // Store Header
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(13);
-      pdf.text(store?.name || 'Pharmacy Store', 40, 12, { align: 'center' });
-
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-      let currentY = 17;
-      if (store?.address) {
-        pdf.text(store.address, 40, currentY, { align: 'center' });
-        currentY += 5;
-      }
-      pdf.text(`Receipt #: ${receiptNumber}`, 40, currentY, { align: 'center' });
-      currentY += 5;
-
-      // Divider Line
-      pdf.setDrawColor(180, 180, 180);
-      pdf.setLineDashPattern([1, 1], 0);
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Metadata
-      pdf.setFontSize(8);
-      pdf.text(`Date & Time: ${formattedDate}`, 5, currentY);
-      currentY += 4;
-      pdf.text(`Cashier: ${user?.name || 'Pharmacy Staff'}`, 5, currentY);
-      currentY += 4;
-      if (customer) {
-        pdf.text(`Customer: ${customer.name} ${customer.phone ? `(${customer.phone})` : ''}`, 5, currentY);
-        currentY += 4;
-      }
-
-      // Divider Line
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Table Header
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('ITEM', 5, currentY);
-      pdf.text('QTY × PRICE', 42, currentY);
-      pdf.text('TOTAL', 75, currentY, { align: 'right' });
-      currentY += 2;
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Table Line Items
-      pdf.setFont('helvetica', 'normal');
-      items.forEach((item: any) => {
-        const lineTotal = item.unitPrice * item.quantity - (item.discount || 0);
-        const nameTruncated = item.productName.length > 20 ? item.productName.substring(0, 20) + '...' : item.productName;
-        pdf.text(nameTruncated, 5, currentY);
-        pdf.text(`${item.quantity} ${item.unit || 'pc'} × ${item.unitPrice.toFixed(0)}`, 42, currentY);
-        pdf.text(`${lineTotal.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
-        currentY += 5;
-      });
-
-      // Divider Line
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      // Totals Summary
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('Subtotal:', 5, currentY);
-      pdf.text(`${subtotal.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
-      currentY += 5;
-
-      if (discountAmount > 0) {
-        pdf.text('Discount:', 5, currentY);
-        pdf.text(`-${discountAmount.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
-        currentY += 5;
-      }
-
-      if (taxAmount > 0) {
-        pdf.text('Tax:', 5, currentY);
-        pdf.text(`+${taxAmount.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
-        currentY += 5;
-      }
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text('GRAND TOTAL:', 5, currentY);
-      pdf.text(`${totalAmount.toFixed(2)} ${currency}`, 75, currentY, { align: 'right' });
-      currentY += 7;
-
-      // Payment Details
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Payment Method: ${payment?.method || 'CASH'} (PAID)`, 5, currentY);
-      currentY += 8;
-
-      // Footer
-      pdf.setLineDashPattern([1, 1], 0);
-      pdf.line(5, currentY, 75, currentY);
-      currentY += 5;
-
-      pdf.setFont('helvetica', 'italic');
-      pdf.setFontSize(7);
-      const footerLines = pdf.splitTextToSize(
-        store?.receiptFooter || 'Thank you for choosing us! Please retain receipt for returns within 7 days.',
-        70
-      );
-      pdf.text(footerLines, 40, currentY, { align: 'center' });
-
-      pdf.save(`Receipt-${receiptNumber || 'POS'}.pdf`);
-      toast.success('Thermal Receipt PDF downloaded successfully!');
-    } catch (err) {
-      console.error('PDF download error:', err);
-      toast.error('Failed to generate PDF receipt.');
+      await downloadThermalReceiptPdf(saleData, saleData.store?.name);
     } finally {
       setIsDownloading(false);
     }
@@ -248,8 +130,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   if (loading) {
     return (
       <div className="max-w-xl mx-auto p-4 space-y-4">
-        <Skeleton className="h-10 w-48" />
-        <Card className="p-6 space-y-4">
+        <Skeleton className="h-9 w-36" />
+        <Card className="p-6 space-y-4 border-border/80">
           <Skeleton className="h-8 w-3/4 mx-auto" />
           <Skeleton className="h-4 w-1/2 mx-auto" />
           <div className="space-y-2 pt-4">
@@ -265,15 +147,17 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
   if (error || !saleData) {
     return (
-      <div className="max-w-md mx-auto my-12 p-6 text-center space-y-4">
-        <div className="size-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
-          <FileText className="size-6" />
-        </div>
-        <h2 className="text-lg font-bold text-foreground">Receipt Not Found</h2>
-        <p className="text-sm text-muted-foreground">{error || 'The requested receipt does not exist.'}</p>
-        <Button variant="outline" onClick={() => router.push('/pos')} className="gap-2">
-          <ArrowLeft className="size-4" /> Back to POS
-        </Button>
+      <div className="max-w-md mx-auto my-12 p-6">
+        <EmptyState
+          icon={FileText}
+          title="Receipt Not Found"
+          description={error || 'The requested receipt does not exist or has expired.'}
+          action={
+            <Button variant="outline" size="sm" onClick={() => router.push('/pos')} className="gap-2 h-8 text-xs font-medium">
+              <ArrowLeft className="size-3.5" /> Back to POS Counter
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -292,25 +176,19 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
     items = [],
   } = saleData;
 
-  const currency = store?.currency || 'PKR';
-  const formattedDate = new Date(createdAt).toLocaleString('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-
   const subtotal = items.reduce((acc: number, item: any) => acc + item.unitPrice * item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
       {/* Screen Action Bar (Hidden when printing) */}
       <div className="max-w-md mx-auto mb-4 flex items-center justify-between gap-2 flex-wrap print:hidden">
-        <Button variant="outline" size="sm" onClick={() => router.push('/pos')} className="gap-1.5 text-xs">
+        <Button variant="outline" size="sm" onClick={() => router.push('/pos')} className="gap-1.5 text-xs h-8 font-medium">
           <ArrowLeft className="size-3.5" /> POS Counter
         </Button>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-1.5 text-xs">
-            {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-1.5 text-xs h-8">
+            {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
             {copied ? 'Copied' : 'Share'}
           </Button>
           <Button
@@ -318,26 +196,26 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             size="sm"
             onClick={handleDownloadPdf}
             disabled={isDownloading}
-            className="gap-1.5 text-xs font-semibold"
+            className="gap-1.5 text-xs h-8 font-medium"
           >
             {isDownloading ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <Download className="size-3.5 text-primary" />
             )}
-            Download PDF
+            PDF
           </Button>
-          <Button variant="default" size="sm" onClick={handlePrint} className="gap-1.5 text-xs font-semibold shadow-xs">
-            <Printer className="size-3.5" /> Print Receipt
+          <Button variant="default" size="sm" onClick={handlePrint} className="gap-1.5 text-xs h-8 font-medium shadow-xs">
+            <Printer className="size-3.5" /> Print
           </Button>
           {status !== 'VOIDED' && canVoidSales && (
             <Button
               variant="destructive"
               size="sm"
               onClick={() => setIsVoidModalOpen(true)}
-              className="gap-1.5 text-xs font-semibold"
+              className="gap-1.5 text-xs h-8 font-medium"
             >
-              <Ban className="size-3.5" /> Void Sale
+              <Ban className="size-3.5" /> Void
             </Button>
           )}
         </div>
@@ -367,14 +245,14 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
           {/* Meta Info: Cashier, Customer, Date & Status */}
           <div className="grid grid-cols-2 gap-2 text-xs py-1 border-b border-dashed border-border/80">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <Calendar className="size-3" /> Date & Time
               </p>
-              <p className="font-medium text-foreground">{formattedDate}</p>
+              <p className="font-medium text-foreground">{formatDateTime(createdAt)}</p>
             </div>
 
-            <div className="space-y-1 text-right">
+            <div className="space-y-0.5 text-right">
               <p className="text-[11px] text-muted-foreground flex items-center justify-end gap-1">
                 <User className="size-3" /> Cashier
               </p>
@@ -405,12 +283,12 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   <div key={item.id || idx} className="pt-2 first:pt-0 space-y-0.5">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold text-foreground leading-snug">{item.productName}</p>
-                      <p className="font-bold text-foreground shrink-0">{lineTotal.toFixed(2)} {currency}</p>
+                      <p className="font-bold text-foreground shrink-0 tabular-nums">{formatCurrency(lineTotal)}</p>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                       <span>
-                        {item.quantity} {item.unit || 'pc'} × {item.unitPrice.toFixed(2)} {currency}
+                        {item.quantity} {item.unit || 'pc'} × {formatCurrency(item.unitPrice)}
                       </span>
                       {item.batchNumber && (
                         <span className="font-mono text-[10px]">
@@ -420,8 +298,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                     </div>
 
                     {item.discount > 0 && (
-                      <p className="text-[10px] text-emerald-600 font-medium text-right">
-                        Discount: -{item.discount.toFixed(2)} {currency}
+                      <p className="text-[10px] text-success font-medium text-right tabular-nums">
+                        Discount: -{formatCurrency(item.discount)}
                       </p>
                     )}
                   </div>
@@ -434,26 +312,26 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           <div className="space-y-1.5 pt-3 border-t border-dashed border-border/80 text-xs">
             <div className="flex justify-between text-muted-foreground">
               <span>Subtotal</span>
-              <span>{subtotal.toFixed(2)} {currency}</span>
+              <span className="tabular-nums">{formatCurrency(subtotal)}</span>
             </div>
 
             {discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-600 font-medium">
+              <div className="flex justify-between text-success font-medium">
                 <span>Order Discount</span>
-                <span>-{discountAmount.toFixed(2)} {currency}</span>
+                <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
               </div>
             )}
 
             {taxAmount > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>Tax</span>
-                <span>+{taxAmount.toFixed(2)} {currency}</span>
+                <span className="tabular-nums">+{formatCurrency(taxAmount)}</span>
               </div>
             )}
 
             <div className="flex justify-between text-sm font-extrabold text-foreground pt-2 border-t border-border/80">
               <span>GRAND TOTAL</span>
-              <span className="text-primary">{totalAmount.toFixed(2)} {currency}</span>
+              <span className="text-primary tabular-nums">{formatCurrency(totalAmount)}</span>
             </div>
           </div>
 
@@ -467,7 +345,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             </div>
             <div className="flex items-center justify-between font-medium">
               <span className="text-muted-foreground">Payment Status:</span>
-              <span className={status === 'VOIDED' ? 'text-destructive font-bold' : 'text-emerald-600 font-bold flex items-center gap-1'}>
+              <span className={status === 'VOIDED' ? 'text-destructive font-bold' : 'text-success font-bold flex items-center gap-1'}>
                 {status === 'VOIDED' ? 'VOIDED' : <><CheckCircle2 className="size-3" /> Paid</>}
               </span>
             </div>
@@ -480,7 +358,6 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             </p>
 
             <div className="pt-2 flex flex-col items-center justify-center space-y-1">
-              {/* Monospace Barcode Visual Pattern */}
               <div className="font-mono text-xs tracking-widest bg-muted/60 px-3 py-1 rounded border border-border/60">
                 |||| | ||||| ||| |||| || ||| |
               </div>
@@ -514,7 +391,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               placeholder="e.g., Customer changed mind, wrong item scanned"
               value={voidReason}
               onChange={(e) => setVoidReason(e.target.value)}
-              className="text-xs"
+              className="text-xs h-8"
             />
           </div>
 
@@ -522,18 +399,20 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => setIsVoidModalOpen(false)}
               disabled={isVoiding}
-              className="text-xs"
+              className="text-xs h-8"
             >
               Cancel
             </Button>
             <Button
               type="button"
               variant="destructive"
+              size="sm"
               onClick={handleVoidSale}
               disabled={isVoiding}
-              className="text-xs font-bold gap-1.5"
+              className="text-xs font-semibold gap-1.5 h-8"
             >
               {isVoiding && <Loader2 className="size-3.5 animate-spin" />}
               Confirm Void Sale
