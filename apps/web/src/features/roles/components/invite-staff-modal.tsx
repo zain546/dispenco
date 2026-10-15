@@ -28,6 +28,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { rolesApi, RoleItem, StaffUserItem } from '../services/roles-api';
+import { getErrorMessage } from '@/lib/errors';
 import { PERMISSION_CATEGORIES } from '@dispenco/types';
 
 const PERM_DEF_MAP = new Map(
@@ -138,10 +139,9 @@ export function InviteStaffModal({
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Failed to save staff member';
-      toast.error(msg);
+      toast.error('Failed to save staff member', {
+        description: getErrorMessage(err),
+      });
     } finally {
       setIsSubmitting(false);
     }

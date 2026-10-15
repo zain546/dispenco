@@ -28,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { rolesApi, RoleItem, PermissionsResponse } from '../services/roles-api';
+import { getErrorMessage } from '@/lib/errors';
 
 interface RoleModalProps {
   isOpen: boolean;
@@ -150,10 +151,9 @@ export function RoleModal({
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Failed to save role';
-      toast.error(msg);
+      toast.error('Failed to save role', {
+        description: getErrorMessage(err),
+      });
     } finally {
       setIsSubmitting(false);
     }

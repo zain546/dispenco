@@ -13,7 +13,6 @@ import {
   Trash2,
   Users,
   Check,
-  Minus,
   Lock,
   Loader2,
   LayoutGrid,
@@ -22,14 +21,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { getErrorMessage } from '@/lib/errors';
 import { RoleItem, PermissionsResponse, rolesApi } from '../services/roles-api';
 import { RoleModal } from './role-modal';
 import { RolePermissionsPopover } from './role-permissions-popover';
@@ -114,10 +107,9 @@ export function RolesList({
       setRoleToDelete(null);
       onRefresh();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Failed to delete role';
-      toast.error(msg);
+      toast.error('Failed to delete role', {
+        description: getErrorMessage(err),
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -130,7 +122,7 @@ export function RolesList({
       {/* Action Header & View Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <span>Workspace Roles & Access Levels</span>
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -175,7 +167,7 @@ export function RolesList({
             <Button
               size="sm"
               onClick={handleOpenCreate}
-              className="gap-1.5 font-semibold text-xs h-8 shadow-2xs"
+              className="gap-1.5 font-medium text-xs h-8 shadow-2xs"
             >
               <Plus className="size-3.5" />
               <span>Create Custom Role</span>
@@ -185,7 +177,7 @@ export function RolesList({
       </div>
 
       {isLoading ? (
-        <Card>
+        <Card className="border-border/80">
           <CardContent className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
             <Loader2 className="size-6 animate-spin text-primary" />
             <span className="text-xs">Loading roles and permissions...</span>
@@ -278,7 +270,7 @@ export function RolesList({
                 </CardHeader>
 
                 <CardContent className="p-4 pt-0 space-y-3">
-                  {/* Clean Capabilities Preview (Harmonious Height, No Scrollbar) */}
+                  {/* Capabilities Preview */}
                   <div className="p-3 rounded-lg bg-muted/30 border border-border/60 text-xs space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -345,7 +337,7 @@ export function RolesList({
                               variant="outline"
                               size="sm"
                               onClick={() => handleOpenEdit(role)}
-                              className="h-7 text-xs px-2.5 gap-1 shadow-2xs"
+                              className="h-7 text-xs px-2.5 gap-1 shadow-2xs font-medium"
                             >
                               <Edit2 className="size-3" />
                               <span>Configure</span>
@@ -460,43 +452,16 @@ export function RolesList({
       />
 
       {/* Role Deletion Confirmation Dialog */}
-      <Dialog
+      <ConfirmDialog
         open={Boolean(roleToDelete)}
         onOpenChange={(open) => !open && setRoleToDelete(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-destructive flex items-center gap-2">
-              <Trash2 className="size-4" />
-              <span>Delete Custom Role</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground mt-1">
-              Are you sure you want to delete the custom role{' '}
-              <strong>"{roleToDelete?.name}"</strong>? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRoleToDelete(null)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
-              className="gap-1.5 font-semibold"
-            >
-              {isDeleting && <Loader2 className="size-3 animate-spin" />}
-              <span>Delete Role</span>
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title="Delete Custom Role"
+        description={`Are you sure you want to delete the custom role "${roleToDelete?.name}"? Staff assigned to this role will need to be reassigned.`}
+        confirmLabel="Delete Role"
+        variant="destructive"
+        isLoading={isDeleting}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }

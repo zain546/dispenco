@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { Users, Shield, RefreshCw } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
+import { getErrorMessage } from '@/lib/errors';
 import {
   rolesApi,
   RoleItem,
@@ -32,8 +34,10 @@ export function RolesPermissionsView() {
       setRoles(rolesRes);
       setUsers(usersRes);
       setPermissionsData(permsRes);
-    } catch {
-      toast.error('Failed to load team and role data');
+    } catch (err) {
+      toast.error('Failed to load team and role data', {
+        description: getErrorMessage(err),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -46,33 +50,23 @@ export function RolesPermissionsView() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Shield className="size-4" />
-            </div>
-            <span>Team & Access Control</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Configure staff member accounts, assign roles, and define granular operational permissions.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+      <PageHeader
+        title="Team & Access Control"
+        description="Configure staff member accounts, assign roles, and define granular operational permissions."
+        actions={
           <Button
             variant="outline"
             size="sm"
             onClick={fetchData}
             disabled={isLoading}
-            className="h-9 px-3 gap-1.5 text-xs shadow-2xs"
+            className="h-8 px-3 gap-1.5 text-xs shadow-2xs font-medium"
             title="Refresh team data"
           >
             <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Tabs Navigation */}
       <Tabs
