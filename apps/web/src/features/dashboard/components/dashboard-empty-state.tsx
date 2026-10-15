@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, ShoppingCart } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { productsApi } from '@/features/inventory/services/products-api';
 
 export function DashboardEmptyState() {
@@ -22,36 +23,33 @@ export function DashboardEmptyState() {
       });
   }, []);
 
-  // Do not display welcome box if store already has products
   if (productCount === null || productCount > 0) {
     return null;
   }
 
   return (
-    <Card className="border-dashed bg-card/60">
-      <CardHeader className="text-center pb-3">
-        <div className="mx-auto size-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
-          <ShoppingCart className="size-6" />
-        </div>
-        <CardTitle className="text-lg">Welcome to Your Pharmacy Workspace</CardTitle>
-        <CardDescription className="max-w-md mx-auto">
-          Your store is set up and ready! Start by populating your product catalog or launching the POS counter for sales.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-center justify-center gap-3 pt-0">
-        <Button asChild size="sm" variant="outline" className="gap-2">
-          <Link href="/inventory">
-            <Plus className="size-4" />
-            <span>Add Medicine Product</span>
-          </Link>
-        </Button>
-        <Button asChild size="sm" className="gap-2">
-          <Link href="/pos">
-            <ShoppingCart className="size-4" />
-            <span>Launch POS Counter</span>
-          </Link>
-        </Button>
-      </CardContent>
+    <Card className="border-dashed border-border/80 bg-card/50">
+      <EmptyState
+        icon={ShoppingCart}
+        title="Welcome to Your Pharmacy Workspace"
+        description="Your store is set up and ready! Start by populating your product catalog or launching the POS counter for sales."
+        action={
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <Button asChild size="sm" variant="outline" className="gap-1.5 h-8 text-xs font-medium">
+              <Link href="/inventory">
+                <Plus className="size-3.5" />
+                <span>Add Medicine Product</span>
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="gap-1.5 h-8 text-xs font-medium">
+              <Link href="/pos">
+                <ShoppingCart className="size-3.5" />
+                <span>Launch POS Counter</span>
+              </Link>
+            </Button>
+          </div>
+        }
+      />
     </Card>
   );
 }

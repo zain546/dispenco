@@ -13,12 +13,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { formatCurrency, formatNumber } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
+import { toast } from 'sonner';
 import {
   TrendingUp,
   DollarSign,
   ShoppingCart,
   Package,
-  BarChart3,
   Calendar,
   Filter,
   RefreshCw,
@@ -76,7 +81,7 @@ export function ReportsView() {
   const fetchReport = async () => {
     try {
       setLoading(true);
-      let params: GetSalesReportParams = { groupBy };
+      const params: GetSalesReportParams = { groupBy };
 
       if (preset !== 'custom') {
         const { startStr, endStr } = calculateDateRange(preset);
@@ -108,7 +113,9 @@ export function ReportsView() {
         setOrgOverviewData(null);
       }
     } catch (err) {
-      console.error('Failed to load sales report:', err);
+      toast.error('Failed to load sales analytics', {
+        description: getErrorMessage(err),
+      });
     } finally {
       setLoading(false);
     }
@@ -134,42 +141,30 @@ export function ReportsView() {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border">
-        <div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="size-6 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Pharmacy Sales Analytics
-            </h1>
-            <Badge
-              variant="outline"
-              className={`text-xs font-semibold ${
-                isAllStores
-                  ? 'bg-purple-500/10 text-purple-600 border-purple-500/30 dark:text-purple-400'
-                  : 'bg-primary/10 text-primary border-primary/30'
-              }`}
-            >
-              {isAllStores ? 'Org Overview (All Branches)' : (activeStore?.name || 'Active Branch')}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time revenue performance, sales trends over time, and top-selling pharmaceutical products.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+      <PageHeader
+        title="Pharmacy Sales Analytics"
+        description="Real-time revenue performance, sales trends over time, and top-selling pharmaceutical products."
+        badge={
+          <Badge
+            variant={isAllStores ? 'secondary' : 'outline'}
+            className="text-xs font-medium"
+          >
+            {isAllStores ? 'Org Overview (All Branches)' : activeStore?.name || 'Active Branch'}
+          </Badge>
+        }
+        actions={
           <Button
             variant="outline"
             size="sm"
             onClick={fetchReport}
             disabled={loading}
-            className="h-9 gap-1.5 text-xs font-medium"
+            className="h-8 gap-1.5 text-xs font-medium"
           >
             <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh Data
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Date Range & Filter Controls */}
       <Card className="border-border/60 shadow-2xs">
@@ -244,109 +239,35 @@ export function ReportsView() {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Revenue */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Total Revenue
-            </CardTitle>
-            <div className="size-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-              <DollarSign className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-foreground">
-                  PKR {summary?.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Gross completed transactions
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Total Transactions */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Completed Sales
-            </CardTitle>
-            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <ShoppingCart className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-foreground">
-                  {summary?.totalTransactions || 0}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Total receipts generated
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Average Order Value (AOV) */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Avg Order Value (AOV)
-            </CardTitle>
-            <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
-              <TrendingUp className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-28" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-foreground">
-                  PKR {summary?.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Average spend per sale
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Total Items Sold */}
-        <Card className="border-border/60 hover:border-border transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Items Dispensed
-            </CardTitle>
-            <div className="size-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600">
-              <Package className="size-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-foreground">
-                  {summary?.totalItemsSold || 0}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Medicine units sold
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Revenue"
+          value={formatCurrency(summary?.totalRevenue ?? 0)}
+          caption="Gross completed transactions"
+          icon={DollarSign}
+          variant="success"
+          isLoading={loading}
+        />
+        <StatCard
+          title="Completed Sales"
+          value={formatNumber(summary?.totalTransactions ?? 0)}
+          caption="Total receipts generated"
+          icon={ShoppingCart}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Avg Order Value (AOV)"
+          value={formatCurrency(summary?.averageOrderValue ?? 0)}
+          caption="Average spend per sale"
+          icon={TrendingUp}
+          isLoading={loading}
+        />
+        <StatCard
+          title="Items Dispensed"
+          value={formatNumber(summary?.totalItemsSold ?? 0)}
+          caption="Medicine units sold"
+          icon={Package}
+          isLoading={loading}
+        />
       </div>
 
       {/* Multi-Branch Comparative Performance Card */}
@@ -356,7 +277,7 @@ export function ReportsView() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground">
-                  <Building2 className="size-4 text-purple-600 dark:text-purple-400" />
+                  <Building2 className="size-4 text-primary" />
                   <span>Branch-by-Branch Comparative Matrix</span>
                 </CardTitle>
                 <CardDescription className="text-xs">
@@ -395,29 +316,29 @@ export function ReportsView() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-bold text-foreground">
-                        {s.currency} {s.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      <td className="px-4 py-3 text-right font-bold text-foreground tabular-nums">
+                        {formatCurrency(s.totalRevenue)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <span className="font-semibold text-foreground">{s.revenueSharePercent}%</span>
+                          <span className="font-semibold text-foreground tabular-nums">{s.revenueSharePercent}%</span>
                           <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
                             <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, s.revenueSharePercent)}%` }} />
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right text-foreground font-medium">
-                        {s.totalTransactions}
+                      <td className="px-4 py-3 text-right text-foreground font-medium tabular-nums">
+                        {formatNumber(s.totalTransactions)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+                        {formatCurrency(s.averageOrderValue)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground tabular-nums">
+                        {formatNumber(s.totalItemsSold)}
                       </td>
                       <td className="px-4 py-3 text-right text-muted-foreground">
-                        {s.currency} {s.averageOrderValue.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-foreground">
-                        {s.totalItemsSold}
-                      </td>
-                      <td className="px-4 py-3 text-right text-muted-foreground">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          {s.uniqueProductsStocked} Products ({s.totalUnitsInStock} Units)
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                          {formatNumber(s.uniqueProductsStocked)} Products ({formatNumber(s.totalUnitsInStock)} Units)
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -441,14 +362,12 @@ export function ReportsView() {
 
       {/* Zero Store Branches Fallback for Org Overview */}
       {isAllStores && orgOverviewData && orgOverviewData.stores.length === 0 && (
-        <Card className="border-border/60 shadow-2xs p-6 text-center">
-          <div className="flex flex-col items-center justify-center text-muted-foreground space-y-2">
-            <Building2 className="size-8 text-muted-foreground/50" />
-            <p className="text-sm font-semibold text-foreground">No Active Store Branches Found</p>
-            <p className="text-xs max-w-sm">
-              You do not have any registered active branches yet. Click on the store switcher in the header to register your first pharmacy branch.
-            </p>
-          </div>
+        <Card className="border-border/60 shadow-2xs p-4">
+          <EmptyState
+            icon={Building2}
+            title="No Active Store Branches Found"
+            description="You do not have any registered active branches yet. Click on the store switcher in the header to register your first pharmacy branch."
+          />
         </Card>
       )}
 
@@ -488,10 +407,12 @@ export function ReportsView() {
           {loading ? (
             <Skeleton className="h-72 w-full" />
           ) : salesOverTime.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2">
-              <Layers className="size-8 text-muted-foreground/40" />
-              <p className="font-medium">No sales recorded for this date range</p>
-              <p className="text-[11px] text-muted-foreground/70">Complete sales at POS to generate reporting analytics</p>
+            <div className="py-12">
+              <EmptyState
+                icon={Layers}
+                title="No sales recorded for this date range"
+                description="Complete sales at POS to generate reporting analytics"
+              />
             </div>
           ) : (
             <div className="h-72 w-full">
@@ -500,27 +421,29 @@ export function ReportsView() {
                   <AreaChart data={salesOverTime} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 11, fill: '#6b7280' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={{ stroke: 'var(--border)' }}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#6b7280' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={{ stroke: 'var(--border)' }}
                       tickFormatter={(v) => `PKR ${v}`}
                     />
                     <Tooltip
-                      formatter={(val: any) => [`PKR ${Number(val || 0).toFixed(2)}`, 'Revenue']}
+                      formatter={(val: unknown) => [formatCurrency(Number(val || 0)), 'Revenue']}
                       labelFormatter={(label) => `Date: ${label}`}
                       contentStyle={{
-                        borderRadius: '8px',
-                        border: '1px solid #e5e7eb',
+                        backgroundColor: 'var(--popover)',
+                        color: 'var(--popover-foreground)',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                         fontSize: '12px',
                       }}
@@ -528,7 +451,7 @@ export function ReportsView() {
                     <Area
                       type="monotone"
                       dataKey="revenue"
-                      stroke="#0d9488"
+                      stroke="var(--primary)"
                       strokeWidth={2.5}
                       fillOpacity={1}
                       fill="url(#colorRevenue)"
@@ -536,28 +459,30 @@ export function ReportsView() {
                   </AreaChart>
                 ) : (
                   <BarChart data={salesOverTime} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 11, fill: '#6b7280' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={{ stroke: 'var(--border)' }}
                     />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#6b7280' }}
-                      axisLine={{ stroke: '#e5e7eb' }}
+                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                      axisLine={{ stroke: 'var(--border)' }}
                       tickFormatter={(v) => `PKR ${v}`}
                     />
                     <Tooltip
-                      formatter={(val: any) => [`PKR ${Number(val || 0).toFixed(2)}`, 'Revenue']}
+                      formatter={(val: unknown) => [formatCurrency(Number(val || 0)), 'Revenue']}
                       labelFormatter={(label) => `Date: ${label}`}
                       contentStyle={{
-                        borderRadius: '8px',
-                        border: '1px solid #e5e7eb',
+                        backgroundColor: 'var(--popover)',
+                        color: 'var(--popover-foreground)',
+                        borderRadius: 'var(--radius)',
+                        border: '1px solid var(--border)',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                         fontSize: '12px',
                       }}
                     />
-                    <Bar dataKey="revenue" fill="#0d9488" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" fill="var(--primary)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 )}
               </ResponsiveContainer>
@@ -571,7 +496,7 @@ export function ReportsView() {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border gap-2">
           <div>
             <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-              <Trophy className="size-4 text-amber-500" /> Top Performing Products
+              <Trophy className="size-4 text-warning" /> Top Performing Products
             </CardTitle>
             <CardDescription className="text-xs">
               Best-selling medicines sorted by volume or revenue contribution
@@ -606,8 +531,12 @@ export function ReportsView() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : topProducts.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">
-              No top products recorded for the selected time window.
+            <div className="p-8">
+              <EmptyState
+                icon={Trophy}
+                title="No top products recorded"
+                description="Sales data for the selected period will appear here once transactions are recorded."
+              />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -626,15 +555,15 @@ export function ReportsView() {
                     <tr key={item.productId} className="hover:bg-muted/20 transition-colors">
                       <td className="py-3 px-4 text-center font-bold">
                         {index === 0 ? (
-                          <Badge className="bg-amber-500 text-amber-950 hover:bg-amber-500 size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
+                          <Badge variant="warning" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
                             1
                           </Badge>
                         ) : index === 1 ? (
-                          <Badge className="bg-slate-300 text-slate-900 hover:bg-slate-300 size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
+                          <Badge variant="secondary" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
                             2
                           </Badge>
                         ) : index === 2 ? (
-                          <Badge className="bg-amber-700 text-amber-100 hover:bg-amber-700 size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
+                          <Badge variant="outline" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
                             3
                           </Badge>
                         ) : (
@@ -649,11 +578,11 @@ export function ReportsView() {
                           {item.category}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-right font-medium text-foreground">
-                        {item.totalQuantity.toLocaleString()}
+                      <td className="py-3 px-4 text-right font-medium text-foreground tabular-nums">
+                        {formatNumber(item.totalQuantity)}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-primary">
-                        PKR {item.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
+                        {formatCurrency(item.totalRevenue)}
                       </td>
                     </tr>
                   ))}

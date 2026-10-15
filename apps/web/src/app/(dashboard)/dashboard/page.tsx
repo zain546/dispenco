@@ -1,6 +1,7 @@
 import React from 'react';
 import { DashboardHeader } from '@/features/dashboard/components/dashboard-header';
 import { DashboardMetrics } from '@/features/dashboard/components/dashboard-metrics';
+import { CatalogCompletionWidget } from '@/features/dashboard/components/catalog-completion-widget';
 import { DashboardEmptyState } from '@/features/dashboard/components/dashboard-empty-state';
 
 export const metadata = {
@@ -13,6 +14,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <DashboardHeader />
       <DashboardMetrics />
+      <CatalogCompletionWidget />
       <DashboardEmptyState />
     </div>
   );

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { productsApi } from '@/features/inventory/services/products-api';
+import { formatNumber } from '@/lib/format';
 import { Sparkles, ArrowRight, PackagePlus, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function CatalogCompletionWidget() {
@@ -59,45 +60,45 @@ export function CatalogCompletionWidget() {
   }
 
   if (!stats || stats.totalCatalogItems === 0) {
-    return null; // Dashboard empty state handles 0 catalog items
+    return null;
   }
 
   const isFullyStocked = stats.unstockedCount === 0;
 
   return (
-    <Card className={`border-border/60 shadow-2xs overflow-hidden ${isFullyStocked ? 'bg-gradient-to-r from-emerald-500/5 via-card to-card border-emerald-500/30' : 'bg-gradient-to-r from-amber-500/5 via-card to-card border-amber-500/30'}`}>
+    <Card className={`border-border/60 shadow-2xs overflow-hidden ${isFullyStocked ? 'border-success/30' : 'border-warning/30'}`}>
       <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40">
         <div>
           <div className="flex items-center gap-2">
-            <Sparkles className={`size-4 ${isFullyStocked ? 'text-emerald-500' : 'text-amber-500'}`} />
+            <Sparkles className={`size-4 ${isFullyStocked ? 'text-success' : 'text-warning'}`} />
             <CardTitle className="text-base font-semibold text-foreground">
               Inventory Onboarding & Catalog Readiness
             </CardTitle>
-            <Badge variant={isFullyStocked ? 'secondary' : 'outline'} className={isFullyStocked ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-xs font-semibold' : 'bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs font-semibold'}>
+            <Badge variant={isFullyStocked ? 'success' : 'warning'} className="text-xs font-semibold">
               {stats.completionPercentage}% Stocked
             </Badge>
           </div>
           <CardDescription className="text-xs text-muted-foreground mt-0.5">
             {isFullyStocked
               ? 'Great job! All products in your store catalog have active stock batches.'
-              : `${stats.unstockedCount} of ${stats.totalCatalogItems} catalog medicines are pending stock batch intake.`}
+              : `${formatNumber(stats.unstockedCount)} of ${formatNumber(stats.totalCatalogItems)} catalog medicines are pending stock batch intake.`}
           </CardDescription>
         </div>
 
         {stats.unstockedCount > 0 && (
           <div className="flex items-center gap-2 shrink-0">
             {stats.priorityUnstockedCount > 0 && (
-              <Button asChild variant="default" size="sm" className="h-8 text-xs font-medium gap-1.5 bg-amber-600 hover:bg-amber-700 text-white">
+              <Button asChild variant="default" size="sm" className="h-8 text-xs font-medium gap-1.5">
                 <Link href="/inventory?tab=unstocked&priorityOnly=true">
                   <Zap className="size-3.5" />
-                  Stock {stats.priorityUnstockedCount} Priority Items First
+                  Stock {formatNumber(stats.priorityUnstockedCount)} Priority Items First
                 </Link>
               </Button>
             )}
             <Button asChild variant="outline" size="sm" className="h-8 text-xs font-medium gap-1.5">
               <Link href="/inventory?tab=unstocked">
                 <PackagePlus className="size-3.5 text-primary" />
-                Complete Catalog ({stats.unstockedCount})
+                Complete Catalog ({formatNumber(stats.unstockedCount)})
               </Link>
             </Button>
           </div>
@@ -111,15 +112,15 @@ export function CatalogCompletionWidget() {
             <span className="text-muted-foreground flex items-center gap-1.5">
               {isFullyStocked ? (
                 <>
-                  <CheckCircle2 className="size-3.5 text-emerald-500" /> Catalog Readiness Score
+                  <CheckCircle2 className="size-3.5 text-success" /> Catalog Readiness Score
                 </>
               ) : (
                 <>
-                  <AlertCircle className="size-3.5 text-amber-500" /> Store Readiness Progress ({stats.stockedCount} / {stats.totalCatalogItems} Products Live)
+                  <AlertCircle className="size-3.5 text-warning" /> Store Readiness Progress ({formatNumber(stats.stockedCount)} / {formatNumber(stats.totalCatalogItems)} Products Live)
                 </>
               )}
             </span>
-            <span className="font-bold text-foreground">{stats.completionPercentage}%</span>
+            <span className="font-bold text-foreground tabular-nums">{stats.completionPercentage}%</span>
           </div>
           <Progress value={stats.completionPercentage} className="h-2" />
         </div>
