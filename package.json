@@ -4,11 +4,13 @@
   "private": true,
   "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "typecheck": "turbo typecheck",
-    "test": "turbo test",
+    "build": "pnpm --filter @dispenco/api build && pnpm --filter @dispenco/web build",
+    "dev": "pnpm --parallel --filter @dispenco/api --filter @dispenco/web dev",
+    "dev:web": "pnpm --filter @dispenco/web dev",
+    "dev:api": "pnpm --filter @dispenco/api dev",
+    "lint": "pnpm -r --filter=!dispenco-monorepo lint",
+    "typecheck": "pnpm -r --filter=!dispenco-monorepo typecheck",
+    "test": "pnpm -r --filter=!dispenco-monorepo test",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
   },
   "devDependencies": {

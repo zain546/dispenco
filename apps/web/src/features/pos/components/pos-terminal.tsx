@@ -33,6 +33,11 @@ import {
   Database,
   Pill,
   Package,
+  UserPlus,
+  UserCheck,
+  X,
+  BookOpen,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,6 +55,8 @@ import {
 } from '@/components/ui/dialog';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
+import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
+import { CustomerModal } from '@/features/customers/components/customer-modal';
 import { getMedicineIconConfig } from '@/features/inventory/components/product-list';
 import { posOfflineService } from '../services/pos-offline-service';
 import { OfflineSyncModal } from './offline-sync-modal';
@@ -88,12 +95,19 @@ export function POSTerminal() {
   const [selectedResultIndex, setSelectedResultIndex] = useState(0);
 
   // Customer & Payment State
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [customerSearchResults, setCustomerSearchResults] = useState<CustomerItem[]>([]);
+  const [isCustomerSearching, setIsCustomerSearching] = useState(false);
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
   const [overallDiscountType, setOverallDiscountType] = useState<'FLAT' | 'PERCENT'>('FLAT');
+  const customerSearchRef = useRef<HTMLDivElement>(null);
 
   // Checkout State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -144,6 +158,40 @@ export function POSTerminal() {
       };
     }
   }, [checkPendingOfflineSales]);
+
+  // Live Customer Search for POS & Outside Click Handler
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (customerSearchRef.current && !customerSearchRef.current.contains(event.target as Node)) {
+        setIsCustomerDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!customerSearchQuery.trim() || customerSearchQuery.trim().length < 2) {
+      setCustomerSearchResults([]);
+      setIsCustomerSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsCustomerSearching(true);
+      try {
+        const results = await customersApi.searchCustomers(customerSearchQuery.trim());
+        setCustomerSearchResults((results || []) as CustomerItem[]);
+        setIsCustomerDropdownOpen(true);
+      } catch (err) {
+        console.error('Customer search error:', err);
+      } finally {
+        setIsCustomerSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [customerSearchQuery]);
 
   // Recent Sales History State
   const [isRecentSalesOpen, setIsRecentSalesOpen] = useState(false);
@@ -706,11 +754,17 @@ export function POSTerminal() {
       return;
     }
 
+    if (paymentMethod === 'CREDIT' && !selectedCustomer) {
+      toast.error('A registered customer must be selected from the ledger to complete a sale on credit (Khata).');
+      return;
+    }
+
     setIsSubmitting(true);
     const payload = {
       storeId: currentBranchId || undefined,
-      customerName: customerName.trim() || undefined,
-      customerPhone: customerPhone.trim() || undefined,
+      customerId: selectedCustomer?.id || undefined,
+      customerName: (selectedCustomer ? selectedCustomer.name : customerName.trim()) || undefined,
+      customerPhone: (selectedCustomer ? (selectedCustomer.phone || undefined) : customerPhone.trim()) || undefined,
       overallDiscount: overallDiscount > 0 ? overallDiscount : undefined,
       overallDiscountType,
       paymentMethod,
@@ -731,6 +785,7 @@ export function POSTerminal() {
         setCompletedSale(sale);
         setIsReceiptOpen(true);
         setCart([]);
+        setSelectedCustomer(null);
         setCustomerName('');
         setCustomerPhone('');
         setCashTendered('');
@@ -754,6 +809,7 @@ export function POSTerminal() {
         setCompletedSale(res.sale);
         setIsReceiptOpen(true);
         setCart([]);
+        setSelectedCustomer(null);
         setCustomerName('');
         setCustomerPhone('');
         setCashTendered('');
@@ -770,6 +826,7 @@ export function POSTerminal() {
           setCompletedSale(sale);
           setIsReceiptOpen(true);
           setCart([]);
+          setSelectedCustomer(null);
           setCustomerName('');
           setCustomerPhone('');
           setCashTendered('');
@@ -1490,25 +1547,159 @@ export function POSTerminal() {
             </CardHeader>
 
             <CardContent className="p-4 space-y-4">
-              {/* Optional Customer Information */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <User className="size-3.5 text-muted-foreground" /> Customer Details (Optional)
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Customer Name"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="h-9 text-xs"
-                  />
-                  <Input
-                    placeholder="Phone Number"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="h-9 text-xs"
-                  />
+              {/* Customer Account & Khata Credit Section */}
+              <div className="space-y-2" ref={customerSearchRef}>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <User className="size-3.5 text-primary" />
+                    <span>Customer Account</span>
+                    {paymentMethod === 'CREDIT' && (
+                      <span className="text-[10px] text-destructive font-bold">* Required for Khata</span>
+                    )}
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAddCustomerModalOpen(true)}
+                    className="h-6 px-2 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer font-medium"
+                  >
+                    <UserPlus className="size-3" />
+                    <span>+ New Customer</span>
+                  </Button>
                 </div>
+
+                {selectedCustomer ? (
+                  /* Selected Customer Card */
+                  <div className="p-2.5 rounded-xl border border-primary/30 bg-primary/5 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="size-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                        {selectedCustomer.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-foreground truncate">{selectedCustomer.name}</p>
+                          <Badge
+                            variant={selectedCustomer.creditBalance > 0 ? 'destructive' : 'secondary'}
+                            className="text-[10px] py-0 px-1.5 h-4.5 font-semibold shrink-0"
+                          >
+                            {selectedCustomer.creditBalance > 0
+                              ? `Debt: ${Number(selectedCustomer.creditBalance).toLocaleString('en-PK')} PKR`
+                              : 'Khata: 0 PKR'}
+                          </Badge>
+                        </div>
+                        {selectedCustomer.phone && (
+                          <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Phone className="size-2.5" />
+                            <span>{selectedCustomer.phone}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedCustomer(null);
+                        setCustomerName('');
+                        setCustomerPhone('');
+                      }}
+                      className="size-7 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
+                      title="Deselect Customer"
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  /* Customer Search & Manual Input */
+                  <div className="space-y-2 relative">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Search customer by name or phone..."
+                        value={customerSearchQuery}
+                        onChange={(e) => {
+                          setCustomerSearchQuery(e.target.value);
+                          if (!e.target.value) {
+                            setIsCustomerDropdownOpen(false);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (customerSearchResults.length > 0) {
+                            setIsCustomerDropdownOpen(true);
+                          }
+                        }}
+                        className="h-9 pl-8 pr-8 text-xs"
+                      />
+                      {isCustomerSearching && (
+                        <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground animate-spin" />
+                      )}
+                      {!isCustomerSearching && customerSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomerSearchQuery('');
+                            setCustomerSearchResults([]);
+                            setIsCustomerDropdownOpen(false);
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Customer Search Dropdown Results */}
+                    {isCustomerDropdownOpen && customerSearchResults.length > 0 && (
+                      <div className="absolute z-30 left-0 right-0 top-10 bg-popover/95 backdrop-blur-md border border-border rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+                        <div className="p-1">
+                          {customerSearchResults.map((cust) => (
+                            <button
+                              key={cust.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCustomer(cust);
+                                setCustomerName(cust.name);
+                                setCustomerPhone(cust.phone || '');
+                                setCustomerSearchQuery('');
+                                setIsCustomerDropdownOpen(false);
+                              }}
+                              className="w-full text-left p-2 rounded-lg hover:bg-muted/80 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{cust.name}</p>
+                                <p className="text-[11px] text-muted-foreground">{cust.phone || 'No phone'}</p>
+                              </div>
+                              <Badge
+                                variant={cust.creditBalance > 0 ? 'destructive' : 'outline'}
+                                className="text-[10px] py-0 px-1.5 h-4.5 font-semibold shrink-0"
+                              >
+                                {cust.creditBalance > 0 ? `${cust.creditBalance} PKR debt` : '0 PKR debt'}
+                              </Badge>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Walk-in Customer Fallback Inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                      <Input
+                        placeholder="Or walk-in name"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="h-8 text-xs bg-muted/20"
+                      />
+                      <Input
+                        placeholder="Walk-in phone"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        className="h-8 text-xs bg-muted/20"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Overall Discount Toggle */}
@@ -1576,6 +1767,42 @@ export function POSTerminal() {
                   })}
                 </div>
               </div>
+
+              {/* Credit / Khata Validation Notice */}
+              {paymentMethod === 'CREDIT' && (
+                <div className={`p-3 rounded-xl border text-xs space-y-2 ${
+                  selectedCustomer
+                    ? 'bg-amber-500/10 border-amber-500/30 text-foreground'
+                    : 'bg-destructive/10 border-destructive/30 text-destructive'
+                }`}>
+                  <div className="flex items-center gap-2 font-bold">
+                    <BookOpen className="size-4 shrink-0" />
+                    <span>Khata (Customer Credit Ledger)</span>
+                  </div>
+                  {selectedCustomer ? (
+                    <div className="space-y-1 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Current Outstanding Debt:</span>
+                        <span className="font-semibold text-destructive">{Number(selectedCustomer.creditBalance).toFixed(2)} PKR</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">+ This Purchase:</span>
+                        <span className="font-semibold text-foreground">{totals.grandTotal.toFixed(2)} PKR</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-border/40 font-bold">
+                        <span>New Outstanding Balance:</span>
+                        <span className="text-destructive">
+                          {(Number(selectedCustomer.creditBalance) + totals.grandTotal).toFixed(2)} PKR
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] leading-relaxed">
+                      ⚠️ Khata credit sales require a registered customer. Please search or register a customer above before completing this transaction.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Cash Tendered & Change Due Calculator */}
               {paymentMethod === 'CASH' && (
@@ -1901,6 +2128,20 @@ export function POSTerminal() {
         open={isOfflineModalOpen}
         onOpenChange={setIsOfflineModalOpen}
         onSyncComplete={checkPendingOfflineSales}
+      />
+
+      {/* Quick Customer Registration Modal */}
+      <CustomerModal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        onSuccess={(newCust) => {
+          if (newCust) {
+            setSelectedCustomer(newCust);
+            setCustomerName(newCust.name);
+            setCustomerPhone(newCust.phone || '');
+            toast.success(`Customer "${newCust.name}" selected.`);
+          }
+        }}
       />
     </div>
   );

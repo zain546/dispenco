@@ -47,6 +47,7 @@ import { ReportsModule } from './modules/reports/reports.module';
               username: url.username || undefined,
               password: url.password || undefined,
               maxRetriesPerRequest: null,
+              retryStrategy: (times: number) => Math.min(times * 1000, 5000),
             },
           };
         } catch {
@@ -55,6 +56,7 @@ import { ReportsModule } from './modules/reports/reports.module';
               host: 'localhost',
               port: 6379,
               maxRetriesPerRequest: null,
+              retryStrategy: (times: number) => Math.min(times * 1000, 5000),
             },
           };
         }

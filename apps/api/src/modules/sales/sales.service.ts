@@ -211,6 +211,13 @@ export class SalesService {
 
       const totalAmount = Math.max(0, runningSubtotal - runningDiscountTotal + runningTaxTotal);
 
+      const paymentMethod = dto.paymentMethod || PaymentMethod.CASH;
+      const isOnCredit = paymentMethod === PaymentMethod.CREDIT;
+
+      if (isOnCredit && !customerId) {
+        throw new BadRequestException('A registered customer must be selected to complete a sale on credit (Khata).');
+      }
+
       // 4. Create Sale Record
       const sale = await tx.sale.create({
         data: {
@@ -222,7 +229,7 @@ export class SalesService {
           totalAmount: new Prisma.Decimal(totalAmount),
           discountAmount: new Prisma.Decimal(runningDiscountTotal),
           taxAmount: new Prisma.Decimal(runningTaxTotal),
-          status: SaleStatus.COMPLETED,
+          status: isOnCredit ? SaleStatus.ON_CREDIT : SaleStatus.COMPLETED,
           saleItems: {
             create: preparedSaleItems,
           },
@@ -242,8 +249,19 @@ export class SalesService {
         },
       });
 
-      // 5. Create Payment Record if payment method provided
-      const paymentMethod = dto.paymentMethod || PaymentMethod.CASH;
+      // 5. Update Customer Khata balance if sale is on credit
+      if (isOnCredit && customerId) {
+        await tx.customer.update({
+          where: { id: customerId },
+          data: {
+            creditBalance: {
+              increment: new Prisma.Decimal(totalAmount),
+            },
+          },
+        });
+      }
+
+      // 6. Create Payment Record if payment method provided
       await tx.payment.create({
         data: {
           tenantId,
@@ -425,6 +443,18 @@ export class SalesService {
           data: {
             quantityRemaining: {
               increment: item.quantity,
+            },
+          },
+        });
+      }
+
+      // Revert customer credit balance if sale was on credit
+      if (sale.status === SaleStatus.ON_CREDIT && sale.customerId) {
+        await tx.customer.update({
+          where: { id: sale.customerId },
+          data: {
+            creditBalance: {
+              decrement: sale.totalAmount,
             },
           },
         });

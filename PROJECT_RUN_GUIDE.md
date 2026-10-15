@@ -29,6 +29,22 @@ pnpm dev
 
 ---
 
+## 🔑 Test / Demo Login Credentials
+
+The local database comes pre-seeded with test data (dummy pharmacy inventory, FEFO batches, and stores).
+
+| Field | Value |
+|---|---|
+| **Login URL** | `http://localhost:3000/login` |
+| **Email** | `admin@dispenco.com` |
+| **Password** | `Password123!` |
+| **Role** | `Owner` (Full permissions) |
+| **Store** | `Al-shifa pharmacy` |
+
+*(To re-seed test products and batches at any time: compile and run `apps/api/prisma/seed.ts`)*
+
+---
+
 ## 💡 Database Changes & Hot Reloading (FAQ)
 
 ### Do I need to restart Docker after database schema changes?

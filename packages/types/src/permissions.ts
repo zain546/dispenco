@@ -11,6 +11,8 @@ export enum Permission {
   SALES_READ = 'sales:read',
   SALES_CREATE = 'sales:create',
   SALES_VOID = 'sales:void',
+  CUSTOMERS_READ = 'customers:read',
+  CUSTOMERS_MANAGE = 'customers:manage',
 
   // Purchases & Suppliers
   PURCHASES_READ = 'purchases:read',
@@ -101,6 +103,16 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
         name: 'Void Sales Receipts',
         description: 'Cancel completed customer transactions and restore deducted batch quantities',
       },
+      {
+        code: Permission.CUSTOMERS_READ,
+        name: 'View Customers & Ledgers',
+        description: 'Search customer directories, view profiles, and inspect credit transaction history',
+      },
+      {
+        code: Permission.CUSTOMERS_MANAGE,
+        name: 'Manage Customers & Khata',
+        description: 'Add new customers, update contact records, and record debt settlement payments',
+      },
     ],
   },
   {
@@ -172,6 +184,7 @@ export const DEFAULT_STAFF_PERMISSIONS = [
   Permission.SALES_READ,
   Permission.SALES_CREATE,
   Permission.PURCHASES_READ,
+  Permission.CUSTOMERS_READ,
 ];
 
 export const DEFAULT_MANAGER_PERMISSIONS = [
@@ -184,6 +197,8 @@ export const DEFAULT_MANAGER_PERMISSIONS = [
   Permission.SALES_READ,
   Permission.SALES_CREATE,
   Permission.SALES_VOID,
+  Permission.CUSTOMERS_READ,
+  Permission.CUSTOMERS_MANAGE,
   Permission.PURCHASES_READ,
   Permission.PURCHASES_CREATE,
   Permission.SUPPLIERS_MANAGE,
@@ -200,10 +215,14 @@ export const DEFAULT_PHARMACIST_PERMISSIONS = [
   Permission.SALES_READ,
   Permission.SALES_CREATE,
   Permission.PURCHASES_READ,
+  Permission.CUSTOMERS_READ,
+  Permission.CUSTOMERS_MANAGE,
 ];
 
 export const DEFAULT_CASHIER_PERMISSIONS = [
   Permission.INVENTORY_READ,
   Permission.SALES_READ,
   Permission.SALES_CREATE,
+  Permission.CUSTOMERS_READ,
+  Permission.CUSTOMERS_MANAGE,
 ];

@@ -237,6 +237,7 @@ model Customer {
   payments      Payment[]
 
   @@index([tenantId, phone])
+  @@index([tenantId, name])
 }
 
 enum SaleStatus {
@@ -308,7 +309,7 @@ enum PaymentStatus {
 model Payment {
   id          String        @id @default(uuid())
   tenantId    String
-  saleId      String
+  saleId      String?
   customerId  String?
   amount      Decimal       @db.Decimal(12, 2)
   method      PaymentMethod
@@ -318,7 +319,7 @@ model Payment {
   updatedAt   DateTime      @updatedAt
 
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sale        Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sale        Sale?         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   customer    Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
 }
 
