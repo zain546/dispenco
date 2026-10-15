@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/context/auth-context';
 import { onboardingSchema, type OnboardingFormData } from '../schemas';
 import { storesApi } from '@/lib/stores-api';
+import { getErrorMessage } from '@/lib/errors';
 import { AuthHeader } from './auth-header';
 import { AuthFooter } from './auth-footer';
 
@@ -70,9 +71,7 @@ export function OnboardingCard() {
         return;
       }
 
-      const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Failed to create pharmacy store');
+      const errorMessage = getErrorMessage(err) || 'Failed to create pharmacy store';
 
       setError(errorMessage);
     } finally {
