@@ -27,10 +27,13 @@ import {
   Calendar,
   Filter,
   RefreshCw,
-  Trophy,
-  Layers,
   Building2,
+  Sparkles,
+  BarChart3,
+  Layers,
+  Trophy,
 } from 'lucide-react';
+import { AnalyticsCopilotView } from './analytics-copilot-view';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -56,6 +59,17 @@ export function ReportsView() {
   const [orgOverviewData, setOrgOverviewData] = useState<OrgOverviewResponse['data'] | null>(null);
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
+  const [currentView, setCurrentView] = useState<'charts' | 'copilot'>('charts');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'copilot' || tabParam === 'ai' || tabParam === 'assistant') {
+        setCurrentView('copilot');
+      }
+    }
+  }, []);
 
   const calculateDateRange = (selectedPreset: PresetRange) => {
     const end = new Date();
@@ -142,8 +156,12 @@ export function ReportsView() {
     <div className="space-y-6">
       {/* Header Banner */}
       <PageHeader
-        title="Pharmacy Sales Analytics"
-        description="Real-time revenue performance, sales trends over time, and top-selling pharmaceutical products."
+        title={currentView === 'charts' ? 'Pharmacy Sales Analytics' : 'AI Analytics Copilot'}
+        description={
+          currentView === 'charts'
+            ? 'Real-time revenue performance, sales trends over time, and top-selling pharmaceutical products.'
+            : 'Natural-language queries and automated executive analytics backed by your real live database.'
+        }
         badge={
           <Badge
             variant={isAllStores ? 'secondary' : 'outline'}
@@ -153,20 +171,58 @@ export function ReportsView() {
           </Badge>
         }
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchReport}
-            disabled={loading}
-            className="h-8 gap-1.5 text-xs font-medium"
-          >
-            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </Button>
+          currentView === 'charts' ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchReport}
+              disabled={loading}
+              className="h-8 gap-1.5 text-xs font-medium"
+            >
+              <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh Data
+            </Button>
+          ) : undefined
         }
       />
 
-      {/* Date Range & Filter Controls */}
+      {/* View Switcher: Standard Reports vs AI Copilot */}
+      <div className="flex items-center gap-2 border-b border-border pb-2">
+        <Button
+          variant={currentView === 'charts' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setCurrentView('charts')}
+          className="gap-1.5 font-medium text-xs sm:text-sm h-9"
+        >
+          <BarChart3 className="size-4 shrink-0" />
+          <span>Sales & Org Analytics</span>
+        </Button>
+        <Button
+          variant={currentView === 'copilot' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setCurrentView('copilot')}
+          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
+            currentView === 'copilot'
+              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Sparkles className="size-4 text-amber-400 shrink-0" />
+          <span>AI Analytics Copilot</span>
+          <Badge
+            variant="outline"
+            className="ml-1 text-[9px] px-1 py-0 border-primary/30 text-primary uppercase font-bold"
+          >
+            New
+          </Badge>
+        </Button>
+      </div>
+
+      {currentView === 'copilot' ? (
+        <AnalyticsCopilotView />
+      ) : (
+        <>
+          {/* Date Range & Filter Controls */}
       <Card className="border-border/60 shadow-2xs">
         <CardContent className="p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           {/* Presets */}
@@ -592,6 +648,8 @@ export function ReportsView() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }

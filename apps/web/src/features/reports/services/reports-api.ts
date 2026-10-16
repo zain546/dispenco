@@ -95,4 +95,38 @@ export const reportsApi = {
     const res = await apiClient.get(`/reports/org-overview${queryString}`);
     return res.data;
   },
+
+  queryCopilot: async (data: QueryCopilotInput): Promise<CopilotQueryResult> => {
+    const res = await apiClient.post('/reports/copilot/query', data);
+    return res.data;
+  },
 };
+
+export interface CopilotQueryResult {
+  question: string;
+  intent: string;
+  timeframeLabel: string;
+  narrative: string;
+  chartType: 'bar' | 'line' | 'pie' | 'kpi' | 'table';
+  summaryMetrics: Array<{
+    label: string;
+    value: string | number;
+    change?: string;
+    isPositive?: boolean;
+  }>;
+  chartData: Array<Record<string, unknown>>;
+  tableColumns?: Array<{
+    key: string;
+    label: string;
+    format?: 'currency' | 'number' | 'text' | 'date';
+  }>;
+  tableData?: Array<Record<string, unknown>>;
+  suggestedFollowUps: string[];
+  executionTimeMs: number;
+}
+
+export interface QueryCopilotInput {
+  question: string;
+  storeId?: string;
+  timeframe?: string;
+}
