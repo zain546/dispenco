@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CheckCircle2, Download, Printer, Loader2 } from 'lucide-react';
+import { CheckCircle2, Download, Printer, Loader2, MessageSquare } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -11,9 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { SaleResponse } from '@/features/sales/services/sales-api';
+import { SaleResponse, salesApi } from '@/features/sales/services/sales-api';
 import { formatCurrency } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import { downloadThermalReceiptPdf, downloadA4TaxInvoicePdf } from '../utils/pos-receipt-pdf';
+import { toast } from 'sonner';
 
 export interface ReceiptModalProps {
   open: boolean;
@@ -31,6 +33,7 @@ export function ReceiptModal({
   onNextSale,
 }: ReceiptModalProps) {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   if (!sale) return null;
 
@@ -40,6 +43,28 @@ export function ReceiptModal({
       await downloadA4TaxInvoicePdf(sale, { storeName });
     } finally {
       setIsDownloadingPdf(false);
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    const phone = sale.customer?.phone;
+    if (!phone) {
+      toast.info('No phone on file for customer. Opening full invoice to specify phone.');
+      window.open(`/pos/receipt/${sale.id}`, '_blank');
+      return;
+    }
+
+    setIsSendingWhatsApp(true);
+    try {
+      const res = await salesApi.sendDigitalInvoice(sale.id, phone);
+      toast.success(res.message || 'Invoice sent to WhatsApp!');
+      if (res.directWhatsAppUrl) {
+        window.open(res.directWhatsAppUrl, '_blank');
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Could not send WhatsApp receipt'));
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -104,20 +129,34 @@ export function ReceiptModal({
         </div>
 
         <div className="flex flex-col gap-2 pt-2 w-full">
-          <div className="grid grid-cols-2 gap-2 w-full">
+          <div className="grid grid-cols-3 gap-2 w-full">
             <Button
               type="button"
               variant="outline"
               onClick={handleDownload}
               disabled={isDownloadingPdf}
-              className="w-full h-9 text-xs font-semibold gap-1.5 cursor-pointer"
+              className="w-full h-9 text-xs font-semibold gap-1 cursor-pointer"
             >
               {isDownloadingPdf ? (
                 <Loader2 className="size-3.5 animate-spin" />
               ) : (
                 <Download className="size-3.5 text-primary" />
               )}
-              Download PDF
+              A4 PDF
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSendWhatsApp}
+              disabled={isSendingWhatsApp}
+              className="w-full h-9 text-xs font-semibold gap-1 text-emerald-600 border-emerald-600/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
+            >
+              {isSendingWhatsApp ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <MessageSquare className="size-3.5" />
+              )}
+              WhatsApp
             </Button>
             <Button
               type="button"
@@ -125,9 +164,9 @@ export function ReceiptModal({
               onClick={() => {
                 window.open(`/pos/receipt/${sale.id}`, '_blank');
               }}
-              className="w-full h-9 text-xs gap-1.5 cursor-pointer font-medium"
+              className="w-full h-9 text-xs gap-1 cursor-pointer font-medium"
             >
-              <Printer className="size-3.5" /> Print Receipt
+              <Printer className="size-3.5" /> Invoice
             </Button>
           </div>
           <Button

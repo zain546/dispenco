@@ -41,9 +41,10 @@ import {
   Ban,
   AlertTriangle,
   RotateCcw,
-  Sparkles,
   Receipt,
   FileSpreadsheet,
+  Send,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -71,6 +72,11 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   // Return modal state
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [returnRecordForSlip, setReturnRecordForSlip] = useState<ReturnRecord | null>(null);
+
+  // Digital Delivery (WhatsApp/SMS)
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [whatsAppPhone, setWhatsAppPhone] = useState('');
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   const fetchReceipt = async () => {
     try {
@@ -153,6 +159,31 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       await downloadThermalReceiptPdf(saleData, saleData.store?.name);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleOpenWhatsAppModal = () => {
+    setWhatsAppPhone(saleData?.customer?.phone || '');
+    setIsWhatsAppModalOpen(true);
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!whatsAppPhone.trim()) {
+      toast.error('Please enter customer phone number');
+      return;
+    }
+    setIsSendingWhatsApp(true);
+    try {
+      const res = await salesApi.sendDigitalInvoice(saleId, whatsAppPhone.trim());
+      toast.success(res.message || 'Digital invoice dispatched via WhatsApp!');
+      setIsWhatsAppModalOpen(false);
+      if (res.directWhatsAppUrl) {
+        window.open(res.directWhatsAppUrl, '_blank');
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to send WhatsApp invoice'));
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -317,6 +348,17 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           >
             <Printer className="size-3.5" />
             <span>Print {viewMode === 'a4' ? 'Invoice' : 'Slip'}</span>
+          </Button>
+
+          {/* WhatsApp Digital Delivery Action */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenWhatsAppModal}
+            className="gap-1.5 text-xs h-8 font-medium text-emerald-600 border-emerald-600/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
+          >
+            <MessageSquare className="size-3.5 text-emerald-600" />
+            <span>Send WhatsApp</span>
           </Button>
 
           {/* Return Processing Action */}
@@ -827,6 +869,85 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             >
               {isVoiding && <Loader2 className="size-3.5 animate-spin" />}
               Confirm Void Sale
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* WhatsApp Digital Invoice Delivery Dialog */}
+      <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="space-y-2">
+            <div className="size-10 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center border border-emerald-500/20">
+              <MessageSquare className="size-5" />
+            </div>
+            <DialogTitle className="text-base font-bold text-foreground">
+              Send Invoice via WhatsApp
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Send a digital receipt link and summary to the customer&apos;s WhatsApp number.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 rounded-lg bg-muted/40 border border-border/70 space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Receipt Number:</span>
+                <span className="font-mono font-bold text-foreground">#{receiptNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Invoice Amount:</span>
+                <span className="font-bold text-foreground">{formatCurrency(totalAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Customer:</span>
+                <span className="font-medium text-foreground">{customer?.name || 'Walk-in Customer'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="whatsapp-phone" className="text-xs font-semibold">
+                Customer WhatsApp Phone Number <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="whatsapp-phone"
+                placeholder="e.g. 03001234567 or 923001234567"
+                value={whatsAppPhone}
+                onChange={(e) => setWhatsAppPhone(e.target.value)}
+                className="text-xs h-9 font-mono"
+                autoFocus
+              />
+              <p className="text-micro text-muted-foreground">
+                Enter phone number with local (03xx) or international (923xx) format.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsWhatsAppModalOpen(false)}
+              disabled={isSendingWhatsApp}
+              className="text-xs h-8 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={handleSendWhatsApp}
+              disabled={isSendingWhatsApp || !whatsAppPhone.trim()}
+              className="text-xs font-semibold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+            >
+              {isSendingWhatsApp ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Send className="size-3.5" />
+              )}
+              <span>Send Digital Receipt</span>
             </Button>
           </DialogFooter>
         </DialogContent>

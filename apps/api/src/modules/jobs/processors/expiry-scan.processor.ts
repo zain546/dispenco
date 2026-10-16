@@ -56,6 +56,36 @@ export class ExpiryScanProcessor {
         batch.batchNumber,
         daysRemaining,
       );
+
+      // Step 3.15: Wire critical near-expiry (<=30 days) or expired batches to real phone delivery
+      if (daysRemaining <= 30) {
+        try {
+          const owner = await this.prisma.user.findFirst({
+            where: {
+              tenantId: batch.store.tenantId,
+              phone: { not: null },
+            },
+            select: { phone: true },
+          });
+
+          if (owner?.phone) {
+            await this.notificationsService.sendMessage(
+              batch.store.tenantId,
+              owner.phone,
+              'EXPIRY_ALERT',
+              {
+                storeName: 'Pharmacy Store',
+                productName: batch.product.name,
+                batchNumber: batch.batchNumber,
+                daysRemaining,
+              },
+              'WHATSAPP',
+            );
+          }
+        } catch (e: any) {
+          this.logger.warn(`Could not dispatch external expiry alert: ${e.message}`);
+        }
+      }
     }
 
     this.logger.log(`Completed expiry scan. Evaluated ${batches.length} batches, flagged ${flaggedCount}.`);

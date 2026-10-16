@@ -47,6 +47,34 @@ export class LowStockScanProcessor {
           totalStock,
           product.lowStockThreshold,
         );
+
+        // Step 3.15: Wire to real delivery if owner/staff has a phone on record
+        try {
+          const owner = await this.prisma.user.findFirst({
+            where: {
+              tenantId: product.tenantId,
+              phone: { not: null },
+            },
+            select: { phone: true },
+          });
+
+          if (owner?.phone) {
+            await this.notificationsService.sendMessage(
+              product.tenantId,
+              owner.phone,
+              'LOW_STOCK_ALERT',
+              {
+                storeName: 'Pharmacy Dispensary',
+                productName: product.name,
+                currentStock: totalStock,
+                threshold: product.lowStockThreshold,
+              },
+              'WHATSAPP',
+            );
+          }
+        } catch (e: any) {
+          this.logger.warn(`Could not dispatch external low-stock alert: ${e.message}`);
+        }
       }
     }
 

@@ -4,6 +4,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { CreateSaleDto } from './dtos/create-sale.dto';
 import { CreateReturnDto } from './dtos/create-return.dto';
 import { QueryReturnsDto } from './dtos/query-returns.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Prisma, DiscountType, PaymentMethod, PaymentStatus, SaleStatus } from '@prisma/client';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class SalesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createSale(tenantId: string, userId: string, dto: CreateSaleDto) {
@@ -865,6 +867,37 @@ export class SalesService {
     }
 
     return returnRecord;
+  }
+
+  /**
+   * Step 3.13 — Digital invoice delivery
+   * Sends the sales receipt to the customer via WhatsApp/SMS
+   */
+  async sendDigitalInvoice(
+    tenantId: string,
+    userId: string,
+    saleId: string,
+    phone?: string,
+  ) {
+    const result = await this.notificationsService.sendSaleInvoice(tenantId, saleId, phone);
+
+    // Audit log
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: 'DIGITAL_INVOICE_SENT',
+        entityType: 'Sale',
+        entityId: saleId,
+        metadata: {
+          recipient: result.recipient,
+          channel: result.channel,
+          status: result.status,
+        },
+      },
+    });
+
+    return result;
   }
 }
 

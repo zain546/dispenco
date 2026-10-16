@@ -69,6 +69,25 @@ export class JobsService implements OnApplicationBootstrap {
     );
   }
 
+  async queueOutboundMessage(jobData: {
+    tenantId: string;
+    recipientPhone: string;
+    channel: 'WHATSAPP' | 'SMS';
+    messageText: string;
+    mediaUrl?: string;
+    metadata?: Record<string, any>;
+  }) {
+    return this.notificationsQueue.add('send-message', jobData, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000,
+      },
+      removeOnComplete: 100,
+      removeOnFail: 500,
+    });
+  }
+
   async isHealthy(): Promise<boolean> {
     try {
       await this.schedulerQueue.getJobCounts();

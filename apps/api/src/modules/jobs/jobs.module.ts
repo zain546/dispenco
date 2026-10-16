@@ -4,6 +4,7 @@ import { QUEUE_SCHEDULER, QUEUE_NOTIFICATIONS } from './jobs.constants';
 import { SchedulerProcessor } from './processors/scheduler.processor';
 import { LowStockScanProcessor } from './processors/low-stock-scan.processor';
 import { ExpiryScanProcessor } from './processors/expiry-scan.processor';
+import { MessagingProcessor } from './processors/messaging.processor';
 import { JobsService } from './jobs.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -21,6 +22,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     SchedulerProcessor,
     LowStockScanProcessor,
     ExpiryScanProcessor,
+    MessagingProcessor,
     JobsService,
   ],
   exports: [BullModule, JobsService],

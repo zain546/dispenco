@@ -118,4 +118,19 @@ export class SalesController {
   ) {
     return this.salesService.voidSale(tenantId, userId, saleId, dto?.reason);
   }
+
+  /**
+   * POST /api/v1/sales/:id/send-digital-invoice
+   * Step 3.13 — Send invoice to customer via WhatsApp/SMS
+   */
+  @Post(':id/send-digital-invoice')
+  @RequirePermissions(Permission.SALES_READ)
+  async sendDigitalInvoice(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') userId: string,
+    @Param('id') saleId: string,
+    @Body('phone') phone?: string,
+  ) {
+    return this.salesService.sendDigitalInvoice(tenantId, userId, saleId, phone);
+  }
 }

@@ -249,4 +249,17 @@ export const salesApi = {
     const response = await apiClient.get(`/sales/returns/${returnId}`);
     return response.data;
   },
+
+  sendDigitalInvoice: async (saleId: string, phone?: string) => {
+    const response = await apiClient.post(`/sales/${saleId}/send-digital-invoice`, { phone });
+    return response.data as {
+      success: boolean;
+      channel: string;
+      recipient: string;
+      messageText: string;
+      directWhatsAppUrl?: string;
+      status: string;
+      message: string;
+    };
+  },
 };
