@@ -37,10 +37,11 @@ import { productsApi } from '../services/products-api';
 import { ProductList, formatCategory, formatUnitPlural } from './product-list';
 import { ProductBatchesModal } from './product-batches-modal';
 import { ImportProductsModal } from './import-products-modal';
+import { ExpiryRiskView } from './expiry-risk-view';
 import { getProductSeoUrl } from '../utils/seo-utils';
 import { useStore } from '@/context/store-context';
 
-export type InventoryTab = 'in-stock' | 'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiring-soon' | 'low-stock';
+export type InventoryTab = 'in-stock' | 'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiry-risk' | 'expiring-soon' | 'low-stock';
 
 export function InventoryDashboard() {
   const { activeStoreId, isAllStores } = useStore();
@@ -101,7 +102,9 @@ export function InventoryDashboard() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam === 'unstocked') {
+      if (tabParam === 'expiry-risk' || tabParam === 'risk-forecast' || tabParam === 'risk') {
+        setActiveTab('expiry-risk');
+      } else if (tabParam === 'unstocked') {
         setActiveTab('unstocked');
       } else if (tabParam === 'priority-top-sellers' || tabParam === 'priority') {
         setActiveTab('priority-top-sellers');
@@ -279,13 +282,17 @@ export function InventoryDashboard() {
               <Clock className="size-3.5 text-rose-500 shrink-0" />
               <span>Expiring ({data.summary.expiringSoonCount})</span>
             </TabsTrigger>
+            <TabsTrigger value="expiry-risk" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5 text-primary data-[state=active]:bg-primary/10">
+              <Sparkles className="size-3.5 text-primary shrink-0" />
+              <span>Risk Forecast</span>
+            </TabsTrigger>
             <TabsTrigger value="low-stock" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
               <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
               <span>Low Stock ({data.summary.lowStockCount})</span>
             </TabsTrigger>
           </TabsList>
 
-          {activeTab !== 'full-catalog' && (
+          {activeTab !== 'full-catalog' && activeTab !== 'expiry-risk' && (
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -833,6 +840,11 @@ export function InventoryDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Advanced Expiry-Risk Forecast (Velocity-driven) */}
+        <TabsContent value="expiry-risk" className="mt-0 space-y-4">
+          <ExpiryRiskView onNavigateToCatalog={() => setActiveTab('full-catalog')} />
         </TabsContent>
 
         {/* Tab 3: Full Catalog */}

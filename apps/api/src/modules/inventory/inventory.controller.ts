@@ -110,6 +110,29 @@ export class InventoryController {
   }
 
   /**
+   * GET /api/v1/inventory/expiry-risk-forecast
+   * Step 4.1 — Advanced Expiry-Risk Forecasting based on product sales velocity
+   */
+  @Get('expiry-risk-forecast')
+  @RequirePermissions(Permission.INVENTORY_READ)
+  async getExpiryRiskForecast(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('storeId') storeId?: string,
+    @Query('timeframeDays') timeframeDays?: string,
+    @Query('riskFilter') riskFilter?: string,
+    @Query('search') search?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.inventoryService.getExpiryRiskForecast(tenantId, {
+      storeId,
+      timeframeDays: timeframeDays ? Number(timeframeDays) : undefined,
+      riskFilter,
+      search,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  /**
    * GET /api/v1/inventory/aggregation
    * GET /api/v1/inventory
    * Step 1.10 — Inventory aggregation per store / product across active batches

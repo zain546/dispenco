@@ -287,5 +287,87 @@ export const productsApi = {
     });
     return data;
   },
+
+  async getExpiryRiskForecast(params?: {
+    storeId?: string;
+    timeframeDays?: number;
+    riskFilter?: string;
+    search?: string;
+    limit?: number;
+  }): Promise<ExpiryRiskForecastResponse> {
+    const { data } = await apiClient.get('/inventory/expiry-risk-forecast', { params });
+    return data;
+  },
 };
+
+export type RiskLevel =
+  | 'EXPIRED'
+  | 'CRITICAL_UNSOLD'
+  | 'CRITICAL_NO_SALES'
+  | 'HIGH_RISK'
+  | 'MODERATE_RISK'
+  | 'TIGHT_WINDOW'
+  | 'STAGNANT'
+  | 'SAFE';
+
+export type ActionRecommendation =
+  | 'IMMEDIATE_QUARANTINE_OR_WRITEOFF'
+  | 'AGGRESSIVE_MARKDOWN_NOW'
+  | 'MARKDOWN_OR_VENDOR_RETURN'
+  | 'APPLY_DISCOUNT_OR_BUNDLE'
+  | 'PRIORITIZE_POS_PLACEMENT'
+  | 'PUSH_PROMOTION_OR_TRANSFER'
+  | 'MONITOR_VELOCITY'
+  | 'MONITOR_SALES_TREND'
+  | 'ON_TRACK_NO_ACTION';
+
+export interface ExpiryRiskBatchItem {
+  id: string;
+  batchNumber: string;
+  storeId: string;
+  storeName: string;
+  productId: string;
+  productName: string;
+  genericName: string | null;
+  category: string;
+  unit: string;
+  barcode: string | null;
+  costPrice: number;
+  sellPrice: number;
+  quantityReceived: number;
+  quantityRemaining: number;
+  expiryDate: string;
+  daysUntilExpiry: number;
+  isExpired: boolean;
+  dailySalesVelocity: number;
+  totalUnitsSoldInTimeframe: number;
+  timeframeDays: number;
+  estimatedDaysToDeplete: number | null;
+  depletionDate: string | null;
+  projectedSoldBeforeExpiry: number;
+  projectedUnsoldQuantity: number;
+  projectedLossAmount: number;
+  projectedRetailLossAmount: number;
+  riskScore: number;
+  riskLevel: RiskLevel;
+  actionRecommendation: ActionRecommendation;
+  actionSummary: string;
+}
+
+export interface ExpiryRiskForecastResponse {
+  timeframeDays: number;
+  summary: {
+    totalBatchesAnalyzed: number;
+    totalUnitsAtRisk: number;
+    totalCapitalAtRisk: number;
+    totalRetailPotentialLoss: number;
+    criticalBatchesCount: number;
+    highRiskBatchesCount: number;
+    moderateRiskBatchesCount: number;
+    tightWindowCount: number;
+    stagnantBatchesCount: number;
+    safeBatchesCount: number;
+  };
+  batches: ExpiryRiskBatchItem[];
+}
 

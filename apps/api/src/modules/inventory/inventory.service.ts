@@ -710,6 +710,324 @@ export class InventoryService {
       batches: formattedBatches,
     };
   }
+
+  /**
+   * Step 4.1 — Expiry-Risk Forecasting
+   * Compares active batch quantities against average daily sales velocity to predict
+   * unsold stock at expiry date, financial capital at risk, and actionable intervention priority.
+   */
+  async getExpiryRiskForecast(
+    tenantId: string,
+    options?: {
+      storeId?: string;
+      timeframeDays?: number;
+      riskFilter?: string;
+      search?: string;
+      limit?: number;
+    },
+  ) {
+    const effectiveStoreId = options?.storeId && options?.storeId !== 'all' ? options.storeId : undefined;
+    const timeframeDays = Math.max(7, Math.min(180, Number(options?.timeframeDays) || 30));
+    const search = options?.search?.trim()?.toLowerCase();
+    const riskFilter = options?.riskFilter?.toUpperCase();
+    const limit = Math.max(1, Math.min(500, Number(options?.limit) || 100));
+
+    // 1. Fetch active batches with quantityRemaining > 0
+    const batches = await this.prisma.batch.findMany({
+      where: {
+        tenantId,
+        ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+        quantityRemaining: { gt: 0 },
+        ...(search
+          ? {
+              OR: [
+                { batchNumber: { contains: search, mode: 'insensitive' } },
+                { product: { name: { contains: search, mode: 'insensitive' } } },
+                { product: { genericName: { contains: search, mode: 'insensitive' } } },
+                { product: { barcode: { contains: search, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+            genericName: true,
+            category: true,
+            unit: true,
+            barcode: true,
+            lowStockThreshold: true,
+          },
+        },
+        store: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { expiryDate: 'asc' },
+    });
+
+    if (batches.length === 0) {
+      return {
+        timeframeDays,
+        summary: {
+          totalBatchesAnalyzed: 0,
+          totalUnitsAtRisk: 0,
+          totalCapitalAtRisk: 0,
+          totalRetailPotentialLoss: 0,
+          criticalBatchesCount: 0,
+          highRiskBatchesCount: 0,
+          moderateRiskBatchesCount: 0,
+          tightWindowCount: 0,
+          stagnantBatchesCount: 0,
+          safeBatchesCount: 0,
+        },
+        batches: [],
+      };
+    }
+
+    // 2. Collect unique productIds to aggregate sales velocity in a single query
+    const productIds = Array.from(new Set(batches.map((b) => b.productId)));
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - timeframeDays);
+
+    const salesAggregation = await this.prisma.saleItem.groupBy({
+      by: ['productId'],
+      where: {
+        productId: { in: productIds },
+        sale: {
+          tenantId,
+          ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+          status: { not: 'VOIDED' },
+          createdAt: { gte: cutoffDate },
+        },
+      },
+      _sum: {
+        quantity: true,
+      },
+    });
+
+    const salesMap = new Map<string, number>();
+    for (const item of salesAggregation) {
+      salesMap.set(item.productId, item._sum.quantity || 0);
+    }
+
+    const now = new Date();
+    const analyzedBatches = batches.map((batch) => {
+      const expiry = new Date(batch.expiryDate);
+      const diffMs = expiry.getTime() - now.getTime();
+      const daysUntilExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      const isExpired = daysUntilExpiry <= 0;
+
+      const totalUnitsSold = salesMap.get(batch.productId) || 0;
+      const rawVelocity = totalUnitsSold / timeframeDays;
+      const dailySalesVelocity = Math.round(rawVelocity * 100) / 100; // 2 decimal places
+
+      const costPrice = Number(batch.costPrice);
+      const sellPrice = Number(batch.sellPrice);
+
+      let estimatedDaysToDeplete: number | null = null;
+      let depletionDate: string | null = null;
+      let projectedSoldBeforeExpiry = 0;
+      let projectedUnsoldQuantity = batch.quantityRemaining;
+      let riskScore = 0;
+      let riskLevel:
+        | 'EXPIRED'
+        | 'CRITICAL_UNSOLD'
+        | 'CRITICAL_NO_SALES'
+        | 'HIGH_RISK'
+        | 'MODERATE_RISK'
+        | 'TIGHT_WINDOW'
+        | 'STAGNANT'
+        | 'SAFE' = 'SAFE';
+      let actionRecommendation:
+        | 'IMMEDIATE_QUARANTINE_OR_WRITEOFF'
+        | 'AGGRESSIVE_MARKDOWN_NOW'
+        | 'MARKDOWN_OR_VENDOR_RETURN'
+        | 'APPLY_DISCOUNT_OR_BUNDLE'
+        | 'PRIORITIZE_POS_PLACEMENT'
+        | 'PUSH_PROMOTION_OR_TRANSFER'
+        | 'MONITOR_VELOCITY'
+        | 'MONITOR_SALES_TREND'
+        | 'ON_TRACK_NO_ACTION' = 'ON_TRACK_NO_ACTION';
+      let actionSummary = '';
+
+      if (isExpired) {
+        riskScore = 100;
+        riskLevel = 'EXPIRED';
+        projectedSoldBeforeExpiry = 0;
+        projectedUnsoldQuantity = batch.quantityRemaining;
+        actionRecommendation = 'IMMEDIATE_QUARANTINE_OR_WRITEOFF';
+        actionSummary = `Expired ${Math.abs(daysUntilExpiry)} days ago. Quarantined for write-off or supplier claim.`;
+      } else if (dailySalesVelocity === 0) {
+        projectedSoldBeforeExpiry = 0;
+        projectedUnsoldQuantity = batch.quantityRemaining;
+        if (daysUntilExpiry <= 90) {
+          riskScore = 95;
+          riskLevel = 'CRITICAL_NO_SALES';
+          actionRecommendation = 'MARKDOWN_OR_VENDOR_RETURN';
+          actionSummary = `Zero sales in ${timeframeDays}d with only ${daysUntilExpiry}d left. Immediate return or 50%+ discount needed.`;
+        } else if (daysUntilExpiry <= 180) {
+          riskScore = 80;
+          riskLevel = 'HIGH_RISK';
+          actionRecommendation = 'PUSH_PROMOTION_OR_TRANSFER';
+          actionSummary = `Zero sales in ${timeframeDays}d. Initiate counter promotion or transfer to higher footfall store.`;
+        } else {
+          riskScore = 50;
+          riskLevel = 'STAGNANT';
+          actionRecommendation = 'MONITOR_VELOCITY';
+          actionSummary = `Zero sales in ${timeframeDays}d, but ${daysUntilExpiry}d shelf life remains. Monitor for movement.`;
+        }
+      } else {
+        // dailySalesVelocity > 0
+        estimatedDaysToDeplete = Math.ceil(batch.quantityRemaining / dailySalesVelocity);
+        const depDate = new Date();
+        depDate.setDate(depDate.getDate() + estimatedDaysToDeplete);
+        depletionDate = depDate.toISOString();
+
+        projectedSoldBeforeExpiry = Math.min(
+          batch.quantityRemaining,
+          Math.floor(dailySalesVelocity * Math.max(0, daysUntilExpiry)),
+        );
+        projectedUnsoldQuantity = Math.max(0, batch.quantityRemaining - projectedSoldBeforeExpiry);
+        const unsoldRatio = projectedUnsoldQuantity / batch.quantityRemaining;
+
+        if (projectedUnsoldQuantity > 0) {
+          // Will not sell out before expiry
+          if (daysUntilExpiry <= 60) {
+            riskScore = Math.min(99, Math.round(75 + unsoldRatio * 24));
+            riskLevel = 'CRITICAL_UNSOLD';
+            actionRecommendation = 'AGGRESSIVE_MARKDOWN_NOW';
+            actionSummary = `Will expire with ~${projectedUnsoldQuantity} unsold units (${Math.round(unsoldRatio * 100)}% of stock). Urgent markdown required.`;
+          } else if (daysUntilExpiry <= 120) {
+            riskScore = Math.min(90, Math.round(60 + unsoldRatio * 30));
+            riskLevel = 'HIGH_RISK';
+            actionRecommendation = 'APPLY_DISCOUNT_OR_BUNDLE';
+            actionSummary = `Depletion rate is too slow. Expected ~${projectedUnsoldQuantity} units unsold at expiry. Apply 20-30% discount.`;
+          } else {
+            riskScore = Math.min(75, Math.round(40 + unsoldRatio * 35));
+            riskLevel = 'MODERATE_RISK';
+            actionRecommendation = 'PRIORITIZE_POS_PLACEMENT';
+            actionSummary = `Projected ~${projectedUnsoldQuantity} units unsold. Prioritize POS front-counter placement or bundle.`;
+          }
+        } else {
+          // Will sell out before expiry
+          const safetyBufferDays = daysUntilExpiry - estimatedDaysToDeplete;
+          if (safetyBufferDays <= 15) {
+            riskScore = 35;
+            riskLevel = 'TIGHT_WINDOW';
+            actionRecommendation = 'MONITOR_SALES_TREND';
+            actionSummary = `Sells out ${safetyBufferDays}d before expiry. Minor dip in velocity could risk waste.`;
+          } else {
+            riskScore = Math.max(5, Math.min(25, 30 - Math.round(safetyBufferDays / 10)));
+            riskLevel = 'SAFE';
+            actionRecommendation = 'ON_TRACK_NO_ACTION';
+            actionSummary = `Healthy turnover: sells out ~${safetyBufferDays} days prior to expiry date.`;
+          }
+        }
+      }
+
+      const projectedLossAmount = Math.round(projectedUnsoldQuantity * costPrice * 100) / 100;
+      const projectedRetailLossAmount = Math.round(projectedUnsoldQuantity * sellPrice * 100) / 100;
+
+      return {
+        id: batch.id,
+        batchNumber: batch.batchNumber,
+        storeId: batch.storeId,
+        storeName: batch.store.name,
+        productId: batch.productId,
+        productName: batch.product.name,
+        genericName: batch.product.genericName,
+        category: batch.product.category,
+        unit: batch.product.unit,
+        barcode: batch.product.barcode,
+        costPrice,
+        sellPrice,
+        quantityReceived: batch.quantityReceived,
+        quantityRemaining: batch.quantityRemaining,
+        expiryDate: batch.expiryDate.toISOString(),
+        daysUntilExpiry,
+        isExpired,
+        dailySalesVelocity,
+        totalUnitsSoldInTimeframe: totalUnitsSold,
+        timeframeDays,
+        estimatedDaysToDeplete,
+        depletionDate,
+        projectedSoldBeforeExpiry,
+        projectedUnsoldQuantity,
+        projectedLossAmount,
+        projectedRetailLossAmount,
+        riskScore,
+        riskLevel,
+        actionRecommendation,
+        actionSummary,
+      };
+    });
+
+    // Compute Summary across all active batches analyzed
+    const summary = {
+      totalBatchesAnalyzed: analyzedBatches.length,
+      totalUnitsAtRisk: analyzedBatches
+        .filter((b) => b.riskLevel !== 'SAFE')
+        .reduce((sum, b) => sum + b.projectedUnsoldQuantity, 0),
+      totalCapitalAtRisk: Math.round(
+        analyzedBatches
+          .filter((b) => b.riskLevel !== 'SAFE')
+          .reduce((sum, b) => sum + b.projectedLossAmount, 0) * 100,
+      ) / 100,
+      totalRetailPotentialLoss: Math.round(
+        analyzedBatches
+          .filter((b) => b.riskLevel !== 'SAFE')
+          .reduce((sum, b) => sum + b.projectedRetailLossAmount, 0) * 100,
+      ) / 100,
+      criticalBatchesCount: analyzedBatches.filter(
+        (b) => b.riskLevel === 'CRITICAL_UNSOLD' || b.riskLevel === 'CRITICAL_NO_SALES' || b.riskLevel === 'EXPIRED',
+      ).length,
+      highRiskBatchesCount: analyzedBatches.filter((b) => b.riskLevel === 'HIGH_RISK').length,
+      moderateRiskBatchesCount: analyzedBatches.filter((b) => b.riskLevel === 'MODERATE_RISK').length,
+      tightWindowCount: analyzedBatches.filter((b) => b.riskLevel === 'TIGHT_WINDOW').length,
+      stagnantBatchesCount: analyzedBatches.filter((b) => b.riskLevel === 'STAGNANT').length,
+      safeBatchesCount: analyzedBatches.filter((b) => b.riskLevel === 'SAFE').length,
+    };
+
+    // Filter by risk tier if requested
+    let filtered = analyzedBatches;
+    if (riskFilter && riskFilter !== 'ALL') {
+      if (riskFilter === 'CRITICAL') {
+        filtered = filtered.filter(
+          (b) => b.riskLevel === 'CRITICAL_UNSOLD' || b.riskLevel === 'CRITICAL_NO_SALES' || b.riskLevel === 'EXPIRED',
+        );
+      } else if (riskFilter === 'HIGH' || riskFilter === 'HIGH_RISK') {
+        filtered = filtered.filter((b) => b.riskLevel === 'HIGH_RISK');
+      } else if (riskFilter === 'MODERATE' || riskFilter === 'MODERATE_RISK') {
+        filtered = filtered.filter((b) => b.riskLevel === 'MODERATE_RISK' || b.riskLevel === 'TIGHT_WINDOW');
+      } else if (riskFilter === 'SAFE') {
+        filtered = filtered.filter((b) => b.riskLevel === 'SAFE');
+      } else if (riskFilter === 'STAGNANT') {
+        filtered = filtered.filter((b) => b.riskLevel === 'STAGNANT' || b.dailySalesVelocity === 0);
+      } else if (riskFilter === 'AT_RISK') {
+        filtered = filtered.filter((b) => b.riskLevel !== 'SAFE');
+      }
+    }
+
+    // Sort by riskScore DESC (highest risk first), then daysUntilExpiry ASC
+    filtered.sort((a, b) => {
+      if (b.riskScore !== a.riskScore) {
+        return b.riskScore - a.riskScore;
+      }
+      return a.daysUntilExpiry - b.daysUntilExpiry;
+    });
+
+    return {
+      timeframeDays,
+      summary,
+      batches: filtered.slice(0, limit),
+    };
+  }
 }
 
 
