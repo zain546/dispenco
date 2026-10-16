@@ -8,8 +8,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PurchasesService } from './purchases.service';
+import { InvoiceOcrService } from './services/invoice-ocr.service';
 import { CreatePurchaseOrderDto } from './dtos/create-purchase-order.dto';
 import { ReceivePurchaseOrderDto } from './dtos/receive-purchase-order.dto';
+import { ParseInvoiceOcrDto } from './dtos/parse-invoice-ocr.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
@@ -19,7 +21,10 @@ import { Permission } from '@dispenco/types';
 @Controller('purchases')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PurchasesController {
-  constructor(private readonly purchasesService: PurchasesService) {}
+  constructor(
+    private readonly purchasesService: PurchasesService,
+    private readonly invoiceOcrService: InvoiceOcrService,
+  ) {}
 
   @Post()
   @RequirePermissions(Permission.PURCHASES_CREATE)
@@ -28,6 +33,19 @@ export class PurchasesController {
     @Body() dto: CreatePurchaseOrderDto,
   ) {
     return this.purchasesService.createOrder(tenantId, dto);
+  }
+
+  /**
+   * POST /api/v1/purchases/ocr-invoice
+   * Step 4.4 — Invoice & Purchase Order OCR assist
+   */
+  @Post('ocr-invoice')
+  @RequirePermissions(Permission.PURCHASES_CREATE)
+  parseInvoiceOcr(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: ParseInvoiceOcrDto,
+  ) {
+    return this.invoiceOcrService.parseInvoice(tenantId, dto);
   }
 
   @Post(':id/receive')

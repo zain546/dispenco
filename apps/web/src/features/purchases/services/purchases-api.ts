@@ -26,6 +26,46 @@ export interface ReceivePurchaseOrderInput {
   notes?: string;
 }
 
+export interface InvoiceOcrItemResult {
+  rawProductName: string;
+  matchedProductId: string | null;
+  matchedProductName: string | null;
+  genericName?: string | null;
+  category?: string | null;
+  unit?: string | null;
+  batchNumber?: string | null;
+  expiryDate?: string | null;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  confidence: number;
+  isNewProduct: boolean;
+}
+
+export interface InvoiceOcrResponse {
+  success: boolean;
+  ocrEngine: string;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
+  rawSupplierName?: string | null;
+  matchedSupplierId?: string | null;
+  matchedSupplierName?: string | null;
+  confidence: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  items: InvoiceOcrItemResult[];
+  notes?: string;
+}
+
+export interface ParseInvoiceOcrInput {
+  imageBase64: string;
+  mimeType?: string;
+  fileName?: string;
+  storeId?: string;
+  rawText?: string;
+}
+
 export const purchasesApi = {
   getPurchases: async (storeId?: string, status?: string) => {
     const params = new URLSearchParams();
@@ -48,6 +88,11 @@ export const purchasesApi = {
 
   receivePurchaseOrder: async (id: string, data: ReceivePurchaseOrderInput) => {
     const res = await apiClient.post(`/purchases/${id}/receive`, data);
+    return res.data;
+  },
+
+  parseInvoiceOcr: async (data: ParseInvoiceOcrInput): Promise<InvoiceOcrResponse> => {
+    const res = await apiClient.post('/purchases/ocr-invoice', data);
     return res.data;
   },
 

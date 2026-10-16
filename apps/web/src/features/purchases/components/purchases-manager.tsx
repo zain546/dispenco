@@ -46,6 +46,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { ReorderSuggestionsView } from './reorder-suggestions-view';
+import { OcrInvoiceModal } from './ocr-invoice-modal';
 
 export function PurchasesManager() {
   const { user } = useAuth();
@@ -56,6 +57,7 @@ export function PurchasesManager() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+  const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [activeView, setActiveView] = useState<'orders' | 'suggestions'>('orders');
@@ -137,6 +139,40 @@ export function PurchasesManager() {
     setSelectedSupplierId('');
     setPoNotes('');
     setPoItems([]);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleOpenOcrModal = async () => {
+    await loadCreateDependencies();
+    setIsOcrModalOpen(true);
+  };
+
+  const handleConfirmOcrPo = (data: {
+    supplierId: string;
+    storeId: string;
+    notes: string;
+    items: Array<{
+      productId: string;
+      expectedQuantity: number;
+      unitCost: number;
+      batchNumber?: string;
+      expiryDate?: string;
+    }>;
+  }) => {
+    if (data.supplierId) {
+      setSelectedSupplierId(data.supplierId);
+    }
+    if (data.storeId) {
+      setSelectedStoreId(data.storeId);
+    }
+    setPoNotes(data.notes || '');
+    setPoItems(
+      data.items.map((i) => ({
+        productId: i.productId,
+        expectedQuantity: i.expectedQuantity,
+        unitCost: i.unitCost,
+      })),
+    );
     setIsCreateModalOpen(true);
   };
 
@@ -296,9 +332,19 @@ export function PurchasesManager() {
         }
         icon={activeView === 'orders' ? Truck : Sparkles}
         actions={
-          <Button onClick={handleOpenCreateModal} className="gap-2 font-bold shadow-xs">
-            <Plus className="size-4" /> Create Purchase Order
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={handleOpenOcrModal}
+              className="gap-2 font-bold shadow-xs border-primary/30 text-primary hover:bg-primary/5 h-9"
+            >
+              <Sparkles className="size-4 text-primary" />
+              <span>OCR Invoice Assist</span>
+            </Button>
+            <Button onClick={handleOpenCreateModal} className="gap-2 font-bold shadow-xs h-9">
+              <Plus className="size-4" /> Create Purchase Order
+            </Button>
+          </div>
         }
       />
 
@@ -440,6 +486,29 @@ export function PurchasesManager() {
           </DialogHeader>
 
           <form onSubmit={handleCreateOrderSubmit} className="space-y-4 py-2">
+            {/* Quick OCR Assist Banner */}
+            <div className="p-3 rounded-lg border border-primary/25 bg-primary/5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 text-xs">
+                <Sparkles className="size-4 text-primary shrink-0" />
+                <span className="text-muted-foreground">
+                  Have a distributor bill? Use <strong>Smart OCR Assist</strong> to extract & match items automatically.
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setIsOcrModalOpen(true);
+                }}
+                className="h-7 text-xs font-bold shrink-0 border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
+              >
+                <Sparkles className="size-3" />
+                <span>Scan Bill</span>
+              </Button>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Select Supplier Vendor *</Label>
@@ -701,6 +770,16 @@ export function PurchasesManager() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Smart OCR Invoice Assist Modal */}
+      <OcrInvoiceModal
+        open={isOcrModalOpen}
+        onOpenChange={setIsOcrModalOpen}
+        products={products}
+        suppliers={suppliers}
+        defaultStoreId={(!isAllStores && activeStoreId) ? activeStoreId : (stores[0]?.id || '')}
+        onConfirmPo={handleConfirmOcrPo}
+      />
     </div>
   );
 }
