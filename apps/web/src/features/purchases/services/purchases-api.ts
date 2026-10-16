@@ -50,4 +50,71 @@ export const purchasesApi = {
     const res = await apiClient.post(`/purchases/${id}/receive`, data);
     return res.data;
   },
+
+  getReorderSuggestions: async (params?: {
+    storeId?: string;
+    timeframeDays?: number;
+    urgencyFilter?: string;
+    search?: string;
+    limit?: number;
+  }): Promise<ReorderSuggestionsResponse> => {
+    const res = await apiClient.get('/purchases/reorder-suggestions', { params });
+    return res.data;
+  },
 };
+
+export type ReorderUrgency =
+  | 'OUT_OF_STOCK'
+  | 'CRITICAL_REORDER'
+  | 'REORDER_SOON'
+  | 'UPCOMING'
+  | 'ADEQUATE';
+
+export interface ReorderSuggestionItem {
+  productId: string;
+  productName: string;
+  genericName: string | null;
+  category: string;
+  unit: string;
+  barcode: string | null;
+  lowStockThreshold: number;
+  currentStock: number;
+  dailySalesVelocity: number;
+  totalUnitsSoldInTimeframe: number;
+  timeframeDays: number;
+  daysUntilStockout: number;
+  estimatedStockoutDate: string | null;
+  reorderPoint: number;
+  targetStockLevel: number;
+  suggestedQuantity: number;
+  estimatedUnitCost: number;
+  estimatedUnitSellPrice: number;
+  estimatedOrderCost: number;
+  urgencyLevel: ReorderUrgency;
+  urgencyScore: number;
+  actionTitle: string;
+  reason: string;
+  recommendedOrderDate: string;
+  supplier: {
+    id: string | null;
+    name: string;
+    leadTimeDays: number;
+    contactPhone: string | null;
+    contactEmail: string | null;
+  };
+}
+
+export interface ReorderSuggestionsResponse {
+  timeframeDays: number;
+  summary: {
+    totalProductsAnalyzed: number;
+    outOfStockCount: number;
+    criticalReordersCount: number;
+    reorderSoonCount: number;
+    upcomingCount: number;
+    adequateCount: number;
+    totalUnitsToOrder: number;
+    totalEstimatedCost: number;
+  };
+  suggestions: ReorderSuggestionItem[];
+}

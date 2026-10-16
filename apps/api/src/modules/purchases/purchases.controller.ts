@@ -50,6 +50,29 @@ export class PurchasesController {
     return this.purchasesService.findAll(tenantId, storeId, status);
   }
 
+  /**
+   * GET /api/v1/purchases/reorder-suggestions
+   * Step 4.2 — Dynamic smart reorder suggestions based on sales velocity and supplier lead time
+   */
+  @Get('reorder-suggestions')
+  @RequirePermissions(Permission.PURCHASES_READ)
+  getReorderSuggestions(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query('storeId') storeId?: string,
+    @Query('timeframeDays') timeframeDays?: string,
+    @Query('urgencyFilter') urgencyFilter?: string,
+    @Query('search') search?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.purchasesService.getReorderSuggestions(tenantId, {
+      storeId,
+      timeframeDays: timeframeDays ? Number(timeframeDays) : undefined,
+      urgencyFilter,
+      search,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
   @Get(':id')
   @RequirePermissions(Permission.PURCHASES_READ)
   findOne(

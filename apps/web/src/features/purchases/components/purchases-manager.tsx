@@ -36,6 +36,7 @@ import {
   Eye,
   Layers,
   FileCheck,
+  Sparkles,
 } from 'lucide-react';
 import { storesApi, StoreData } from '@/lib/stores-api';
 import { useStore } from '@/context/store-context';
@@ -44,6 +45,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
+import { ReorderSuggestionsView } from './reorder-suggestions-view';
 
 export function PurchasesManager() {
   const { user } = useAuth();
@@ -56,6 +58,7 @@ export function PurchasesManager() {
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
+  const [activeView, setActiveView] = useState<'orders' | 'suggestions'>('orders');
 
   // Form State for PO Creation
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
@@ -97,6 +100,16 @@ export function PurchasesManager() {
     fetchOrders(effectiveStoreId);
   }, [statusFilter, activeStoreId, isAllStores]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'suggestions' || tab === 'reorder' || tab === 'smart-reorder') {
+        setActiveView('suggestions');
+      }
+    }
+  }, []);
+
   const loadCreateDependencies = async () => {
     try {
       const [supRes, prodRes] = await Promise.all([
@@ -124,6 +137,26 @@ export function PurchasesManager() {
     setSelectedSupplierId('');
     setPoNotes('');
     setPoItems([]);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleConvertToPOFromSuggestion = async (data: {
+    supplierId?: string;
+    items: { productId: string; productName: string; expectedQuantity: number; unitCost: number }[];
+    notes?: string;
+  }) => {
+    await loadCreateDependencies();
+    if (data.supplierId) {
+      setSelectedSupplierId(data.supplierId);
+    }
+    setPoNotes(data.notes || '');
+    setPoItems(
+      data.items.map((i) => ({
+        productId: i.productId,
+        expectedQuantity: i.expectedQuantity,
+        unitCost: i.unitCost,
+      })),
+    );
     setIsCreateModalOpen(true);
   };
 
@@ -255,9 +288,13 @@ export function PurchasesManager() {
     <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header Banner */}
       <PageHeader
-        title="Purchase Orders & Shipments"
-        description="Create supplier orders, track incoming stock deliveries, and check-in inventory batches."
-        icon={Truck}
+        title={activeView === 'orders' ? 'Purchase Orders & Shipments' : 'Smart Reorder Suggestions'}
+        description={
+          activeView === 'orders'
+            ? 'Create supplier orders, track incoming stock deliveries, and check-in inventory batches.'
+            : 'Predictive inventory replenishment based on live sales velocity and supplier delivery lead times.'
+        }
+        icon={activeView === 'orders' ? Truck : Sparkles}
         actions={
           <Button onClick={handleOpenCreateModal} className="gap-2 font-bold shadow-xs">
             <Plus className="size-4" /> Create Purchase Order
@@ -265,20 +302,51 @@ export function PurchasesManager() {
         }
       />
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-        {['ALL', 'PENDING', 'PARTIAL', 'RECEIVED', 'CANCELLED'].map((st) => (
-          <Button
-            key={st}
-            variant={statusFilter === st ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setStatusFilter(st)}
-            className="text-xs capitalize h-8 font-semibold shrink-0"
-          >
-            {st.toLowerCase()}
-          </Button>
-        ))}
+      {/* Navigation View Switcher */}
+      <div className="flex items-center gap-2 border-b border-border pb-2">
+        <Button
+          variant={activeView === 'orders' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveView('orders')}
+          className="gap-1.5 font-medium text-xs sm:text-sm h-9"
+        >
+          <Truck className="size-4 shrink-0" />
+          <span>Purchase Orders & Shipments</span>
+        </Button>
+        <Button
+          variant={activeView === 'suggestions' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setActiveView('suggestions')}
+          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
+            activeView !== 'suggestions' ? 'text-primary hover:bg-primary/5' : ''
+          }`}
+        >
+          <Sparkles className="size-4 shrink-0 text-amber-500 fill-amber-500" />
+          <span>Smart Reorder Suggestions</span>
+          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-1">
+            AI Velocity
+          </Badge>
+        </Button>
       </div>
+
+      {activeView === 'suggestions' ? (
+        <ReorderSuggestionsView onConvertToPO={handleConvertToPOFromSuggestion} />
+      ) : (
+        <>
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+            {['ALL', 'PENDING', 'PARTIAL', 'RECEIVED', 'CANCELLED'].map((st) => (
+              <Button
+                key={st}
+                variant={statusFilter === st ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter(st)}
+                className="text-xs capitalize h-8 font-semibold shrink-0"
+              >
+                {st.toLowerCase()}
+              </Button>
+            ))}
+          </div>
 
       {/* Content Cards */}
       {loading ? (
@@ -355,6 +423,8 @@ export function PurchasesManager() {
             </Card>
           ))}
         </div>
+      )}
+        </>
       )}
 
       {/* Create Purchase Order Modal */}

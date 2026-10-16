@@ -664,15 +664,23 @@ export function InventoryDashboard() {
                   Products requiring immediate stock replenishment or purchase order creation
                 </CardDescription>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => fetchAggregation()}
-                disabled={isLoading}
-                className="size-8 p-0 shrink-0"
-              >
-                <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button asChild size="sm" variant="outline" className="gap-1.5 h-8 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/5">
+                  <Link href="/purchases?tab=suggestions">
+                    <Sparkles className="size-3.5 text-primary" />
+                    <span>Smart Reorder</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fetchAggregation()}
+                  disabled={isLoading}
+                  className="size-8 p-0 shrink-0"
+                >
+                  <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
