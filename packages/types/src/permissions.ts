@@ -19,6 +19,10 @@ export enum Permission {
   PURCHASES_CREATE = 'purchases:create',
   SUPPLIERS_MANAGE = 'suppliers:manage',
 
+  // Prescriptions & Controlled Substances
+  PRESCRIPTIONS_READ = 'prescriptions:read',
+  PRESCRIPTIONS_MANAGE = 'prescriptions:manage',
+
   // Reports & Analytics
   REPORTS_READ = 'reports:read',
   REPORTS_EXPORT = 'reports:export',

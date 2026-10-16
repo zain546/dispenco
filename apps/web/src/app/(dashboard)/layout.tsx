@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  FileText,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +49,7 @@ const NAV_ITEMS = [
   { name: 'Inventory', href: '/inventory', icon: Package, permission: null },
   { name: 'Stock Transfers', href: '/transfers', icon: ArrowRightLeft, permission: null },
   { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null },
+  { name: 'Prescriptions', href: '/prescriptions', icon: FileText, permission: null },
   { name: 'Returns', href: '/returns', icon: RotateCcw, permission: null },
   { name: 'Suppliers', href: '/suppliers', icon: Truck, permission: 'canManageSuppliers' },
   { name: 'Purchases', href: '/purchases', icon: Truck, permission: null },

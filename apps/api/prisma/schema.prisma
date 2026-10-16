@@ -29,6 +29,7 @@ model Tenant {
   auditLogs        AuditLog[]
   taxRates         TaxRate[]
   transfers        StockTransfer[]
+  prescriptions    Prescription[]
 }
 
 model User {
@@ -118,6 +119,7 @@ model Store {
   sales              Sale[]
   outgoingTransfers  StockTransfer[] @relation("SourceStore")
   incomingTransfers  StockTransfer[] @relation("TargetStore")
+  prescriptions      Prescription[]
 }
 
 model Product {
@@ -142,6 +144,7 @@ model Product {
   purchaseItems        PurchaseItem[]
   saleItems            SaleItem[]
   transferItems        StockTransferItem[]
+  prescriptionItems    PrescriptionItem[]
 
   @@index([tenantId, barcode])
   @@index([attributes], type: Gin)
@@ -275,6 +278,7 @@ model Sale {
   saleItems      SaleItem[]
   payments       Payment[]
   returns        Return[]
+  prescriptions  Prescription[]
 
   @@index([tenantId, receiptNumber])
 }
@@ -464,6 +468,69 @@ model StockTransferItem {
   batch             Batch?         @relation(fields: [batchId], references: [id], onDelete: SetNull)
 
   @@index([transferId])
+}
+
+enum PrescriptionStatus {
+  ACTIVE
+  DISPENSED
+  PARTIALLY_DISPENSED
+  EXPIRED
+  CANCELLED
+}
+
+model Prescription {
+  id                  String             @id @default(uuid())
+  tenantId            String
+  storeId             String
+  prescriptionNumber  String
+  patientName         String
+  patientPhone        String?
+  patientAge          Int?
+  patientGender       String?
+  patientCnic         String?
+  doctorName          String
+  doctorLicenseNumber String?
+  doctorHospital      String?
+  prescriptionDate    DateTime           @default(now())
+  expiryDate          DateTime?
+  imageReference      String?
+  diagnosis           String?
+  notes               String?
+  status              PrescriptionStatus @default(ACTIVE)
+  saleId              String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store               Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sale                Sale?              @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  items               PrescriptionItem[]
+
+  @@unique([tenantId, prescriptionNumber])
+  @@index([tenantId, storeId])
+  @@index([tenantId, patientPhone])
+  @@index([tenantId, doctorName])
+  @@index([tenantId, status])
+}
+
+model PrescriptionItem {
+  id                 String       @id @default(uuid())
+  prescriptionId     String
+  productId          String
+  dosage             String?
+  frequency          String?
+  durationDays       Int?
+  quantityPrescribed Int
+  quantityDispensed  Int          @default(0)
+  instructions       String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  prescription       Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  product            Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
+  @@index([productId])
 }
 
 

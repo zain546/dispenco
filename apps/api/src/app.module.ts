@@ -27,6 +27,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
 import { SearchModule } from './modules/search/search.module';
+import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { SearchModule } from './modules/search/search.module';
     ReportsModule,
     TransfersModule,
     SearchModule,
+    PrescriptionsModule,
   ],
   controllers: [AppController],
   providers: [
