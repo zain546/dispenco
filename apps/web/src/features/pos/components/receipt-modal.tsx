@@ -85,10 +85,10 @@ export function ReceiptModal({
           {/* Items Summary */}
           <div className="space-y-1.5">
             <p className="font-semibold text-muted-foreground text-overline tracking-wider">
-              Purchased Items ({sale.items.length})
+              Purchased Items ({sale.items?.length || 0})
             </p>
             <div className="max-h-40 overflow-y-auto divide-y divide-border/60 border border-border/60 rounded-xl p-2 bg-card custom-scrollbar">
-              {sale.items.map((item) => (
+              {(sale.items || []).map((item) => (
                 <div key={item.id} className="py-1.5 flex items-center justify-between text-xs">
                   <div className="min-w-0 pr-2">
                     <p className="font-semibold text-foreground leading-tight truncate">{item.productName}</p>

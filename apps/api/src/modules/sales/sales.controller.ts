@@ -10,6 +10,8 @@ import {
 import { SalesService } from './sales.service';
 import { CreateSaleDto } from './dtos/create-sale.dto';
 import { VoidSaleDto } from './dtos/void-sale.dto';
+import { CreateReturnDto } from './dtos/create-return.dto';
+import { QueryReturnsDto } from './dtos/query-returns.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
@@ -47,6 +49,46 @@ export class SalesController {
     @Query('storeId') storeId?: string,
   ) {
     return this.salesService.getRecentSales(tenantId, limit ? Number(limit) : 20, storeId);
+  }
+
+  /**
+   * POST /api/v1/sales/returns
+   * Step 3.8 — Process sales return transactionally
+   */
+  @Post('returns')
+  @RequirePermissions(Permission.SALES_CREATE)
+  async createReturn(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') userId: string,
+    @Body() dto: CreateReturnDto,
+  ) {
+    return this.salesService.createReturn(tenantId, userId, dto);
+  }
+
+  /**
+   * GET /api/v1/sales/returns
+   * Query return transactions
+   */
+  @Get('returns')
+  @RequirePermissions(Permission.SALES_READ)
+  async getReturns(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query() query: QueryReturnsDto,
+  ) {
+    return this.salesService.getReturns(tenantId, query);
+  }
+
+  /**
+   * GET /api/v1/sales/returns/:id
+   * Get single return details
+   */
+  @Get('returns/:id')
+  @RequirePermissions(Permission.SALES_READ)
+  async getReturnById(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') returnId: string,
+  ) {
+    return this.salesService.getReturnById(tenantId, returnId);
   }
 
   /**

@@ -336,8 +336,11 @@ model Return {
   tenantId           String
   saleId             String
   processedByUserId  String
+  returnNumber       String?
   reason             String
   notes              String?
+  refundAmount       Decimal      @default(0) @db.Decimal(12, 2)
+  refundMethod       String       @default("CASH")
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
@@ -345,16 +348,20 @@ model Return {
   sale               Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   processedByUser    User         @relation(fields: [processedByUserId], references: [id], onDelete: Cascade)
   returnItems        ReturnItem[]
+
+  @@index([tenantId, saleId])
 }
 
 model ReturnItem {
-  id         String   @id @default(uuid())
-  returnId   String
-  saleItemId String
-  quantity   Int
+  id           String   @id @default(uuid())
+  returnId     String
+  saleItemId   String
+  quantity     Int
+  unitPrice    Decimal  @default(0) @db.Decimal(12, 2)
+  refundAmount Decimal  @default(0) @db.Decimal(12, 2)
 
-  return     Return   @relation(fields: [returnId], references: [id], onDelete: Cascade)
-  saleItem   SaleItem @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+  return       Return   @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItem     SaleItem @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
 }
 
 model Notification {

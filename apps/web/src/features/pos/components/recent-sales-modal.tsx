@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { History, RefreshCw, Loader2, Download, Ban, AlertTriangle } from 'lucide-react';
+import { History, RefreshCw, Loader2, Download, Ban, AlertTriangle, RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,10 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { SaleResponse, salesApi } from '@/features/sales/services/sales-api';
+import { SaleResponse, ReturnRecord, salesApi } from '@/features/sales/services/sales-api';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { downloadThermalReceiptPdf } from '../utils/pos-receipt-pdf';
+import { CreateReturnModal } from '@/features/sales/components/create-return-modal';
+import { ReturnSlipModal } from '@/features/sales/components/return-slip-modal';
 import { toast } from 'sonner';
 
 export interface RecentSalesModalProps {
@@ -40,6 +42,8 @@ export function RecentSalesModal({
   const [saleToVoid, setSaleToVoid] = useState<SaleResponse | null>(null);
   const [voidReason, setVoidReason] = useState('Customer Return');
   const [isVoiding, setIsVoiding] = useState(false);
+  const [saleIdToReturn, setSaleIdToReturn] = useState<string | null>(null);
+  const [returnRecordForSlip, setReturnRecordForSlip] = useState<ReturnRecord | null>(null);
 
   const handleDownload = async (sale: SaleResponse) => {
     setDownloadingSaleId(sale.id);
@@ -155,16 +159,29 @@ export function RecentSalesModal({
                             <span className="hidden xs:inline">PDF</span>
                           </Button>
                           {!isVoided && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSaleToVoid(sale)}
-                              className="h-8 text-xs gap-1 font-medium text-destructive border-destructive/30 hover:bg-destructive/10 cursor-pointer"
-                            >
-                              <Ban className="size-3.5" />
-                              <span>Void</span>
-                            </Button>
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSaleIdToReturn(sale.id)}
+                                className="h-8 text-xs gap-1 font-medium text-foreground hover:bg-muted cursor-pointer"
+                                title="Process Customer Return"
+                              >
+                                <RotateCcw className="size-3.5 text-primary" />
+                                <span className="hidden xs:inline">Return</span>
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSaleToVoid(sale)}
+                                className="h-8 text-xs gap-1 font-medium text-destructive border-destructive/30 hover:bg-destructive/10 cursor-pointer"
+                              >
+                                <Ban className="size-3.5" />
+                                <span>Void</span>
+                              </Button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -176,6 +193,25 @@ export function RecentSalesModal({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Return Flow Modal for Specific Sale */}
+      <CreateReturnModal
+        open={Boolean(saleIdToReturn)}
+        onOpenChange={(open) => !open && setSaleIdToReturn(null)}
+        initialSaleId={saleIdToReturn || undefined}
+        onReturnSuccess={(newReturn) => {
+          setSaleIdToReturn(null);
+          setReturnRecordForSlip(newReturn);
+          onRefresh();
+        }}
+      />
+
+      {/* Return Slip / Credit Memo View Modal */}
+      <ReturnSlipModal
+        open={Boolean(returnRecordForSlip)}
+        onOpenChange={(open) => !open && setReturnRecordForSlip(null)}
+        returnRecord={returnRecordForSlip}
+      />
 
       {/* Void Confirmation Dialog with Accessible Reason Input */}
       <Dialog open={Boolean(saleToVoid)} onOpenChange={(open) => !open && setSaleToVoid(null)}>

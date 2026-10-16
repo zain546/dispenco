@@ -2,6 +2,8 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreateSaleDto } from './dtos/create-sale.dto';
+import { CreateReturnDto } from './dtos/create-return.dto';
+import { QueryReturnsDto } from './dtos/query-returns.dto';
 import { Prisma, DiscountType, PaymentMethod, PaymentStatus, SaleStatus } from '@prisma/client';
 
 @Injectable()
@@ -307,12 +309,16 @@ export class SalesService {
 
   async getSaleById(tenantId: string, saleId: string) {
     const sale = await this.prisma.sale.findFirst({
-      where: { id: saleId, tenantId },
+      where: {
+        tenantId,
+        OR: [{ id: saleId }, { receiptNumber: saleId }],
+      },
       include: {
         saleItems: {
           include: {
             product: true,
             batch: true,
+            returnItems: true,
           },
         },
         customer: true,
@@ -321,11 +327,28 @@ export class SalesService {
           select: { id: true, name: true, email: true },
         },
         payments: true,
+        returns: {
+          include: {
+            returnItems: {
+              include: {
+                saleItem: {
+                  include: {
+                    product: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+            processedByUser: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
     if (!sale) {
-      throw new NotFoundException(`Sale with ID "${saleId}" not found`);
+      throw new NotFoundException(`Sale with ID/Receipt "${saleId}" not found`);
     }
 
     return {
@@ -360,19 +383,36 @@ export class SalesService {
               status: sale.payments[0].status,
             }
           : null,
-        items: sale.saleItems.map((si) => ({
-          id: si.id,
-          productId: si.productId,
-          productName: si.product.name,
-          unit: si.product.unit,
-          batchNumber: si.batch.batchNumber,
-          expiryDate: si.batch.expiryDate.toISOString(),
-          quantity: si.quantity,
-          unitPrice: Number(si.unitPrice),
-          discount: Number(si.discount),
-          taxApplied: Number(si.taxApplied),
-          lineTotal: Number(si.unitPrice) * si.quantity - Number(si.discount) + Number(si.taxApplied),
+        returns: sale.returns.map((ret) => ({
+          id: ret.id,
+          returnNumber: ret.returnNumber,
+          reason: ret.reason,
+          notes: ret.notes,
+          refundAmount: Number(ret.refundAmount),
+          refundMethod: ret.refundMethod,
+          createdAt: ret.createdAt.toISOString(),
+          processedBy: ret.processedByUser?.name || 'Staff',
+          itemsCount: ret.returnItems.length,
         })),
+        items: sale.saleItems.map((si) => {
+          const returnedQuantity = si.returnItems.reduce((acc, ri) => acc + ri.quantity, 0);
+          const maxReturnable = Math.max(0, si.quantity - returnedQuantity);
+          return {
+            id: si.id,
+            productId: si.productId,
+            productName: si.product.name,
+            unit: si.product.unit,
+            batchNumber: si.batch.batchNumber,
+            expiryDate: si.batch.expiryDate.toISOString(),
+            quantity: si.quantity,
+            returnedQuantity,
+            maxReturnable,
+            unitPrice: Number(si.unitPrice),
+            discount: Number(si.discount),
+            taxApplied: Number(si.taxApplied),
+            lineTotal: Number(si.unitPrice) * si.quantity - Number(si.discount) + Number(si.taxApplied),
+          };
+        }),
       },
     };
   }
@@ -493,4 +533,325 @@ export class SalesService {
       };
     });
   }
+
+  /**
+   * Step 3.8 — Return processing [transactional]
+   * Atomically records Return and ReturnItems, increments batch inventory stock,
+   * enforces return limits, calculates proportional refunds, reverts credit ledger,
+   * and creates an AuditLog entry.
+   */
+  async createReturn(tenantId: string, userId: string, dto: CreateReturnDto) {
+    if (!dto.items || dto.items.length === 0) {
+      throw new BadRequestException('At least one item must be selected for return');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Fetch sale with existing returns and items
+      const sale = await tx.sale.findFirst({
+        where: { id: dto.saleId, tenantId },
+        include: {
+          saleItems: {
+            include: {
+              returnItems: true,
+              product: { select: { id: true, name: true, barcode: true, genericName: true } },
+              batch: { select: { id: true, batchNumber: true } },
+            },
+          },
+          customer: true,
+        },
+      });
+
+      if (!sale) {
+        throw new NotFoundException(`Sale transaction with ID "${dto.saleId}" not found`);
+      }
+
+      if (sale.status === SaleStatus.VOIDED) {
+        throw new BadRequestException('Cannot process returns against a voided sale');
+      }
+
+      // 2. Validate return quantities and calculate proportional refund per item
+      let totalRefund = 0;
+      const preparedReturnItems: {
+        saleItemId: string;
+        batchId: string;
+        quantity: number;
+        unitPrice: number;
+        refundAmount: number;
+      }[] = [];
+
+      for (const reqItem of dto.items) {
+        const saleItem = sale.saleItems.find((si) => si.id === reqItem.saleItemId);
+        if (!saleItem) {
+          throw new BadRequestException(
+            `Item "${reqItem.saleItemId}" does not belong to receipt #${sale.receiptNumber}`,
+          );
+        }
+
+        const previouslyReturned = saleItem.returnItems.reduce(
+          (acc, ri) => acc + ri.quantity,
+          0,
+        );
+        const remainingReturnable = saleItem.quantity - previouslyReturned;
+
+        if (reqItem.quantity > remainingReturnable) {
+          throw new BadRequestException(
+            `Cannot return ${reqItem.quantity} units of ${saleItem.product.name}. Max returnable: ${remainingReturnable} (Purchased: ${saleItem.quantity}, Already returned: ${previouslyReturned})`,
+          );
+        }
+
+        // Proportional refund math: (unitPrice * quantity - discount + taxApplied) * (reqItem.quantity / originalQuantity)
+        const lineGross = Number(saleItem.unitPrice) * saleItem.quantity;
+        const lineDiscount = Number(saleItem.discount);
+        const lineTax = Number(saleItem.taxApplied);
+        const lineEffectiveTotal = Math.max(0, lineGross - lineDiscount + lineTax);
+
+        const refundAmount =
+          Math.round((lineEffectiveTotal * (reqItem.quantity / saleItem.quantity)) * 100) / 100;
+        const unitRefund =
+          reqItem.quantity > 0
+            ? Math.round((refundAmount / reqItem.quantity) * 100) / 100
+            : 0;
+
+        totalRefund += refundAmount;
+
+        preparedReturnItems.push({
+          saleItemId: saleItem.id,
+          batchId: saleItem.batchId,
+          quantity: reqItem.quantity,
+          unitPrice: unitRefund,
+          refundAmount,
+        });
+      }
+
+      totalRefund = Math.round(totalRefund * 100) / 100;
+
+      // 3. Generate human-readable Return number
+      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const dayReturnsCount = await tx.return.count({
+        where: { tenantId },
+      });
+      const returnSeq = (dayReturnsCount + 1).toString().padStart(4, '0');
+      const returnNumber = `RET-${todayStr}-${returnSeq}`;
+
+      const refundMethod =
+        dto.refundMethod?.toUpperCase().trim() ||
+        (sale.status === SaleStatus.ON_CREDIT ? 'CREDIT' : 'CASH');
+
+      // 4. Create Return and ReturnItems
+      const createdReturn = await tx.return.create({
+        data: {
+          tenantId,
+          saleId: sale.id,
+          processedByUserId: userId,
+          returnNumber,
+          reason: dto.reason.trim(),
+          notes: dto.notes?.trim() || null,
+          refundAmount: new Prisma.Decimal(totalRefund),
+          refundMethod,
+          returnItems: {
+            create: preparedReturnItems.map((item) => ({
+              saleItemId: item.saleItemId,
+              quantity: item.quantity,
+              unitPrice: new Prisma.Decimal(item.unitPrice),
+              refundAmount: new Prisma.Decimal(item.refundAmount),
+            })),
+          },
+        },
+        include: {
+          returnItems: {
+            include: {
+              saleItem: {
+                include: {
+                  product: { select: { id: true, name: true, barcode: true, genericName: true } },
+                  batch: { select: { id: true, batchNumber: true, expiryDate: true } },
+                },
+              },
+            },
+          },
+          sale: {
+            select: {
+              id: true,
+              receiptNumber: true,
+              customerId: true,
+              customer: true,
+            },
+          },
+          processedByUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      // 5. Restore batch stock quantity atomically
+      for (const item of preparedReturnItems) {
+        await tx.batch.update({
+          where: { id: item.batchId },
+          data: {
+            quantityRemaining: {
+              increment: item.quantity,
+            },
+          },
+        });
+      }
+
+      // 6. Adjust customer credit balance if sale was on credit or refundMethod is CREDIT
+      if (
+        (sale.status === SaleStatus.ON_CREDIT || refundMethod === 'CREDIT') &&
+        sale.customerId
+      ) {
+        await tx.customer.update({
+          where: { id: sale.customerId },
+          data: {
+            creditBalance: {
+              decrement: new Prisma.Decimal(totalRefund),
+            },
+          },
+        });
+      }
+
+      // 7. Write AuditLog entry
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: 'SALE_RETURN_PROCESSED',
+          entityType: 'Return',
+          entityId: createdReturn.id,
+          metadata: {
+            returnNumber,
+            saleId: sale.id,
+            receiptNumber: sale.receiptNumber,
+            refundAmount: totalRefund,
+            refundMethod,
+            itemsCount: preparedReturnItems.length,
+            reason: dto.reason,
+          },
+        },
+      });
+
+      return createdReturn;
+    });
+  }
+
+  /**
+   * Query return transactions with pagination, store filter, and search
+   */
+  async getReturns(tenantId: string, query: QueryReturnsDto) {
+    const { storeId, search, page = 1, limit = 20 } = query;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.ReturnWhereInput = {
+      tenantId,
+      ...(storeId && {
+        sale: {
+          storeId,
+        },
+      }),
+      ...(search && {
+        OR: [
+          { returnNumber: { contains: search, mode: 'insensitive' } },
+          { sale: { receiptNumber: { contains: search, mode: 'insensitive' } } },
+          { sale: { customer: { name: { contains: search, mode: 'insensitive' } } } },
+          { sale: { customer: { phone: { contains: search, mode: 'insensitive' } } } },
+          { reason: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+    };
+
+    const [returns, total] = await Promise.all([
+      this.prisma.return.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sale: {
+            select: {
+              id: true,
+              receiptNumber: true,
+              totalAmount: true,
+              createdAt: true,
+              customer: {
+                select: { id: true, name: true, phone: true },
+              },
+              store: {
+                select: { id: true, name: true },
+              },
+            },
+          },
+          processedByUser: {
+            select: { id: true, name: true, email: true },
+          },
+          returnItems: {
+            include: {
+              saleItem: {
+                include: {
+                  product: { select: { id: true, name: true, barcode: true, genericName: true } },
+                  batch: { select: { id: true, batchNumber: true, expiryDate: true } },
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.return.count({ where }),
+    ]);
+
+    return {
+      data: returns,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Get return details by ID
+   */
+  async getReturnById(tenantId: string, id: string) {
+    const returnRecord = await this.prisma.return.findFirst({
+      where: { id, tenantId },
+      include: {
+        sale: {
+          include: {
+            customer: true,
+            store: true,
+            saleItems: {
+              include: {
+                product: true,
+                batch: true,
+              },
+            },
+          },
+        },
+        processedByUser: {
+          select: { id: true, name: true, email: true },
+        },
+        returnItems: {
+          include: {
+            saleItem: {
+              include: {
+                product: { select: { id: true, name: true, barcode: true, genericName: true } },
+                batch: { select: { id: true, batchNumber: true, expiryDate: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!returnRecord) {
+      throw new NotFoundException(`Return transaction with ID "${id}" not found`);
+    }
+
+    return returnRecord;
+  }
 }
+
