@@ -50,7 +50,7 @@ import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
 import { CustomerModal } from '@/features/customers/components/customer-modal';
 import { getMedicineIconConfig } from '@/features/inventory/components/product-list';
-import { posOfflineService } from '../services/pos-offline-service';
+import { posLocalDataService } from '../services/pos-local-data.service';
 import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
 import { RecentSalesModal } from './recent-sales-modal';
@@ -117,12 +117,22 @@ export function POSTerminal() {
 
   const checkPendingOfflineSales = useCallback(async () => {
     try {
-      const count = await posOfflineService.getPendingCount();
-      setPendingOfflineCount(count);
+      const status = await posLocalDataService.getStatus();
+      setPendingOfflineCount(status.pendingSalesCount + status.conflictSalesCount);
     } catch (err) {
       console.error('Failed to check pending offline sales count:', err);
     }
   }, []);
+
+  // Background catalog cache sync on mount or branch change
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.onLine) {
+      const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
+      posLocalDataService.syncCatalogToLocal(targetStore).catch((err) => {
+        console.warn('Initial offline catalog sync failed:', err);
+      });
+    }
+  }, [activeStoreId, isAllStores]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -132,9 +142,12 @@ export function POSTerminal() {
       const handleOnline = async () => {
         setIsOnline(true);
         toast.success('Internet reconnected! Syncing offline sales queue...');
-        const res = await posOfflineService.syncQueuedSales();
+        const res = await posLocalDataService.syncPendingSales();
         if (res.successCount > 0) {
           toast.success(`Auto-synced ${res.successCount} offline transaction(s)!`);
+        }
+        if (res.conflictCount > 0) {
+          toast.warning(`${res.conflictCount} sale(s) have inventory conflicts.`);
         }
         checkPendingOfflineSales();
       };
@@ -269,31 +282,52 @@ export function POSTerminal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart, isSubmitting, isReceiptOpen, searchResults]);
 
-  // Live product search effect
+  // Live product search effect with instantaneous local-first read (<5ms)
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       return;
     }
 
+    const term = searchQuery.trim();
+    let isCancelled = false;
+
+    // 1. Instant local IndexedDB query (<5ms latency)
+    posLocalDataService
+      .searchLocalProducts(term)
+      .then((localMatches) => {
+        if (!isCancelled && localMatches.length > 0) {
+          setSearchResults(localMatches);
+          setSelectedResultIndex(0);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Debounced remote network search for freshest stock & cloud inventory
     const timer = setTimeout(async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       setIsSearching(true);
       try {
         const res = await productsApi.getProducts({
-          search: searchQuery.trim(),
-          storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+          search: term,
+          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
         });
         const items: ProductData[] = res?.data || [];
-        setSearchResults(items);
-        setSelectedResultIndex(0);
+        if (!isCancelled && items.length > 0) {
+          setSearchResults(items);
+          setSelectedResultIndex(0);
+        }
       } catch (err) {
-        console.error('Search products error:', err);
+        console.error('Search products network error:', err);
       } finally {
-        setIsSearching(false);
+        if (!isCancelled) setIsSearching(false);
       }
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
   }, [searchQuery, activeStoreId, isAllStores]);
 
   const resolveTaxRateFromCode = (taxCode?: string | null): number => {
@@ -443,21 +477,37 @@ export function POSTerminal() {
     }
   };
 
-  // Handle barcode scan
+  // Handle barcode scan with zero-latency local-first lookup
   const handleBarcodeScan = async (scannedCode: string) => {
-    if (!scannedCode.trim()) return;
+    const code = scannedCode.trim();
+    if (!code) return;
+
     try {
-      const res = await productsApi.lookupByBarcode(
-        scannedCode.trim(),
-        (!isAllStores && activeStoreId) ? activeStoreId : undefined,
-      );
-      if (res?.product) {
-        addToCart(res.product);
+      // 1. Check local IndexedDB first for instant (<1ms) offline barcode scan
+      const localProduct = await posLocalDataService.getLocalProductByBarcode(code);
+      if (localProduct) {
+        addToCart(localProduct);
+        setSearchQuery('');
+        focusSearchInput();
+        return;
+      }
+
+      // 2. Fallback to online API lookup if online
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        const res = await productsApi.lookupByBarcode(
+          code,
+          !isAllStores && activeStoreId ? activeStoreId : undefined,
+        );
+        if (res?.product) {
+          addToCart(res.product);
+        } else {
+          toast.error(`No medicine found with barcode "${code}"`);
+        }
       } else {
-        toast.error(`No medicine found with barcode "${scannedCode}"`);
+        toast.error(`Barcode "${code}" not found in local offline cache`);
       }
     } catch {
-      toast.error(`Barcode "${scannedCode}" not registered in catalog`);
+      toast.error(`Barcode "${code}" not registered in catalog`);
     } finally {
       setSearchQuery('');
       focusSearchInput();
@@ -626,10 +676,10 @@ export function POSTerminal() {
       })),
     };
 
-    // If browser is offline, directly save locally to IndexedDB queue
+    // If browser is offline, directly save locally to IndexedDB queue with instant local stock decrement
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       try {
-        const { sale } = await posOfflineService.saveOfflineSale(payload, totals);
+        const { sale } = await posLocalDataService.recordLocalSale(payload, totals);
         setCompletedSale(sale);
         setIsReceiptOpen(true);
         setCart([]);
@@ -649,7 +699,7 @@ export function POSTerminal() {
       return;
     }
 
-    // Try online API checkout, fallback to IndexedDB if network error
+    // Try online API checkout, fallback to local IndexedDB queue with stock decrement if network error
     try {
       const res = await salesApi.createSale(payload);
 
@@ -670,7 +720,7 @@ export function POSTerminal() {
 
       if (isNetworkError) {
         try {
-          const { sale } = await posOfflineService.saveOfflineSale(payload, totals);
+          const { sale } = await posLocalDataService.recordLocalSale(payload, totals);
           setCompletedSale(sale);
           setIsReceiptOpen(true);
           setCart([]);
