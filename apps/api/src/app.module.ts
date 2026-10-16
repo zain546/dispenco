@@ -25,6 +25,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { TransfersModule } from './modules/transfers/transfers.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     TaxRatesModule,
     JobsModule,
     ReportsModule,
+    TransfersModule,
   ],
   controllers: [AppController],
   providers: [

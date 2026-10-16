@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Package,
+  ArrowRightLeft,
   ShoppingCart,
   Truck,
   Users,
@@ -44,6 +45,7 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null },
   { name: 'Inventory', href: '/inventory', icon: Package, permission: null },
+  { name: 'Stock Transfers', href: '/transfers', icon: ArrowRightLeft, permission: null },
   { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null },
   { name: 'Suppliers', href: '/suppliers', icon: Truck, permission: 'canManageSuppliers' },
   { name: 'Purchases', href: '/purchases', icon: Truck, permission: null },

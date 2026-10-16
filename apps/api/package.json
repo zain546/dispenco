@@ -8,7 +8,10 @@
     "start": "node dist/main",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('api tests passed')\""
+    "test": "node -e \"console.log('api tests passed')\"",
+    "prisma": "prisma",
+    "generate": "prisma generate",
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@dispenco/types": "workspace:*",
