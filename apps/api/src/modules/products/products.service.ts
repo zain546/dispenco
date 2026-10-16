@@ -10,10 +10,14 @@ import { QueryProductsDto } from './dtos/query-products.dto';
 import { validateProductAttributes } from '@dispenco/types';
 import { Prisma } from '@prisma/client';
 import * as Papa from 'papaparse';
+import { SearchService } from '../search/search.service';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly searchService: SearchService,
+  ) {}
 
   /**
    * Create a new product and optional initial stock batch in a single flow
@@ -123,7 +127,9 @@ export class ProductsService {
       return createdProduct;
     });
 
-    return this.getProductById(tenantId, product.id);
+    const createdDetail = await this.getProductById(tenantId, product.id);
+    await this.searchService.indexProduct(createdDetail);
+    return createdDetail;
   }
 
   /**
@@ -134,11 +140,24 @@ export class ProductsService {
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
 
+    let meiliMatchedIds: string[] | null = null;
+    if (query.search?.trim()) {
+      const searchResult = await this.searchService.searchProductIds(tenantId, query.search.trim(), {
+        category: query.category,
+        limit: 150,
+      });
+      if (searchResult.isAvailable) {
+        meiliMatchedIds = searchResult.productIds;
+      }
+    }
+
     const where: Prisma.ProductWhereInput = {
       tenantId,
       ...(query.category ? { category: query.category } : {}),
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
-      ...(query.search
+      ...(meiliMatchedIds !== null
+        ? { id: { in: meiliMatchedIds } }
+        : query.search
         ? {
             OR: [
               { name: { contains: query.search, mode: 'insensitive' } },
@@ -211,6 +230,16 @@ export class ProductsService {
         nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
       };
     });
+
+    // If search was executed via Meilisearch, preserve the relevance ranking
+    if (meiliMatchedIds && meiliMatchedIds.length > 0) {
+      const rankMap = new Map(meiliMatchedIds.map((id, index) => [id, index]));
+      allMapped.sort((a, b) => {
+        const rankA = rankMap.get(a.id) ?? 9999;
+        const rankB = rankMap.get(b.id) ?? 9999;
+        return rankA - rankB;
+      });
+    }
 
     let filteredItems = allMapped;
     if (query.inStockOnly) {
@@ -369,7 +398,9 @@ export class ProductsService {
       },
     });
 
-    return this.getProductById(tenantId, updatedProduct.id);
+    const updated = await this.getProductById(tenantId, updatedProduct.id);
+    await this.searchService.indexProduct(updated);
+    return updated;
   }
 
   /**
@@ -468,6 +499,8 @@ export class ProductsService {
       where: { id },
       data: { isActive: false },
     });
+
+    await this.searchService.removeProduct(id);
 
     return {
       success: true,
@@ -781,6 +814,11 @@ export class ProductsService {
 
       return results;
     });
+
+    // Index imported products into Meilisearch
+    for (const prod of createdProducts) {
+      await this.searchService.indexProduct(prod);
+    }
 
     return {
       success: true,

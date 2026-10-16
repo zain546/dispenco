@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "./dist",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "meilisearch": ["./node_modules/meilisearch/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],

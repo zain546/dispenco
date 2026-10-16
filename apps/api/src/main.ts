@@ -37,4 +37,4 @@ async function bootstrap() {
 }
 
 bootstrap();
-// Customer & Khata ledger ready
+// Customer & Khata ledger ready - Search Module enabled
