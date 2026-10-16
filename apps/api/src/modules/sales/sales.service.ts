@@ -323,6 +323,9 @@ export class SalesService {
         },
         customer: true,
         store: true,
+        tenant: {
+          select: { id: true, name: true, logoUrl: true },
+        },
         user: {
           select: { id: true, name: true, email: true },
         },
@@ -333,7 +336,7 @@ export class SalesService {
               include: {
                 saleItem: {
                   include: {
-                    product: { select: { id: true, name: true } },
+                    product: { select: { id: true, name: true, barcode: true, genericName: true } },
                   },
                 },
               },
@@ -366,6 +369,8 @@ export class SalesService {
               id: sale.customer.id,
               name: sale.customer.name,
               phone: sale.customer.phone,
+              address: sale.customer.address,
+              creditBalance: Number(sale.customer.creditBalance),
             }
           : null,
         user: sale.user,
@@ -374,7 +379,10 @@ export class SalesService {
           name: sale.store.name,
           address: sale.store.address,
           currency: sale.store.currency,
+          taxRate: Number(sale.store.taxRate),
           receiptFooter: sale.store.receiptFooter,
+          logoUrl: sale.store.logoUrl || sale.tenant?.logoUrl || null,
+          tenantName: sale.tenant?.name || sale.store.name,
         },
         payment: sale.payments[0]
           ? {
@@ -401,6 +409,9 @@ export class SalesService {
             id: si.id,
             productId: si.productId,
             productName: si.product.name,
+            genericName: si.product.genericName || null,
+            barcode: si.product.barcode || null,
+            category: si.product.category,
             unit: si.product.unit,
             batchNumber: si.batch.batchNumber,
             expiryDate: si.batch.expiryDate.toISOString(),
@@ -409,6 +420,8 @@ export class SalesService {
             maxReturnable,
             unitPrice: Number(si.unitPrice),
             discount: Number(si.discount),
+            discountType: si.discountType,
+            taxRate: Number(si.taxRate),
             taxApplied: Number(si.taxApplied),
             lineTotal: Number(si.unitPrice) * si.quantity - Number(si.discount) + Number(si.taxApplied),
           };

@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { SaleResponse, ReturnRecord, salesApi } from '@/features/sales/services/sales-api';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
-import { downloadThermalReceiptPdf } from '../utils/pos-receipt-pdf';
+import { downloadThermalReceiptPdf, downloadA4TaxInvoicePdf } from '../utils/pos-receipt-pdf';
 import { CreateReturnModal } from '@/features/sales/components/create-return-modal';
 import { ReturnSlipModal } from '@/features/sales/components/return-slip-modal';
 import { toast } from 'sonner';
@@ -48,7 +48,7 @@ export function RecentSalesModal({
   const handleDownload = async (sale: SaleResponse) => {
     setDownloadingSaleId(sale.id);
     try {
-      await downloadThermalReceiptPdf(sale, storeName);
+      await downloadA4TaxInvoicePdf(sale, { storeName });
     } finally {
       setDownloadingSaleId(null);
     }

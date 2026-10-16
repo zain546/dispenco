@@ -26,6 +26,9 @@ export interface SaleItemData {
   id: string;
   productId: string;
   productName: string;
+  genericName?: string | null;
+  barcode?: string | null;
+  category?: string;
   unit: string;
   batchNumber: string;
   expiryDate?: string;
@@ -34,6 +37,8 @@ export interface SaleItemData {
   maxReturnable?: number;
   unitPrice: number;
   discount: number;
+  discountType?: 'FLAT' | 'PERCENT';
+  taxRate?: number;
   taxApplied: number;
   lineTotal: number;
 }
@@ -62,6 +67,8 @@ export interface SaleDetailResponse {
     id: string;
     name: string;
     phone?: string | null;
+    address?: string | null;
+    creditBalance?: number;
   } | null;
   user?: {
     id: string;
@@ -73,7 +80,10 @@ export interface SaleDetailResponse {
     name: string;
     address?: string | null;
     currency?: string;
+    taxRate?: number;
     receiptFooter?: string | null;
+    logoUrl?: string | null;
+    tenantName?: string;
   };
   payment?: {
     method: string;

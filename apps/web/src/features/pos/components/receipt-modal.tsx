@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SaleResponse } from '@/features/sales/services/sales-api';
 import { formatCurrency } from '@/lib/format';
-import { downloadThermalReceiptPdf } from '../utils/pos-receipt-pdf';
+import { downloadThermalReceiptPdf, downloadA4TaxInvoicePdf } from '../utils/pos-receipt-pdf';
 
 export interface ReceiptModalProps {
   open: boolean;
@@ -37,7 +37,7 @@ export function ReceiptModal({
   const handleDownload = async () => {
     setIsDownloadingPdf(true);
     try {
-      await downloadThermalReceiptPdf(sale, storeName);
+      await downloadA4TaxInvoicePdf(sale, { storeName });
     } finally {
       setIsDownloadingPdf(false);
     }
