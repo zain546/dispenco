@@ -18,17 +18,19 @@ import {
   Receipt,
   PackageMinus,
   Sparkles,
-  HelpCircle,
   FileCheck2,
   ShieldCheck,
   Building2,
   User,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
+import { StatusBadge, StatusBadgeVariant } from '@/components/ui/status-badge';
+import { ErrorState } from '@/components/ui/error-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 import {
   Table,
   TableHeader,
@@ -64,53 +66,87 @@ const TYPE_CONFIG: Record<
   [AnomalyType.HIGH_VOID_RATE]: {
     label: 'Disproportionate Voids',
     icon: Receipt,
-    color: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+    color: 'text-warning bg-warning/10 border-warning/20',
     desc: 'Cashier void or cancellation rate significantly exceeds store baseline.',
   },
   [AnomalyType.EXCESSIVE_DISCOUNT]: {
     label: 'Excessive Discount',
     icon: TrendingDown,
-    color: 'text-rose-500 bg-rose-500/10 border-rose-500/20',
+    color: 'text-warning bg-warning/10 border-warning/20',
     desc: 'Discretionary discounts exceeding policy limits or 25% of gross sale.',
   },
   [AnomalyType.AFTER_HOURS_SALE]: {
     label: 'After-Hours Sale',
     icon: Moon,
-    color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20',
+    color: 'text-primary bg-primary/10 border-primary/20',
     desc: 'Register checkout recorded outside normal retail operating hours.',
   },
   [AnomalyType.BELOW_COST_SALE]: {
     label: 'Below-Cost Sale',
     icon: AlertTriangle,
-    color: 'text-red-500 bg-red-500/10 border-red-500/20',
+    color: 'text-destructive bg-destructive/10 border-destructive/20',
     desc: 'Line items sold below batch acquisition cost, damaging gross margin.',
   },
   [AnomalyType.REPETITIVE_SHRINKAGE]: {
     label: 'Recurrent Shrinkage',
     icon: PackageMinus,
-    color: 'text-orange-500 bg-orange-500/10 border-orange-500/20',
+    color: 'text-destructive bg-destructive/10 border-destructive/20',
     desc: 'Frequent manual stock adjustments or write-offs logged by staff member.',
   },
 };
 
-const SEVERITY_BADGES: Record<AnomalySeverity, { label: string; className: string }> = {
+const SEVERITY_CONFIG: Record<
+  AnomalySeverity,
+  { label: string; variant: StatusBadgeVariant }
+> = {
   CRITICAL: {
     label: 'Critical',
-    className: 'bg-destructive/15 text-destructive border-destructive/30 font-semibold',
+    variant: 'danger',
   },
   HIGH: {
     label: 'High Variance',
-    className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-medium',
+    variant: 'warning',
   },
   MEDIUM: {
     label: 'Moderate',
-    className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30',
+    variant: 'info',
   },
   LOW: {
     label: 'Informational',
-    className: 'bg-muted text-muted-foreground border-border',
+    variant: 'neutral',
   },
 };
+
+function renderStatusBadge(status: AnomalyStatus) {
+  switch (status) {
+    case AnomalyStatus.FLAGGED:
+      return (
+        <StatusBadge variant="warning" size="xs">
+          Pending Review
+        </StatusBadge>
+      );
+    case AnomalyStatus.UNDER_REVIEW:
+      return (
+        <StatusBadge variant="info" size="xs">
+          In Investigation
+        </StatusBadge>
+      );
+    case AnomalyStatus.RESOLVED:
+      return (
+        <StatusBadge variant="success" size="xs">
+          Resolved
+        </StatusBadge>
+      );
+    case AnomalyStatus.DISMISSED:
+      return (
+        <StatusBadge variant="neutral" size="xs">
+          Dismissed
+        </StatusBadge>
+      );
+    default:
+      return <StatusBadge size="xs">{status}</StatusBadge>;
+  }
+}
 
 export function AnomaliesReviewView() {
   const { activeStore, activeStoreId, isAllStores } = useStore();
@@ -127,11 +163,14 @@ export function AnomaliesReviewView() {
   const [totalCount, setTotalCount] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
 
   // Review & Resolution Dialog State
   const [selectedFlag, setSelectedFlag] = useState<AnomalyFlagItem | null>(null);
-  const [resolutionStatus, setResolutionStatus] = useState<AnomalyStatus>(AnomalyStatus.RESOLVED);
+  const [resolutionStatus, setResolutionStatus] = useState<AnomalyStatus>(
+    AnomalyStatus.RESOLVED,
+  );
   const [resolutionNote, setResolutionNote] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
@@ -139,13 +178,14 @@ export function AnomaliesReviewView() {
     try {
       const data = await anomaliesApi.getSummary();
       setSummary(data);
-    } catch (err: unknown) {
-      console.error('Failed to load integrity summary:', err);
+    } catch {
+      // Soft failure for summary; flags fetch will report main error
     }
   }, []);
 
   const fetchFlags = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       const storeParam = !isAllStores && activeStoreId ? activeStoreId : undefined;
       const res = await anomaliesApi.getAnomalies({
@@ -160,9 +200,9 @@ export function AnomaliesReviewView() {
       setTotalPages(res.totalPages);
       setTotalCount(res.total);
     } catch (err: unknown) {
-      toast.error('Failed to load discrepancy flags', {
-        description: getErrorMessage(err),
-      });
+      const msg = getErrorMessage(err, 'Failed to load discrepancy flags');
+      setFetchError(msg);
+      toast.error('Failed to load discrepancy flags', { description: msg });
     } finally {
       setIsLoading(false);
     }
@@ -227,7 +267,7 @@ export function AnomaliesReviewView() {
     }
   };
 
-  // Filter flags locally by search query if user searches title/staff/description
+  // Filter flags locally by search query
   const filteredFlags = flags.filter((f) => {
     if (!search.trim()) return true;
     const query = search.toLowerCase();
@@ -244,21 +284,24 @@ export function AnomaliesReviewView() {
       {/* Top Banner & Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-border/70 bg-card shadow-2xs">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
               <ShieldAlert className="size-5" />
             </span>
-            <h2 className="text-xl font-bold tracking-tight">Operational Integrity & Discrepancies</h2>
-            <Badge variant="outline" className="text-xs font-semibold px-2 py-0.5 border-primary/20 bg-primary/5 text-primary">
+            <h2 className="text-xl font-bold tracking-tight">
+              Operational Integrity & Discrepancies
+            </h2>
+            <StatusBadge variant="info" size="xs">
               Statistical Baselines
-            </Badge>
+            </StatusBadge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Continuous variance monitoring across cash registers, discretionary discounting, out-of-hours checkouts, and inventory shrinkage.
+            Continuous variance monitoring across cash registers, discretionary
+            discounting, out-of-hours checkouts, and inventory shrinkage.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -269,7 +312,9 @@ export function AnomaliesReviewView() {
             disabled={isLoading || isScanning}
             className="h-9 gap-1.5 text-xs"
           >
-            <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`}
+            />
             Refresh
           </Button>
 
@@ -279,7 +324,11 @@ export function AnomaliesReviewView() {
             disabled={isScanning}
             className="h-9 gap-2 text-xs font-semibold shadow-xs"
           >
-            <Sparkles className={`size-3.5 text-amber-400 ${isScanning ? 'animate-spin' : ''}`} />
+            <Sparkles
+              className={`size-3.5 text-warning ${
+                isScanning ? 'animate-spin' : ''
+              }`}
+            />
             {isScanning ? 'Analyzing Transactions...' : 'Run Integrity Scan'}
           </Button>
         </div>
@@ -340,11 +389,31 @@ export function AnomaliesReviewView() {
             {/* Status Tabs */}
             <div className="flex flex-wrap items-center gap-1">
               {[
-                { id: 'ALL', label: 'All Discrepancies', count: summary?.totalFlags },
-                { id: AnomalyStatus.FLAGGED, label: 'Pending Review', count: summary?.pendingReviewCount },
-                { id: AnomalyStatus.UNDER_REVIEW, label: 'Under Review', count: summary?.investigatingCount },
-                { id: AnomalyStatus.RESOLVED, label: 'Resolved', count: summary?.resolvedCount },
-                { id: AnomalyStatus.DISMISSED, label: 'Dismissed', count: summary?.dismissedCount },
+                {
+                  id: 'ALL',
+                  label: 'All Discrepancies',
+                  count: summary?.totalFlags,
+                },
+                {
+                  id: AnomalyStatus.FLAGGED,
+                  label: 'Pending Review',
+                  count: summary?.pendingReviewCount,
+                },
+                {
+                  id: AnomalyStatus.UNDER_REVIEW,
+                  label: 'Under Review',
+                  count: summary?.investigatingCount,
+                },
+                {
+                  id: AnomalyStatus.RESOLVED,
+                  label: 'Resolved',
+                  count: summary?.resolvedCount,
+                },
+                {
+                  id: AnomalyStatus.DISMISSED,
+                  label: 'Dismissed',
+                  count: summary?.dismissedCount,
+                },
               ].map((tab) => (
                 <Button
                   key={tab.id}
@@ -360,7 +429,7 @@ export function AnomaliesReviewView() {
                   {tab.count !== undefined && (
                     <Badge
                       variant="outline"
-                      className={`text-[10px] px-1 py-0 ${
+                      className={`text-micro px-1 py-0 ${
                         statusFilter === tab.id
                           ? 'border-primary-foreground/30 text-primary-foreground bg-primary-foreground/15'
                           : 'border-border text-muted-foreground'
@@ -418,7 +487,9 @@ export function AnomaliesReviewView() {
                   <Icon className="size-3 shrink-0" />
                   <span>{cfg.label}</span>
                   {count > 0 && (
-                    <span className="text-[10px] opacity-75 font-mono">({count})</span>
+                    <span className="text-micro opacity-75 tabular-nums">
+                      ({count})
+                    </span>
                   )}
                 </Button>
               );
@@ -428,9 +499,16 @@ export function AnomaliesReviewView() {
 
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-12 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
-              <RefreshCw className="size-5 animate-spin text-primary" />
-              <span>Evaluating statistical transaction baselines...</span>
+            <div className="p-6">
+              <TableSkeleton columns={6} rows={6} />
+            </div>
+          ) : fetchError ? (
+            <div className="p-8">
+              <ErrorState
+                title="Failed to Load Operational Discrepancies"
+                description={fetchError}
+                onRetry={fetchFlags}
+              />
             </div>
           ) : filteredFlags.length === 0 ? (
             <EmptyState
@@ -454,139 +532,231 @@ export function AnomaliesReviewView() {
               className="py-12"
             />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-10"></TableHead>
-                    <TableHead className="text-xs font-semibold">Discrepancy Details</TableHead>
-                    <TableHead className="text-xs font-semibold">Variance vs Baseline</TableHead>
-                    <TableHead className="text-xs font-semibold">Store & Staff Member</TableHead>
-                    <TableHead className="text-xs font-semibold">Status & Timestamp</TableHead>
-                    <TableHead className="text-xs font-semibold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredFlags.map((flag) => {
-                    const cfg = TYPE_CONFIG[flag.type] || {
-                      label: flag.type,
-                      icon: AlertTriangle,
-                      color: 'text-muted-foreground bg-muted',
-                      desc: '',
-                    };
-                    const Icon = cfg.icon;
-                    const sev = SEVERITY_BADGES[flag.severity] || SEVERITY_BADGES.MEDIUM;
+            <>
+              {/* Mobile Card List (Visible on < md) */}
+              <div className="md:hidden divide-y divide-border/60">
+                {filteredFlags.map((flag) => {
+                  const cfg = TYPE_CONFIG[flag.type] || {
+                    label: flag.type,
+                    icon: AlertTriangle,
+                    color: 'text-muted-foreground bg-muted',
+                    desc: '',
+                  };
+                  const Icon = cfg.icon;
+                  const sev =
+                    SEVERITY_CONFIG[flag.severity] || SEVERITY_CONFIG.MEDIUM;
 
-                    return (
-                      <TableRow key={flag.id} className="hover:bg-muted/40 transition-colors">
-                        <TableCell className="pl-4 pr-1">
-                          <div className={`p-2 rounded-lg border ${cfg.color} shrink-0`}>
+                  return (
+                    <div key={flag.id} className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`p-1.5 rounded-lg border ${cfg.color} shrink-0`}
+                          >
                             <Icon className="size-4" />
                           </div>
-                        </TableCell>
-
-                        <TableCell className="space-y-1 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm text-foreground">
+                          <div>
+                            <div className="font-semibold text-sm">
                               {flag.title}
-                            </span>
-                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${sev.className}`}>
-                              {sev.label}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground max-w-md line-clamp-2">
-                            {flag.description}
-                          </p>
-                        </TableCell>
-
-                        <TableCell className="text-xs">
-                          {flag.metricObserved !== null && flag.metricObserved !== undefined ? (
-                            <div className="space-y-1 font-mono text-[11px]">
-                              <div className="flex items-center gap-1.5 text-foreground font-semibold">
-                                <span className="text-muted-foreground font-normal">Observed:</span>
-                                <span>{flag.metricObserved}</span>
-                              </div>
-                              {flag.metricBaseline !== null && flag.metricBaseline !== undefined && (
-                                <div className="text-muted-foreground">
-                                  <span>Baseline: </span>
-                                  <span>{flag.metricBaseline}</span>
-                                </div>
-                              )}
-                              {flag.statisticalScore !== null && flag.statisticalScore !== undefined && (
-                                <Badge variant="secondary" className="text-[9px] px-1 py-0 font-sans">
-                                  Score: {flag.statisticalScore}x
-                                </Badge>
+                            </div>
+                            <div className="text-micro text-muted-foreground">
+                              {new Date(flag.createdAt).toLocaleDateString(
+                                undefined,
+                                {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                },
                               )}
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">Standard threshold</span>
-                          )}
-                        </TableCell>
-
-                        <TableCell className="text-xs space-y-1">
-                          <div className="flex items-center gap-1.5 font-medium text-foreground">
-                            <User className="size-3.5 text-muted-foreground shrink-0" />
-                            <span>{flag.user?.name || 'Automated Activity'}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
-                            <Building2 className="size-3 shrink-0" />
-                            <span>{flag.storeName || (activeStore ? activeStore.name : 'All Stores')}</span>
-                          </div>
-                        </TableCell>
+                        </div>
+                        <StatusBadge variant={sev.variant} size="xs">
+                          {sev.label}
+                        </StatusBadge>
+                      </div>
 
-                        <TableCell className="text-xs space-y-1">
-                          <div>
-                            {flag.status === AnomalyStatus.FLAGGED ? (
-                              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-medium">
-                                Pending Review
-                              </Badge>
-                            ) : flag.status === AnomalyStatus.UNDER_REVIEW ? (
-                              <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 font-medium">
-                                In Investigation
-                              </Badge>
-                            ) : flag.status === AnomalyStatus.RESOLVED ? (
-                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-medium">
-                                Resolved
-                              </Badge>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {flag.description}
+                      </p>
+
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
+                        <div className="flex items-center gap-2">
+                          {renderStatusBadge(flag.status)}
+                          <span className="text-muted-foreground text-micro">
+                            {flag.user?.name || 'Staff'}
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenReview(flag)}
+                          className="h-7 text-xs gap-1 px-2.5"
+                        >
+                          <Eye className="size-3" />
+                          Review
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Data Table (Visible on >= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="text-xs font-semibold">
+                        Discrepancy Details
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold">
+                        Variance vs Baseline
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold">
+                        Store & Staff Member
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold">
+                        Status & Timestamp
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold text-right">
+                        Actions
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredFlags.map((flag) => {
+                      const cfg = TYPE_CONFIG[flag.type] || {
+                        label: flag.type,
+                        icon: AlertTriangle,
+                        color: 'text-muted-foreground bg-muted',
+                        desc: '',
+                      };
+                      const Icon = cfg.icon;
+                      const sev =
+                        SEVERITY_CONFIG[flag.severity] ||
+                        SEVERITY_CONFIG.MEDIUM;
+
+                      return (
+                        <TableRow
+                          key={flag.id}
+                          className="hover:bg-muted/40 transition-colors"
+                        >
+                          <TableCell className="pl-4 pr-1">
+                            <div
+                              className={`p-2 rounded-lg border ${cfg.color} shrink-0`}
+                            >
+                              <Icon className="size-4" />
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="space-y-1 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-foreground">
+                                {flag.title}
+                              </span>
+                              <StatusBadge variant={sev.variant} size="xs">
+                                {sev.label}
+                              </StatusBadge>
+                            </div>
+                            <p className="text-xs text-muted-foreground max-w-md line-clamp-2">
+                              {flag.description}
+                            </p>
+                          </TableCell>
+
+                          <TableCell className="text-xs">
+                            {flag.metricObserved !== null &&
+                            flag.metricObserved !== undefined ? (
+                              <div className="space-y-1 tabular-nums text-xs">
+                                <div className="flex items-center gap-1.5 text-foreground font-semibold">
+                                  <span className="text-muted-foreground font-normal">
+                                    Observed:
+                                  </span>
+                                  <span>{flag.metricObserved}</span>
+                                </div>
+                                {flag.metricBaseline !== null &&
+                                  flag.metricBaseline !== undefined && (
+                                    <div className="text-muted-foreground text-micro">
+                                      <span>Baseline: </span>
+                                      <span>{flag.metricBaseline}</span>
+                                    </div>
+                                  )}
+                                {flag.statisticalScore !== null &&
+                                  flag.statisticalScore !== undefined && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-micro px-1 py-0"
+                                    >
+                                      Score: {flag.statisticalScore}x
+                                    </Badge>
+                                  )}
+                              </div>
                             ) : (
-                              <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground border-border font-medium">
-                                Dismissed
-                              </Badge>
+                              <span className="text-muted-foreground text-xs">
+                                Standard threshold
+                              </span>
                             )}
-                          </div>
-                          <div className="text-muted-foreground text-[11px]">
-                            {new Date(flag.createdAt).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </div>
-                        </TableCell>
+                          </TableCell>
 
-                        <TableCell className="text-right pr-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenReview(flag)}
-                            className="h-8 text-xs gap-1.5"
-                          >
-                            <Eye className="size-3.5" />
-                            Review
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                          <TableCell className="text-xs space-y-1">
+                            <div className="flex items-center gap-1.5 font-medium text-foreground">
+                              <User className="size-3.5 text-muted-foreground shrink-0" />
+                              <span>
+                                {flag.user?.name || 'Automated Activity'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-micro">
+                              <Building2 className="size-3 shrink-0" />
+                              <span>
+                                {flag.storeName ||
+                                  (activeStore
+                                    ? activeStore.name
+                                    : 'All Stores')}
+                              </span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="text-xs space-y-1">
+                            <div>{renderStatusBadge(flag.status)}</div>
+                            <div className="text-muted-foreground text-micro tabular-nums">
+                              {new Date(flag.createdAt).toLocaleDateString(
+                                undefined,
+                                {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                },
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="text-right pr-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenReview(flag)}
+                              className="h-8 text-xs gap-1.5"
+                            >
+                              <Eye className="size-3.5" />
+                              Review
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="p-4 border-t border-border/40 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground tabular-nums">
                 Showing page {page} of {totalPages} ({totalCount} total items)
               </span>
               <div className="flex items-center gap-1.5">
@@ -617,7 +787,10 @@ export function AnomaliesReviewView() {
       </Card>
 
       {/* Manager Review & Resolution Dialog */}
-      <Dialog open={!!selectedFlag} onOpenChange={(open) => !open && setSelectedFlag(null)}>
+      <Dialog
+        open={!!selectedFlag}
+        onOpenChange={(open) => !open && setSelectedFlag(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -629,7 +802,8 @@ export function AnomaliesReviewView() {
                   Operational Discrepancy Review
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Review statistical variance evidence and log managerial resolution rationale.
+                  Review statistical variance evidence and log managerial
+                  resolution rationale.
                 </DialogDescription>
               </div>
             </div>
@@ -648,54 +822,74 @@ export function AnomaliesReviewView() {
                       {selectedFlag.description}
                     </p>
                   </div>
-                  <Badge variant="outline" className={SEVERITY_BADGES[selectedFlag.severity]?.className}>
-                    {selectedFlag.severity}
-                  </Badge>
+                  {SEVERITY_CONFIG[selectedFlag.severity] && (
+                    <StatusBadge
+                      variant={
+                        SEVERITY_CONFIG[selectedFlag.severity].variant
+                      }
+                      size="xs"
+                    >
+                      {SEVERITY_CONFIG[selectedFlag.severity].label}
+                    </StatusBadge>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-border/40 text-xs">
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">Staff Involved</span>
+                    <span className="text-muted-foreground block text-micro">
+                      Staff Involved
+                    </span>
                     <span className="font-medium text-foreground">
                       {selectedFlag.user?.name || 'System Recorded'}
                     </span>
                     {selectedFlag.user?.email && (
-                      <span className="text-muted-foreground block text-[10px]">
+                      <span className="text-muted-foreground block text-micro">
                         {selectedFlag.user.email}
                       </span>
                     )}
                   </div>
 
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">Store Location</span>
+                    <span className="text-muted-foreground block text-micro">
+                      Store Location
+                    </span>
                     <span className="font-medium text-foreground">
                       {selectedFlag.storeName || 'Primary Store'}
                     </span>
                   </div>
 
                   <div>
-                    <span className="text-muted-foreground block text-[11px]">Detected On</span>
-                    <span className="font-medium text-foreground">
+                    <span className="text-muted-foreground block text-micro">
+                      Detected On
+                    </span>
+                    <span className="font-medium text-foreground tabular-nums">
                       {new Date(selectedFlag.createdAt).toLocaleString()}
                     </span>
                   </div>
                 </div>
 
                 {/* Metadata JSON tags */}
-                {selectedFlag.metadata && Object.keys(selectedFlag.metadata).length > 0 && (
-                  <div className="pt-2 border-t border-border/40">
-                    <span className="text-muted-foreground block text-[11px] mb-1">
-                      Transaction Context Evidence:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {Object.entries(selectedFlag.metadata).map(([k, v]) => (
-                        <Badge key={k} variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
-                          {k}: {String(v)}
-                        </Badge>
-                      ))}
+                {selectedFlag.metadata &&
+                  Object.keys(selectedFlag.metadata).length > 0 && (
+                    <div className="pt-2 border-t border-border/40">
+                      <span className="text-muted-foreground block text-micro mb-1">
+                        Transaction Context Evidence:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(selectedFlag.metadata).map(
+                          ([k, v]) => (
+                            <Badge
+                              key={k}
+                              variant="secondary"
+                              className="text-micro tabular-nums px-1.5 py-0"
+                            >
+                              {k}: {String(v)}
+                            </Badge>
+                          ),
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               {/* Status Selector */}
@@ -708,20 +902,17 @@ export function AnomaliesReviewView() {
                     {
                       status: AnomalyStatus.UNDER_REVIEW,
                       label: 'Investigating',
-                      desc: 'Interviewing staff or reviewing CCTV/receipts',
-                      className: 'border-blue-500/40 text-blue-600',
+                      desc: 'Interviewing staff or reviewing register data',
                     },
                     {
                       status: AnomalyStatus.RESOLVED,
                       label: 'Resolved',
-                      desc: 'Legitimate authorized variance or resolved error',
-                      className: 'border-emerald-500/40 text-emerald-600',
+                      desc: 'Authorized variance or resolved procedural error',
                     },
                     {
                       status: AnomalyStatus.DISMISSED,
                       label: 'Dismissed',
                       desc: 'False positive or non-actionable variance',
-                      className: 'border-border text-muted-foreground',
                     },
                   ].map((opt) => (
                     <button
@@ -734,8 +925,10 @@ export function AnomaliesReviewView() {
                           : 'border-border/60 hover:bg-muted/40'
                       }`}
                     >
-                      <div className="font-semibold text-xs text-foreground">{opt.label}</div>
-                      <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                      <div className="font-semibold text-xs text-foreground">
+                        {opt.label}
+                      </div>
+                      <div className="text-micro text-muted-foreground leading-tight mt-0.5">
                         {opt.desc}
                       </div>
                     </button>
@@ -747,7 +940,7 @@ export function AnomaliesReviewView() {
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground flex items-center justify-between">
                   <span>Manager Resolution Rationale</span>
-                  <span className="text-[10px] text-muted-foreground font-normal">
+                  <span className="text-micro text-muted-foreground font-normal">
                     Logged in tamper-proof compliance audit trail
                   </span>
                 </label>
@@ -755,7 +948,7 @@ export function AnomaliesReviewView() {
                   rows={3}
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
-                  placeholder="e.g. Authorized clearance sale approved by Dr. Zain for short-dated antibiotics; or Cashier completed returns policy refresher session."
+                  placeholder="e.g. Authorized clearance sale approved for short-dated stock; or Cashier completed returns policy refresher session."
                   className="w-full text-xs p-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -763,10 +956,17 @@ export function AnomaliesReviewView() {
               {/* Previous Review Info if already reviewed */}
               {selectedFlag.reviewedBy && (
                 <div className="p-2.5 rounded-md bg-muted/40 text-xs text-muted-foreground flex items-center gap-2">
-                  <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                  <CheckCircle2 className="size-4 text-success shrink-0" />
                   <span>
-                    Previously reviewed by <strong className="text-foreground">{selectedFlag.reviewedBy.name}</strong> on{' '}
-                    {selectedFlag.reviewedAt ? new Date(selectedFlag.reviewedAt).toLocaleString() : 'earlier date'}.
+                    Previously reviewed by{' '}
+                    <strong className="text-foreground">
+                      {selectedFlag.reviewedBy.name}
+                    </strong>{' '}
+                    on{' '}
+                    {selectedFlag.reviewedAt
+                      ? new Date(selectedFlag.reviewedAt).toLocaleString()
+                      : 'earlier date'}
+                    .
                   </span>
                 </div>
               )}
@@ -789,7 +989,9 @@ export function AnomaliesReviewView() {
               disabled={isSubmittingReview}
               className="text-xs font-semibold"
             >
-              {isSubmittingReview ? 'Saving Resolution...' : 'Confirm & Save Resolution'}
+              {isSubmittingReview
+                ? 'Saving Resolution...'
+                : 'Confirm & Save Resolution'}
             </Button>
           </DialogFooter>
         </DialogContent>

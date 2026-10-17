@@ -215,27 +215,27 @@ else:
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-lg bg-muted/40 border border-border/60 space-y-1.5">
               <div className="flex items-center gap-2 font-semibold text-sm">
-                <Shield className="size-4 text-emerald-500" />
+                <Shield className="size-4 text-success" />
                 <span>Authentication</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Pass your key in the <code className="text-foreground bg-muted px-1 py-0.5 rounded font-mono text-[11px]">x-api-key</code> HTTP header or as a Bearer token.
+                Pass your key in the <code className="text-foreground bg-muted px-1 py-0.5 rounded font-mono text-micro">x-api-key</code> HTTP header or as a Bearer token.
               </p>
             </div>
 
             <div className="p-4 rounded-lg bg-muted/40 border border-border/60 space-y-1.5">
               <div className="flex items-center gap-2 font-semibold text-sm">
-                <Zap className="size-4 text-amber-500" />
+                <Zap className="size-4 text-warning" />
                 <span>Rate Limiting</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Sliding-window rate limits (default 60 req/min). Inspect <code className="text-foreground bg-muted px-1 py-0.5 rounded font-mono text-[11px]">X-RateLimit-*</code> response headers.
+                Sliding-window rate limits (default 60 req/min). Inspect <code className="text-foreground bg-muted px-1 py-0.5 rounded font-mono text-micro">X-RateLimit-*</code> response headers.
               </p>
             </div>
 
             <div className="p-4 rounded-lg bg-muted/40 border border-border/60 space-y-1.5">
               <div className="flex items-center gap-2 font-semibold text-sm">
-                <Database className="size-4 text-blue-500" />
+                <Database className="size-4 text-info" />
                 <span>Tenant Isolation</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
@@ -272,7 +272,7 @@ else:
                       <div>
                         <div className="font-semibold text-sm text-foreground flex items-center gap-2">
                           <span>{ep.title}</span>
-                          <Badge variant="outline" className="font-mono text-[10px] bg-muted/30">
+                          <Badge variant="outline" className="font-mono text-micro bg-muted/30">
                             {ep.scope}
                           </Badge>
                         </div>
@@ -283,7 +283,7 @@ else:
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge className="font-mono text-xs bg-emerald-600 hover:bg-emerald-600 text-white">
+                      <Badge variant="outline" className="font-mono text-micro bg-success/15 text-success border-success/30 font-semibold">
                         {ep.method}
                       </Badge>
                       <code className="text-xs font-mono bg-muted px-2 py-1 rounded border border-border">
@@ -331,7 +331,7 @@ else:
                   >
                     {copiedSnippet ? (
                       <>
-                        <Check className="size-3 text-emerald-600" /> Copied
+                        <Check className="size-3 text-success" /> Copied
                       </>
                     ) : (
                       <>
@@ -377,7 +377,7 @@ else:
                     onChange={(e) => setTestKey(e.target.value)}
                     className="font-mono text-xs"
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     Paste the key you saved during generation.
                   </p>
                 </div>
@@ -399,7 +399,7 @@ else:
                       <SelectItem value="/suppliers">GET /public/v1/suppliers</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     Target URL: <code className="font-mono">/api/v1/public/v1{testEndpoint}</code>
                   </p>
                 </div>
@@ -446,7 +446,7 @@ else:
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-2 font-mono text-micro text-muted-foreground">
                       <span>Limit: {testResponse.headers['x-ratelimit-limit']}</span>
                       <span>•</span>
                       <span>Remaining: {testResponse.headers['x-ratelimit-remaining']}</span>

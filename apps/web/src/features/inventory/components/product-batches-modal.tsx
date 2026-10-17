@@ -109,7 +109,7 @@ export function ProductBatchesModal({
                   {productInfo ? productInfo.name : 'Medicine Stock Batches'}
                 </DialogTitle>
                 {productInfo && (
-                  <Badge variant="secondary" className="text-[10px] font-medium shrink-0">
+                  <Badge variant="secondary" className="text-micro font-medium shrink-0">
                     {formatCategory(productInfo.category)}
                   </Badge>
                 )}
@@ -158,11 +158,11 @@ export function ProductBatchesModal({
                   onClick={() => setFilter('healthy')}
                   className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                     filter === 'healthy'
-                      ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
+                      ? 'bg-card text-success shadow-2xs font-semibold'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="size-2 rounded-full bg-success shrink-0" />
                   <span>Healthy ({healthyCount})</span>
                 </button>
 
@@ -171,11 +171,11 @@ export function ProductBatchesModal({
                   onClick={() => setFilter('near')}
                   className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                     filter === 'near'
-                      ? 'bg-card text-amber-600 dark:text-amber-400 shadow-2xs font-semibold'
+                      ? 'bg-card text-warning shadow-2xs font-semibold'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <span className="size-2 rounded-full bg-amber-500 shrink-0" />
+                  <span className="size-2 rounded-full bg-warning shrink-0" />
                   <span>Near Expiry ({nearExpiryCount})</span>
                 </button>
 
@@ -229,14 +229,14 @@ export function ProductBatchesModal({
                           </span>
 
                           {batch.isExpired ? (
-                            <Badge variant="destructive" className="text-[10px] gap-1 font-semibold shrink-0">
+                            <Badge variant="destructive" className="text-micro gap-1 font-semibold shrink-0">
                               <AlertTriangle className="size-3" />
                               <span>Expired ({Math.abs(batch.daysUntilExpiry)} days ago)</span>
                             </Badge>
                           ) : batch.isNearExpiry ? (
                             <Badge
                               variant="warning"
-                              className="text-[10px] gap-1 font-semibold shrink-0"
+                              className="text-micro gap-1 font-semibold shrink-0"
                             >
                               <Clock className="size-3" />
                               <span>Near Expiry ({batch.daysUntilExpiry} days left)</span>
@@ -244,7 +244,7 @@ export function ProductBatchesModal({
                           ) : (
                             <Badge
                               variant="success"
-                              className="text-[10px] gap-1 font-medium shrink-0"
+                              className="text-micro gap-1 font-medium shrink-0"
                             >
                               <CheckCircle2 className="size-3" />
                               <span>Active FEFO Batch</span>
@@ -252,13 +252,13 @@ export function ProductBatchesModal({
                           )}
 
                           {batch.rackNumber && (
-                            <span className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 font-medium shrink-0">
+                            <span className="text-micro text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 font-medium shrink-0">
                               Shelf: <strong className="text-foreground">{batch.rackNumber}</strong>
                             </span>
                           )}
 
                           {batch.vendorName && (
-                            <span className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 truncate max-w-[130px] shrink-0">
+                            <span className="text-micro text-muted-foreground bg-muted/40 px-2 py-0.5 rounded border border-border/40 truncate max-w-[130px] shrink-0">
                               {batch.vendorName}
                             </span>
                           )}
@@ -278,22 +278,22 @@ export function ProductBatchesModal({
                       {/* Structured 3-Box Metrics Grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-muted/20 p-2.5 rounded-md border border-border/50 text-xs">
                         <div>
-                          <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider block">Expiry Date</span>
+                          <span className="text-micro text-muted-foreground uppercase font-medium tracking-wider block">Expiry Date</span>
                           <span className="font-semibold text-foreground mt-0.5 block">
                             {formatDate(batch.expiryDate)}
                           </span>
                         </div>
 
                         <div>
-                          <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider block">Financial Audit</span>
+                          <span className="text-micro text-muted-foreground uppercase font-medium tracking-wider block">Financial Audit</span>
                           <div className="mt-0.5 text-foreground flex items-baseline gap-1 flex-wrap">
                             <span>MRP: <strong className="text-primary font-bold tabular-nums">{formatCurrency(batch.sellPrice)}</strong></span>
-                            <span className="text-[10px] text-muted-foreground tabular-nums">(Cost: {formatCurrency(batch.costPrice)})</span>
+                            <span className="text-micro text-muted-foreground tabular-nums">(Cost: {formatCurrency(batch.costPrice)})</span>
                           </div>
                         </div>
 
                         <div>
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                          <div className="flex items-center justify-between text-micro text-muted-foreground font-medium uppercase tracking-wider">
                             <span>Stock Level</span>
                             <span className="font-semibold text-foreground">{stockPercent}%</span>
                           </div>
@@ -304,8 +304,8 @@ export function ProductBatchesModal({
                                   batch.isExpired
                                     ? 'bg-destructive'
                                     : batch.isNearExpiry
-                                    ? 'bg-amber-500'
-                                    : 'bg-emerald-500'
+                                    ? 'bg-warning'
+                                    : 'bg-success'
                                 }`}
                                 style={{ width: `${stockPercent}%` }}
                               />

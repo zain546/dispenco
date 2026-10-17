@@ -62,7 +62,7 @@ export function FefoBatchBreakdown({
             {/* Total Active Stock KPI */}
             <div className="p-2.5 sm:p-3 bg-muted/40 rounded-xl border border-border/60 flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+                <p className="text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                   Total Active Stock
                 </p>
                 <p className="text-xs sm:text-sm font-bold text-foreground mt-0.5">
@@ -75,7 +75,7 @@ export function FefoBatchBreakdown({
             {/* Nearest Expiry KPI */}
             <div className="p-2.5 sm:p-3 bg-muted/40 rounded-xl border border-border/60 flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+                <p className="text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                   Nearest Expiry Date
                 </p>
                 <p className="text-xs sm:text-sm font-bold text-foreground mt-0.5">
@@ -88,13 +88,13 @@ export function FefoBatchBreakdown({
             {/* Batch Health KPI */}
             <div className="p-2.5 sm:p-3 bg-muted/40 rounded-xl border border-border/60 flex items-center justify-between">
               <div>
-                <p className="text-[10px] sm:text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">
+                <p className="text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                   Batches Breakdown
                 </p>
                 <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-emerald-600 dark:text-emerald-400">{stats.healthyCount} Valid</span>
+                  <span className="text-success">{stats.healthyCount} Valid</span>
                   {stats.nearExpiryCount > 0 && (
-                    <span className="text-amber-600 dark:text-amber-400">• {stats.nearExpiryCount} Near</span>
+                    <span className="text-warning">• {stats.nearExpiryCount} Near</span>
                   )}
                   {stats.expiredCount > 0 && (
                     <span className="text-destructive">• {stats.expiredCount} Expired</span>
@@ -112,7 +112,7 @@ export function FefoBatchBreakdown({
             <Boxes className="size-8 text-muted-foreground/50 mx-auto" />
             <div>
               <p className="font-semibold text-foreground">No active stock batches recorded for this medicine.</p>
-              <p className="text-muted-foreground text-[11px] mt-0.5">
+              <p className="text-muted-foreground text-micro mt-0.5">
                 Log an incoming shipment batch to set stock quantity and expiry date.
               </p>
             </div>
@@ -161,7 +161,7 @@ export function FefoBatchBreakdown({
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Badge
                       variant={expiryInfo.isExpired ? 'destructive' : expiryInfo.isNear ? 'warning' : 'success'}
-                      className="text-[10px] sm:text-[11px] gap-1 px-2 py-0.5"
+                      className="text-micro gap-1 px-2 py-0.5"
                     >
                       <Calendar className="size-3" />
                       <span>
@@ -170,14 +170,14 @@ export function FefoBatchBreakdown({
                     </Badge>
 
                     {batch.vendorName && (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 bg-muted/40">
+                      <Badge variant="outline" className="text-micro text-muted-foreground gap-1 bg-muted/40">
                         <Truck className="size-3 text-muted-foreground" />
                         <span className="truncate max-w-[120px]">{batch.vendorName}</span>
                       </Badge>
                     )}
 
                     {batch.rackNumber && (
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground gap-1 bg-muted/40">
+                      <Badge variant="outline" className="text-micro text-muted-foreground gap-1 bg-muted/40">
                         <MapPin className="size-3 text-muted-foreground" />
                         <span>Shelf: {batch.rackNumber}</span>
                       </Badge>
@@ -188,14 +188,14 @@ export function FefoBatchBreakdown({
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {/* Stock Remaining */}
                     <div className="p-2 bg-muted/30 rounded-lg border border-border/40 min-w-0">
-                      <span className="text-[9px] sm:text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider truncate">
+                      <span className="text-micro text-muted-foreground block font-semibold uppercase tracking-wider truncate">
                         Stock
                       </span>
                       <div className="mt-0.5 min-w-0">
                         <p className="font-bold text-foreground text-xs sm:text-sm truncate">
                           {formatUnitPlural(selectedUnit, batch.quantityRemaining)}
                         </p>
-                        <p className="text-[9px] sm:text-[10px] text-muted-foreground truncate">
+                        <p className="text-micro text-muted-foreground truncate">
                           {batch.quantityReceived} rec
                         </p>
                       </div>
@@ -203,7 +203,7 @@ export function FefoBatchBreakdown({
 
                     {/* Purchase Cost */}
                     <div className="p-2 bg-muted/30 rounded-lg border border-border/40 min-w-0">
-                      <span className="text-[9px] sm:text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider truncate">
+                      <span className="text-micro text-muted-foreground block font-semibold uppercase tracking-wider truncate">
                         Cost
                       </span>
                       <p className="font-bold text-foreground text-xs sm:text-sm mt-0.5 truncate tabular-nums">
@@ -213,7 +213,7 @@ export function FefoBatchBreakdown({
 
                     {/* Retail MRP */}
                     <div className="p-2 bg-primary/5 rounded-lg border border-primary/20 min-w-0">
-                      <span className="text-[9px] sm:text-[10px] text-primary/80 block font-semibold uppercase tracking-wider truncate">
+                      <span className="text-micro text-primary/80 block font-semibold uppercase tracking-wider truncate">
                         MRP Price
                       </span>
                       <p className="font-bold text-primary text-xs sm:text-sm mt-0.5 truncate tabular-nums">

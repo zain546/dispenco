@@ -141,7 +141,7 @@ export function EditBatchModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1 sm:col-span-1">
-                <Label htmlFor="batchNumber" className="text-[11px] font-semibold">
+                <Label htmlFor="batchNumber" className="text-micro font-semibold">
                   Batch Number / Lot ID *
                 </Label>
                 <Input
@@ -155,7 +155,7 @@ export function EditBatchModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="mfgDate" className="text-[11px] font-semibold">
+                <Label htmlFor="mfgDate" className="text-micro font-semibold">
                   Manufacturing Date
                 </Label>
                 <Input
@@ -168,7 +168,7 @@ export function EditBatchModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="expiryDate" className="text-[11px] font-semibold">
+                <Label htmlFor="expiryDate" className="text-micro font-semibold">
                   Expiry Date *
                 </Label>
                 <Input
@@ -192,7 +192,7 @@ export function EditBatchModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="quantityRemaining" className="text-[11px] font-semibold">
+                <Label htmlFor="quantityRemaining" className="text-micro font-semibold">
                   Quantity Remaining ({unit.endsWith('s') ? unit : `${unit}s`}) *
                 </Label>
                 <Input
@@ -209,7 +209,7 @@ export function EditBatchModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="quantityReceived" className="text-[11px] font-semibold">
+                <Label htmlFor="quantityReceived" className="text-micro font-semibold">
                   Total Received ({unit.endsWith('s') ? unit : `${unit}s`})
                 </Label>
                 <Input
@@ -225,7 +225,7 @@ export function EditBatchModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="rackNumber" className="text-[11px] font-semibold">
+                <Label htmlFor="rackNumber" className="text-micro font-semibold">
                   Rack / Shelf Number
                 </Label>
                 <Input
@@ -248,9 +248,9 @@ export function EditBatchModal({
               </div>
               <Badge
                 variant="outline"
-                className={`text-[10px] ${
+                className={`text-micro ${
                   profitPerUnit >= 0
-                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                    ? 'bg-success/10 text-success border-success/20'
                     : 'bg-destructive/10 text-destructive border-destructive/20'
                 }`}
               >
@@ -260,7 +260,7 @@ export function EditBatchModal({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="costPrice" className="text-[11px] font-semibold">
+                <Label htmlFor="costPrice" className="text-micro font-semibold">
                   Purchase Cost Price (PKR)
                 </Label>
                 <Input
@@ -274,7 +274,7 @@ export function EditBatchModal({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="sellPrice" className="text-[11px] font-semibold">
+                <Label htmlFor="sellPrice" className="text-micro font-semibold">
                   Retail Price / Selling MRP (PKR)
                 </Label>
                 <Input
@@ -299,7 +299,7 @@ export function EditBatchModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="vendorName" className="text-[11px] font-semibold">
+                <Label htmlFor="vendorName" className="text-micro font-semibold">
                   Distributor / Vendor Name
                 </Label>
                 <Input
@@ -312,7 +312,7 @@ export function EditBatchModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="purchaseInvoiceNumber" className="text-[11px] font-semibold">
+                <Label htmlFor="purchaseInvoiceNumber" className="text-micro font-semibold">
                   Invoice Number
                 </Label>
                 <Input
@@ -325,7 +325,7 @@ export function EditBatchModal({
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="purchaseInvoiceDate" className="text-[11px] font-semibold">
+                <Label htmlFor="purchaseInvoiceDate" className="text-micro font-semibold">
                   Invoice Date
                 </Label>
                 <Input

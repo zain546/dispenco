@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Card } from '@/components/ui/card';
 import {
   Select,
@@ -305,7 +306,7 @@ export function ImportProductsModal({
               <div>
                 <DialogTitle className="text-xl font-bold tracking-tight flex items-center gap-2">
                   <span>CSV Inventory Migration & Data Import</span>
-                  <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                  <Badge variant="outline" className="text-micro font-mono border-primary/30 text-primary">
                     v2.0 Professional
                   </Badge>
                 </DialogTitle>
@@ -347,7 +348,7 @@ export function ImportProductsModal({
                 <div className={`text-xs font-bold ${step >= 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Upload CSV File
                 </div>
-                <div className="text-[10px] text-muted-foreground">Drop file or paste CSV text</div>
+                <div className="text-micro text-muted-foreground">Drop file or paste CSV text</div>
               </div>
             </div>
 
@@ -365,7 +366,7 @@ export function ImportProductsModal({
                 <div className={`text-xs font-bold ${step >= 2 ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Validate & Preview
                 </div>
-                <div className="text-[10px] text-muted-foreground">Column mapping & data check</div>
+                <div className="text-micro text-muted-foreground">Column mapping & data check</div>
               </div>
             </div>
           </div>
@@ -381,7 +382,7 @@ export function ImportProductsModal({
                   <button
                     type="button"
                     onClick={() => setInputMode('file')}
-                    className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-2 ${
+                    className={`px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-2 cursor-pointer ${
                       inputMode === 'file'
                         ? 'bg-background shadow-xs text-foreground font-bold'
                         : 'text-muted-foreground hover:text-foreground'
@@ -393,7 +394,7 @@ export function ImportProductsModal({
                   <button
                     type="button"
                     onClick={() => setInputMode('raw')}
-                    className={`px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 ${
+                    className={`px-3.5 py-1.5 rounded-md transition-all flex items-center gap-2 cursor-pointer ${
                       inputMode === 'raw'
                         ? 'bg-background shadow-xs text-foreground font-bold'
                         : 'text-muted-foreground hover:text-foreground'
@@ -408,7 +409,7 @@ export function ImportProductsModal({
                   variant="ghost"
                   size="sm"
                   onClick={handleLoadSample}
-                  className="gap-2 text-xs h-8 text-primary hover:bg-primary/10 font-semibold"
+                  className="gap-2 text-xs h-8 text-primary hover:bg-primary/10 font-semibold cursor-pointer"
                 >
                   <Pill className="size-3.5" />
                   <span>Load Sample Pharmacy Catalog</span>
@@ -425,7 +426,7 @@ export function ImportProductsModal({
                     isDragging
                       ? 'border-primary bg-primary/10 scale-[1.005] shadow-lg'
                       : fileName
-                      ? 'border-emerald-500/50 bg-emerald-500/5'
+                      ? 'border-success/40 bg-success/5'
                       : 'border-border/80 bg-background hover:border-primary/50 hover:bg-muted/20'
                   }`}
                 >
@@ -439,13 +440,13 @@ export function ImportProductsModal({
 
                   {fileName ? (
                     <div className="space-y-3">
-                      <div className="size-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 mx-auto shadow-xs">
+                      <div className="size-14 rounded-2xl bg-success/10 border border-success/30 flex items-center justify-center text-success mx-auto shadow-xs">
                         <CheckCircle2 className="size-7" />
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-foreground flex items-center justify-center gap-2">
                           <span>{fileName}</span>
-                          <Badge className="bg-emerald-500/20 text-emerald-700 text-[10px] font-mono">Ready</Badge>
+                          <StatusBadge variant="success" size="sm">Ready</StatusBadge>
                         </h3>
                         <p className="text-xs text-muted-foreground mt-1">
                           File loaded successfully. Click below to parse and preview.
@@ -490,7 +491,7 @@ export function ImportProductsModal({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-bold text-foreground">Paste Raw CSV Content</Label>
-                    <span className="text-[11px] text-muted-foreground font-mono">Comma-separated values</span>
+                    <span className="text-xs text-muted-foreground font-mono">Comma-separated values</span>
                   </div>
                   <textarea
                     value={csvContent}
@@ -508,19 +509,19 @@ export function ImportProductsModal({
                   <Sparkles className="size-4 text-primary" />
                   <span>Supported Medicine Fields & Smart Mapping Heuristics:</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-[11px] text-muted-foreground">
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Brand / Trade Name *</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Salt Formula / Generic</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Retail Selling Price *</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Purchase Cost Price</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Category & Unit</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Manufacturer / Brand</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Shelf / Rack Location</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Initial Stock Qty</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Batch / Lot Number</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Expiry Date (YYYY-MM-DD)</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Barcode / EAN / UPC</div>
-                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" /> Rx / Controlled Flag</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Brand / Trade Name *</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Salt Formula / Generic</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Retail Selling Price *</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Purchase Cost Price</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Category & Unit</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Manufacturer / Brand</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Shelf / Rack Location</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Initial Stock Qty</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Batch / Lot Number</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Expiry Date (YYYY-MM-DD)</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Barcode / EAN / UPC</div>
+                  <div className="flex items-center gap-1.5"><CheckCircle2 className="size-3.5 text-success shrink-0" /> Rx / Controlled Flag</div>
                 </div>
               </Card>
             </div>
@@ -538,12 +539,12 @@ export function ImportProductsModal({
                   </div>
                   <div className="text-2xl font-bold text-foreground mt-1">{previewRows.length}</div>
                 </Card>
-                <Card className="p-3.5 bg-emerald-500/10 border-emerald-500/30 shadow-xs">
+                <Card className="p-3.5 bg-success/10 border-success/30 shadow-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-emerald-700 font-semibold">Valid & Ready to Import</span>
-                    <CheckCircle2 className="size-4 text-emerald-600" />
+                    <span className="text-xs text-success font-semibold">Valid & Ready to Import</span>
+                    <CheckCircle2 className="size-4 text-success" />
                   </div>
-                  <div className="text-2xl font-bold text-emerald-600 mt-1">
+                  <div className="text-2xl font-bold text-success mt-1">
                     {previewRows.filter((r) => r.status === 'VALID').length}
                   </div>
                 </Card>
@@ -573,7 +574,8 @@ export function ImportProductsModal({
                     {searchQuery && (
                       <button
                         onClick={() => setSearchQuery('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="Clear search"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
                       >
                         <X className="size-3" />
                       </button>
@@ -584,7 +586,7 @@ export function ImportProductsModal({
                     <button
                       type="button"
                       onClick={() => setFilterStatus('ALL')}
-                      className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
+                      className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
                         filterStatus === 'ALL'
                           ? 'bg-background text-foreground shadow-2xs font-bold'
                           : 'text-muted-foreground hover:text-foreground'
@@ -595,9 +597,9 @@ export function ImportProductsModal({
                     <button
                       type="button"
                       onClick={() => setFilterStatus('VALID')}
-                      className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
+                      className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
                         filterStatus === 'VALID'
-                          ? 'bg-background text-emerald-600 shadow-2xs font-bold'
+                          ? 'bg-background text-success shadow-2xs font-bold'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
@@ -606,7 +608,7 @@ export function ImportProductsModal({
                     <button
                       type="button"
                       onClick={() => setFilterStatus('INVALID')}
-                      className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${
+                      className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
                         filterStatus === 'INVALID'
                           ? 'bg-background text-destructive shadow-2xs font-bold'
                           : 'text-muted-foreground hover:text-foreground'
@@ -637,18 +639,18 @@ export function ImportProductsModal({
                       <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
                         <Settings2 className="size-4 text-primary" /> Custom Header Mapping Engine
                       </h4>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         Explicitly link your custom CSV headers to Dispenco pharmacy database fields.
                       </p>
                     </div>
-                    <Badge variant="secondary" className="font-mono text-[10px]">
+                    <Badge variant="secondary" className="font-mono text-micro">
                       {parseResult.summary.headers.length} Headers Found
                     </Badge>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     {TARGET_FIELDS.map((field) => (
                       <div key={field.key} className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] font-medium text-foreground">
+                        <div className="flex items-center justify-between text-xs font-medium text-foreground">
                           <span>{field.label}</span>
                         </div>
                         <Select
@@ -684,10 +686,10 @@ export function ImportProductsModal({
                 {/* Table Container */}
                 <div className={`border rounded-xl overflow-x-auto max-h-[380px] bg-background shadow-xs ${selectedRow ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/80 border-b sticky top-0 text-muted-foreground uppercase text-[10px] z-10 backdrop-blur-xs font-bold">
+                    <thead className="bg-muted/80 border-b sticky top-0 text-muted-foreground uppercase text-overline z-10 backdrop-blur-xs font-bold">
                       <tr>
                         <th className="p-2.5 w-8 text-center">#</th>
-                        <th className="p-2.5 w-20">Status</th>
+                        <th className="p-2.5 w-24">Status</th>
                         <th className="p-2.5 min-w-[160px]">Medicine & Salt Formula</th>
                         <th className="p-2.5">Category & Unit</th>
                         <th className="p-2.5">Manufacturer / Rack</th>
@@ -720,52 +722,48 @@ export function ImportProductsModal({
                             <td className="p-2.5 font-mono text-center text-muted-foreground">{row.rowNumber}</td>
                             <td className="p-2.5">
                               {row.status === 'VALID' ? (
-                                <Badge className="bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/20 text-[10px] gap-1 border-0 font-bold">
-                                  <CheckCircle2 className="size-3" /> Valid
-                                </Badge>
+                                <StatusBadge variant="success" size="sm" dot>Valid</StatusBadge>
                               ) : (
-                                <Badge variant="destructive" className="text-[10px] gap-1 font-bold">
-                                  <AlertCircle className="size-3" /> Error
-                                </Badge>
+                                <StatusBadge variant="danger" size="sm" dot>Error</StatusBadge>
                               )}
                             </td>
                             <td className="p-2.5">
                               <div className="font-bold text-foreground flex items-center gap-1.5">
                                 <span>{row.data.name}</span>
                                 {row.data.isControlledSubstance && (
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0 border-destructive text-destructive font-bold">
+                                  <Badge variant="outline" className="text-micro px-1 py-0 border-destructive text-destructive font-bold">
                                     Rx
                                   </Badge>
                                 )}
                               </div>
                               {row.data.genericName ? (
-                                <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <div className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Pill className="size-3 text-primary/70 shrink-0" />
                                   <span>{row.data.genericName}</span>
                                 </div>
                               ) : (
-                                <div className="text-[10px] text-muted-foreground/60 italic">No salt mapped</div>
+                                <div className="text-micro text-muted-foreground/60 italic">No salt mapped</div>
                               )}
                             </td>
                             <td className="p-2.5">
-                              <div className="font-mono text-[11px] font-semibold text-foreground">
+                              <div className="text-xs font-semibold text-foreground">
                                 {row.data.category}
                               </div>
-                              <div className="text-[10px] text-muted-foreground">
+                              <div className="text-micro text-muted-foreground">
                                 Unit: <span className="font-semibold">{row.data.unit}</span>
                               </div>
                             </td>
                             <td className="p-2.5">
                               {row.data.manufacturer ? (
-                                <div className="text-[11px] text-foreground font-medium flex items-center gap-1">
+                                <div className="text-xs text-foreground font-medium flex items-center gap-1">
                                   <Building2 className="size-3 text-muted-foreground shrink-0" />
                                   <span>{row.data.manufacturer}</span>
                                 </div>
                               ) : (
-                                <div className="text-[10px] text-muted-foreground italic">-</div>
+                                <div className="text-micro text-muted-foreground italic">-</div>
                               )}
                               {row.data.rackNumber && (
-                                <div className="text-[10px] text-primary font-semibold flex items-center gap-1 mt-0.5">
+                                <div className="text-micro text-primary font-semibold flex items-center gap-1 mt-0.5">
                                   <MapPin className="size-3 shrink-0" />
                                   <span>{row.data.rackNumber}</span>
                                 </div>
@@ -779,21 +777,26 @@ export function ImportProductsModal({
                             </td>
                             <td className="p-2.5">
                               {row.data.batchNumber ? (
-                                <div className="font-mono text-[11px] font-medium text-foreground">
+                                <div className="font-mono text-xs font-medium text-foreground">
                                   {row.data.batchNumber}
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-muted-foreground italic">Auto-gen</span>
+                                <span className="text-micro text-muted-foreground italic">Auto-gen</span>
                               )}
                               {row.data.expiryDate && (
-                                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <div className="text-micro text-muted-foreground flex items-center gap-1">
                                   <Calendar className="size-3 text-muted-foreground shrink-0" />
                                   <span>Exp: {row.data.expiryDate}</span>
                                 </div>
                               )}
                             </td>
                             <td className="p-2.5 text-center">
-                              <Button variant="ghost" size="icon" className="size-6 text-muted-foreground hover:text-primary">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-6 text-muted-foreground hover:text-primary"
+                                aria-label={`Inspect row ${row.rowNumber}`}
+                              >
                                 <Eye className="size-3.5" />
                               </Button>
                             </td>
@@ -817,14 +820,15 @@ export function ImportProductsModal({
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedRow(null)}
-                          className="size-6 text-muted-foreground hover:text-foreground"
+                          className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                          aria-label="Close row details"
                         >
                           <X className="size-3.5" />
                         </Button>
                       </div>
 
                       {selectedRow.errors.length > 0 && (
-                        <div className="p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg text-[11px] text-destructive font-semibold space-y-1">
+                        <div className="p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg text-xs text-destructive font-semibold space-y-1">
                           <div className="flex items-center gap-1">
                             <ShieldAlert className="size-3.5" /> Validation Issue:
                           </div>
@@ -838,7 +842,7 @@ export function ImportProductsModal({
 
                       <div className="space-y-2.5 text-xs">
                         <div>
-                          <Label className="text-[11px] font-semibold text-muted-foreground">Product Trade Name</Label>
+                          <Label className="text-xs font-semibold text-muted-foreground">Product Trade Name</Label>
                           <Input
                             type="text"
                             value={selectedRow.data.name}
@@ -848,7 +852,7 @@ export function ImportProductsModal({
                         </div>
 
                         <div>
-                          <Label className="text-[11px] font-semibold text-muted-foreground">Generic / Salt Formula</Label>
+                          <Label className="text-xs font-semibold text-muted-foreground">Generic / Salt Formula</Label>
                           <Input
                             type="text"
                             value={selectedRow.data.genericName || ''}
@@ -859,7 +863,7 @@ export function ImportProductsModal({
 
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <Label className="text-[11px] font-semibold text-muted-foreground">Selling Price (PKR)</Label>
+                            <Label className="text-xs font-semibold text-muted-foreground">Selling Price (PKR)</Label>
                             <Input
                               type="number"
                               value={selectedRow.data.unitPrice}
@@ -869,7 +873,7 @@ export function ImportProductsModal({
                           </div>
 
                           <div>
-                            <Label className="text-[11px] font-semibold text-muted-foreground">Cost Price (PKR)</Label>
+                            <Label className="text-xs font-semibold text-muted-foreground">Cost Price (PKR)</Label>
                             <Input
                               type="number"
                               value={selectedRow.data.costPrice ?? ''}
@@ -881,7 +885,7 @@ export function ImportProductsModal({
 
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <Label className="text-[11px] font-semibold text-muted-foreground">Manufacturer</Label>
+                            <Label className="text-xs font-semibold text-muted-foreground">Manufacturer</Label>
                             <Input
                               type="text"
                               value={selectedRow.data.manufacturer || ''}
@@ -891,7 +895,7 @@ export function ImportProductsModal({
                           </div>
 
                           <div>
-                            <Label className="text-[11px] font-semibold text-muted-foreground">Rack / Shelf Location</Label>
+                            <Label className="text-xs font-semibold text-muted-foreground">Rack / Shelf Location</Label>
                             <Input
                               type="text"
                               value={selectedRow.data.rackNumber || ''}
@@ -903,12 +907,12 @@ export function ImportProductsModal({
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t flex items-center justify-between text-[11px]">
+                    <div className="pt-2 border-t flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Status:</span>
                       {selectedRow.status === 'VALID' ? (
-                        <Badge className="bg-emerald-500/20 text-emerald-700 font-bold">Valid & Fixed</Badge>
+                        <StatusBadge variant="success" size="sm" dot>Valid & Fixed</StatusBadge>
                       ) : (
-                        <Badge variant="destructive" className="font-bold">Invalid</Badge>
+                        <StatusBadge variant="danger" size="sm" dot>Invalid</StatusBadge>
                       )}
                     </div>
                   </Card>
@@ -953,7 +957,7 @@ export function ImportProductsModal({
               onClick={handleConfirmImport}
               disabled={isConfirming || previewRows.filter((r) => r.status === 'VALID').length === 0}
               size="sm"
-              className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+              className="gap-1.5 text-xs font-bold bg-success hover:bg-success/90 text-success-foreground shadow-md"
             >
               {isConfirming ? (
                 <Loader2 className="size-3.5 animate-spin" />

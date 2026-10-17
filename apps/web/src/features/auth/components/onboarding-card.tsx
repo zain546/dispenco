@@ -57,23 +57,7 @@ export function OnboardingCard() {
 
       router.push('/dashboard');
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'ERR_NETWORK') {
-        if (user) {
-          login(
-            {
-              ...user,
-              storeName: values.storeName,
-            },
-            values.storeName
-          );
-        }
-        router.push('/dashboard');
-        return;
-      }
-
-      const errorMessage = getErrorMessage(err) || 'Failed to create pharmacy store';
-
-      setError(errorMessage);
+      setError(getErrorMessage(err, 'Failed to create pharmacy store'));
     } finally {
       setIsLoading(false);
     }

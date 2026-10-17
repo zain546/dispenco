@@ -388,7 +388,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                       },
                     })}
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     Quantity measured in full <strong>{selectedUnit}s</strong>.
                   </p>
                 </div>
@@ -411,7 +411,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                       },
                     })}
                   />
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     Number of tablets/sub-units inside 1 <strong>{selectedUnit}</strong>.
                   </p>
                 </div>
@@ -473,11 +473,11 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
 
                 {/* Retail POS Unit Conversion Breakdown Preview */}
                 {(packSizeVal > 1 || costPriceVal > 0 || sellPriceVal > 0) && (
-                  <div className="col-span-1 sm:col-span-2 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-2xs">
+                  <div className="col-span-1 sm:col-span-2 rounded-xl border border-success/30 bg-success/5 p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-2xs">
                     {/* Top Header */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="size-6 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <div className="size-6 rounded-md bg-success/10 text-success flex items-center justify-center shrink-0">
                           <Layers className="size-3.5" />
                         </div>
                         <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
@@ -486,46 +486,46 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                         </span>
                       </div>
                       {packSizeVal > 1 && (
-                        <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 text-[10px] font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
+                        <Badge variant="outline" className="border-success/30 text-success bg-success/10 text-micro font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
                           {packSizeVal} Units / {selectedUnit}
                         </Badge>
                       )}
                     </div>
 
                     {/* Metrics Ribbon */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-emerald-500/15 pt-0.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-border/60 pt-0.5">
                       <div className="sm:px-3 first:pl-0 space-y-0.5">
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Cost / Tablet</span>
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Cost / Tablet</span>
                         <p className="text-xs sm:text-sm font-bold text-foreground">
                           PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
                         </p>
                       </div>
 
                       <div className="sm:px-3 space-y-0.5">
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Retail / Tablet</span>
-                        <p className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Retail / Tablet</span>
+                        <p className="text-xs sm:text-sm font-extrabold text-success">
                           PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
                         </p>
                       </div>
 
                       <div className="sm:px-3 space-y-0.5">
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Total Loose Stock</span>
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Total Loose Stock</span>
                         <p className="text-xs sm:text-sm font-bold text-foreground">
-                          {(stockQtyVal * packSizeVal).toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">Units</span>
+                          {(stockQtyVal * packSizeVal).toLocaleString()} <span className="text-micro font-normal text-muted-foreground">Units</span>
                         </p>
                       </div>
 
                       <div className="sm:px-3 last:pr-0 space-y-0.5">
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
-                        <p className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
+                        <p className="text-xs sm:text-sm font-bold text-success">
                           {costPriceVal > 0 ? (((sellPriceVal - costPriceVal) / costPriceVal) * 100).toFixed(1) : '0.0'}%
                         </p>
                       </div>
                     </div>
 
                     {/* Micro-copy Note */}
-                    <div className="pt-2 border-t border-emerald-500/15 flex items-center gap-1.5 text-[11px] text-muted-foreground leading-tight">
-                      <Info className="size-3.5 text-emerald-500 shrink-0" />
+                    <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-micro text-muted-foreground leading-tight">
+                      <Info className="size-3.5 text-success shrink-0" />
                       <span>
                         <span className="hidden sm:inline">Supports selling full <strong>{selectedUnit}s</strong> or individual loose sub-units at POS checkout.</span>
                         <span className="sm:hidden">Supports full <strong>{selectedUnit}</strong> & loose sub-unit POS sales.</span>
@@ -817,7 +817,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   },
                 })}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-micro text-muted-foreground">
                 Triggers alert when remaining stock falls below this amount.
               </p>
             </div>
@@ -844,7 +844,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                     <span>Requires Doctor Prescription & Audit Log</span>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     Regular OTC medicine. Does not require special Rx logging.
                   </p>
                 )}

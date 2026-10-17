@@ -305,13 +305,13 @@ export function PurchasesManager() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'RECEIVED':
-        return <Badge variant="success" className="text-[10px]">RECEIVED</Badge>;
+        return <Badge variant="success" className="text-micro font-semibold">RECEIVED</Badge>;
       case 'PARTIAL':
-        return <Badge variant="warning" className="text-[10px]">PARTIAL</Badge>;
+        return <Badge variant="warning" className="text-micro font-semibold">PARTIAL</Badge>;
       case 'CANCELLED':
-        return <Badge variant="secondary" className="text-[10px]">CANCELLED</Badge>;
+        return <Badge variant="secondary" className="text-micro font-semibold">CANCELLED</Badge>;
       default:
-        return <Badge variant="warning" className="text-[10px]">PENDING</Badge>;
+        return <Badge variant="warning" className="text-micro font-semibold">PENDING</Badge>;
     }
   };
 
@@ -367,9 +367,9 @@ export function PurchasesManager() {
             activeView !== 'suggestions' ? 'text-primary hover:bg-primary/5' : ''
           }`}
         >
-          <Sparkles className="size-4 shrink-0 text-amber-500 fill-amber-500" />
+          <Sparkles className="size-4 shrink-0 text-warning fill-warning" />
           <span>Smart Reorder Suggestions</span>
-          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 ml-1">
+          <Badge variant="outline" className="text-micro bg-primary/10 text-primary border-primary/20 ml-1">
             AI Velocity
           </Badge>
         </Button>
@@ -451,7 +451,7 @@ export function PurchasesManager() {
                     <Button
                       size="sm"
                       onClick={() => handleOpenReceiveModal(po.id)}
-                      className="gap-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="gap-1.5 text-xs font-semibold"
                     >
                       <FileCheck className="size-3.5" /> Receive Stock
                     </Button>
@@ -657,7 +657,7 @@ export function PurchasesManager() {
       <Dialog open={isReceiveModalOpen} onOpenChange={setIsReceiveModalOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-emerald-600">
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-success">
               <FileCheck className="size-5" />
               Receive Shipment #{selectedOrder?.orderNumber}
             </DialogTitle>
@@ -676,14 +676,14 @@ export function PurchasesManager() {
                 <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border/80 space-y-2 text-xs">
                   <div className="flex justify-between items-center font-semibold">
                     <span className="text-foreground">{item.productName}</span>
-                    <span className="text-muted-foreground text-[11px]">
+                    <span className="text-muted-foreground text-micro">
                       Expected: <strong>{item.expectedQuantity}</strong>
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">Received Qty</Label>
+                      <Label className="text-micro text-muted-foreground">Received Qty</Label>
                       <Input
                         type="number"
                         min="0"
@@ -699,7 +699,7 @@ export function PurchasesManager() {
                     </div>
 
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">Batch Number</Label>
+                      <Label className="text-micro text-muted-foreground">Batch Number</Label>
                       <Input
                         value={item.batchNumber}
                         onChange={(e) => {
@@ -714,7 +714,7 @@ export function PurchasesManager() {
                     </div>
 
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">Expiry Date</Label>
+                      <Label className="text-micro text-muted-foreground">Expiry Date</Label>
                       <Input
                         type="date"
                         value={item.expiryDate}
@@ -730,7 +730,7 @@ export function PurchasesManager() {
                     </div>
 
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">Selling Price (PKR)</Label>
+                      <Label className="text-micro text-muted-foreground">Selling Price (PKR)</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -761,7 +761,7 @@ export function PurchasesManager() {
                 Cancel
               </Button>
               {selectedOrder?.status !== 'RECEIVED' && selectedOrder?.status !== 'CANCELLED' && (
-                <Button type="submit" disabled={submitting} className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Button type="submit" disabled={submitting} className="text-xs font-bold gap-1.5">
                   {submitting && <Loader2 className="size-3.5 animate-spin" />}
                   Confirm Stock Arrival & Create Batches
                 </Button>

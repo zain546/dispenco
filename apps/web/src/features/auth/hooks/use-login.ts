@@ -8,6 +8,7 @@ import Cookies from 'js-cookie';
 import { useAuth } from '@/context/auth-context';
 import { loginSchema, type LoginFormValues } from '../schemas';
 import { authApi } from '../services/auth-api';
+import { getErrorMessage } from '@/lib/errors';
 
 export function useLogin() {
   const router = useRouter();
@@ -35,27 +36,9 @@ export function useLogin() {
       login(res.user, res.user.storeName);
       router.push('/dashboard');
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'ERR_NETWORK') {
-        login(
-          {
-            id: 'demo-user-1',
-            email: values.email,
-            name: values.email.split('@')[0] || 'Owner Pharmacy',
-            tenantId: 'demo-tenant-1',
-            storeName: 'Main Branch — Blue Area',
-            role: 'Owner',
-          },
-          'Main Branch — Blue Area'
-        );
-        router.push('/dashboard');
-        return;
-      }
-
-      const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Sign in failed');
-
-      setError(errorMessage);
+      // Never fabricate a session on failure — surface the real reason
+      // (including "Unable to reach the server" for network errors).
+      setError(getErrorMessage(err, 'Sign in failed. Please try again.'));
     } finally {
       setIsLoading(false);
     }

@@ -50,6 +50,9 @@ import {
 import { getProductSeoUrl } from '../utils/seo-utils';
 import { productsApi, type ProductData } from '../services/products-api';
 import { PRODUCT_CATEGORIES } from '../schemas/product-schema';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { ProductBatchesModal } from './product-batches-modal';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -113,7 +116,7 @@ export function getMedicineIconConfig(
   ) {
     return {
       Icon: Syringe,
-      bgClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 dark:bg-rose-500/20',
+      bgClass: 'bg-destructive/10 text-destructive',
     };
   }
 
@@ -129,7 +132,7 @@ export function getMedicineIconConfig(
   ) {
     return {
       Icon: Droplet,
-      bgClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 dark:bg-amber-500/20',
+      bgClass: 'bg-warning/10 text-warning',
     };
   }
 
@@ -144,7 +147,7 @@ export function getMedicineIconConfig(
   ) {
     return {
       Icon: Stethoscope,
-      bgClass: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 dark:bg-indigo-500/20',
+      bgClass: 'bg-primary/10 text-primary',
     };
   }
 
@@ -158,14 +161,14 @@ export function getMedicineIconConfig(
   ) {
     return {
       Icon: Package,
-      bgClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 dark:bg-purple-500/20',
+      bgClass: 'bg-secondary text-secondary-foreground',
     };
   }
 
   // Default Tablets / Capsules / Pills
   return {
     Icon: Pill,
-    bgClass: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 dark:bg-teal-500/20',
+    bgClass: 'bg-success/10 text-success',
   };
 }
 
@@ -197,60 +200,60 @@ function ProductStockStatusBadges({
     <div className="flex items-center gap-1 flex-wrap">
       {/* Priority Top Seller Badge */}
       {isPriority && (
-        <Badge
-          variant="outline"
-          className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+        <StatusBadge
+          variant="warning"
+          dot={false}
+          size="xs"
+          className="font-bold cursor-default"
           title="Top Seller Priority Onboarding Item"
         >
-          <Star className="size-3 fill-amber-500 text-amber-500" />
-          <span>Top Seller</span>
-        </Badge>
+          <Star className="size-3 fill-warning text-warning inline mr-1" />
+          Top Seller
+        </StatusBadge>
       )}
 
       {/* Quantity Warnings (Out of Stock / Low Stock) */}
       {isOutOfStock ? (
-        <Badge variant="destructive" className="text-[10px]">
+        <StatusBadge variant="danger" size="xs">
           Out of Stock
-        </Badge>
+        </StatusBadge>
       ) : isLowStock ? (
-        <Badge
-          variant="outline"
-          className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]"
-        >
+        <StatusBadge variant="warning" size="xs">
           Low Stock
-        </Badge>
+        </StatusBadge>
       ) : !hasExpiryWarning ? (
-        <Badge
-          variant="outline"
-          className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]"
-        >
+        <StatusBadge variant="success" size="xs">
           Healthy
-        </Badge>
+        </StatusBadge>
       ) : null}
 
       {/* Expiry Alerts */}
       {expiredBatchCount > 0 && (
-        <Badge
-          variant="destructive"
+        <button
+          type="button"
           onClick={() => onViewBatches(product)}
-          className="cursor-pointer text-[10px] px-1.5 py-0 gap-1"
+          className="focus:outline-none"
           title={`${expiredBatchCount} expired batch(es)`}
         >
-          <AlertTriangle className="size-3" />
-          <span>{expiredBatchCount} Expired</span>
-        </Badge>
+          <StatusBadge variant="danger" size="xs" className="cursor-pointer">
+            <AlertTriangle className="size-3 inline mr-1" />
+            {expiredBatchCount} Expired
+          </StatusBadge>
+        </button>
       )}
 
       {nearExpiryBatchCount > 0 && (
-        <Badge
-          variant="outline"
+        <button
+          type="button"
           onClick={() => onViewBatches(product)}
-          className="cursor-pointer bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] px-1.5 py-0 gap-1 font-medium"
+          className="focus:outline-none"
           title={`${nearExpiryBatchCount} near-expiry batch(es)`}
         >
-          <Clock className="size-3" />
-          <span>{nearExpiryBatchCount} Near Expiry</span>
-        </Badge>
+          <StatusBadge variant="warning" size="xs" className="cursor-pointer">
+            <Clock className="size-3 inline mr-1" />
+            {nearExpiryBatchCount} Near Expiry
+          </StatusBadge>
+        </button>
       )}
     </div>
   );
@@ -385,10 +388,11 @@ function ProductTableRow({
             variant="ghost"
             size="icon"
             onClick={() => onTogglePriority(product)}
-            className={`size-8 ${isPriority ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground/60 hover:text-amber-500'}`}
+            className={`size-8 ${isPriority ? 'text-warning hover:text-warning/80' : 'text-muted-foreground/60 hover:text-warning'}`}
             title={isPriority ? 'Remove Top Seller Priority' : 'Mark as Top Seller Priority'}
+            aria-label={isPriority ? 'Remove Top Seller Priority' : 'Mark as Top Seller Priority'}
           >
-            <Star className={`size-4 ${isPriority ? 'fill-amber-500' : ''}`} />
+            <Star className={`size-4 ${isPriority ? 'fill-warning' : ''}`} />
           </Button>
           <Button
             variant="ghost"
@@ -396,16 +400,17 @@ function ProductTableRow({
             onClick={() => onViewBatches(product)}
             className="size-8 text-muted-foreground hover:text-primary"
             title="Inspect FEFO Batches"
+            aria-label="Inspect FEFO Batches"
           >
             <Layers className="size-4" />
           </Button>
           <Button asChild variant="ghost" size="icon" className="size-8 text-primary hover:bg-primary/10">
-            <Link href={`/inventory/receive?productId=${product.id}`} title="Receive Stock Batch">
+            <Link href={`/inventory/receive?productId=${product.id}`} title="Receive Stock Batch" aria-label="Receive Stock Batch">
               <Boxes className="size-4" />
             </Link>
           </Button>
           <Button asChild variant="ghost" size="icon" className="size-8 text-muted-foreground">
-            <Link href={getProductSeoUrl(product, 'edit')} title="Edit Product">
+            <Link href={getProductSeoUrl(product, 'edit')} title="Edit Product" aria-label="Edit Product">
               <Edit className="size-4" />
             </Link>
           </Button>
@@ -415,6 +420,7 @@ function ProductTableRow({
             onClick={() => onDelete(product)}
             className="size-8 text-destructive hover:bg-destructive/10"
             title="Deactivate Product"
+            aria-label="Deactivate Product"
           >
             <Trash2 className="size-4" />
           </Button>
@@ -452,7 +458,7 @@ function ProductCardItem({
             <div className="min-w-0 flex-1">
               <h3 className="font-bold text-sm text-foreground leading-snug break-words flex items-center gap-1.5">
                 {product.name}
-                {isPriority && <Star className="size-3.5 fill-amber-500 text-amber-500 shrink-0" />}
+                {isPriority && <Star className="size-3.5 fill-warning text-warning shrink-0" />}
               </h3>
               {product.genericName && (
                 <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
@@ -468,6 +474,7 @@ function ProductCardItem({
                 variant="ghost"
                 size="icon"
                 className="size-8 text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 -mr-1"
+                aria-label="Open menu"
               >
                 <MoreVertical className="size-4" />
                 <span className="sr-only">Open menu</span>
@@ -475,7 +482,7 @@ function ProductCardItem({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem onClick={() => onTogglePriority(product)} className="gap-2 cursor-pointer">
-                <Star className={`size-3.5 ${isPriority ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}`} />
+                <Star className={`size-3.5 ${isPriority ? 'fill-warning text-warning' : 'text-muted-foreground'}`} />
                 <span>{isPriority ? 'Remove Top Seller' : 'Mark as Top Seller'}</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onViewBatches(product)} className="gap-2 cursor-pointer">
@@ -484,7 +491,7 @@ function ProductCardItem({
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="gap-2 cursor-pointer">
                 <Link href={`/inventory/receive?productId=${product.id}`}>
-                  <Boxes className="size-3.5 text-emerald-600" />
+                  <Boxes className="size-3.5 text-success" />
                   <span>Receive Stock Batch</span>
                 </Link>
               </DropdownMenuItem>
@@ -854,20 +861,18 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
 
       {/* Error Alert */}
       {error && (
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-destructive bg-destructive/10 border border-destructive/20 p-3 rounded-lg">
-          <AlertCircle className="size-4 shrink-0" />
-          <span>{error}</span>
-        </div>
+        <ErrorState
+          title="Failed to Load Inventory"
+          description={error}
+          onRetry={() => fetchProducts()}
+        />
       )}
 
       {/* Loading Skeleton / Data Table */}
       {isLoading ? (
-        <Card className="shadow-xs">
-          <CardContent className="p-8 sm:p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-            <Loader2 className="size-8 text-primary animate-spin" />
-            <p className="text-xs sm:text-sm font-medium">Loading pharmacy inventory catalog...</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <TableSkeleton columns={6} rows={8} />
+        </div>
       ) : products.length === 0 ? (
         <EmptyState
           icon={Package}

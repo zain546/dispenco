@@ -88,7 +88,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
           >
             <div className="flex items-center gap-2 truncate min-w-0">
               {isAllStores ? (
-                <div className="size-5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                <div className="size-5 rounded-md bg-primary/15 text-primary flex items-center justify-center shrink-0">
                   <Layers className="size-3.5" />
                 </div>
               ) : (
@@ -105,9 +105,9 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" className="w-64 sm:w-72 p-1.5 shadow-md">
-          <DropdownMenuLabel className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 flex items-center justify-between">
+          <DropdownMenuLabel className="text-micro font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 flex items-center justify-between">
             <span>Branches & Outlets</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-semibold">
+            <Badge variant="secondary" className="text-micro px-1.5 py-0 h-4 font-semibold">
               {stores.length} Stores
             </Badge>
           </DropdownMenuLabel>
@@ -121,12 +121,12 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
             )}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="size-6 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+              <div className="size-6 rounded-md bg-primary/15 text-primary flex items-center justify-center shrink-0">
                 <Layers className="size-3.5" />
               </div>
               <div className="min-w-0">
                 <div className="font-semibold text-foreground">All Stores (Org Overview)</div>
-                <div className="text-[10px] text-muted-foreground truncate">
+                <div className="text-micro text-muted-foreground truncate">
                   Consolidated multi-branch analytics
                 </div>
               </div>
@@ -157,12 +157,12 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-foreground truncate">{store.name}</div>
                       {store.address ? (
-                        <div className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                        <div className="text-micro text-muted-foreground flex items-center gap-1 truncate">
                           <MapPin className="size-2.5 shrink-0" />
                           <span className="truncate">{store.address}</span>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-muted-foreground">
+                        <div className="text-micro text-muted-foreground">
                           {store.currency} • Active Counter
                         </div>
                       )}

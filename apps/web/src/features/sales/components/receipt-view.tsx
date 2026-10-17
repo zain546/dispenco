@@ -303,7 +303,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             onClick={handleCopyLink}
             className="gap-1.5 text-xs h-8 cursor-pointer"
           >
-            {copied ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+            {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
             <span>{copied ? 'Copied' : 'Share'}</span>
           </Button>
 
@@ -355,9 +355,9 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             variant="outline"
             size="sm"
             onClick={handleOpenWhatsAppModal}
-            className="gap-1.5 text-xs h-8 font-medium text-emerald-600 border-emerald-600/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 cursor-pointer"
+            className="gap-1.5 text-xs h-8 font-medium text-success border-success/30 hover:bg-success/10 cursor-pointer"
           >
-            <MessageSquare className="size-3.5 text-emerald-600" />
+            <MessageSquare className="size-3.5 text-success" />
             <span>Send WhatsApp</span>
           </Button>
 
@@ -454,7 +454,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   </p>
                 )}
                 {customer?.creditBalance !== undefined && customer.creditBalance > 0 && (
-                  <p className="text-amber-600 font-semibold text-micro pt-0.5">
+                  <p className="text-warning font-semibold text-micro pt-0.5">
                     Khata Credit Balance: {formatCurrency(customer.creditBalance)}
                   </p>
                 )}
@@ -485,8 +485,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
             {/* Returns Banner if any items were returned */}
             {totalReturnedUnits > 0 && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold">
+              <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-warning font-semibold">
                   <RotateCcw className="size-4 shrink-0" />
                   <span>
                     Notice: {totalReturnedUnits} unit(s) from this invoice were returned under Return Memo(s).
@@ -534,7 +534,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                             </p>
                           )}
                           {isReturned && (
-                            <p className="text-micro text-amber-600 font-semibold">
+                            <p className="text-micro text-warning font-semibold">
                               Returned: {item.returnedQuantity} units
                             </p>
                           )}
@@ -551,7 +551,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                         <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
                           {formatCurrency(item.unitPrice)}
                         </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums text-emerald-600">
+                        <td className="py-2.5 px-3 text-right tabular-nums text-success">
                           {item.discount > 0 ? `-${formatCurrency(item.discount)}` : '-'}
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold tabular-nums text-foreground">
@@ -603,7 +603,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   </div>
 
                   {discountAmount > 0 && (
-                    <div className="flex justify-between text-emerald-600 font-semibold">
+                    <div className="flex justify-between text-success font-semibold">
                       <span>Total Discount Allowed:</span>
                       <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
                     </div>
@@ -652,11 +652,11 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 <p className="text-xs text-muted-foreground leading-snug">{store.address}</p>
               )}
               <div className="flex items-center justify-center gap-2 pt-0.5">
-                <p className="text-[11px] text-muted-foreground font-mono">
+                <p className="text-micro text-muted-foreground font-mono">
                   Receipt #: <span className="font-bold text-foreground">{receiptNumber}</span>
                 </p>
                 {isVoided && (
-                  <Badge variant="destructive" className="text-[10px] font-extrabold uppercase tracking-wider">
+                  <Badge variant="destructive" className="text-micro font-extrabold uppercase tracking-wider">
                     VOIDED
                   </Badge>
                 )}
@@ -666,14 +666,14 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             {/* Meta Info */}
             <div className="grid grid-cols-2 gap-2 text-xs py-1 border-b border-dashed border-border/80">
               <div className="space-y-0.5">
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <p className="text-micro text-muted-foreground flex items-center gap-1">
                   <Calendar className="size-3" /> Date & Time
                 </p>
                 <p className="font-medium text-foreground">{formatDateTime(createdAt)}</p>
               </div>
 
               <div className="space-y-0.5 text-right">
-                <p className="text-[11px] text-muted-foreground flex items-center justify-end gap-1">
+                <p className="text-micro text-muted-foreground flex items-center justify-end gap-1">
                   <User className="size-3" /> Cashier
                 </p>
                 <p className="font-medium text-foreground">{user?.name || 'Staff'}</p>
@@ -691,7 +691,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
             {/* Line Items */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/60 pb-1">
+              <div className="flex items-center justify-between text-overline font-bold uppercase tracking-wider text-muted-foreground border-b border-border/60 pb-1">
                 <span>Medicine Item</span>
                 <span>Amount</span>
               </div>
@@ -707,17 +707,17 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <div className="flex items-center justify-between text-micro text-muted-foreground">
                         <span>
                           {item.quantity} {item.unit || 'pc'} × {formatCurrency(item.unitPrice)}
                         </span>
                         {item.batchNumber && (
-                          <span className="font-mono text-[10px]">Batch: {item.batchNumber}</span>
+                          <span className="font-mono text-micro">Batch: {item.batchNumber}</span>
                         )}
                       </div>
 
                       {item.discount > 0 && (
-                        <p className="text-[10px] text-emerald-600 font-medium text-right tabular-nums">
+                        <p className="text-micro text-success font-medium text-right tabular-nums">
                           Discount: -{formatCurrency(item.discount)}
                         </p>
                       )}
@@ -735,7 +735,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               </div>
 
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-600 font-medium">
+                <div className="flex justify-between text-success font-medium">
                   <span>Order Discount</span>
                   <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
                 </div>
@@ -758,7 +758,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             <div className="p-2.5 rounded-lg bg-muted/40 border border-border/60 text-xs space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Payment Method:</span>
-                <Badge variant="outline" className="font-bold uppercase text-[10px] px-2 py-0.5">
+                <Badge variant="outline" className="font-bold uppercase text-micro px-2 py-0.5">
                   {payment?.method || 'CASH'}
                 </Badge>
               </div>
@@ -768,7 +768,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   className={
                     isVoided
                       ? 'text-destructive font-bold'
-                      : 'text-emerald-600 font-bold flex items-center gap-1'
+                      : 'text-success font-bold flex items-center gap-1'
                   }
                 >
                   {isVoided ? (
@@ -783,7 +783,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             </div>
 
             {/* Footer */}
-            <div className="text-center pt-3 space-y-2 border-t border-dashed border-border/80 text-[11px] text-muted-foreground">
+            <div className="text-center pt-3 space-y-2 border-t border-dashed border-border/80 text-micro text-muted-foreground">
               <p className="leading-snug italic">
                 {store?.receiptFooter ||
                   'Thank you for choosing us! Retain receipt for returns/exchanges within 7 days.'}
@@ -793,7 +793,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 <div className="font-mono text-xs tracking-widest bg-muted/60 px-3 py-1 rounded border border-border/60">
                   |||| | ||||| ||| |||| || ||| |
                 </div>
-                <p className="text-[10px] font-mono text-muted-foreground">{receiptNumber}</p>
+                <p className="text-micro font-mono text-muted-foreground">{receiptNumber}</p>
               </div>
             </div>
           </CardContent>
@@ -878,7 +878,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="space-y-2">
-            <div className="size-10 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center border border-emerald-500/20">
+            <div className="size-10 rounded-full bg-success/10 text-success flex items-center justify-center border border-success/20">
               <MessageSquare className="size-5" />
             </div>
             <DialogTitle className="text-base font-bold text-foreground">
@@ -940,7 +940,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               size="sm"
               onClick={handleSendWhatsApp}
               disabled={isSendingWhatsApp || !whatsAppPhone.trim()}
-              className="text-xs font-semibold gap-1.5 h-8 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+              className="text-xs font-semibold gap-1.5 h-8 bg-success hover:bg-success/90 text-success-foreground cursor-pointer shadow-xs"
             >
               {isSendingWhatsApp ? (
                 <Loader2 className="size-3.5 animate-spin" />

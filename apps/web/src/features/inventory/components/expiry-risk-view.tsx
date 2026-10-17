@@ -32,6 +32,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { ErrorState } from '@/components/ui/error-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
@@ -55,6 +58,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [data, setData] = useState<ExpiryRiskForecastResponse | null>(null);
 
   // Filters
@@ -76,6 +80,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
       } else {
         setIsLoading(true);
       }
+      setFetchError(null);
 
       try {
         const res = await productsApi.getExpiryRiskForecast({
@@ -87,7 +92,9 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
         });
         setData(res);
       } catch (err: unknown) {
-        toast.error(getErrorMessage(err, 'Failed to calculate expiry risk forecast'));
+        const msg = getErrorMessage(err, 'Failed to calculate expiry risk forecast');
+        setFetchError(msg);
+        toast.error(msg);
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -130,54 +137,22 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
   const renderRiskBadge = (level: RiskLevel, score: number) => {
     switch (level) {
       case 'EXPIRED':
-        return (
-          <Badge className="bg-destructive/20 text-destructive border-destructive/30 flex items-center gap-1 font-semibold">
-            <AlertTriangle className="size-3" /> Expired (Score: {score})
-          </Badge>
-        );
+        return <StatusBadge status="danger" label={`Expired (Score: ${score})`} />;
       case 'CRITICAL_UNSOLD':
-        return (
-          <Badge className="bg-destructive/15 text-destructive border-destructive/30 flex items-center gap-1 font-semibold">
-            <ShieldAlert className="size-3" /> Critical Risk ({score}%)
-          </Badge>
-        );
+        return <StatusBadge status="danger" label={`Critical Risk (${score}%)`} />;
       case 'CRITICAL_NO_SALES':
-        return (
-          <Badge className="bg-destructive/15 text-destructive border-destructive/30 flex items-center gap-1 font-semibold">
-            <TrendingDown className="size-3" /> 0-Velocity Imminent ({score}%)
-          </Badge>
-        );
+        return <StatusBadge status="danger" label={`0-Velocity (${score}%)`} />;
       case 'HIGH_RISK':
-        return (
-          <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 flex items-center gap-1 font-semibold">
-            <AlertTriangle className="size-3" /> High Risk ({score}%)
-          </Badge>
-        );
+        return <StatusBadge status="warning" label={`High Risk (${score}%)`} />;
       case 'MODERATE_RISK':
-        return (
-          <Badge className="bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/30 flex items-center gap-1 font-medium">
-            <Clock className="size-3" /> Moderate Risk ({score}%)
-          </Badge>
-        );
+        return <StatusBadge status="warning" label={`Moderate Risk (${score}%)`} />;
       case 'TIGHT_WINDOW':
-        return (
-          <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 flex items-center gap-1 font-medium">
-            <Clock className="size-3" /> Tight Window ({score}%)
-          </Badge>
-        );
+        return <StatusBadge status="info" label={`Tight Window (${score}%)`} />;
       case 'STAGNANT':
-        return (
-          <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30 flex items-center gap-1 font-medium">
-            <TrendingDown className="size-3" /> Zero Velocity ({score}%)
-          </Badge>
-        );
+        return <StatusBadge status="neutral" label={`Zero Velocity (${score}%)`} />;
       case 'SAFE':
       default:
-        return (
-          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 flex items-center gap-1 font-medium">
-            <ShieldCheck className="size-3" /> Safe Turnover ({score}%)
-          </Badge>
-        );
+        return <StatusBadge status="success" label={`Safe Turnover (${score}%)`} />;
     }
   };
 
@@ -186,51 +161,51 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
     switch (rec) {
       case 'IMMEDIATE_QUARANTINE_OR_WRITEOFF':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-destructive/10 text-destructive border border-destructive/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-semibold bg-destructive/10 text-destructive border border-destructive/20">
             Write-Off / Quarantine
           </span>
         );
       case 'AGGRESSIVE_MARKDOWN_NOW':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-semibold bg-destructive/15 text-destructive border border-destructive/30">
             Urgent Markdown 30-50%
           </span>
         );
       case 'MARKDOWN_OR_VENDOR_RETURN':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-            Supplier Return or Markdown
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-semibold bg-warning/15 text-warning border border-warning/30">
+            Supplier Return / Markdown
           </span>
         );
       case 'APPLY_DISCOUNT_OR_BUNDLE':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-semibold bg-warning/10 text-warning border border-warning/20">
             Discount 15-25%
           </span>
         );
       case 'PRIORITIZE_POS_PLACEMENT':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-medium bg-info/10 text-info border border-info/20">
             Move to POS Front
           </span>
         );
       case 'PUSH_PROMOTION_OR_TRANSFER':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-medium bg-secondary text-secondary-foreground border border-border">
             Inter-Store Transfer
           </span>
         );
       case 'MONITOR_VELOCITY':
       case 'MONITOR_SALES_TREND':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground border border-border">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-medium bg-secondary text-secondary-foreground border border-border">
             Monitor Trend
           </span>
         );
       case 'ON_TRACK_NO_ACTION':
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-micro font-medium bg-success/10 text-success border border-success/20">
             On Track (No Action)
           </span>
         );
@@ -364,16 +339,16 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                       : tier.variant === 'destructive'
                       ? 'text-destructive border-destructive/30 hover:bg-destructive/10'
                       : tier.variant === 'warning'
-                      ? 'text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10'
+                      ? 'text-warning border-warning/30 hover:bg-warning/10'
                       : tier.variant === 'success'
-                      ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
+                      ? 'text-success border-success/30 hover:bg-success/10'
                       : 'text-muted-foreground'
                   }`}
                 >
                   {tier.label}
                   {tier.count !== undefined && (
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      className={`px-1.5 py-0.5 rounded-full text-micro font-mono ${
                         riskFilter === tier.value
                           ? 'bg-primary-foreground/20 text-primary-foreground'
                           : 'bg-muted text-muted-foreground'
@@ -389,7 +364,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
         </CardContent>
       </Card>
 
-      {/* Main Forecast Table */}
+      {/* Main Forecast Table & Responsive Mobile Cards */}
       <Card className="border-border/60 overflow-hidden shadow-sm">
         <CardHeader className="px-5 py-4 border-b border-border/40 bg-muted/20 flex flex-row items-center justify-between">
           <div>
@@ -404,13 +379,16 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
         </CardHeader>
 
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-12 text-center space-y-3">
-              <RefreshCw className="size-6 animate-spin mx-auto text-primary" />
-              <p className="text-sm text-muted-foreground font-medium">
-                Evaluating sales velocity and computing depletion models...
-              </p>
+          {fetchError ? (
+            <div className="p-6">
+              <ErrorState
+                title="Failed to Load Expiry Risk Forecast"
+                description={fetchError}
+                onRetry={() => fetchForecast()}
+              />
             </div>
+          ) : isLoading ? (
+            <TableSkeleton columns={8} rows={6} />
           ) : !data?.batches || data.batches.length === 0 ? (
             <EmptyState
               icon={ShieldCheck}
@@ -432,225 +410,318 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
               }
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    <th className="py-3 px-4">Medicine & Details</th>
-                    <th className="py-3 px-3">Batch & Store</th>
-                    <th className="py-3 px-3">Expiry Date</th>
-                    <th className="py-3 px-3">Sales Velocity</th>
-                    <th className="py-3 px-3">Depletion Model</th>
-                    <th className="py-3 px-3 text-right">Projected Unsold / Loss</th>
-                    <th className="py-3 px-3">Risk Assessment</th>
-                    <th className="py-3 px-3">Suggested Action</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {data.batches.map((item) => {
-                    const isHighExposure = item.riskLevel === 'CRITICAL_UNSOLD' || item.riskLevel === 'CRITICAL_NO_SALES';
-                    const hasLoss = item.projectedLossAmount > 0;
+            <>
+              {/* Mobile Card Layout */}
+              <div className="md:hidden divide-y divide-border/40">
+                {data.batches.map((item) => (
+                  <div key={`m-${item.id}`} className="p-4 space-y-3 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-foreground text-sm">{item.productName}</div>
+                        {item.genericName && (
+                          <div className="text-micro text-muted-foreground italic">{item.genericName}</div>
+                        )}
+                        <div className="flex items-center gap-2 mt-1 text-micro text-muted-foreground">
+                          <span className="bg-secondary px-1.5 py-0.5 rounded font-medium">{item.category}</span>
+                          <span className="font-mono">Batch: {item.batchNumber}</span>
+                        </div>
+                      </div>
+                      <div className="shrink-0">{renderRiskBadge(item.riskLevel, item.riskScore)}</div>
+                    </div>
 
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`hover:bg-muted/30 transition-colors ${
-                          item.isExpired
-                            ? 'bg-destructive/5'
-                            : isHighExposure
-                            ? 'bg-rose-500/[0.02]'
-                            : ''
-                        }`}
-                      >
-                        {/* Medicine */}
-                        <td className="py-3 px-4 align-top">
-                          <div className="font-semibold text-foreground text-sm flex items-center gap-1.5">
-                            {item.productName}
-                          </div>
-                          {item.genericName && (
-                            <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
-                              {item.genericName}
+                    <div className="grid grid-cols-2 gap-2 text-micro bg-muted/40 p-2.5 rounded-lg border border-border/40">
+                      <div>
+                        <span className="text-muted-foreground block">Expiry Date:</span>
+                        <span className="font-medium text-foreground">{formatDate(item.expiryDate)}</span>
+                        <span
+                          className={`block font-semibold ${
+                            item.isExpired
+                              ? 'text-destructive'
+                              : item.daysUntilExpiry <= 60
+                              ? 'text-destructive'
+                              : item.daysUntilExpiry <= 120
+                              ? 'text-warning'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          {item.isExpired ? `Expired ${Math.abs(item.daysUntilExpiry)}d ago` : `${item.daysUntilExpiry}d remaining`}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block">Sales Velocity:</span>
+                        <span className="font-medium text-foreground">
+                          {item.dailySalesVelocity > 0 ? `${item.dailySalesVelocity} ${item.unit}/day` : '0.00/day'}
+                        </span>
+                        <span className="text-muted-foreground block">{item.storeName}</span>
+                      </div>
+                      <div className="col-span-2 pt-1 border-t border-border/30 flex justify-between items-center">
+                        <span className="text-muted-foreground">Projected Unsold:</span>
+                        <span className={`font-bold ${item.projectedUnsoldQuantity > 0 ? 'text-destructive' : 'text-success'}`}>
+                          {item.projectedUnsoldQuantity > 0
+                            ? `${item.projectedUnsoldQuantity} ${item.unit} (${formatCurrency(item.projectedLossAmount)} loss)`
+                            : '0 Unsold (Clean)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div>{renderActionBadge(item.actionRecommendation)}</div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEditBatch(item)}
+                          className="h-7 px-2 text-micro gap-1 hover:border-primary hover:text-primary"
+                          aria-label="Edit sell price or adjust stock for markdown"
+                        >
+                          <Edit3 className="size-3" />
+                          Markdown
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenProductBatches(item)}
+                          className="h-7 px-2 text-micro text-muted-foreground hover:text-foreground"
+                          aria-label="Inspect all batches for this product"
+                        >
+                          Batches
+                        </Button>
+                        <Link href={`/pos?search=${encodeURIComponent(item.productName)}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-micro text-muted-foreground hover:text-primary"
+                            aria-label="Open in POS Counter to sell"
+                          >
+                            <ShoppingCart className="size-3" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-border/60 bg-muted/40 text-micro font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="py-3 px-4">Medicine & Details</th>
+                      <th className="py-3 px-3">Batch & Store</th>
+                      <th className="py-3 px-3">Expiry Date</th>
+                      <th className="py-3 px-3">Sales Velocity</th>
+                      <th className="py-3 px-3">Depletion Model</th>
+                      <th className="py-3 px-3 text-right">Projected Unsold / Loss</th>
+                      <th className="py-3 px-3">Risk Assessment</th>
+                      <th className="py-3 px-3">Suggested Action</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {data.batches.map((item) => {
+                      const isHighExposure = item.riskLevel === 'CRITICAL_UNSOLD' || item.riskLevel === 'CRITICAL_NO_SALES';
+
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`hover:bg-muted/30 transition-colors ${
+                            item.isExpired
+                              ? 'bg-destructive/5'
+                              : isHighExposure
+                              ? 'bg-destructive/[0.03]'
+                              : ''
+                          }`}
+                        >
+                          {/* Medicine */}
+                          <td className="py-3 px-4 align-top">
+                            <div className="font-semibold text-foreground text-sm flex items-center gap-1.5">
+                              {item.productName}
                             </div>
-                          )}
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-                            <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px] font-medium">
-                              {item.category}
-                            </span>
-                            {item.barcode && <span className="font-mono text-[10px]">#{item.barcode}</span>}
-                          </div>
-                        </td>
-
-                        {/* Batch & Store */}
-                        <td className="py-3 px-3 align-top">
-                          <div className="font-mono font-medium text-foreground">{item.batchNumber}</div>
-                          <div className="text-[11px] text-muted-foreground">{item.storeName}</div>
-                          <div className="text-[10px] text-muted-foreground mt-1">
-                            Stock: <strong className="text-foreground">{item.quantityRemaining}</strong> / {item.quantityReceived} {item.unit}
-                          </div>
-                        </td>
-
-                        {/* Expiry Date */}
-                        <td className="py-3 px-3 align-top whitespace-nowrap">
-                          <div className="font-medium text-foreground">{formatDate(item.expiryDate)}</div>
-                          {item.isExpired ? (
-                            <span className="text-[11px] text-destructive font-semibold">
-                              Expired {Math.abs(item.daysUntilExpiry)}d ago
-                            </span>
-                          ) : (
-                            <span
-                              className={`text-[11px] font-medium ${
-                                item.daysUntilExpiry <= 60
-                                  ? 'text-destructive'
-                                  : item.daysUntilExpiry <= 120
-                                  ? 'text-amber-600 dark:text-amber-400'
-                                  : 'text-muted-foreground'
-                              }`}
-                            >
-                              {item.daysUntilExpiry} days remaining
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Sales Velocity */}
-                        <td className="py-3 px-3 align-top whitespace-nowrap">
-                          <div className="flex items-center gap-1 font-semibold text-foreground">
-                            {item.dailySalesVelocity > 0 ? (
-                              <>
-                                <TrendingUp className="size-3 text-emerald-500" />
-                                <span>{item.dailySalesVelocity} {item.unit}/day</span>
-                              </>
-                            ) : (
-                              <>
-                                <TrendingDown className="size-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">0.00 {item.unit}/day</span>
-                              </>
+                            {item.genericName && (
+                              <div className="text-micro text-muted-foreground line-clamp-1 italic">
+                                {item.genericName}
+                              </div>
                             )}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {item.totalUnitsSoldInTimeframe} units sold in past {item.timeframeDays}d
-                          </div>
-                        </td>
+                            <div className="flex items-center gap-2 mt-1 text-micro text-muted-foreground">
+                              <span className="bg-secondary px-1.5 py-0.5 rounded font-medium">
+                                {item.category}
+                              </span>
+                              {item.barcode && <span className="font-mono">#{item.barcode}</span>}
+                            </div>
+                          </td>
 
-                        {/* Depletion Model */}
-                        <td className="py-3 px-3 align-top">
-                          {item.estimatedDaysToDeplete !== null ? (
-                            <div>
-                              <div className="font-medium text-foreground">
-                                Depletes in ~{item.estimatedDaysToDeplete} days
-                              </div>
-                              <div className="text-[10px] text-muted-foreground">
-                                Est. Date:{' '}
-                                {item.depletionDate ? formatDate(item.depletionDate) : '-'}
-                              </div>
-                              {item.estimatedDaysToDeplete > item.daysUntilExpiry && (
-                                <div className="text-[10px] text-destructive font-semibold mt-0.5 flex items-center gap-1">
-                                  <AlertTriangle className="size-2.5" />
-                                  Exceeds expiry date by {item.estimatedDaysToDeplete - item.daysUntilExpiry}d
-                                </div>
+                          {/* Batch & Store */}
+                          <td className="py-3 px-3 align-top">
+                            <div className="font-mono font-medium text-foreground">{item.batchNumber}</div>
+                            <div className="text-micro text-muted-foreground">{item.storeName}</div>
+                            <div className="text-micro text-muted-foreground mt-1">
+                              Stock: <strong className="text-foreground">{item.quantityRemaining}</strong> / {item.quantityReceived} {item.unit}
+                            </div>
+                          </td>
+
+                          {/* Expiry Date */}
+                          <td className="py-3 px-3 align-top whitespace-nowrap">
+                            <div className="font-medium text-foreground">{formatDate(item.expiryDate)}</div>
+                            {item.isExpired ? (
+                              <span className="text-micro text-destructive font-semibold">
+                                Expired {Math.abs(item.daysUntilExpiry)}d ago
+                              </span>
+                            ) : (
+                              <span
+                                className={`text-micro font-medium ${
+                                  item.daysUntilExpiry <= 60
+                                    ? 'text-destructive'
+                                    : item.daysUntilExpiry <= 120
+                                    ? 'text-warning'
+                                    : 'text-muted-foreground'
+                                }`}
+                              >
+                                {item.daysUntilExpiry} days remaining
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Sales Velocity */}
+                          <td className="py-3 px-3 align-top whitespace-nowrap">
+                            <div className="flex items-center gap-1 font-semibold text-foreground">
+                              {item.dailySalesVelocity > 0 ? (
+                                <>
+                                  <TrendingUp className="size-3 text-success" />
+                                  <span>{item.dailySalesVelocity} {item.unit}/day</span>
+                                </>
+                              ) : (
+                                <>
+                                  <TrendingDown className="size-3 text-muted-foreground" />
+                                  <span className="text-muted-foreground">0.00 {item.unit}/day</span>
+                                </>
                               )}
                             </div>
-                          ) : (
-                            <div className="text-muted-foreground italic text-[11px]">
-                              Zero movement (no depletion date)
+                            <div className="text-micro text-muted-foreground">
+                              {item.totalUnitsSoldInTimeframe} units sold in past {item.timeframeDays}d
                             </div>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Projected Unsold / Financial Loss */}
-                        <td className="py-3 px-3 align-top text-right whitespace-nowrap">
-                          {item.projectedUnsoldQuantity > 0 ? (
-                            <div>
-                              <div className="font-bold text-destructive text-sm tabular-nums">
-                                {item.projectedUnsoldQuantity} {item.unit} unsold
+                          {/* Depletion Model */}
+                          <td className="py-3 px-3 align-top">
+                            {item.estimatedDaysToDeplete !== null ? (
+                              <div>
+                                <div className="font-medium text-foreground">
+                                  Depletes in ~{item.estimatedDaysToDeplete} days
+                                </div>
+                                <div className="text-micro text-muted-foreground">
+                                  Est. Date:{' '}
+                                  {item.depletionDate ? formatDate(item.depletionDate) : '-'}
+                                </div>
+                                {item.estimatedDaysToDeplete > item.daysUntilExpiry && (
+                                  <div className="text-micro text-destructive font-semibold mt-0.5 flex items-center gap-1">
+                                    <AlertTriangle className="size-2.5" />
+                                    Exceeds expiry date by {item.estimatedDaysToDeplete - item.daysUntilExpiry}d
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-[11px] font-semibold text-foreground tabular-nums">
-                                Loss: {formatCurrency(item.projectedLossAmount)}
+                            ) : (
+                              <div className="text-muted-foreground italic text-micro">
+                                Zero movement (no depletion date)
                               </div>
-                              <div className="text-[10px] text-muted-foreground tabular-nums">
-                                Cost @ {formatCurrency(item.costPrice)}
+                            )}
+                          </td>
+
+                          {/* Projected Unsold / Financial Loss */}
+                          <td className="py-3 px-3 align-top text-right whitespace-nowrap">
+                            {item.projectedUnsoldQuantity > 0 ? (
+                              <div>
+                                <div className="font-bold text-destructive text-sm tabular-nums">
+                                  {item.projectedUnsoldQuantity} {item.unit} unsold
+                                </div>
+                                <div className="text-micro font-semibold text-foreground tabular-nums">
+                                  Loss: {formatCurrency(item.projectedLossAmount)}
+                                </div>
+                                <div className="text-micro text-muted-foreground tabular-nums">
+                                  Cost @ {formatCurrency(item.costPrice)}
+                                </div>
                               </div>
+                            ) : (
+                              <div>
+                                <span className="text-success font-semibold flex items-center justify-end gap-1">
+                                  <ShieldCheck className="size-3" /> 0 Unsold (Clean)
+                                </span>
+                                <div className="text-micro text-muted-foreground">Full sell-out expected</div>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Risk Assessment & Score */}
+                          <td className="py-3 px-3 align-top">
+                            {renderRiskBadge(item.riskLevel, item.riskScore)}
+                            <div className="w-24 bg-secondary rounded-full h-1.5 mt-1.5 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  item.riskScore >= 75
+                                    ? 'bg-destructive'
+                                    : item.riskScore >= 50
+                                    ? 'bg-warning'
+                                    : 'bg-success'
+                                }`}
+                                style={{ width: `${Math.min(100, Math.max(5, item.riskScore))}%` }}
+                              />
                             </div>
-                          ) : (
-                            <div>
-                              <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center justify-end gap-1">
-                                <ShieldCheck className="size-3" /> 0 Unsold (Clean)
-                              </span>
-                              <div className="text-[10px] text-muted-foreground">Full sell-out expected</div>
+                          </td>
+
+                          {/* Suggested Action */}
+                          <td className="py-3 px-3 align-top max-w-[200px]">
+                            {renderActionBadge(item.actionRecommendation)}
+                            <div className="text-micro text-muted-foreground mt-1 line-clamp-2">
+                              {item.actionSummary}
                             </div>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Risk Assessment & Score */}
-                        <td className="py-3 px-3 align-top">
-                          {renderRiskBadge(item.riskLevel, item.riskScore)}
-                          <div className="w-24 bg-secondary rounded-full h-1.5 mt-1.5 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                item.riskScore >= 75
-                                  ? 'bg-destructive'
-                                  : item.riskScore >= 50
-                                  ? 'bg-amber-500'
-                                  : 'bg-emerald-500'
-                              }`}
-                              style={{ width: `${Math.min(100, Math.max(5, item.riskScore))}%` }}
-                            />
-                          </div>
-                        </td>
+                          {/* Action Buttons */}
+                          <td className="py-3 px-4 align-top text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Reprice / Markdown Button */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEditBatch(item)}
+                                className="h-7 px-2 text-micro gap-1 hover:border-primary hover:text-primary"
+                                aria-label="Edit sell price or adjust stock for markdown"
+                              >
+                                <Edit3 className="size-3" />
+                                Markdown
+                              </Button>
 
-                        {/* Suggested Action */}
-                        <td className="py-3 px-3 align-top max-w-[200px]">
-                          {renderActionBadge(item.actionRecommendation)}
-                          <div className="text-[10px] text-muted-foreground mt-1 line-clamp-2">
-                            {item.actionSummary}
-                          </div>
-                        </td>
-
-                        {/* Action Buttons */}
-                        <td className="py-3 px-4 align-top text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Reprice / Markdown Button */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenEditBatch(item)}
-                              className="h-7 px-2 text-[11px] gap-1 hover:border-primary hover:text-primary"
-                              title="Edit sell price or adjust stock for markdown"
-                            >
-                              <Edit3 className="size-3" />
-                              Markdown
-                            </Button>
-
-                            {/* View Batches */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleOpenProductBatches(item)}
-                              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-                              title="Inspect all batches for this product"
-                            >
-                              Batches
-                            </Button>
-
-                            {/* Link to POS */}
-                            <Link href={`/pos?search=${encodeURIComponent(item.productName)}`}>
+                              {/* View Batches */}
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 px-2 text-[11px] text-muted-foreground hover:text-primary"
-                                title="Open in POS Counter to sell"
+                                onClick={() => handleOpenProductBatches(item)}
+                                className="h-7 px-2 text-micro text-muted-foreground hover:text-foreground"
+                                aria-label="Inspect all batches for this product"
                               >
-                                <ShoppingCart className="size-3" />
+                                Batches
                               </Button>
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+
+                              {/* Link to POS */}
+                              <Link href={`/pos?search=${encodeURIComponent(item.productName)}`}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-micro text-muted-foreground hover:text-primary"
+                                  aria-label="Open in POS Counter to sell"
+                                >
+                                  <ShoppingCart className="size-3" />
+                                </Button>
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

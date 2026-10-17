@@ -160,16 +160,35 @@ export function ReportsView() {
       ? reportData?.topProductsByRevenue || []
       : reportData?.topProductsByQuantity || [];
 
+  const headerInfo = {
+    charts: {
+      title: 'Pharmacy Sales Analytics',
+      description:
+        'Real-time revenue performance, sales trends over time, and top-selling pharmaceutical products.',
+    },
+    copilot: {
+      title: 'AI Analytics Copilot',
+      description:
+        'Natural-language queries and automated executive analytics backed by your real live database.',
+    },
+    audit: {
+      title: 'Compliance & Audit Log',
+      description:
+        'Official inspection-ready records of all sensitive inventory, financial, and operational modifications.',
+    },
+    integrity: {
+      title: 'Operational Integrity & Discrepancies',
+      description:
+        'Continuous statistical variance monitoring across cash registers, discounts, and inventory shrinkage.',
+    },
+  }[currentView];
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
       <PageHeader
-        title={currentView === 'charts' ? 'Pharmacy Sales Analytics' : 'AI Analytics Copilot'}
-        description={
-          currentView === 'charts'
-            ? 'Real-time revenue performance, sales trends over time, and top-selling pharmaceutical products.'
-            : 'Natural-language queries and automated executive analytics backed by your real live database.'
-        }
+        title={headerInfo.title}
+        description={headerInfo.description}
         badge={
           <Badge
             variant={isAllStores ? 'secondary' : 'outline'}
@@ -215,11 +234,11 @@ export function ReportsView() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Sparkles className="size-4 text-amber-400 shrink-0" />
+          <Sparkles className="size-4 text-warning shrink-0" />
           <span>AI Analytics Copilot</span>
           <Badge
             variant="outline"
-            className="ml-1 text-[9px] px-1 py-0 border-primary/30 text-primary uppercase font-bold"
+            className="ml-1 text-micro px-1 py-0 border-primary/30 text-primary uppercase font-bold"
           >
             AI
           </Badge>
@@ -234,11 +253,11 @@ export function ReportsView() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <ShieldAlert className="size-4 text-emerald-500 shrink-0" />
+          <ShieldAlert className="size-4 text-success shrink-0" />
           <span>Compliance & Audit Log</span>
           <Badge
             variant="outline"
-            className="ml-1 text-[9px] px-1 py-0 border-border text-muted-foreground uppercase font-bold"
+            className="ml-1 text-micro px-1 py-0 border-border text-muted-foreground uppercase font-bold"
           >
             Inspection
           </Badge>
@@ -253,11 +272,11 @@ export function ReportsView() {
               : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          <AlertOctagon className="size-4 text-amber-500 shrink-0" />
+          <AlertOctagon className="size-4 text-warning shrink-0" />
           <span>Operational Integrity</span>
           <Badge
             variant="outline"
-            className="ml-1 text-[9px] px-1 py-0 border-border text-muted-foreground uppercase font-bold"
+            className="ml-1 text-micro px-1 py-0 border-border text-muted-foreground uppercase font-bold"
           >
             Variance
           </Badge>
@@ -398,7 +417,7 @@ export function ReportsView() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
-                <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-y border-border/60">
+                <thead className="bg-muted/50 text-muted-foreground uppercase text-overline border-y border-border/60">
                   <tr>
                     <th className="px-4 py-2.5 font-semibold">Store / Branch</th>
                     <th className="px-4 py-2.5 font-semibold text-right">Revenue</th>
@@ -418,7 +437,7 @@ export function ReportsView() {
                           <Building2 className="size-3.5 text-primary shrink-0" />
                           <div>
                             <span className="font-semibold block">{s.storeName}</span>
-                            <span className="text-[11px] text-muted-foreground">{s.address || 'Counter / Branch'}</span>
+                            <span className="text-micro text-muted-foreground">{s.address || 'Counter / Branch'}</span>
                           </div>
                         </div>
                       </td>

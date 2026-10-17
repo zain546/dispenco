@@ -423,7 +423,7 @@ export function OcrPrescriptionModal({
                       <h5 className="font-semibold text-xs text-foreground">
                         Don&apos;t have a paper prescription right now?
                       </h5>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                      <p className="text-micro text-muted-foreground mt-0.5">
                         Test the prescription OCR extractor, clinical directions, and controlled substance matching with verified sample data.
                       </p>
                     </div>
@@ -453,7 +453,7 @@ export function OcrPrescriptionModal({
                     <h5 className="font-bold text-xs text-destructive">
                       Controlled Substance Schedule Warning
                     </h5>
-                    <p className="text-[11px] text-destructive/90 mt-0.5">
+                    <p className="text-micro text-destructive/90 mt-0.5">
                       This prescription contains medicines designated as controlled substances. Ensure prescribing doctor license # and patient CNIC are recorded before dispensing.
                     </p>
                   </div>
@@ -613,7 +613,7 @@ export function OcrPrescriptionModal({
                 <div className="border border-border rounded-xl overflow-hidden shadow-2xs">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">
+                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro tracking-wider">
                         <tr>
                           <th className="py-2.5 px-3">#</th>
                           <th className="py-2.5 px-3 min-w-[200px]">Catalog Match</th>
@@ -628,7 +628,7 @@ export function OcrPrescriptionModal({
                       <tbody className="divide-y divide-border/60">
                         {items.map((item, idx) => (
                           <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-2.5 px-3 text-muted-foreground font-mono text-[11px]">
+                            <td className="py-2.5 px-3 text-muted-foreground font-mono text-micro">
                               {idx + 1}
                             </td>
 
@@ -650,7 +650,7 @@ export function OcrPrescriptionModal({
                                         <div className="flex items-center gap-1.5">
                                           <span>{p.name} ({p.unit})</span>
                                           {p.isControlledSubstance && (
-                                            <Badge variant="destructive" className="text-[9px] px-1 py-0">
+                                            <Badge variant="destructive" className="text-micro px-1 py-0">
                                               Rx Schedule
                                             </Badge>
                                           )}
@@ -659,10 +659,10 @@ export function OcrPrescriptionModal({
                                     ))}
                                   </SelectContent>
                                 </Select>
-                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                <div className="flex items-center gap-1.5 text-micro text-muted-foreground">
                                   <span>OCR: &quot;{item.rawMedicineName}&quot;</span>
                                   {item.isControlledSubstance && (
-                                    <Badge variant="destructive" className="text-[9px] px-1 py-0">
+                                    <Badge variant="destructive" className="text-micro px-1 py-0">
                                       Controlled
                                     </Badge>
                                   )}
@@ -754,7 +754,7 @@ export function OcrPrescriptionModal({
                   </div>
 
                   <div className="p-3 bg-muted/30 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
-                    <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+                    <AlertTriangle className="size-4 text-warning shrink-0" />
                     <span>
                       Explicit human pharmacist confirmation is required. Verify that medicine strengths match the doctor slip before saving.
                     </span>
@@ -786,7 +786,7 @@ export function OcrPrescriptionModal({
               size="sm"
               disabled={isSaving}
               onClick={handleConfirmSave}
-              className="gap-2 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="gap-2 text-xs font-bold"
             >
               {isSaving ? (
                 <>
@@ -795,7 +795,7 @@ export function OcrPrescriptionModal({
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="size-4 text-emerald-300" />
+                  <CheckCircle2 className="size-4" />
                   <span>Confirm & Save Verified Prescription</span>
                 </>
               )}

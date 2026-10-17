@@ -262,13 +262,13 @@ export function StockReceiveForm() {
                       <h3 className="font-bold text-sm text-foreground leading-snug break-words">
                         {selectedProduct.name}
                       </h3>
-                      <Badge variant="secondary" className="text-[10px] font-medium shrink-0">
+                      <Badge variant="secondary" className="text-micro font-medium shrink-0">
                         {formatCategory(selectedProduct.category)}
                       </Badge>
                       {selectedProduct.isControlledSubstance && (
                         <Badge
                           variant="outline"
-                          className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-semibold shrink-0"
+                          className="bg-destructive/10 text-destructive border-destructive/20 text-micro font-semibold shrink-0"
                         >
                           Rx Schedule
                         </Badge>
@@ -353,7 +353,7 @@ export function StockReceiveForm() {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <Badge variant="outline" className="text-[10px]">
+                            <Badge variant="outline" className="text-micro">
                               Stock: {formatUnitPlural(prod.unit, prod.totalStock ?? 0)}
                             </Badge>
                           </div>
@@ -388,7 +388,7 @@ export function StockReceiveForm() {
                 <button
                   type="button"
                   onClick={handleGenerateBatchNumber}
-                  className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium"
+                  className="text-micro text-primary hover:underline flex items-center gap-1 font-medium"
                 >
                   <Sparkles className="size-3" />
                   <span>Auto Generate</span>
@@ -507,11 +507,11 @@ export function StockReceiveForm() {
 
             {/* Estimated Margin & Loose Sub-unit Conversion Breakdown Preview */}
             {numCost > 0 && numSell > 0 && (
-              <div className="rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-transparent p-3.5 sm:p-4 space-y-3 shadow-2xs">
+              <div className="rounded-xl border border-success/30 bg-success/5 p-3.5 sm:p-4 space-y-3 shadow-2xs">
                 {/* Top Header */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="size-6 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <div className="size-6 rounded-md bg-success/10 text-success flex items-center justify-center shrink-0">
                       <Layers className="size-3.5" />
                     </div>
                     <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
@@ -524,7 +524,7 @@ export function StockReceiveForm() {
                     const packSizeValNum = Number(rawPackSize) || 1;
                     if (packSizeValNum <= 1) return null;
                     return (
-                      <Badge variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 text-[10px] font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
+                      <Badge variant="outline" className="border-success/30 text-success bg-success/10 text-micro font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
                         {packSizeValNum} Units / {selectedProduct?.unit || 'Box'}
                       </Badge>
                     );
@@ -538,31 +538,31 @@ export function StockReceiveForm() {
                   const recvQty = Number(quantity) || 0;
 
                   return (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-emerald-500/15 pt-0.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-border/60 pt-0.5">
                       <div className="sm:px-3 first:pl-0 space-y-0.5">
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Cost / {packSizeValNum > 1 ? 'Tablet' : selectedProduct?.unit || 'Unit'}</span>
+                        <span className="text-micro font-medium text-muted-foreground uppercase tracking-wider block">Cost / {packSizeValNum > 1 ? 'Tablet' : selectedProduct?.unit || 'Unit'}</span>
                         <p className="text-xs sm:text-sm font-bold text-foreground">
                           PKR {(numCost / packSizeValNum).toFixed(2)}
                         </p>
                       </div>
 
                       <div className="sm:px-3 space-y-0.5">
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Retail / {packSizeValNum > 1 ? 'Tablet' : selectedProduct?.unit || 'Unit'}</span>
-                        <p className="text-xs sm:text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                        <span className="text-micro font-medium text-muted-foreground uppercase tracking-wider block">Retail / {packSizeValNum > 1 ? 'Tablet' : selectedProduct?.unit || 'Unit'}</span>
+                        <p className="text-xs sm:text-sm font-extrabold text-success">
                           PKR {(numSell / packSizeValNum).toFixed(2)}
                         </p>
                       </div>
 
                       <div className="sm:px-3 space-y-0.5">
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">New Stock Total</span>
+                        <span className="text-micro font-medium text-muted-foreground uppercase tracking-wider block">New Stock Total</span>
                         <p className="text-xs sm:text-sm font-bold text-foreground">
-                          {(recvQty * packSizeValNum).toLocaleString()} <span className="text-[11px] font-normal text-muted-foreground">{packSizeValNum > 1 ? 'Units' : selectedProduct?.unit || 'Boxes'}</span>
+                          {(recvQty * packSizeValNum).toLocaleString()} <span className="text-micro font-normal text-muted-foreground">{packSizeValNum > 1 ? 'Units' : selectedProduct?.unit || 'Boxes'}</span>
                         </p>
                       </div>
 
                       <div className="sm:px-3 last:pr-0 space-y-0.5">
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
-                        <p className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
+                        <span className="text-micro font-medium text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
+                        <p className="text-xs sm:text-sm font-bold text-success">
                           {marginPercent}% (+PKR {marginPkr.toFixed(2)})
                         </p>
                       </div>
@@ -571,8 +571,8 @@ export function StockReceiveForm() {
                 })()}
 
                 {/* Micro-copy Note */}
-                <div className="pt-2 border-t border-emerald-500/15 flex items-center gap-1.5 text-[11px] text-muted-foreground leading-tight">
-                  <Info className="size-3.5 text-emerald-500 shrink-0" />
+                <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-micro text-muted-foreground leading-tight">
+                  <Info className="size-3.5 text-success shrink-0" />
                   <span>
                     <span className="hidden sm:inline">Batch will be instantly registered under FEFO stock tracking for POS loose sales.</span>
                     <span className="sm:hidden">Registered under FEFO tracking for POS sales.</span>

@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { storesApi, ChainOverviewData, ChainStoreSummary } from '@/lib/stores-api';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
@@ -240,7 +241,7 @@ export function ChainManagementView() {
   if (!isMultiStore && stores.length <= 1) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto pb-12">
-        <div className="p-8 sm:p-12 text-center rounded-2xl border border-border/80 bg-gradient-to-b from-card via-card to-muted/20 shadow-xs space-y-4">
+        <div className="p-8 sm:p-12 text-center rounded-2xl border border-border/80 bg-card shadow-xs space-y-4">
           <div className="size-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-inner">
             <Building2 className="size-8" />
           </div>
@@ -285,7 +286,7 @@ export function ChainManagementView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/80">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="size-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <Building2 className="size-5" />
             </div>
             <div>
@@ -305,7 +306,7 @@ export function ChainManagementView() {
             size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing || isLoading}
-            className="h-8.5 text-xs font-semibold gap-1.5"
+            className="h-8.5 text-xs font-semibold gap-1.5 cursor-pointer"
           >
             <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -314,7 +315,7 @@ export function ChainManagementView() {
           <Button
             size="sm"
             onClick={() => setCreateModalOpen(true)}
-            className="h-8.5 text-xs font-semibold gap-1.5 shadow-xs"
+            className="h-8.5 text-xs font-semibold gap-1.5 shadow-xs cursor-pointer"
           >
             <PlusCircle className="size-3.5" />
             <span>Add Branch Store</span>
@@ -328,14 +329,14 @@ export function ChainManagementView() {
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-muted-foreground">Chain Sales Today</span>
-              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+              <div className="size-8 rounded-lg bg-success/10 text-success flex items-center justify-center">
                 <DollarSign className="size-4" />
               </div>
             </div>
             <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-2">
               {formatCurrency(consolidated?.totalSalesToday ?? 0)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Across {data?.totalStoresCount ?? stores.length} active branches
             </p>
           </CardContent>
@@ -345,14 +346,14 @@ export function ChainManagementView() {
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-muted-foreground">Chain Sales (Month)</span>
-              <div className="size-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center">
+              <div className="size-8 rounded-lg bg-info/10 text-info flex items-center justify-center">
                 <TrendingUp className="size-4" />
               </div>
             </div>
             <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-2">
               {formatCurrency(consolidated?.totalSalesMonth ?? 0)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">MTD consolidated revenue</p>
+            <p className="text-xs text-muted-foreground mt-0.5">MTD consolidated revenue</p>
           </CardContent>
         </Card>
 
@@ -360,14 +361,14 @@ export function ChainManagementView() {
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-muted-foreground">Chain Inventory Valuation</span>
-              <div className="size-8 rounded-lg bg-purple-500/10 text-purple-600 flex items-center justify-center">
+              <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                 <Package className="size-4" />
               </div>
             </div>
             <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-2">
               {formatCurrency(consolidated?.totalInventoryCostValue ?? 0)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Retail: {formatCurrency(consolidated?.totalRetailValue ?? 0)}
             </p>
           </CardContent>
@@ -377,14 +378,14 @@ export function ChainManagementView() {
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-muted-foreground">Cross-Store Alerts</span>
-              <div className="size-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+              <div className="size-8 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
                 <AlertTriangle className="size-4" />
               </div>
             </div>
             <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-2">
               {consolidated?.totalLowStockCount ?? 0}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {consolidated?.totalPendingTransfers ?? 0} stock transfer(s) in progress
             </p>
           </CardContent>
@@ -435,46 +436,46 @@ export function ChainManagementView() {
                     <td className="py-3 px-3">
                       <div className="font-semibold text-foreground">{branch.name}</div>
                       {branch.address ? (
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <MapPin className="size-3 shrink-0" />
                           <span className="truncate max-w-[200px]">{branch.address}</span>
                         </div>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground">{branch.currency} branch</span>
+                        <span className="text-xs text-muted-foreground">{branch.currency} branch</span>
                       )}
                     </td>
                     <td className="py-3 px-3 font-medium">
                       <div className="text-foreground font-semibold">{formatCurrency(branch.salesToday)}</div>
-                      <div className="text-[10px] text-muted-foreground">{branch.salesCountToday} orders</div>
+                      <div className="text-micro text-muted-foreground">{branch.salesCountToday} orders</div>
                     </td>
                     <td className="py-3 px-3 font-medium">
                       <div className="text-foreground font-semibold">{formatCurrency(branch.salesMonth)}</div>
-                      <div className="text-[10px] text-muted-foreground">{branch.salesCountMonth} orders</div>
+                      <div className="text-micro text-muted-foreground">{branch.salesCountMonth} orders</div>
                     </td>
                     <td className="py-3 px-3">
                       <div className="font-semibold text-foreground">{formatCurrency(branch.inventoryCostValue)}</div>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-micro text-muted-foreground">
                         {branch.totalUnitsInStock} units ({branch.activeBatchesCount} batches)
                       </div>
                     </td>
                     <td className="py-3 px-3">
                       {branch.lowStockCount > 0 ? (
-                        <Badge variant="outline" className="text-[10px] font-semibold bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1">
-                          <AlertTriangle className="size-2.5" />
-                          <span>{branch.lowStockCount} items</span>
-                        </Badge>
+                        <StatusBadge variant="warning" size="sm" dot>
+                          {branch.lowStockCount} items
+                        </StatusBadge>
                       ) : (
-                        <span className="text-[11px] text-emerald-600 font-medium">Optimal</span>
+                        <StatusBadge variant="success" size="sm" dot>
+                          Optimal
+                        </StatusBadge>
                       )}
                     </td>
                     <td className="py-3 px-3">
                       {branch.pendingTransfers > 0 ? (
-                        <Badge variant="outline" className="text-[10px] font-semibold bg-blue-500/10 text-blue-600 border-blue-500/30 gap-1">
-                          <ArrowRightLeft className="size-2.5" />
-                          <span>{branch.pendingTransfers} pending</span>
-                        </Badge>
+                        <StatusBadge variant="info" size="sm">
+                          {branch.pendingTransfers} pending
+                        </StatusBadge>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground">None</span>
+                        <span className="text-xs text-muted-foreground">None</span>
                       )}
                     </td>
                     <td className="py-3 px-3 text-right">
@@ -485,7 +486,8 @@ export function ChainManagementView() {
                           setActiveStoreId(branch.id);
                           toast.success(`Active branch switched to "${branch.name}"`);
                         }}
-                        className="h-7 text-[11px] font-medium gap-1"
+                        className="h-7 text-xs font-medium gap-1 cursor-pointer"
+                        aria-label={`Switch active branch to ${branch.name}`}
                       >
                         <span>Switch</span>
                         <ArrowUpRight className="size-3" />
@@ -568,7 +570,7 @@ export function ChainManagementView() {
                       {selectedProduct && (
                         <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10 border border-primary/20 text-xs">
                           <span className="font-semibold text-primary">{selectedProduct.name}</span>
-                          <span className="text-muted-foreground text-[11px]">
+                          <span className="text-muted-foreground text-micro">
                             Current: {selectedProduct.latestSellPrice?.toFixed(2) ?? 'N/A'} PKR
                           </span>
                         </div>
@@ -585,10 +587,10 @@ export function ChainManagementView() {
                                 setProductSearchQuery('');
                                 setProductSearchResults([]);
                               }}
-                              className="w-full text-left p-2 hover:bg-accent text-xs flex items-center justify-between"
+                              className="w-full text-left p-2 hover:bg-accent text-xs flex items-center justify-between cursor-pointer"
                             >
                               <span className="font-medium text-foreground">{p.name}</span>
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-micro text-muted-foreground">
                                 {p.latestSellPrice ? `${p.latestSellPrice.toFixed(2)} PKR` : 'No price'}
                               </span>
                             </button>
@@ -643,7 +645,7 @@ export function ChainManagementView() {
                         onChange={(e) => setNewPriceInput(e.target.value)}
                         className="h-8.5 text-xs font-mono"
                       />
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-micro text-muted-foreground">
                         Sets the exact retail selling price across all active batches in target stores.
                       </p>
                     </div>
@@ -656,7 +658,7 @@ export function ChainManagementView() {
                         onChange={(e) => setPercentAdjustmentInput(e.target.value)}
                         className="h-8.5 text-xs font-mono"
                       />
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-micro text-muted-foreground">
                         Adjusts each batch selling price upward or downward by the specified percentage.
                       </p>
                     </div>
@@ -673,7 +675,7 @@ export function ChainManagementView() {
                     variant="ghost"
                     size="sm"
                     onClick={handleSelectAllStores}
-                    className="h-6 text-[11px] text-primary hover:bg-primary/10"
+                    className="h-6 text-xs text-primary hover:bg-primary/10 cursor-pointer"
                   >
                     {selectedTargetStores.length === (data?.stores.length || 0)
                       ? 'Deselect All'
@@ -719,7 +721,7 @@ export function ChainManagementView() {
                 <Button
                   onClick={handleExecutePricePush}
                   disabled={isSubmittingPricePush}
-                  className="h-8.5 text-xs font-semibold gap-1.5 shadow-xs w-full sm:w-auto shrink-0"
+                  className="h-8.5 text-xs font-semibold gap-1.5 shadow-xs w-full sm:w-auto shrink-0 cursor-pointer"
                 >
                   <Tag className="size-3.5" />
                   <span>{isSubmittingPricePush ? 'Pushing Prices...' : 'Push Price to Selected Branches'}</span>
@@ -739,7 +741,7 @@ export function ChainManagementView() {
                     onChange={(e) => setBroadcastTaxRate(e.target.value)}
                     className="h-8.5 text-xs font-mono"
                   />
-                  <p className="text-[10px] text-muted-foreground">Standard branch sales tax rate</p>
+                  <p className="text-micro text-muted-foreground">Standard branch sales tax rate</p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -750,7 +752,7 @@ export function ChainManagementView() {
                     onChange={(e) => setBroadcastReceiptFooter(e.target.value)}
                     className="h-8.5 text-xs"
                   />
-                  <p className="text-[10px] text-muted-foreground">Printed at bottom of POS receipts</p>
+                  <p className="text-micro text-muted-foreground">Printed at bottom of POS receipts</p>
                 </div>
 
                 <div className="space-y-1.5">
@@ -762,7 +764,7 @@ export function ChainManagementView() {
                     onChange={(e) => setBroadcastExpiryDays(e.target.value)}
                     className="h-8.5 text-xs font-mono"
                   />
-                  <p className="text-[10px] text-muted-foreground">Days before expiry to trigger alert</p>
+                  <p className="text-micro text-muted-foreground">Days before expiry to trigger alert</p>
                 </div>
               </div>
 
@@ -781,7 +783,7 @@ export function ChainManagementView() {
                         setBroadcastTargetStores(data?.stores.map((s) => s.id) || []);
                       }
                     }}
-                    className="h-6 text-[11px] text-primary hover:bg-primary/10"
+                    className="h-6 text-xs text-primary hover:bg-primary/10 cursor-pointer"
                   >
                     {broadcastTargetStores.length === (data?.stores.length || 0)
                       ? 'Deselect All'
@@ -823,7 +825,7 @@ export function ChainManagementView() {
                 <Button
                   onClick={handleExecuteBroadcastSettings}
                   disabled={isSubmittingBroadcast}
-                  className="h-8.5 text-xs font-semibold gap-1.5 shadow-xs"
+                  className="h-8.5 text-xs font-semibold gap-1.5 shadow-xs cursor-pointer"
                 >
                   <ShieldCheck className="size-3.5" />
                   <span>{isSubmittingBroadcast ? 'Broadcasting...' : 'Broadcast Settings to Selected Branches'}</span>

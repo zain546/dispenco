@@ -178,14 +178,14 @@ export function PrescriptionsManager() {
         <Card className="border-border/60 shadow-2xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
+              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
                 Active Prescriptions
               </span>
               <strong className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 block tabular-nums">
                 {activeCount}
               </strong>
             </div>
-            <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <div className="size-10 rounded-xl bg-success/10 text-success flex items-center justify-center">
               <CheckCircle2 className="size-5" />
             </div>
           </CardContent>
@@ -194,7 +194,7 @@ export function PrescriptionsManager() {
         <Card className="border-border/60 shadow-2xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
+              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
                 Controlled Substance Rx
               </span>
               <strong className="text-xl sm:text-2xl font-bold text-destructive mt-0.5 block tabular-nums">
@@ -210,7 +210,7 @@ export function PrescriptionsManager() {
         <Card className="border-border/60 shadow-2xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
+              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
                 Fully Dispensed
               </span>
               <strong className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 block tabular-nums">
@@ -226,7 +226,7 @@ export function PrescriptionsManager() {
         <Card className="border-border/60 shadow-2xs">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider block">
+              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
                 Total Recorded
               </span>
               <strong className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 block tabular-nums">
@@ -339,14 +339,14 @@ export function PrescriptionsManager() {
                             ? 'secondary'
                             : 'outline'
                         }
-                        className="text-[10px] font-semibold"
+                        className="text-micro font-semibold"
                       >
                         {rx.status}
                       </Badge>
                       {hasControlled && (
                         <Badge
                           variant="destructive"
-                          className="text-[10px] font-bold gap-1 px-1.5 py-0"
+                          className="text-micro font-bold gap-1 px-1.5 py-0"
                         >
                           <ShieldAlert className="size-3" />
                           <span>Controlled Rx</span>
@@ -363,13 +363,13 @@ export function PrescriptionsManager() {
                       )}
                     </h4>
                   </div>
-                  <div className="text-right text-[11px] text-muted-foreground shrink-0">
+                  <div className="text-right text-micro text-muted-foreground shrink-0">
                     <span className="flex items-center gap-1 justify-end">
                       <Calendar className="size-3 text-muted-foreground/70" />
                       <span>{formatDate(rx.prescriptionDate)}</span>
                     </span>
                     {rx.expiryDate && (
-                      <span className="text-[10px] block mt-0.5">
+                      <span className="text-micro block mt-0.5">
                         Expires: {formatDate(rx.expiryDate)}
                       </span>
                     )}
@@ -384,7 +384,7 @@ export function PrescriptionsManager() {
                       {rx.doctorHospital && <span> • {rx.doctorHospital}</span>}
                     </div>
                     {rx.doctorLicenseNumber && (
-                      <Badge variant="outline" className="text-[10px] font-mono">
+                      <Badge variant="outline" className="text-micro font-mono">
                         {rx.doctorLicenseNumber}
                       </Badge>
                     )}
@@ -392,7 +392,7 @@ export function PrescriptionsManager() {
 
                   {/* Medicines Summary */}
                   <div className="space-y-1 pt-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
                       Prescribed Medicines ({rx.items.length})
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -408,7 +408,7 @@ export function PrescriptionsManager() {
                         >
                           <Pill className="size-3 text-primary" />
                           <span>{it.product?.name || 'Medicine'}</span>
-                          <span className="text-muted-foreground text-[10px]">
+                          <span className="text-muted-foreground text-micro">
                             ({it.quantityPrescribed} {it.product?.unit || 'Units'})
                           </span>
                         </Badge>
@@ -443,7 +443,7 @@ export function PrescriptionsManager() {
                         size="sm"
                         onClick={() => handleDispense(rx.id)}
                         disabled={isDispensing}
-                        className="gap-1.5 text-xs h-8 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="gap-1.5 text-xs h-8 font-bold"
                       >
                         <CheckCircle2 className="size-3.5" />
                         <span>Dispense Rx</span>
@@ -491,7 +491,7 @@ export function PrescriptionsManager() {
               {/* Patient & Doctor Sub-Grid */}
               <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-muted/30 border border-border">
                 <div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                  <span className="text-micro text-muted-foreground uppercase font-bold tracking-wider block">
                     Patient Information
                   </span>
                   <strong className="text-sm font-bold text-foreground block mt-1">
@@ -507,7 +507,7 @@ export function PrescriptionsManager() {
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">
+                  <span className="text-micro text-muted-foreground uppercase font-bold tracking-wider block">
                     Prescribing Doctor
                   </span>
                   <strong className="text-sm font-bold text-foreground block mt-1">
@@ -525,7 +525,7 @@ export function PrescriptionsManager() {
                 </span>
                 <div className="border border-border rounded-xl overflow-hidden">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-[10px]">
+                    <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro">
                       <tr>
                         <th className="py-2.5 px-3">Medicine</th>
                         <th className="py-2.5 px-3">Dosage & Frequency</th>
@@ -539,7 +539,7 @@ export function PrescriptionsManager() {
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-foreground">{it.product?.name}</div>
                             {it.instructions && (
-                              <div className="text-[11px] text-muted-foreground italic">
+                              <div className="text-micro text-muted-foreground italic">
                                 &quot;{it.instructions}&quot;
                               </div>
                             )}
@@ -547,7 +547,7 @@ export function PrescriptionsManager() {
                           <td className="py-2.5 px-3">
                             <div>{it.dosage || '1 unit'} • {it.frequency || 'Daily'}</div>
                             {it.durationDays && (
-                              <div className="text-[10px] text-muted-foreground">
+                              <div className="text-micro text-muted-foreground">
                                 Duration: {it.durationDays} days
                               </div>
                             )}
@@ -555,7 +555,7 @@ export function PrescriptionsManager() {
                           <td className="py-2.5 px-3 text-right font-medium">
                             {it.quantityPrescribed} {it.product?.unit || 'Units'}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-emerald-600">
+                          <td className="py-2.5 px-3 text-right font-bold text-success">
                             {it.quantityDispensed} {it.product?.unit || 'Units'}
                           </td>
                         </tr>
@@ -566,7 +566,7 @@ export function PrescriptionsManager() {
               </div>
 
               {selectedRx.notes && (
-                <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-muted-foreground text-[11px]">
+                <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-muted-foreground text-micro">
                   <strong>Clinical Notes:</strong> {selectedRx.notes}
                 </div>
               )}
@@ -586,7 +586,7 @@ export function PrescriptionsManager() {
                   size="sm"
                   onClick={() => handleDispense(selectedRx.id)}
                   disabled={isDispensing}
-                  className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="text-xs font-bold gap-1.5"
                 >
                   <CheckCircle2 className="size-3.5" />
                   <span>Mark as Dispensed</span>

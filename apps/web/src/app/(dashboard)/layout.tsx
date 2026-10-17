@@ -43,21 +43,55 @@ import { useAuth } from '@/context/auth-context';
 import { useStore } from '@/context/store-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { StoreSwitcher } from '@/components/store-switcher';
+import { ConnectivityIndicator } from '@/components/layout/connectivity-indicator';
 import { cn } from '@/lib/utils';
 
-const NAV_ITEMS = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null },
-  { name: 'Inventory', href: '/inventory', icon: Package, permission: null },
-  { name: 'Stock Transfers', href: '/transfers', icon: ArrowRightLeft, permission: null, requiresMultiStore: true },
-  { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null },
-  { name: 'Prescriptions', href: '/prescriptions', icon: FileText, permission: null },
-  { name: 'Returns', href: '/returns', icon: RotateCcw, permission: null },
-  { name: 'Suppliers', href: '/suppliers', icon: Truck, permission: 'canManageSuppliers' },
-  { name: 'Purchases', href: '/purchases', icon: Truck, permission: null },
-  { name: 'Customers', href: '/customers', icon: Users, permission: null },
-  { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
-  { name: 'Chain Operations', href: '/chain', icon: Building2, permission: 'canManageSettings', requiresMultiStore: true },
-  { name: 'Settings', href: '/settings', icon: Settings, permission: 'canManageSettings' },
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  permission: string | null;
+  requiresMultiStore?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null },
+    ],
+  },
+  {
+    label: 'Point of Sale',
+    items: [
+      { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null },
+      { name: 'Prescriptions', href: '/prescriptions', icon: FileText, permission: null },
+      { name: 'Returns', href: '/returns', icon: RotateCcw, permission: null },
+      { name: 'Customers & Khata', href: '/customers', icon: Users, permission: null },
+    ],
+  },
+  {
+    label: 'Inventory & Supply',
+    items: [
+      { name: 'Inventory & Batches', href: '/inventory', icon: Package, permission: null },
+      { name: 'Stock Transfers', href: '/transfers', icon: ArrowRightLeft, permission: null, requiresMultiStore: true },
+      { name: 'Purchases', href: '/purchases', icon: Truck, permission: null },
+      { name: 'Suppliers', href: '/suppliers', icon: Store, permission: 'canManageSuppliers' },
+    ],
+  },
+  {
+    label: 'Intelligence & Management',
+    items: [
+      { name: 'Analytics & Audits', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
+      { name: 'Chain Operations', href: '/chain', icon: Building2, permission: 'canManageSettings', requiresMultiStore: true },
+      { name: 'Settings & Integrations', href: '/settings', icon: Settings, permission: 'canManageSettings' },
+    ],
+  },
 ];
 
 export default function DashboardLayout({
@@ -66,7 +100,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user, storeName, logout } = useAuth();
+  const { user, storeName, logout, isLoading } = useAuth();
   const { activeStore, isAllStores, isMultiStore } = useStore();
   const permissions = usePermissions();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -87,67 +121,87 @@ export default function DashboardLayout({
     });
   };
 
-  const userName = user?.name || 'Owner Pharmacy';
+  const userName = user?.name || (isLoading ? '...' : 'User Account');
   const displayStoreName = isAllStores
     ? 'All Stores (Org View)'
-    : (activeStore?.name || storeName || user?.storeName || 'Main Branch');
-  const role = user?.role || 'Owner';
+    : (activeStore?.name || storeName || user?.storeName || 'Primary Store');
+  const role = user?.role || (isLoading ? '' : 'Staff');
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
+    if (parts.length >= 2 && parts[0] && parts[1]) {
       return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    return name.slice(0, 2).toUpperCase() || 'U';
   };
 
   const userInitials = getInitials(userName);
 
-  const filteredNavItems = NAV_ITEMS.filter((item) => {
-    if (item.requiresMultiStore && !isMultiStore) return false;
-    if (!item.permission) return true;
-    return Boolean((permissions as any)[item.permission]);
-  });
+  const filterNavItems = (items: NavItem[]) =>
+    items.filter((item) => {
+      if (item.requiresMultiStore && !isMultiStore) return false;
+      if (!item.permission) return true;
+      return Boolean((permissions as any)[item.permission]);
+    });
 
   const renderNavLinks = (inMobile = false) => (
-    <nav className="flex flex-col gap-1.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-      {filteredNavItems.map((item) => {
-        const Icon = item.icon;
-        const isActive =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
+    <nav className="flex flex-col gap-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+      {NAV_GROUPS.map((group, gIdx) => {
+        const visibleItems = filterNavItems(group.items);
+        if (visibleItems.length === 0) return null;
 
         const isCollapsedNav = isCollapsed && !inMobile;
 
-        const navLink = (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => inMobile && setMobileOpen(false)}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
-              isCollapsedNav ? 'justify-center px-0' : 'justify-start',
-              isActive
-                ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            )}
-          >
-            <Icon className="size-5 shrink-0" />
-            {!isCollapsedNav && <span className="truncate">{item.name}</span>}
-          </Link>
+        return (
+          <div key={group.label} className="space-y-1">
+            {!isCollapsedNav ? (
+              <div className="text-overline text-muted-foreground/70 px-3 py-1 font-semibold select-none">
+                {group.label}
+              </div>
+            ) : gIdx > 0 ? (
+              <div className="my-1 border-t border-sidebar-border/60 mx-2" />
+            ) : null}
+
+            <div className="flex flex-col gap-0.5">
+              {visibleItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+                const navLink = (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => inMobile && setMobileOpen(false)}
+                    className={cn(
+                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                      isCollapsedNav ? 'justify-center px-0 h-9' : 'justify-start h-9',
+                      isActive
+                        ? 'bg-primary/10 text-primary font-semibold'
+                        : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    )}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {!isCollapsedNav && <span className="truncate">{item.name}</span>}
+                  </Link>
+                );
+
+                if (isCollapsedNav) {
+                  return (
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger asChild>{navLink}</TooltipTrigger>
+                      <TooltipContent side="right" className="font-medium text-xs">
+                        {item.name}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return navLink;
+              })}
+            </div>
+          </div>
         );
-
-        if (isCollapsedNav) {
-          return (
-            <Tooltip key={item.href}>
-              <TooltipTrigger asChild>{navLink}</TooltipTrigger>
-              <TooltipContent side="right" className="font-medium text-xs">
-                {item.name}
-              </TooltipContent>
-            </Tooltip>
-          );
-        }
-
-        return navLink;
       })}
     </nav>
   );
@@ -176,6 +230,7 @@ export default function DashboardLayout({
                   size="icon"
                   onClick={toggleSidebar}
                   className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+                  aria-label="Expand Sidebar"
                   title="Expand Sidebar"
                 >
                   <ChevronRight className="size-4" />
@@ -202,6 +257,7 @@ export default function DashboardLayout({
                   size="icon"
                   onClick={toggleSidebar}
                   className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent shrink-0"
+                  aria-label="Collapse Sidebar"
                   title="Collapse Sidebar"
                 >
                   <ChevronLeft className="size-4" />
@@ -240,6 +296,7 @@ export default function DashboardLayout({
                       size="icon"
                       onClick={() => logout()}
                       className="size-9 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg"
+                      aria-label="Sign Out"
                     >
                       <LogOut className="size-4" />
                     </Button>
@@ -353,14 +410,7 @@ export default function DashboardLayout({
 
             <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground shrink-0">
               <NotificationBell />
-              <span className="font-medium hidden sm:inline">System Status:</span>
-              <Badge
-                variant="outline"
-                className="gap-1 sm:gap-1.5 border-emerald-500/30 text-emerald-600 bg-emerald-500/10 dark:text-emerald-400 font-medium px-2 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs"
-              >
-                <span className="size-1.5 sm:size-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="hidden xs:inline">Operational</span>
-              </Badge>
+              <ConnectivityIndicator />
             </div>
           </header>
 

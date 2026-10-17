@@ -59,7 +59,7 @@ export function KeyCreatedDialog({ result, onClose }: KeyCreatedDialogProps) {
     <Dialog open={Boolean(result)} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader className="space-y-2">
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500">
+          <div className="flex items-center gap-2 text-success">
             <CheckCircle2 className="size-6" />
             <DialogTitle className="text-xl">API Key Generated Successfully</DialogTitle>
           </div>
@@ -70,15 +70,15 @@ export function KeyCreatedDialog({ result, onClose }: KeyCreatedDialogProps) {
 
         <div className="space-y-5 py-3">
           {/* Critical Security Warning */}
-          <div className="flex items-start gap-3 p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-sm">
-            <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="flex items-start gap-3 p-3.5 rounded-lg border border-warning/30 bg-warning/10 text-foreground text-sm">
+            <AlertTriangle className="size-5 shrink-0 text-warning mt-0.5" />
             <div className="space-y-1">
-              <p className="font-semibold text-amber-900 dark:text-amber-100">
+              <p className="font-semibold text-foreground">
                 Please copy your API key immediately
               </p>
-              <p className="text-xs leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 For security reasons, we do not store the plain-text key and you will{' '}
-                <strong>never be able to view it again</strong> once this dialog is closed. If you lose this key, you must generate a new one.
+                <strong className="text-foreground">never be able to view it again</strong> once this dialog is closed. If you lose this key, you must generate a new one.
               </p>
             </div>
           </div>
@@ -117,7 +117,7 @@ export function KeyCreatedDialog({ result, onClose }: KeyCreatedDialogProps) {
               >
                 {copiedKey ? (
                   <>
-                    <Check className="size-3.5 text-emerald-600" />
+                    <Check className="size-3.5 text-success" />
                     Copied
                   </>
                 ) : (
@@ -134,12 +134,12 @@ export function KeyCreatedDialog({ result, onClose }: KeyCreatedDialogProps) {
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Granted Scopes:</span>
             {result.apiKey.permissions.map((perm) => (
-              <Badge key={perm} variant="outline" className="font-mono text-[11px] bg-background">
+              <Badge key={perm} variant="outline" className="font-mono text-micro bg-background">
                 <ShieldCheck className="size-3 mr-1 text-primary" />
                 {perm}
               </Badge>
             ))}
-            <Badge variant="secondary" className="text-[11px]">
+            <Badge variant="secondary" className="text-micro">
               {result.apiKey.rateLimit} req/min
             </Badge>
           </div>
@@ -158,7 +158,7 @@ export function KeyCreatedDialog({ result, onClose }: KeyCreatedDialogProps) {
               >
                 {copiedCurl ? (
                   <>
-                    <Check className="size-3 text-emerald-600" /> Copied Command
+                    <Check className="size-3 text-success" /> Copied Command
                   </>
                 ) : (
                   <>

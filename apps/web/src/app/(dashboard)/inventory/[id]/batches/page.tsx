@@ -147,7 +147,7 @@ export default function ProductBatchesPage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="text-lg font-bold text-foreground">{productInfo.name}</h2>
-                    <Badge variant="secondary" className="text-[11px]">
+                    <Badge variant="secondary" className="text-micro">
                       {formatCategory(productInfo.category)}
                     </Badge>
                   </div>
@@ -159,17 +159,17 @@ export default function ProductBatchesPage() {
 
               {/* Status Counters */}
               <div className="flex items-center gap-2 text-xs">
-                <div className="px-3 py-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-center">
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 block">{healthyCount}</span>
-                  <span className="text-[10px] text-muted-foreground">Active</span>
+                <div className="px-3 py-1.5 rounded-md bg-success/10 border border-success/20 text-center">
+                  <span className="font-bold text-success block">{healthyCount}</span>
+                  <span className="text-micro text-muted-foreground">Active</span>
                 </div>
-                <div className="px-3 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-center">
-                  <span className="font-bold text-amber-600 dark:text-amber-400 block">{nearExpiryCount}</span>
-                  <span className="text-[10px] text-muted-foreground">Near Expiry</span>
+                <div className="px-3 py-1.5 rounded-md bg-warning/10 border border-warning/20 text-center">
+                  <span className="font-bold text-warning block">{nearExpiryCount}</span>
+                  <span className="text-micro text-muted-foreground">Near Expiry</span>
                 </div>
                 <div className="px-3 py-1.5 rounded-md bg-destructive/10 border border-destructive/20 text-center">
                   <span className="font-bold text-destructive block">{expiredCount}</span>
-                  <span className="text-[10px] text-muted-foreground">Expired</span>
+                  <span className="text-micro text-muted-foreground">Expired</span>
                 </div>
               </div>
             </CardContent>
@@ -207,7 +207,7 @@ export default function ProductBatchesPage() {
                           batch.isExpired
                             ? 'bg-destructive/5 border-destructive/30'
                             : batch.isNearExpiry
-                            ? 'bg-amber-500/5 border-amber-500/30'
+                            ? 'bg-warning/5 border-warning/30'
                             : 'bg-card border-border hover:border-primary/30'
                         }`}
                       >
@@ -227,14 +227,14 @@ export default function ProductBatchesPage() {
                                 <Edit3 className="size-3.5" />
                               </Button>
                               {batch.isExpired ? (
-                                <Badge variant="destructive" className="text-[10px] gap-1">
+                                <Badge variant="destructive" className="text-micro gap-1">
                                   <AlertTriangle className="size-3" />
                                   Expired ({Math.abs(batch.daysUntilExpiry)} days ago)
                                 </Badge>
                               ) : batch.isNearExpiry ? (
                                 <Badge
                                   variant="outline"
-                                  className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] gap-1"
+                                  className="bg-warning/10 text-warning border-warning/20 text-micro gap-1"
                                 >
                                   <Clock className="size-3" />
                                   Near Expiry ({batch.daysUntilExpiry} days remaining)
@@ -242,7 +242,7 @@ export default function ProductBatchesPage() {
                               ) : (
                                 <Badge
                                   variant="outline"
-                                  className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] gap-1"
+                                  className="bg-success/10 text-success border-success/20 text-micro gap-1"
                                 >
                                   <CheckCircle2 className="size-3" />
                                   Active Batch
@@ -285,8 +285,8 @@ export default function ProductBatchesPage() {
                                   batch.isExpired
                                     ? 'bg-destructive'
                                     : batch.isNearExpiry
-                                    ? 'bg-amber-500'
-                                    : 'bg-emerald-500'
+                                    ? 'bg-warning'
+                                    : 'bg-success'
                                 }`}
                                 style={{ width: `${stockPercent}%` }}
                               />

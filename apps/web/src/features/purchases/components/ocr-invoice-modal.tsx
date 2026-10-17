@@ -325,7 +325,7 @@ export function OcrInvoiceModal({
                   <span>Smart Invoice OCR Assist</span>
                   <Badge
                     variant="outline"
-                    className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold"
+                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold"
                   >
                     AI Powered
                   </Badge>
@@ -424,7 +424,7 @@ export function OcrInvoiceModal({
                       <h5 className="font-semibold text-xs text-foreground">
                         No physical invoice right now?
                       </h5>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         Test the OCR line-item extraction and catalog fuzzy-matcher using simulated distributor bill data.
                       </p>
                     </div>
@@ -446,7 +446,7 @@ export function OcrInvoiceModal({
               {/* Instructions Callout */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-muted-foreground">
                 <div className="p-3 rounded-lg border border-border/60 bg-card flex items-start gap-2.5">
-                  <span className="size-5 rounded-full bg-primary/10 text-primary font-bold text-[11px] flex items-center justify-center shrink-0">
+                  <span className="size-5 rounded-full bg-primary/10 text-primary font-bold text-micro flex items-center justify-center shrink-0">
                     1
                   </span>
                   <div>
@@ -455,7 +455,7 @@ export function OcrInvoiceModal({
                   </div>
                 </div>
                 <div className="p-3 rounded-lg border border-border/60 bg-card flex items-start gap-2.5">
-                  <span className="size-5 rounded-full bg-primary/10 text-primary font-bold text-[11px] flex items-center justify-center shrink-0">
+                  <span className="size-5 rounded-full bg-primary/10 text-primary font-bold text-micro flex items-center justify-center shrink-0">
                     2
                   </span>
                   <div>
@@ -464,7 +464,7 @@ export function OcrInvoiceModal({
                   </div>
                 </div>
                 <div className="p-3 rounded-lg border border-border/60 bg-card flex items-start gap-2.5">
-                  <span className="size-5 rounded-full bg-primary/10 text-primary font-bold text-[11px] flex items-center justify-center shrink-0">
+                  <span className="size-5 rounded-full bg-primary/10 text-primary font-bold text-micro flex items-center justify-center shrink-0">
                     3
                   </span>
                   <div>
@@ -480,7 +480,7 @@ export function OcrInvoiceModal({
               {/* Document Overview Bar */}
               <div className="p-3.5 rounded-xl border border-border/80 bg-muted/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="size-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <div className="size-10 rounded-lg bg-success/10 text-success flex items-center justify-center shrink-0">
                     <ShieldCheck className="size-5" />
                   </div>
                   <div>
@@ -491,13 +491,13 @@ export function OcrInvoiceModal({
                       {ocrResult && (
                         <Badge
                           variant="outline"
-                          className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-semibold"
+                          className="bg-success/10 text-success border-success/20 text-micro font-semibold"
                         >
                           {Math.round(ocrResult.confidence * 100)}% Confidence
                         </Badge>
                       )}
                       {ocrResult?.ocrEngine && (
-                        <Badge variant="secondary" className="text-[10px] capitalize">
+                        <Badge variant="secondary" className="text-micro capitalize">
                           {ocrResult.ocrEngine.replace(/-/g, ' ')}
                         </Badge>
                       )}
@@ -542,7 +542,7 @@ export function OcrInvoiceModal({
                     </SelectContent>
                   </Select>
                   {ocrResult?.rawSupplierName && (
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-micro text-muted-foreground">
                       Extracted name: <strong>{ocrResult.rawSupplierName}</strong>
                     </p>
                   )}
@@ -580,7 +580,7 @@ export function OcrInvoiceModal({
               <div className="border border-border rounded-xl overflow-hidden shadow-2xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">
+                    <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro tracking-wider">
                       <tr>
                         <th className="py-2.5 px-3">#</th>
                         <th className="py-2.5 px-3 min-w-[200px]">Catalog Match</th>
@@ -595,7 +595,7 @@ export function OcrInvoiceModal({
                     <tbody className="divide-y divide-border/60">
                       {editableItems.map((item, idx) => (
                         <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-2.5 px-3 text-muted-foreground font-mono text-[11px]">
+                          <td className="py-2.5 px-3 text-muted-foreground font-mono text-micro">
                             {idx + 1}
                           </td>
 
@@ -619,14 +619,14 @@ export function OcrInvoiceModal({
                                   ))}
                                 </SelectContent>
                               </Select>
-                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                              <div className="flex items-center gap-1.5 text-micro text-muted-foreground">
                                 <span>OCR: &quot;{item.rawProductName}&quot;</span>
                                 <Badge
                                   variant="outline"
-                                  className={`text-[9px] px-1 py-0 ${
+                                  className={`text-micro px-1 py-0 ${
                                     item.confidence >= 0.9
-                                      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                      : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                                      ? 'bg-success/10 text-success border-success/20'
+                                      : 'bg-warning/10 text-warning border-warning/20'
                                   }`}
                                 >
                                   {Math.round(item.confidence * 100)}%
@@ -713,24 +713,24 @@ export function OcrInvoiceModal({
                 {/* Subtotal & Summary Footer */}
                 <div className="p-3.5 bg-muted/30 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+                    <AlertTriangle className="size-4 text-warning shrink-0" />
                     <span>
                       Please verify item quantities and batch numbers against your physical invoice before confirming.
                     </span>
                   </div>
                   <div className="flex items-center gap-4 shrink-0 text-right">
                     <div>
-                      <span className="text-muted-foreground text-[11px] block">Subtotal</span>
+                      <span className="text-muted-foreground text-micro block">Subtotal</span>
                       <strong className="text-foreground text-xs">{formatCurrency(calculatedSubtotal)}</strong>
                     </div>
                     {calculatedTax > 0 && (
                       <div>
-                        <span className="text-muted-foreground text-[11px] block">Tax</span>
+                        <span className="text-muted-foreground text-micro block">Tax</span>
                         <strong className="text-foreground text-xs">{formatCurrency(calculatedTax)}</strong>
                       </div>
                     )}
                     <div className="pl-3 border-l border-border">
-                      <span className="text-muted-foreground text-[11px] block font-semibold">Total Order</span>
+                      <span className="text-muted-foreground text-micro block font-semibold">Total Order</span>
                       <strong className="text-primary text-sm font-bold">{formatCurrency(calculatedTotal)}</strong>
                     </div>
                   </div>
@@ -762,7 +762,7 @@ export function OcrInvoiceModal({
               onClick={handleConfirm}
               className="gap-2 text-xs font-bold"
             >
-              <CheckCircle2 className="size-4 text-emerald-300" />
+              <CheckCircle2 className="size-4 text-primary-foreground" />
               <span>Confirm & Load into Purchase Order</span>
               <ArrowRight className="size-3.5" />
             </Button>

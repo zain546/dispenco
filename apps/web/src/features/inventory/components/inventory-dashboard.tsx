@@ -30,6 +30,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
+import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
@@ -47,6 +50,7 @@ export function InventoryDashboard() {
   const { activeStoreId, isAllStores } = useStore();
   const [activeTab, setActiveTab] = useState<InventoryTab>(!isAllStores ? 'in-stock' : 'full-catalog');
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [data, setData] = useState<{
     totalProducts: number;
@@ -127,6 +131,7 @@ export function InventoryDashboard() {
 
   const fetchAggregation = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       const res = await productsApi.getInventoryAggregation({
         storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
@@ -139,7 +144,9 @@ export function InventoryDashboard() {
       });
       setData(res);
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to load inventory aggregation metrics'));
+      const msg = getErrorMessage(err, 'Failed to load inventory aggregation metrics');
+      setFetchError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -262,32 +269,32 @@ export function InventoryDashboard() {
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
           <TabsList className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 h-auto border border-border/40 scrollbar-none">
-            <TabsTrigger value="in-stock" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
-              <Boxes className="size-3.5 text-emerald-600 shrink-0" />
+            <TabsTrigger value="in-stock" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <Boxes className="size-3.5 text-success shrink-0" />
               <span>In-Stock ({data.summary.stockedCount ?? 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
+            <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
               <Package className="size-3.5 text-primary shrink-0" />
               <span>Master Catalog ({data.summary.totalCatalogItems})</span>
             </TabsTrigger>
-            <TabsTrigger value="priority-top-sellers" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
-              <Star className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />
+            <TabsTrigger value="priority-top-sellers" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <Star className="size-3.5 text-warning fill-warning shrink-0" />
               <span>Top Sellers ({data.summary.priorityCount})</span>
             </TabsTrigger>
-            <TabsTrigger value="unstocked" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
-              <TrendingDown className="size-3.5 text-amber-600 shrink-0" />
+            <TabsTrigger value="unstocked" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <TrendingDown className="size-3.5 text-warning shrink-0" />
               <span>Unstocked ({data.summary.unstockedCount ?? 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="expiring-soon" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
-              <Clock className="size-3.5 text-rose-500 shrink-0" />
+            <TabsTrigger value="expiring-soon" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <Clock className="size-3.5 text-destructive shrink-0" />
               <span>Expiring ({data.summary.expiringSoonCount})</span>
             </TabsTrigger>
-            <TabsTrigger value="expiry-risk" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5 text-primary data-[state=active]:bg-primary/10">
+            <TabsTrigger value="expiry-risk" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5 text-primary data-[state=active]:bg-primary/10">
               <Sparkles className="size-3.5 text-primary shrink-0" />
               <span>Risk Forecast</span>
             </TabsTrigger>
-            <TabsTrigger value="low-stock" className="gap-1 sm:gap-1.5 font-medium text-[11px] sm:text-sm px-1.5 sm:px-3 py-1.5">
-              <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+            <TabsTrigger value="low-stock" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+              <AlertTriangle className="size-3.5 text-warning shrink-0" />
               <span>Low Stock ({data.summary.lowStockCount})</span>
             </TabsTrigger>
           </TabsList>
@@ -311,7 +318,7 @@ export function InventoryDashboard() {
             <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Boxes className="size-4 text-emerald-600" />
+                  <Boxes className="size-4 text-success" />
                   <span>
                     {!isAllStores ? 'Available Branch Inventory' : 'Available Network Stock'}
                   </span>
@@ -328,15 +335,23 @@ export function InventoryDashboard() {
                 onClick={() => fetchAggregation()}
                 disabled={isLoading}
                 className="size-8 p-0 shrink-0"
+                aria-label="Refresh in-stock medicines"
               >
                 <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {isLoading ? (
-                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                  <span className="text-xs">Loading in-stock medicines...</span>
+              {fetchError ? (
+                <div className="p-4">
+                  <ErrorState
+                    title="Failed to Load Available Inventory"
+                    description={fetchError}
+                    onRetry={() => fetchAggregation()}
+                  />
+                </div>
+              ) : isLoading ? (
+                <div className="p-4">
+                  <TableSkeleton columns={4} rows={5} />
                 </div>
               ) : data.products.length === 0 ? (
                 <EmptyState
@@ -366,30 +381,33 @@ export function InventoryDashboard() {
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm text-foreground">{product.name}</span>
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-micro">
                             {formatCategory(product.category)}
                           </Badge>
                           {product.isPriority && (
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+                            <StatusBadge
+                              variant="warning"
+                              dot={false}
+                              size="xs"
+                              className="font-bold cursor-default"
+                              title="Top Seller Priority Onboarding Item"
                             >
-                              <Star className="size-3 fill-amber-500 text-amber-500" />
-                              <span>Top Seller</span>
-                            </Badge>
+                              <Star className="size-3 fill-warning text-warning inline mr-1" />
+                              Top Seller
+                            </StatusBadge>
                           )}
-                          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                          <StatusBadge variant="success" size="xs">
                             In Stock ({product.totalStock} {product.unit}s)
-                          </Badge>
+                          </StatusBadge>
                           {product.isLowStock && (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                            <StatusBadge variant="warning" size="xs">
                               Low Stock
-                            </Badge>
+                            </StatusBadge>
                           )}
                           {product.isExpiringSoon && (
-                            <Badge variant="outline" className="bg-rose-500/10 text-rose-600 border-rose-500/20 text-[10px]">
+                            <StatusBadge variant="danger" size="xs">
                               Expiring Soon
-                            </Badge>
+                            </StatusBadge>
                           )}
                         </div>
                         {product.genericName && (
@@ -402,7 +420,7 @@ export function InventoryDashboard() {
                           {product.earliestExpiryDate && (
                             <>
                               <span>•</span>
-                              <span>Nearest Expiry: <strong className="text-foreground">{new Date(product.earliestExpiryDate).toLocaleDateString()}</strong></span>
+                              <span>Nearest Expiry: <strong className="text-foreground">{formatDate(product.earliestExpiryDate)}</strong></span>
                             </>
                           )}
                         </div>
@@ -441,7 +459,7 @@ export function InventoryDashboard() {
             <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Star className="size-4 text-amber-500 fill-amber-500" />
+                  <Star className="size-4 text-warning fill-warning" />
                   <span>Top-Selling Medicines & Priority Products Queue</span>
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
@@ -454,15 +472,23 @@ export function InventoryDashboard() {
                 onClick={() => fetchAggregation()}
                 disabled={isLoading}
                 className="size-8 p-0 shrink-0"
+                aria-label="Refresh priority top sellers"
               >
                 <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {isLoading ? (
-                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                  <span className="text-xs">Loading priority top sellers...</span>
+              {fetchError ? (
+                <div className="p-4">
+                  <ErrorState
+                    title="Failed to Load Priority Queue"
+                    description={fetchError}
+                    onRetry={() => fetchAggregation()}
+                  />
+                </div>
+              ) : isLoading ? (
+                <div className="p-4">
+                  <TableSkeleton columns={4} rows={5} />
                 </div>
               ) : data.products.length === 0 ? (
                 <EmptyState
@@ -491,28 +517,30 @@ export function InventoryDashboard() {
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm text-foreground">{product.name}</span>
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-micro">
                             {formatCategory(product.category)}
                           </Badge>
-                          <Badge
-                            variant="outline"
-                            className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+                          <StatusBadge
+                            variant="warning"
+                            dot={false}
+                            size="xs"
+                            className="font-bold cursor-default"
                           >
-                            <Star className="size-3 fill-amber-500 text-amber-500" />
-                            <span>Top Seller</span>
-                          </Badge>
+                            <Star className="size-3 fill-warning text-warning inline mr-1" />
+                            Top Seller
+                          </StatusBadge>
                           {product.isOutofStock ? (
-                            <Badge variant="destructive" className="text-[10px]">
+                            <StatusBadge variant="danger" size="xs">
                               Stock Intake Needed
-                            </Badge>
+                            </StatusBadge>
                           ) : product.isLowStock ? (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                            <StatusBadge variant="warning" size="xs">
                               Low Stock
-                            </Badge>
+                            </StatusBadge>
                           ) : (
-                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                            <StatusBadge variant="success" size="xs">
                               In Stock ({product.totalStock} {product.unit}s)
-                            </Badge>
+                            </StatusBadge>
                           )}
                         </div>
                         {product.genericName && (
@@ -520,15 +548,15 @@ export function InventoryDashboard() {
                         )}
                         <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5 flex-wrap">
                           {product.vendorName ? (
-                            <span className="bg-amber-500/10 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-500/20 font-medium">
+                            <span className="bg-warning/10 text-warning px-2 py-0.5 rounded border border-warning/20 font-medium text-xs">
                               Vendor / Supplier: <strong className="text-foreground">{product.vendorName}</strong>
                             </span>
                           ) : product.manufacturer ? (
-                            <span className="bg-muted/60 px-2 py-0.5 rounded border border-border/40 font-medium">
+                            <span className="bg-muted/60 px-2 py-0.5 rounded border border-border/40 font-medium text-xs">
                               Manufacturer: <strong className="text-foreground">{product.manufacturer}</strong>
                             </span>
                           ) : (
-                            <span className="text-muted-foreground/80 font-medium">
+                            <span className="text-muted-foreground/80 font-medium text-xs">
                               Vendor / Supplier: <span className="text-muted-foreground italic">Listed per Batch</span>
                             </span>
                           )}
@@ -550,7 +578,7 @@ export function InventoryDashboard() {
                             <Layers className="size-3.5 text-primary" />
                             <span>Batches</span>
                           </Button>
-                          <Button asChild size="sm" className="gap-1.5 h-8 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white">
+                          <Button asChild size="sm" className="gap-1.5 h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground">
                             <Link href={`/inventory/receive?productId=${product.id}`}>
                               <Boxes className="size-3.5" />
                               <span>Intake Stock</span>
@@ -572,7 +600,7 @@ export function InventoryDashboard() {
             <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <TrendingDown className="size-4 text-amber-600" />
+                  <TrendingDown className="size-4 text-warning" />
                   <span>Unstocked Catalog Queue (Pending Initial Batch Setup)</span>
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
@@ -585,15 +613,23 @@ export function InventoryDashboard() {
                 onClick={() => fetchAggregation()}
                 disabled={isLoading}
                 className="size-8 p-0 shrink-0"
+                aria-label="Refresh unstocked items queue"
               >
                 <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {isLoading ? (
-                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                  <span className="text-xs">Loading unstocked items queue...</span>
+              {fetchError ? (
+                <div className="p-4">
+                  <ErrorState
+                    title="Failed to Load Unstocked Queue"
+                    description={fetchError}
+                    onRetry={() => fetchAggregation()}
+                  />
+                </div>
+              ) : isLoading ? (
+                <div className="p-4">
+                  <TableSkeleton columns={4} rows={5} />
                 </div>
               ) : data.products.length === 0 ? (
                 <EmptyState
@@ -611,21 +647,23 @@ export function InventoryDashboard() {
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm text-foreground">{product.name}</span>
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-micro">
                             {formatCategory(product.category)}
                           </Badge>
                           {product.isPriority && (
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px] gap-1 px-1.5 py-0 font-bold"
+                            <StatusBadge
+                              variant="warning"
+                              dot={false}
+                              size="xs"
+                              className="font-bold cursor-default"
                             >
-                              <Star className="size-3 fill-amber-500 text-amber-500" />
-                              <span>Top Seller</span>
-                            </Badge>
+                              <Star className="size-3 fill-warning text-warning inline mr-1" />
+                              Top Seller
+                            </StatusBadge>
                           )}
-                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-[10px]">
+                          <StatusBadge variant="warning" size="xs">
                             0 Stock / 0 Batches
-                          </Badge>
+                          </StatusBadge>
                         </div>
                         {product.genericName && (
                           <p className="text-xs text-muted-foreground">{product.genericName}</p>
@@ -657,7 +695,7 @@ export function InventoryDashboard() {
             <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <AlertTriangle className="size-4 text-amber-500" />
+                  <AlertTriangle className="size-4 text-warning" />
                   <span>Low & Out of Stock Exception Queue</span>
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
@@ -677,16 +715,24 @@ export function InventoryDashboard() {
                   onClick={() => fetchAggregation()}
                   disabled={isLoading}
                   className="size-8 p-0 shrink-0"
+                  aria-label="Refresh stock alert exceptions"
                 >
                   <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {isLoading ? (
-                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                  <span className="text-xs">Loading stock alert exceptions...</span>
+              {fetchError ? (
+                <div className="p-4">
+                  <ErrorState
+                    title="Failed to Load Low Stock Alerts"
+                    description={fetchError}
+                    onRetry={() => fetchAggregation()}
+                  />
+                </div>
+              ) : isLoading ? (
+                <div className="p-4">
+                  <TableSkeleton columns={4} rows={5} />
                 </div>
               ) : data.products.length === 0 ? (
                 <EmptyState
@@ -704,17 +750,17 @@ export function InventoryDashboard() {
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm text-foreground">{product.name}</span>
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-micro">
                             {formatCategory(product.category)}
                           </Badge>
                           {product.isOutofStock ? (
-                            <Badge variant="destructive" className="text-[10px]">
+                            <StatusBadge variant="danger" size="xs">
                               Out of Stock
-                            </Badge>
+                            </StatusBadge>
                           ) : (
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                            <StatusBadge variant="warning" size="xs">
                               Low Stock
-                            </Badge>
+                            </StatusBadge>
                           )}
                         </div>
                         {product.genericName && (
@@ -729,7 +775,7 @@ export function InventoryDashboard() {
                       <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
                         <div className="text-left sm:text-right">
                           <p className="text-xs text-muted-foreground">Current Available</p>
-                          <p className={`text-base font-extrabold ${product.isOutofStock ? 'text-destructive' : 'text-amber-600'}`}>
+                          <p className={`text-base font-extrabold ${product.isOutofStock ? 'text-destructive' : 'text-warning'}`}>
                             {formatUnitPlural(product.unit, product.totalStock)}
                           </p>
                         </div>
@@ -756,7 +802,7 @@ export function InventoryDashboard() {
             <CardHeader className="px-4 py-3 sm:p-4 border-b border-border flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Clock className="size-4 text-rose-500" />
+                  <Clock className="size-4 text-destructive" />
                   <span>FEFO Expiry Warning Queue (180 Days Window)</span>
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground mt-0.5">
@@ -769,15 +815,23 @@ export function InventoryDashboard() {
                 onClick={() => fetchAggregation()}
                 disabled={isLoading}
                 className="size-8 p-0 shrink-0"
+                aria-label="Refresh expiry warnings"
               >
                 <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              {isLoading ? (
-                <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                  <span className="text-xs">Loading FEFO expiry warnings...</span>
+              {fetchError ? (
+                <div className="p-4">
+                  <ErrorState
+                    title="Failed to Load Expiry Alerts"
+                    description={fetchError}
+                    onRetry={() => fetchAggregation()}
+                  />
+                </div>
+              ) : isLoading ? (
+                <div className="p-4">
+                  <TableSkeleton columns={4} rows={5} />
                 </div>
               ) : data.products.length === 0 ? (
                 <EmptyState
@@ -799,11 +853,11 @@ export function InventoryDashboard() {
                         <div className="min-w-0 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-sm text-foreground">{product.name}</span>
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-micro">
                               {formatCategory(product.category)}
                             </Badge>
                             {product.earliestBatchNumber && (
-                              <Badge variant="outline" className="text-[10px] font-mono">
+                              <Badge variant="outline" className="text-micro font-mono">
                                 Batch #{product.earliestBatchNumber}
                               </Badge>
                             )}
@@ -819,17 +873,14 @@ export function InventoryDashboard() {
 
                         <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
                           <div className="text-left sm:text-right">
-                            <p className="text-xs text-muted-foreground">Shelf Life</p>
-                            <Badge
-                              variant="outline"
-                              className={`text-xs font-bold gap-1 px-2 py-0.5 ${isCritical
-                                  ? 'bg-rose-500/10 text-rose-600 border-rose-500/30'
-                                  : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                                }`}
+                            <p className="text-xs text-muted-foreground mb-0.5">Shelf Life</p>
+                            <StatusBadge
+                              variant={isCritical ? 'danger' : 'warning'}
+                              size="sm"
                             >
-                              <Calendar className="size-3" />
-                              <span>{days <= 0 ? 'EXPIRED' : `${days} Days Left`}</span>
-                            </Badge>
+                              <Calendar className="size-3 inline mr-1" />
+                              {days <= 0 ? 'EXPIRED' : `${days} Days Left`}
+                            </StatusBadge>
                           </div>
                           <Button
                             variant="outline"

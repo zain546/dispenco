@@ -8,6 +8,7 @@ import Cookies from 'js-cookie';
 import { useAuth } from '@/context/auth-context';
 import { signupSchema, type SignupFormData } from '../schemas';
 import { authApi } from '../services/auth-api';
+import { getErrorMessage } from '@/lib/errors';
 
 export function useSignup() {
   const router = useRouter();
@@ -42,24 +43,7 @@ export function useSignup() {
         router.push('/dashboard');
       }
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'ERR_NETWORK') {
-        login({
-          id: 'demo-user-1',
-          email: values.email,
-          name: values.name,
-          tenantId: 'demo-tenant-1',
-          storeName: undefined,
-          role: 'Owner',
-        });
-        router.push('/onboarding');
-        return;
-      }
-
-      const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err instanceof Error ? err.message : 'Registration failed');
-
-      setError(errorMessage);
+      setError(getErrorMessage(err, 'Registration failed. Please try again.'));
     } finally {
       setIsLoading(false);
     }

@@ -28,6 +28,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { ErrorState } from '@/components/ui/error-state';
+import { TableSkeleton } from '@/components/ui/table-skeleton';
 import {
   Table,
   TableHeader,
@@ -76,6 +79,7 @@ export function AuditComplianceView() {
   const [totalCount, setTotalCount] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
@@ -107,6 +111,7 @@ export function AuditComplianceView() {
 
   const fetchAuditData = useCallback(async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       const { startDate, endDate } = calculateDateRange(preset);
 
@@ -135,8 +140,10 @@ export function AuditComplianceView() {
       setTotalCount(logsRes.pagination.total || 0);
       setSummary(summaryRes);
     } catch (err) {
+      const msg = getErrorMessage(err, 'Failed to load compliance audit logs');
+      setFetchError(msg);
       toast.error('Failed to load compliance audit logs', {
-        description: getErrorMessage(err),
+        description: msg,
       });
     } finally {
       setIsLoading(false);
@@ -204,22 +211,22 @@ export function AuditComplianceView() {
   const getSeverityBadge = (severity: 'info' | 'warning' | 'critical') => {
     if (severity === 'critical') {
       return (
-        <Badge variant="destructive" className="font-mono text-[10px] px-1.5 py-0 uppercase">
+        <StatusBadge variant="danger" size="xs">
           Critical
-        </Badge>
+        </StatusBadge>
       );
     }
     if (severity === 'warning') {
       return (
-        <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0 border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 uppercase">
+        <StatusBadge variant="warning" size="xs">
           Warning
-        </Badge>
+        </StatusBadge>
       );
     }
     return (
-      <Badge variant="secondary" className="font-mono text-[10px] px-1.5 py-0 uppercase">
+      <StatusBadge variant="neutral" size="xs">
         Info
-      </Badge>
+      </StatusBadge>
     );
   };
 
@@ -380,8 +387,20 @@ export function AuditComplianceView() {
         </CardContent>
       </Card>
 
-      {/* Main Table */}
-      {items.length === 0 && !isLoading ? (
+      {/* Main Table / States */}
+      {isLoading ? (
+        <div className="rounded-xl border border-border/70 bg-card p-6 shadow-xs">
+          <TableSkeleton columns={6} rows={6} />
+        </div>
+      ) : fetchError ? (
+        <div className="rounded-xl border border-border/70 bg-card p-8 shadow-xs">
+          <ErrorState
+            title="Failed to Load Audit Logs"
+            description={fetchError}
+            onRetry={fetchAuditData}
+          />
+        </div>
+      ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-10 bg-card">
           <EmptyState
             icon={ShieldCheck}
@@ -391,7 +410,56 @@ export function AuditComplianceView() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-xs">
+          {/* Mobile Card List (Visible on < md) */}
+          <div className="md:hidden space-y-3">
+            {items.map((log) => {
+              const d = new Date(log.createdAt);
+              return (
+                <div
+                  key={log.id}
+                  className="rounded-xl border border-border/70 bg-card p-4 space-y-2.5 shadow-xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-0.5">
+                      <span className="font-semibold text-xs text-foreground font-mono">
+                        {log.action}
+                      </span>
+                      <div className="text-micro text-muted-foreground">
+                        {log.entityType} • {d.toLocaleDateString()} {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    {getSeverityBadge(log.severity)}
+                  </div>
+
+                  <p className="text-xs text-foreground leading-relaxed">
+                    {log.summaryText}
+                  </p>
+
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-border/40">
+                    <div className="flex items-center gap-1.5 text-micro text-muted-foreground">
+                      <span className="font-medium text-foreground">{log.user?.name || 'System'}</span>
+                      {log.user?.role && (
+                        <span className="text-muted-foreground">({log.user.role})</span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                      onClick={() => setSelectedLog(log)}
+                      aria-label="Inspect raw audit metadata"
+                    >
+                      <Eye className="size-3.5" />
+                      <span>Payload</span>
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (Visible on >= md) */}
+          <div className="hidden md:block rounded-xl border border-border/70 bg-card overflow-hidden shadow-xs">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-transparent">
@@ -409,9 +477,9 @@ export function AuditComplianceView() {
                   return (
                     <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
                       {/* Timestamp */}
-                      <TableCell className="text-xs text-muted-foreground font-mono">
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">
                         <div>{d.toLocaleDateString()}</div>
-                        <div className="text-[11px] text-muted-foreground/75">
+                        <div className="text-micro text-muted-foreground/75">
                           {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </div>
                       </TableCell>
@@ -425,8 +493,8 @@ export function AuditComplianceView() {
                           <span className="font-semibold text-xs text-foreground font-mono">
                             {log.action}
                           </span>
-                          <div className="text-[11px] text-muted-foreground">
-                            {log.entityType}: <code className="text-[10px]">{log.entityId.slice(0, 10)}...</code>
+                          <div className="text-micro text-muted-foreground">
+                            {log.entityType}: <code className="text-micro">{log.entityId.slice(0, 10)}...</code>
                           </div>
                         </div>
                       </TableCell>
@@ -443,7 +511,7 @@ export function AuditComplianceView() {
                             {log.user?.name || 'System Automated'}
                           </div>
                           {log.user?.role && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 font-normal">
+                            <Badge variant="outline" className="text-micro px-1 py-0 font-normal">
                               {log.user.role}
                             </Badge>
                           )}
@@ -457,6 +525,7 @@ export function AuditComplianceView() {
                           size="sm"
                           className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                           onClick={() => setSelectedLog(log)}
+                          aria-label="Inspect raw audit metadata"
                           title="Inspect raw audit metadata"
                         >
                           <Eye className="size-4" />

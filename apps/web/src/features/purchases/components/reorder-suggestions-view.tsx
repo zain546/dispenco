@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -152,34 +153,34 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
     switch (level) {
       case 'OUT_OF_STOCK':
         return (
-          <Badge className="bg-destructive text-destructive-foreground font-bold text-[10px] gap-1 shadow-xs">
-            <ShieldAlert className="size-3" /> Out of Stock
-          </Badge>
+          <StatusBadge variant="danger" size="sm" dot>
+            Out of Stock
+          </StatusBadge>
         );
       case 'CRITICAL_REORDER':
         return (
-          <Badge className="bg-destructive/15 text-destructive border-destructive/30 font-semibold text-[10px] gap-1">
-            <AlertTriangle className="size-3" /> Stockout Imminent
-          </Badge>
+          <StatusBadge variant="danger" size="sm" dot>
+            Stockout Imminent
+          </StatusBadge>
         );
       case 'REORDER_SOON':
         return (
-          <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-semibold text-[10px] gap-1">
-            <Clock className="size-3" /> Reorder Now
-          </Badge>
+          <StatusBadge variant="warning" size="sm" dot>
+            Reorder Now
+          </StatusBadge>
         );
       case 'UPCOMING':
         return (
-          <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 font-medium text-[10px] gap-1">
-            <Calendar className="size-3" /> Upcoming
-          </Badge>
+          <StatusBadge variant="info" size="sm" dot>
+            Upcoming
+          </StatusBadge>
         );
       case 'ADEQUATE':
       default:
         return (
-          <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-medium text-[10px] gap-1">
-            <CheckCircle2 className="size-3" /> Adequate Stock
-          </Badge>
+          <StatusBadge variant="success" size="sm" dot>
+            Adequate Stock
+          </StatusBadge>
         );
     }
   };
@@ -189,7 +190,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
   return (
     <div className="space-y-6">
       {/* Header explanation banner */}
-      <Card className="border-border/60 bg-gradient-to-r from-card via-card to-primary/5 shadow-sm">
+      <Card className="border-border/80 bg-card shadow-xs">
         <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1 max-w-2xl">
             <div className="flex items-center gap-2">
@@ -213,14 +214,14 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
           <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
             {/* Timeframe selector */}
             <div className="flex items-center bg-secondary/50 p-1 rounded-lg border border-border/60">
-              <span className="text-[11px] font-medium text-muted-foreground px-2">History:</span>
+              <span className="text-xs font-medium text-muted-foreground px-2">History:</span>
               {[14, 30, 60, 90].map((days) => (
                 <button
                   key={days}
                   onClick={() => setTimeframeDays(days)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
                     timeframeDays === days
-                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -234,7 +235,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               size="sm"
               onClick={() => fetchSuggestions(true)}
               disabled={isRefreshing || isLoading}
-              className="gap-1.5 h-8 text-xs"
+              className="gap-1.5 h-8 text-xs cursor-pointer"
             >
               <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               Recalculate
@@ -306,22 +307,22 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                   variant={urgencyFilter === tier.value ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setUrgencyFilter(tier.value)}
-                  className={`h-8 text-xs gap-1.5 ${
+                  className={`h-8 text-xs gap-1.5 cursor-pointer ${
                     urgencyFilter === tier.value
                       ? ''
                       : tier.variant === 'destructive'
                       ? 'text-destructive border-destructive/30 hover:bg-destructive/10'
                       : tier.variant === 'warning'
-                      ? 'text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10'
+                      ? 'text-warning border-warning/30 hover:bg-warning/10'
                       : tier.variant === 'success'
-                      ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
+                      ? 'text-success border-success/30 hover:bg-success/10'
                       : 'text-muted-foreground'
                   }`}
                 >
                   {tier.label}
                   {tier.count !== undefined && (
                     <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      className={`px-1.5 py-0.2 rounded-full text-micro font-mono ${
                         urgencyFilter === tier.value
                           ? 'bg-primary-foreground/20 text-primary-foreground'
                           : 'bg-muted text-muted-foreground'
@@ -338,8 +339,8 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
       </Card>
 
       {/* Main Suggestions Table */}
-      <Card className="border-border/60 overflow-hidden shadow-sm">
-        <CardHeader className="px-5 py-4 border-b border-border/40 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <Card className="border-border/80 overflow-hidden shadow-xs">
+        <CardHeader className="px-5 py-4 border-b border-border/60 bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <ShoppingCart className="size-4 text-primary" />
@@ -358,7 +359,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               <Button
                 size="sm"
                 onClick={handleBulkConvertToPO}
-                className="h-8 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs"
+                className="h-8 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
               >
                 <Plus className="size-3.5" />
                 Convert Selected to PO
@@ -399,11 +400,12 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-border/60 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <tr className="border-b border-border/60 bg-muted/40 text-overline font-semibold text-muted-foreground uppercase tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">
                       <button
                         onClick={handleToggleSelectAll}
-                        className="text-muted-foreground hover:text-foreground inline-flex items-center"
+                        aria-label="Select all items"
+                        className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
                       >
                         {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
                           <CheckSquare className="size-4 text-primary" />
@@ -437,7 +439,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             : isStockout
                             ? 'bg-destructive/5'
                             : isCritical
-                            ? 'bg-amber-500/[0.03]'
+                            ? 'bg-warning/5'
                             : ''
                         }`}
                       >
@@ -445,7 +447,8 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                         <td className="py-3 px-3 text-center align-middle">
                           <button
                             onClick={() => handleToggleSelectItem(item.productId)}
-                            className="text-muted-foreground hover:text-foreground inline-flex items-center"
+                            aria-label={`Select ${item.productName}`}
+                            className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
                           >
                             {isSelected ? (
                               <CheckSquare className="size-4 text-primary" />
@@ -461,15 +464,15 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             {item.productName}
                           </div>
                           {item.genericName && (
-                            <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
+                            <div className="text-xs text-muted-foreground line-clamp-1 italic">
                               {item.genericName}
                             </div>
                           )}
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-                            <span className="bg-secondary px-1.5 py-0.5 rounded text-[10px] font-medium">
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <span className="bg-secondary px-1.5 py-0.5 rounded text-micro font-medium">
                               {item.category}
                             </span>
-                            {item.barcode && <span className="font-mono text-[10px]">#{item.barcode}</span>}
+                            {item.barcode && <span className="font-mono text-micro">#{item.barcode}</span>}
                           </div>
                         </td>
 
@@ -481,17 +484,17 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                                 item.currentStock === 0
                                   ? 'text-destructive'
                                   : item.currentStock <= item.reorderPoint
-                                  ? 'text-amber-600 dark:text-amber-400'
+                                  ? 'text-warning'
                                   : 'text-foreground'
                               }`}
                             >
                               {item.currentStock} {item.unit}
                             </span>
                           </div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                          <div className="text-micro text-muted-foreground mt-0.5">
                             Reorder Trigger: <strong className="text-foreground">{item.reorderPoint}</strong> {item.unit}
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-micro text-muted-foreground">
                             Safety Buffer: {item.lowStockThreshold} min
                           </div>
                         </td>
@@ -501,7 +504,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                           <div className="flex items-center gap-1 font-semibold text-foreground">
                             {item.dailySalesVelocity > 0 ? (
                               <>
-                                <TrendingUp className="size-3 text-emerald-500" />
+                                <TrendingUp className="size-3 text-success" />
                                 <span>{item.dailySalesVelocity} {item.unit}/day</span>
                               </>
                             ) : (
@@ -511,7 +514,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                               </>
                             )}
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-micro text-muted-foreground">
                             {item.totalUnitsSoldInTimeframe} sold in {item.timeframeDays}d
                           </div>
                         </td>
@@ -529,13 +532,13 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                                   item.daysUntilStockout <= item.supplier.leadTimeDays
                                     ? 'text-destructive'
                                     : item.daysUntilStockout <= 14
-                                    ? 'text-amber-600 dark:text-amber-400'
+                                    ? 'text-warning'
                                     : 'text-foreground'
                                 }`}
                               >
                                 ~{item.daysUntilStockout} days remaining
                               </div>
-                              <div className="text-[10px] text-muted-foreground">
+                              <div className="text-micro text-muted-foreground">
                                 Runs out: {item.estimatedStockoutDate ? formatDate(item.estimatedStockoutDate) : '-'}
                               </div>
                             </div>
@@ -550,7 +553,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             <Truck className="size-3 text-muted-foreground shrink-0" />
                             <span className="line-clamp-1">{item.supplier.name}</span>
                           </div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                          <div className="text-micro text-muted-foreground mt-0.5">
                             Lead Time: <strong className="text-foreground">{item.supplier.leadTimeDays} days</strong> delivery
                           </div>
                         </td>
@@ -560,10 +563,10 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                           <div className="font-bold text-primary text-sm tabular-nums">
                             +{item.suggestedQuantity} {item.unit}
                           </div>
-                          <div className="text-[11px] font-semibold text-foreground tabular-nums">
+                          <div className="text-xs font-semibold text-foreground tabular-nums">
                             {formatCurrency(item.estimatedOrderCost)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground tabular-nums">
+                          <div className="text-micro text-muted-foreground tabular-nums">
                             @ {formatCurrency(item.estimatedUnitCost)}/unit
                           </div>
                         </td>
@@ -571,7 +574,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                         {/* Urgency Status */}
                         <td className="py-3 px-3 align-top">
                           {renderUrgencyBadge(item.urgencyLevel)}
-                          <div className="text-[10px] text-muted-foreground mt-1 line-clamp-2 max-w-[180px]">
+                          <div className="text-micro text-muted-foreground mt-1 line-clamp-2 max-w-[180px]">
                             {item.reason}
                           </div>
                         </td>
@@ -581,7 +584,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                           <Button
                             size="sm"
                             onClick={() => handleSingleConvertToPO(item)}
-                            className="h-8 px-2.5 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+                            className="h-8 px-2.5 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer"
                           >
                             <ShoppingCart className="size-3.5" />
                             <span>Convert to PO</span>

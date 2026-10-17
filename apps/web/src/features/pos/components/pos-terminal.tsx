@@ -754,7 +754,7 @@ export function POSTerminal() {
               <ShoppingCart className="size-5 sm:size-6 text-primary shrink-0" />
               <span>POS Billing Counter</span>
             </h1>
-            <Badge variant="outline" className="text-[11px] font-semibold border-primary/30 text-primary bg-primary/10">
+            <Badge variant="outline" className="text-micro font-semibold border-primary/30 text-primary bg-primary/10">
               {isAllStores ? 'Org Overview (Select branch to bill)' : (activeStore?.name || 'Main Counter')}
             </Badge>
           </div>
@@ -804,13 +804,13 @@ export function POSTerminal() {
           </Button>
 
           <div className="hidden md:flex items-center gap-1.5">
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-[11px] font-mono font-medium text-muted-foreground shadow-2xs">
+            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
               F2 Focus Search
             </kbd>
-            <kbd className="px-2 py-1 bg-primary/10 border border-primary/20 text-primary rounded-md text-[11px] font-mono font-semibold shadow-2xs">
+            <kbd className="px-2 py-1 bg-primary/10 border border-primary/20 text-primary rounded-md text-micro font-mono font-semibold shadow-2xs">
               F9 Complete Sale
             </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-[11px] font-mono font-medium text-muted-foreground shadow-2xs">
+            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
               Esc Clear Search
             </kbd>
           </div>
@@ -819,9 +819,9 @@ export function POSTerminal() {
 
       {/* Edge-case Store Selection Alerts */}
       {stores.length === 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-lg text-xs flex items-center justify-between gap-3">
+        <div className="bg-warning/10 border border-warning/30 text-warning px-4 py-3 rounded-lg text-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <AlertCircle className="size-4 text-amber-600 shrink-0" />
+            <AlertCircle className="size-4 text-warning shrink-0" />
             <span>
               <strong>No active store branch found:</strong> You must create or activate a store branch in the header switcher before processing sales.
             </span>
@@ -829,9 +829,9 @@ export function POSTerminal() {
         </div>
       )}
       {isAllStores && (
-        <div className="bg-purple-500/10 border border-purple-500/30 text-purple-900 dark:text-purple-200 px-4 py-3 rounded-lg text-xs flex items-center justify-between gap-3">
+        <div className="bg-primary/10 border border-primary/30 text-primary px-4 py-3 rounded-lg text-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <AlertCircle className="size-4 text-purple-600 shrink-0" />
+            <AlertCircle className="size-4 text-primary shrink-0" />
             <span>
               <strong>Org Overview Active:</strong> Sales must be linked to a physical store branch for FEFO batch deductions. Please select a specific branch from the header to transact.
             </span>
@@ -870,7 +870,7 @@ export function POSTerminal() {
                 {topSellers.length > 0 && (
                   <div className="pt-1">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold mb-1.5">
-                      <Star className="size-3.5 fill-amber-500 text-amber-500" />
+                      <Star className="size-3.5 fill-warning text-warning" />
                       <span>Top Seller Speed Dial:</span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -881,12 +881,12 @@ export function POSTerminal() {
                           variant="outline"
                           size="sm"
                           onClick={() => addToCart(prod)}
-                          className="h-7 text-xs gap-1.5 bg-amber-500/5 hover:bg-amber-500/15 border-amber-500/30 text-foreground font-semibold rounded-lg shadow-2xs"
+                          className="h-7 text-xs gap-1.5 bg-warning/10 hover:bg-warning/20 border-warning/30 text-warning font-semibold rounded-lg shadow-2xs"
                         >
-                          <Star className="size-3 fill-amber-500 text-amber-500" />
+                          <Star className="size-3 fill-warning text-warning" />
                           <span>{prod.name}</span>
                           {prod.latestSellPrice !== null && prod.latestSellPrice !== undefined && (
-                            <span className="text-[11px] text-amber-700 dark:text-amber-300 font-bold">
+                            <span className="text-micro text-warning font-bold">
                               ({prod.latestSellPrice.toFixed(0)} PKR)
                             </span>
                           )}
@@ -930,17 +930,17 @@ export function POSTerminal() {
                                 <span className="font-bold text-foreground leading-snug break-words">
                                   {prod.name}
                                 </span>
-                                {isPriority && <Star className="size-3 fill-amber-500 text-amber-500 shrink-0" />}
+                                {isPriority && <Star className="size-3 fill-warning text-warning shrink-0" />}
                                 {prod.genericName && (
-                                  <span className="text-[11px] text-muted-foreground truncate">({prod.genericName})</span>
+                                  <span className="text-micro text-muted-foreground truncate">({prod.genericName})</span>
                                 )}
-                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-medium shrink-0">
+                                <Badge variant="outline" className="text-micro px-1.5 py-0 font-medium shrink-0">
                                   {prod.category}
                                 </Badge>
                               </div>
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+                              <div className="flex items-center gap-2 text-micro text-muted-foreground flex-wrap">
                                 {packSize > 1 ? (
-                                  <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                                  <span className="text-success font-medium">
                                     {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit
                                   </span>
                                 ) : (
@@ -960,7 +960,7 @@ export function POSTerminal() {
                                 e.stopPropagation();
                                 addToCart(prod, 'UNIT');
                               }}
-                              className="h-8 text-xs font-semibold gap-1.5 flex-1 sm:flex-initial bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 whitespace-nowrap"
+                              className="h-8 text-xs font-semibold gap-1.5 flex-1 sm:flex-initial bg-success/10 hover:bg-success/20 text-success border-success/30 whitespace-nowrap"
                               title={`Add 1 Tablet/Unit (${singlePrice.toFixed(2)} PKR)`}
                             >
                               <Pill className="size-3.5" />
@@ -1066,9 +1066,9 @@ export function POSTerminal() {
                                 <button
                                   type="button"
                                   onClick={() => toggleUnitType(idx, 'BOX')}
-                                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                  className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
                                     item.unitType === 'BOX'
-                                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs dark:bg-primary/25 dark:text-primary-foreground'
+                                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
                                       : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
                                   }`}
                                 >
@@ -1077,9 +1077,9 @@ export function POSTerminal() {
                                 <button
                                   type="button"
                                   onClick={() => toggleUnitType(idx, 'UNIT')}
-                                  className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                  className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
                                     item.unitType === 'UNIT'
-                                      ? 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 shadow-2xs dark:bg-emerald-500/25 dark:text-emerald-300'
+                                      ? 'bg-success/15 text-success border border-success/30 shadow-2xs'
                                       : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
                                   }`}
                                 >
@@ -1088,9 +1088,9 @@ export function POSTerminal() {
                               </div>
 
                               {/* Minimal Single-Line Subtext */}
-                              <div className="text-[10px] pt-0.5 truncate">
+                              <div className="text-micro pt-0.5 truncate">
                                 {item.unitType === 'UNIT' ? (
-                                  <span className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-success font-medium flex items-center gap-1.5 flex-wrap">
                                     <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
                                     {packSize === 1 && (
                                       <button
@@ -1102,7 +1102,7 @@ export function POSTerminal() {
                                             if (parsed > 0) updatePackSize(idx, parsed);
                                           }
                                         }}
-                                        className="text-[9px] underline font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                                        className="text-micro underline font-bold text-warning hover:underline"
                                       >
                                         ⚙️ Set Pack Size
                                       </button>
@@ -1123,6 +1123,7 @@ export function POSTerminal() {
                               onClick={() => removeFromCart(idx)}
                               className="size-8 shrink-0 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 -mr-1 -mt-1"
                               title="Remove item"
+                              aria-label="Remove item from cart"
                             >
                               <Trash2 className="size-4" />
                             </Button>
@@ -1133,7 +1134,7 @@ export function POSTerminal() {
                             {/* Quantity Controls */}
                             <div className="space-y-1">
                               <div className="flex items-center justify-between">
-                                <span className="text-[11px] text-muted-foreground font-medium">Qty ({item.unitType === 'UNIT' ? 'Units' : 'Boxes'}):</span>
+                                <span className="text-micro text-muted-foreground font-medium">Qty ({item.unitType === 'UNIT' ? 'Units' : 'Boxes'}):</span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Button
@@ -1142,6 +1143,7 @@ export function POSTerminal() {
                                   size="icon"
                                   onClick={() => updateQuantity(idx, item.quantity - 1)}
                                   className="size-8 shrink-0 text-muted-foreground"
+                                  aria-label="Decrease quantity"
                                 >
                                   <Minus className="size-3.5" />
                                 </Button>
@@ -1162,6 +1164,7 @@ export function POSTerminal() {
                                   onClick={() => updateQuantity(idx, item.quantity + 1)}
                                   disabled={item.quantity >= maxStock}
                                   className="size-8 shrink-0 text-muted-foreground"
+                                  aria-label="Increase quantity"
                                 >
                                   <Plus className="size-3.5" />
                                 </Button>
@@ -1170,7 +1173,7 @@ export function POSTerminal() {
 
                             {/* Unit Price */}
                             <div className="space-y-1 text-right">
-                              <span className="text-[11px] text-muted-foreground font-medium">Unit Price (PKR):</span>
+                              <span className="text-micro text-muted-foreground font-medium">Unit Price (PKR):</span>
                               <Input
                                 type="number"
                                 min="0"
@@ -1183,7 +1186,7 @@ export function POSTerminal() {
 
                             {/* Discount Input */}
                             <div className="space-y-1">
-                              <span className="text-[11px] text-muted-foreground font-medium">Discount:</span>
+                              <span className="text-micro text-muted-foreground font-medium">Discount:</span>
                               <div className="flex items-center gap-1">
                                 <Input
                                   type="number"
@@ -1204,7 +1207,7 @@ export function POSTerminal() {
                                       item.discountType === 'FLAT' ? 'PERCENT' : 'FLAT',
                                     )
                                   }
-                                  className="h-8 text-[11px] px-1.5 font-bold text-muted-foreground hover:text-primary"
+                                  className="h-8 text-micro px-1.5 font-bold text-muted-foreground hover:text-primary"
                                 >
                                   {item.discountType === 'PERCENT' ? '%' : 'PKR'}
                                 </Button>
@@ -1213,7 +1216,7 @@ export function POSTerminal() {
 
                             {/* Line Total */}
                             <div className="space-y-1 text-right flex flex-col justify-end">
-                              <span className="text-[11px] text-muted-foreground font-medium">Line Total:</span>
+                              <span className="text-micro text-muted-foreground font-medium">Line Total:</span>
                               <p className="font-extrabold text-sm text-primary">
                                 {lineTotal.toFixed(2)} PKR
                               </p>
@@ -1227,7 +1230,7 @@ export function POSTerminal() {
                   {/* Desktop Table (Visible on screens >= md) */}
                   <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left text-xs sm:text-sm">
-                      <thead className="bg-muted/40 text-muted-foreground text-[11px] font-semibold uppercase tracking-wider">
+                      <thead className="bg-muted/40 text-muted-foreground text-micro font-semibold uppercase tracking-wider">
                         <tr>
                           <th className="p-3 pl-4">Item & Unit Type</th>
                           <th className="p-3 w-28 text-center">Unit Price</th>
@@ -1268,9 +1271,9 @@ export function POSTerminal() {
                                     <button
                                       type="button"
                                       onClick={() => toggleUnitType(idx, 'BOX')}
-                                      className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                      className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
                                         item.unitType === 'BOX'
-                                          ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs dark:bg-primary/25 dark:text-primary-foreground'
+                                          ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
                                           : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
                                       }`}
                                     >
@@ -1279,9 +1282,9 @@ export function POSTerminal() {
                                     <button
                                       type="button"
                                       onClick={() => toggleUnitType(idx, 'UNIT')}
-                                      className={`px-2 py-0.5 text-[11px] font-bold rounded transition-all whitespace-nowrap ${
+                                      className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
                                         item.unitType === 'UNIT'
-                                          ? 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 shadow-2xs dark:bg-emerald-500/25 dark:text-emerald-300'
+                                          ? 'bg-success/15 text-success border border-success/30 shadow-2xs'
                                           : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
                                       }`}
                                     >
@@ -1290,9 +1293,9 @@ export function POSTerminal() {
                                   </div>
 
                                   {/* Minimal Single-Line Subtext */}
-                                  <div className="text-[10px] pt-0.5 truncate">
+                                  <div className="text-micro pt-0.5 truncate">
                                     {item.unitType === 'UNIT' ? (
-                                      <span className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-success font-medium flex items-center gap-1.5 flex-wrap">
                                         <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
                                         {packSize === 1 && (
                                           <button
@@ -1304,7 +1307,7 @@ export function POSTerminal() {
                                                 if (parsed > 0) updatePackSize(idx, parsed);
                                               }
                                             }}
-                                            className="text-[9px] underline font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                                            className="text-micro underline font-bold text-warning hover:underline"
                                           >
                                             ⚙️ Set Pack Size
                                           </button>
@@ -1452,7 +1455,7 @@ export function POSTerminal() {
                     <User className="size-3.5 text-primary" />
                     <span>Customer Account</span>
                     {paymentMethod === 'CREDIT' && (
-                      <span className="text-[10px] text-destructive font-bold">* Required for Khata</span>
+                      <span className="text-micro text-destructive font-bold">* Required for Khata</span>
                     )}
                   </Label>
                   <Button
@@ -1460,7 +1463,7 @@ export function POSTerminal() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsAddCustomerModalOpen(true)}
-                    className="h-6 px-2 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer font-medium"
+                    className="h-6 px-2 text-micro gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer font-medium"
                   >
                     <UserPlus className="size-3" />
                     <span>+ New Customer</span>
@@ -1479,7 +1482,7 @@ export function POSTerminal() {
                           <p className="text-xs font-bold text-foreground truncate">{selectedCustomer.name}</p>
                           <Badge
                             variant={selectedCustomer.creditBalance > 0 ? 'destructive' : 'secondary'}
-                            className="text-[10px] py-0 px-1.5 h-4.5 font-semibold shrink-0"
+                            className="text-micro py-0 px-1.5 h-4.5 font-semibold shrink-0"
                           >
                             {selectedCustomer.creditBalance > 0
                               ? `Debt: ${Number(selectedCustomer.creditBalance).toLocaleString('en-PK')} PKR`
@@ -1487,7 +1490,7 @@ export function POSTerminal() {
                           </Badge>
                         </div>
                         {selectedCustomer.phone && (
-                          <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <Phone className="size-2.5" />
                             <span>{selectedCustomer.phone}</span>
                           </p>
@@ -1505,6 +1508,7 @@ export function POSTerminal() {
                       }}
                       className="size-7 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
                       title="Deselect Customer"
+                      aria-label="Deselect Customer"
                     >
                       <X className="size-3.5" />
                     </Button>
@@ -1542,6 +1546,7 @@ export function POSTerminal() {
                             setIsCustomerDropdownOpen(false);
                           }}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                          aria-label="Clear customer search"
                         >
                           <X className="size-3" />
                         </button>
@@ -1567,11 +1572,11 @@ export function POSTerminal() {
                             >
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-foreground truncate">{cust.name}</p>
-                                <p className="text-[11px] text-muted-foreground">{cust.phone || 'No phone'}</p>
+                                <p className="text-xs text-muted-foreground">{cust.phone || 'No phone'}</p>
                               </div>
                               <Badge
                                 variant={cust.creditBalance > 0 ? 'destructive' : 'outline'}
-                                className="text-[10px] py-0 px-1.5 h-4.5 font-semibold shrink-0"
+                                className="text-micro py-0 px-1.5 h-4.5 font-semibold shrink-0"
                               >
                                 {cust.creditBalance > 0 ? `${cust.creditBalance} PKR debt` : '0 PKR debt'}
                               </Badge>
@@ -1612,7 +1617,7 @@ export function POSTerminal() {
                       variant={overallDiscountType === 'FLAT' ? 'secondary' : 'ghost'}
                       size="sm"
                       onClick={() => setOverallDiscountType('FLAT')}
-                      className="h-6 text-[10px] px-2"
+                      className="h-6 text-micro px-2"
                     >
                       Flat PKR
                     </Button>
@@ -1621,7 +1626,7 @@ export function POSTerminal() {
                       variant={overallDiscountType === 'PERCENT' ? 'secondary' : 'ghost'}
                       size="sm"
                       onClick={() => setOverallDiscountType('PERCENT')}
-                      className="h-6 text-[10px] px-2"
+                      className="h-6 text-micro px-2"
                     >
                       Percent %
                     </Button>
@@ -1670,7 +1675,7 @@ export function POSTerminal() {
               {paymentMethod === 'CREDIT' && (
                 <div className={`p-3 rounded-xl border text-xs space-y-2 ${
                   selectedCustomer
-                    ? 'bg-amber-500/10 border-amber-500/30 text-foreground'
+                    ? 'bg-warning/10 border-warning/30 text-foreground'
                     : 'bg-destructive/10 border-destructive/30 text-destructive'
                 }`}>
                   <div className="flex items-center gap-2 font-bold">
@@ -1678,7 +1683,7 @@ export function POSTerminal() {
                     <span>Khata (Customer Credit Ledger)</span>
                   </div>
                   {selectedCustomer ? (
-                    <div className="space-y-1 text-[11px]">
+                    <div className="space-y-1 text-xs">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Current Outstanding Debt:</span>
                         <span className="font-semibold text-destructive">{Number(selectedCustomer.creditBalance).toFixed(2)} PKR</span>
@@ -1695,7 +1700,7 @@ export function POSTerminal() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[11px] leading-relaxed">
+                    <p className="text-xs leading-relaxed">
                       ⚠️ Khata credit sales require a registered customer. Please search or register a customer above before completing this transaction.
                     </p>
                   )}
@@ -1725,7 +1730,7 @@ export function POSTerminal() {
                         variant="outline"
                         size="sm"
                         onClick={() => setCashTendered(amt.toString())}
-                        className="h-6 text-[10px] px-1.5 font-medium"
+                        className="h-6 text-micro px-1.5 font-medium"
                       >
                         {amt}
                       </Button>
@@ -1735,7 +1740,7 @@ export function POSTerminal() {
                       variant="outline"
                       size="sm"
                       onClick={() => setCashTendered(Math.ceil(totals.grandTotal).toString())}
-                      className="h-6 text-[10px] px-1.5 font-bold text-primary"
+                      className="h-6 text-micro px-1.5 font-bold text-primary"
                     >
                       Exact
                     </Button>
@@ -1744,7 +1749,7 @@ export function POSTerminal() {
                   {tenderedNum > 0 && (
                     <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 font-bold">
                       <span className="text-muted-foreground">Change Due:</span>
-                      <span className={changeDue >= 0 ? 'text-emerald-600' : 'text-destructive'}>
+                      <span className={changeDue >= 0 ? 'text-success' : 'text-destructive'}>
                         {changeDue.toFixed(2)} PKR
                       </span>
                     </div>
@@ -1759,7 +1764,7 @@ export function POSTerminal() {
                   <span className="font-medium text-foreground">{totals.subtotal.toFixed(2)} PKR</span>
                 </div>
                 {totals.totalDiscount > 0 && (
-                  <div className="flex justify-between text-emerald-600">
+                  <div className="flex justify-between text-success">
                     <span>Discount:</span>
                     <span className="font-semibold">-{totals.totalDiscount.toFixed(2)} PKR</span>
                   </div>
