@@ -149,7 +149,7 @@ export function RecordKhataPaymentModal({
                   <button
                     type="button"
                     onClick={() => setAmount(String(currentBalance))}
-                    className="text-[11px] px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50"
+                    className="text-xs px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50"
                   >
                     Pay Full (PKR {currentBalance.toLocaleString()})
                   </button>
@@ -157,7 +157,7 @@ export function RecordKhataPaymentModal({
                     <button
                       type="button"
                       onClick={() => setAmount('500')}
-                      className="text-[11px] px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50 font-mono"
+                      className="text-xs px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50 font-mono"
                     >
                       500
                     </button>
@@ -166,7 +166,7 @@ export function RecordKhataPaymentModal({
                     <button
                       type="button"
                       onClick={() => setAmount('1000')}
-                      className="text-[11px] px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50 font-mono"
+                      className="text-xs px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50 font-mono"
                     >
                       1,000
                     </button>
@@ -175,7 +175,7 @@ export function RecordKhataPaymentModal({
                     <button
                       type="button"
                       onClick={() => setAmount('2000')}
-                      className="text-[11px] px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50 font-mono"
+                      className="text-xs px-2.5 py-1 rounded-md bg-muted/80 hover:bg-muted font-medium text-foreground transition-colors cursor-pointer border border-border/50 font-mono"
                     >
                       2,000
                     </button>

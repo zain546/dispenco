@@ -219,7 +219,7 @@ export function DispatchTransferModal({
                         <p className="font-semibold text-foreground text-sm">
                           {item.product.name}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {item.product.genericName || item.product.category} • Requested:{' '}
                           <span className="font-bold text-foreground">
                             {item.quantityRequested} {item.product.unit}
@@ -228,7 +228,7 @@ export function DispatchTransferModal({
                       </div>
 
                       {availableBatches.length === 0 && !loadingBatches && (
-                        <Badge variant="destructive" className="text-[10px] gap-1">
+                        <Badge variant="destructive" className="text-micro gap-1">
                           <AlertCircle className="size-3" /> No In-Stock Batches
                         </Badge>
                       )}
@@ -236,7 +236,7 @@ export function DispatchTransferModal({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-border/50">
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground font-medium">
+                        <Label className="text-xs text-muted-foreground font-medium">
                           Select Source Batch
                         </Label>
                         <Select
@@ -260,7 +260,7 @@ export function DispatchTransferModal({
                       </div>
 
                       <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground font-medium">
+                        <Label className="text-xs text-muted-foreground font-medium">
                           Quantity to Dispatch
                         </Label>
                         <div className="flex items-center gap-2">
@@ -278,7 +278,7 @@ export function DispatchTransferModal({
                             }
                             className="h-8 text-xs text-center font-bold"
                           />
-                          <span className="text-[11px] text-muted-foreground shrink-0">
+                          <span className="text-xs text-muted-foreground shrink-0">
                             {item.product.unit}
                           </span>
                         </div>
@@ -286,7 +286,7 @@ export function DispatchTransferModal({
                     </div>
 
                     {selectedBatch && (
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground bg-muted/40 px-2 py-1 rounded">
+                      <div className="flex items-center justify-between text-micro text-muted-foreground bg-muted/40 px-2 py-1 rounded">
                         <span className="flex items-center gap-1">
                           <Calendar className="size-3 text-primary" /> Expiry: {formatDate(selectedBatch.expiryDate)}
                         </span>

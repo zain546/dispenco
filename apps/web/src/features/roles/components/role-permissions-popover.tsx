@@ -96,7 +96,7 @@ export function RolePermissionsPopover({
           <button
             type="button"
             className={cn(
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0 border border-border/60 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring',
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0 border border-border/60 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring',
               className
             )}
             title={`View permissions for ${roleName}`}
@@ -135,20 +135,20 @@ export function RolePermissionsPopover({
             </div>
             <Badge
               variant="secondary"
-              className="text-[10px] font-medium shrink-0"
+              className="text-micro font-medium shrink-0"
             >
               {grantedCount} of {totalSystemPerms} Granted
             </Badge>
           </div>
 
-          <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <Info className="size-3 shrink-0 text-muted-foreground" />
             <span>Operational rights and access restrictions for this role:</span>
           </p>
 
           {/* Filter toggle (Granted vs All) */}
           {!isRoleOwner && (
-            <div className="flex items-center gap-1 mt-2.5 bg-muted/60 p-0.5 rounded-lg border border-border/50 text-[10px]">
+            <div className="flex items-center gap-1 mt-2.5 bg-muted/60 p-0.5 rounded-lg border border-border/50 text-micro">
               <button
                 type="button"
                 onClick={() => setFilterMode('granted')}
@@ -185,10 +185,10 @@ export function RolePermissionsPopover({
                 <ShieldCheck className="size-4 text-primary shrink-0" />
                 <span>Full Administrator Authority</span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Full administrative authority across all store branches, stock intake, billing, financial ledgers, staff accounts, and system configuration.
               </p>
-              <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-[11px] text-foreground/80 font-medium">
+              <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-xs text-foreground/80 font-medium">
                 <Check className="size-3.5 text-primary" />
                 <span>All {totalSystemPerms} system capabilities active</span>
               </div>
@@ -207,10 +207,10 @@ export function RolePermissionsPopover({
               return (
                 <div key={cat.id} className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className="text-micro font-semibold uppercase tracking-wider text-muted-foreground">
                       {cat.title}
                     </p>
-                    <span className="text-[9px] text-muted-foreground">
+                    <span className="text-micro text-muted-foreground">
                       {cat.activePerms.length} of {cat.allCategoryPerms.length}
                     </span>
                   </div>
@@ -245,11 +245,11 @@ export function RolePermissionsPopover({
                               >
                                 {perm.name}
                               </span>
-                              <span className="text-[9px] font-mono text-muted-foreground/60 shrink-0">
+                              <span className="text-micro font-mono text-muted-foreground/60 shrink-0">
                                 {perm.code}
                               </span>
                             </div>
-                            <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                            <p className="text-micro text-muted-foreground line-clamp-2 mt-0.5">
                               {perm.description}
                             </p>
                           </div>

@@ -105,32 +105,32 @@ export function TransferDetailDrawer({
 
           <div className="flex items-center justify-between gap-2">
             <div className="space-y-0.5">
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <span className="text-micro text-muted-foreground flex items-center gap-1">
                 <Building2 className="size-3 text-primary" /> Sourced From
               </span>
               <p className="font-bold text-foreground text-sm">
                 {transfer.sourceStore.name}
               </p>
-              <p className="text-[11px] text-muted-foreground truncate max-w-44">
+              <p className="text-micro text-muted-foreground truncate max-w-44">
                 {transfer.sourceStore.address || 'Branch Store'}
               </p>
             </div>
 
             <div className="flex flex-col items-center justify-center px-2">
-              <span className="text-[10px] text-muted-foreground font-semibold">TO</span>
+              <span className="text-micro text-muted-foreground font-semibold">TO</span>
               <div className="w-16 h-0.5 bg-primary/40 relative my-1">
                 <div className="size-1.5 rounded-full bg-primary absolute -right-0.5 -top-0.5" />
               </div>
             </div>
 
             <div className="space-y-0.5 text-right">
-              <span className="text-[10px] text-muted-foreground flex items-center justify-end gap-1">
+              <span className="text-micro text-muted-foreground flex items-center justify-end gap-1">
                 <Building2 className="size-3 text-primary" /> Delivered To
               </span>
               <p className="font-bold text-foreground text-sm">
                 {transfer.targetStore.name}
               </p>
-              <p className="text-[11px] text-muted-foreground truncate max-w-44">
+              <p className="text-micro text-muted-foreground truncate max-w-44">
                 {transfer.targetStore.address || 'Branch Store'}
               </p>
             </div>
@@ -151,7 +151,7 @@ export function TransferDetailDrawer({
                 <p className="font-semibold text-foreground text-xs">
                   Requisition Requested
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-micro text-muted-foreground">
                   By {transfer.requestedByUser.name} on {formatDateTime(transfer.createdAt)}
                 </p>
               </div>
@@ -165,7 +165,7 @@ export function TransferDetailDrawer({
                   <p className="font-semibold text-foreground text-xs">
                     Dispatched & In-Transit
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     By {transfer.dispatchedByUser?.name || 'Staff'} on {formatDateTime(transfer.dispatchedAt)}
                   </p>
                 </div>
@@ -185,7 +185,7 @@ export function TransferDetailDrawer({
                   <p className="font-semibold text-foreground text-xs">
                     Received & Stocked in Inventory
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-micro text-muted-foreground">
                     By {transfer.receivedByUser?.name || 'Staff'} on {formatDateTime(transfer.receivedAt)}
                   </p>
                 </div>
@@ -225,7 +225,7 @@ export function TransferDetailDrawer({
                     <span className="font-bold text-foreground text-sm block">
                       {item.product.name}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-micro text-muted-foreground">
                       {item.product.genericName || item.product.category}
                     </span>
                   </div>
@@ -237,15 +237,15 @@ export function TransferDetailDrawer({
                         : item.quantitySent ?? item.quantityRequested}{' '}
                       {item.product.unit}
                     </span>
-                    <span className="text-[10px] text-muted-foreground block">
+                    <span className="text-micro text-muted-foreground block">
                       {transfer.status === 'RECEIVED' ? 'Received / Sent' : 'Requested'}
                     </span>
                   </div>
                 </div>
 
                 {item.batchNumber && (
-                  <div className="flex items-center gap-2 pt-1 border-t border-border/40 text-[11px] text-muted-foreground">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                  <div className="flex items-center gap-2 pt-1 border-t border-border/40 text-micro text-muted-foreground">
+                    <Badge variant="outline" className="text-micro px-1.5 py-0 font-mono">
                       Batch: {item.batchNumber}
                     </Badge>
                     {item.expiryDate && (
@@ -263,7 +263,7 @@ export function TransferDetailDrawer({
         {/* Notes */}
         {transfer.notes && (
           <div className="p-3 rounded-lg bg-muted/20 border border-border/60 text-xs space-y-1">
-            <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+            <span className="text-micro font-semibold uppercase text-muted-foreground">
               Remarks & Logs
             </span>
             <p className="text-foreground text-xs leading-relaxed">{transfer.notes}</p>

@@ -94,7 +94,7 @@ export function ApiKeysTable({
   const getExpiryBadge = (expiresAt: string | null) => {
     if (!expiresAt) {
       return (
-        <Badge variant="outline" className="text-[11px] font-normal border-border/80">
+        <Badge variant="outline" className="text-xs font-normal border-border/80">
           No expiry
         </Badge>
       );
@@ -103,13 +103,13 @@ export function ApiKeysTable({
     const isExpired = expiry.getTime() < Date.now();
     if (isExpired) {
       return (
-        <Badge variant="destructive" className="text-[11px]">
+        <Badge variant="destructive" className="text-xs">
           Expired
         </Badge>
       );
     }
     return (
-      <Badge variant="secondary" className="text-[11px] font-normal">
+      <Badge variant="secondary" className="text-xs font-normal">
         Expires {expiry.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
       </Badge>
     );
@@ -173,7 +173,7 @@ export function ApiKeysTable({
                         <Badge
                           key={p}
                           variant="outline"
-                          className="font-mono text-[10px] px-1.5 py-0 bg-background/80 flex items-center gap-1"
+                          className="font-mono text-micro px-1.5 py-0 bg-background/80 flex items-center gap-1"
                         >
                           <ShieldCheck className="size-2.5 text-primary" />
                           {cleanScope}
@@ -186,7 +186,7 @@ export function ApiKeysTable({
                 {/* Rate Limit */}
                 <TableCell>
                   <Badge variant="secondary" className="font-medium text-xs gap-1">
-                    <Zap className="size-3 text-amber-500" />
+                    <Zap className="size-3 text-warning" />
                     {k.rateLimit} req/min
                   </Badge>
                 </TableCell>

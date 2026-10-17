@@ -88,7 +88,7 @@ export function NotificationBell() {
       >
         <Bell className="size-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+          <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-micro font-bold text-destructive-foreground animate-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -109,7 +109,7 @@ export function NotificationBell() {
                 <Bell className="size-4 text-primary" />
                 <span className="text-sm font-bold text-foreground">Notifications</span>
                 {unreadCount > 0 && (
-                  <Badge variant="destructive" className="text-[10px] h-4 px-1.5 font-bold">
+                  <Badge variant="destructive" className="text-micro h-4 px-1.5 font-bold">
                     {unreadCount} Unread
                   </Badge>
                 )}
@@ -142,7 +142,7 @@ export function NotificationBell() {
                 <div className="p-8 text-center text-xs text-muted-foreground space-y-1">
                   <Info className="size-6 text-muted-foreground/50 mx-auto" />
                   <p className="font-medium">No notifications</p>
-                  <p className="text-[11px]">You're all caught up!</p>
+                  <p className="text-xs">You're all caught up!</p>
                 </div>
               ) : (
                 notifications.map((n) => (
@@ -155,7 +155,7 @@ export function NotificationBell() {
                   >
                     <div className="shrink-0 mt-0.5">
                       {n.type === 'LOW_STOCK' ? (
-                        <div className="size-6 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-600">
+                        <div className="size-6 rounded-full bg-warning/15 flex items-center justify-center text-warning">
                           <AlertTriangle className="size-3.5" />
                         </div>
                       ) : (
@@ -165,8 +165,8 @@ export function NotificationBell() {
                       )}
                     </div>
                     <div className="space-y-1 min-w-0 flex-1">
-                      <p className="text-foreground leading-relaxed text-[12px]">{n.message}</p>
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <p className="text-foreground leading-relaxed text-xs">{n.message}</p>
+                      <div className="flex items-center gap-1 text-micro text-muted-foreground">
                         <Clock className="size-3" />
                         {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>

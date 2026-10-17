@@ -125,7 +125,7 @@ export function AnalyticsCopilotView() {
                 <span>Dispenco AI Analytics Copilot</span>
                 <Badge
                   variant="outline"
-                  className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold"
+                  className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold"
                 >
                   Safe Natural Language
                 </Badge>
@@ -170,7 +170,7 @@ export function AnalyticsCopilotView() {
 
           {/* Quick Suggestion Chips */}
           <div className="flex items-center gap-2 flex-wrap pt-1">
-            <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1 shrink-0">
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 shrink-0">
               <HelpCircle className="size-3" />
               <span>Suggested Prompts:</span>
             </span>
@@ -185,7 +185,7 @@ export function AnalyticsCopilotView() {
                     handleQuery(s.query);
                   }}
                   disabled={loading}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/70 bg-card hover:border-primary/40 hover:bg-primary/5 text-[11px] text-muted-foreground hover:text-foreground font-medium transition-all"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/70 bg-card hover:border-primary/40 hover:bg-primary/5 text-xs text-muted-foreground hover:text-foreground font-medium transition-all"
                 >
                   <Icon className="size-3 text-primary shrink-0" />
                   <span>{s.title}</span>
@@ -204,19 +204,19 @@ export function AnalyticsCopilotView() {
             <CardHeader className="pb-3 border-b border-border/60 bg-muted/20">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="secondary" className="font-mono text-[10px]">
+                  <Badge variant="secondary" className="font-mono text-micro">
                     {currentResult.intent}
                   </Badge>
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-micro">
                     {currentResult.timeframeLabel}
                   </Badge>
-                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="size-3" />
                     <span>{currentResult.executionTimeMs}ms response</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="size-3.5 text-emerald-500" />
+                  <CheckCircle2 className="size-3.5 text-success" />
                   <span>Verified Against Database</span>
                 </div>
               </div>
@@ -233,7 +233,7 @@ export function AnalyticsCopilotView() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                   {currentResult.summaryMetrics.map((metric, i) => (
                     <div key={i} className="p-3 rounded-xl border border-border/70 bg-muted/30">
-                      <span className="text-[11px] text-muted-foreground block font-medium">
+                      <span className="text-xs text-muted-foreground block font-medium">
                         {metric.label}
                       </span>
                       <strong className="text-base sm:text-lg font-bold text-foreground mt-0.5 block tabular-nums">
@@ -256,7 +256,7 @@ export function AnalyticsCopilotView() {
                     <BarChart3 className="size-4 text-primary" />
                     <span>Visual Analytics Breakdown</span>
                   </span>
-                  <Badge variant="outline" className="text-[10px] font-mono">
+                  <Badge variant="outline" className="text-micro font-mono">
                     {currentResult.chartType.toUpperCase()} CHART
                   </Badge>
                 </CardTitle>
@@ -368,7 +368,7 @@ export function AnalyticsCopilotView() {
                   ))}
                 </div>
 
-                <div className="p-3 rounded-lg bg-muted/30 border border-border/60 text-[11px] text-muted-foreground space-y-1">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/60 text-xs text-muted-foreground space-y-1">
                   <strong className="text-foreground block font-semibold">Pre-approved Safe Query Policy</strong>
                   <span>Every query is verified against pre-approved aggregation endpoints with zero raw SQL execution.</span>
                 </div>
@@ -388,7 +388,7 @@ export function AnalyticsCopilotView() {
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/50 border-y border-border text-muted-foreground font-semibold uppercase text-[10px] tracking-wider">
+                    <thead className="bg-muted/50 border-y border-border text-muted-foreground font-semibold uppercase text-micro tracking-wider">
                       <tr>
                         {currentResult.tableColumns.map((col) => (
                           <th key={col.key} className="py-2.5 px-4">

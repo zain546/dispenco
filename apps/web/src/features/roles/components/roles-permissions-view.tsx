@@ -82,7 +82,7 @@ export function RolesPermissionsView() {
             >
               <Users className="size-3.5 text-primary shrink-0" />
               <span>Staff Members</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+              <span className="text-micro font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                 {users.length}
               </span>
             </TabsTrigger>
@@ -92,7 +92,7 @@ export function RolesPermissionsView() {
             >
               <Shield className="size-3.5 text-primary shrink-0" />
               <span>Roles & Permissions</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+              <span className="text-micro font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                 {roles.length}
               </span>
             </TabsTrigger>

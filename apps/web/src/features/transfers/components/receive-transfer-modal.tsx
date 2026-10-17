@@ -121,8 +121,8 @@ export function ReceiveTransferModal({
                       <p className="font-semibold text-foreground text-sm">
                         {item.product.name}
                       </p>
-                      <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                      <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-micro px-1.5 py-0 font-mono">
                           Batch: {item.batchNumber || 'Pending'}
                         </Badge>
                         {item.expiryDate && (
@@ -141,7 +141,7 @@ export function ReceiveTransferModal({
 
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="space-y-1 text-right">
-                        <Label className="text-[10px] text-muted-foreground uppercase font-semibold">
+                        <Label className="text-micro text-muted-foreground uppercase font-semibold">
                           Actual Received
                         </Label>
                         <div className="flex items-center gap-1.5">

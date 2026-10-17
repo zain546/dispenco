@@ -176,12 +176,12 @@ export function RoleModal({
                 {roleToEdit?.isDefault ? (
                   <Badge
                     variant="outline"
-                    className="text-[10px] font-medium border-primary/30 text-primary bg-primary/5 py-0"
+                    className="text-micro font-medium border-primary/30 text-primary bg-primary/5 py-0"
                   >
                     System Standard
                   </Badge>
                 ) : isEditing ? (
-                  <Badge variant="secondary" className="text-[10px] py-0">
+                  <Badge variant="secondary" className="text-micro py-0">
                     Custom Role
                   </Badge>
                 ) : null}
@@ -218,7 +218,7 @@ export function RoleModal({
                   </span>
                 </div>
               ) : (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Give this role a distinct name indicating the member&apos;s pharmacy operational duties.
                 </p>
               )}
@@ -235,7 +235,7 @@ export function RoleModal({
                     <span className="text-xs font-semibold text-foreground">
                       {selectedPermissions.length} of {totalAvailable} capabilities granted
                     </span>
-                    <span className="text-[10px] font-mono text-muted-foreground">
+                    <span className="text-micro font-mono text-muted-foreground">
                       ({percentageActive}%)
                     </span>
                   </div>
@@ -300,12 +300,12 @@ export function RoleModal({
                             </h4>
                             <Badge
                               variant="secondary"
-                              className="text-[10px] font-mono px-1.5 py-0"
+                              className="text-micro font-mono px-1.5 py-0"
                             >
                               {activeCount} / {category.permissions.length}
                             </Badge>
                           </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                             {category.description}
                           </p>
                         </div>
@@ -316,7 +316,7 @@ export function RoleModal({
                         variant="outline"
                         size="sm"
                         onClick={() => toggleCategory(categoryCodes)}
-                        className="h-6 text-[11px] px-2.5 font-medium self-end sm:self-center cursor-pointer shrink-0"
+                        className="h-6 text-xs px-2.5 font-medium self-end sm:self-center cursor-pointer shrink-0"
                       >
                         {allSelected ? 'Deselect All' : 'Select Category'}
                       </Button>
@@ -346,7 +346,7 @@ export function RoleModal({
                               <p className="text-xs font-semibold text-foreground leading-tight">
                                 {perm.name}
                               </p>
-                              <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 mt-0.5">
+                              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mt-0.5">
                                 {perm.description}
                               </p>
                             </div>

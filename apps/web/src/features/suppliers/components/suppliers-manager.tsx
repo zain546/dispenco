@@ -210,10 +210,10 @@ export function SuppliersManager() {
                     <span className="truncate">{supplier.name}</span>
                   </CardTitle>
                   <div className="flex items-center gap-2">
-                    <Badge variant={supplier.isActive ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                    <Badge variant={supplier.isActive ? 'default' : 'secondary'} className="text-micro px-1.5 py-0">
                       {supplier.isActive ? 'Active' : 'Inactive'}
                     </Badge>
-                    <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Clock className="size-3" /> {supplier.leadTimeDays ?? 3}d lead time
                     </span>
                   </div>
@@ -258,7 +258,7 @@ export function SuppliersManager() {
                     <span className="line-clamp-2 leading-relaxed">{supplier.address}</span>
                   </div>
                 )}
-                <div className="pt-2 text-[11px] text-muted-foreground flex justify-between items-center border-t border-border/40">
+                <div className="pt-2 text-xs text-muted-foreground flex justify-between items-center border-t border-border/40">
                   <span>Purchase Orders:</span>
                   <span className="font-bold text-foreground">{supplier.purchaseOrdersCount || 0}</span>
                 </div>
@@ -366,7 +366,7 @@ export function SuppliersManager() {
                 >
                   {formData.isActive ? (
                     <>
-                      <CheckCircle2 className="size-3.5 text-emerald-400" /> Active Supplier
+                      <CheckCircle2 className="size-3.5 text-success" /> Active Supplier
                     </>
                   ) : (
                     <>

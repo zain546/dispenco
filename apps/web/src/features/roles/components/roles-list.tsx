@@ -220,14 +220,14 @@ export function RolesList({
                           {isSystemRole ? (
                             <Badge
                               variant="secondary"
-                              className="text-[10px] font-medium"
+                              className="text-micro font-medium"
                             >
                               System Role
                             </Badge>
                           ) : (
                             <Badge
                               variant="outline"
-                              className="text-[10px] font-medium border-primary/30 text-primary bg-primary/5"
+                              className="text-micro font-medium border-primary/30 text-primary bg-primary/5"
                             >
                               Custom Role
                             </Badge>
@@ -235,7 +235,7 @@ export function RolesList({
                           {isRoleOwner && (
                             <Badge
                               variant="outline"
-                              className="bg-primary/5 text-primary border-primary/25 text-[10px] font-medium gap-1"
+                              className="bg-primary/5 text-primary border-primary/25 text-micro font-medium gap-1"
                             >
                               <ShieldCheck className="size-3" />
                               <span>Unrestricted</span>
@@ -257,7 +257,7 @@ export function RolesList({
                     <div className="shrink-0">
                       <Badge
                         variant="outline"
-                        className="text-[10px] font-medium border-border"
+                        className="text-micro font-medium border-border"
                       >
                         {isRoleOwner ? `All ${totalAvailablePerms}` : `${permCount} of ${totalAvailablePerms}`} Perms
                       </Badge>
@@ -273,7 +273,7 @@ export function RolesList({
                   {/* Capabilities Preview */}
                   <div className="p-3 rounded-lg bg-muted/30 border border-border/60 text-xs space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider">
                         Operational Capabilities
                       </span>
                     </div>
@@ -295,7 +295,7 @@ export function RolesList({
                                 title={def ? `${def.name}: ${def.description}` : perm}
                               >
                                 <Check className="size-3 text-primary shrink-0" />
-                                <span className="truncate font-medium text-[11px]">
+                                <span className="truncate font-medium text-xs">
                                   {def?.name || perm}
                                 </span>
                               </div>
@@ -303,7 +303,7 @@ export function RolesList({
                           })}
                         </div>
                         {remainingCount > 0 && (
-                          <p className="text-[11px] text-muted-foreground pt-0.5">
+                          <p className="text-xs text-muted-foreground pt-0.5">
                             +{remainingCount} additional operational actions permitted
                           </p>
                         )}
@@ -326,7 +326,7 @@ export function RolesList({
 
                     <div className="flex items-center gap-1.5">
                       {isRoleOwner ? (
-                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Lock className="size-3" />
                           <span>Protected</span>
                         </span>
@@ -378,7 +378,7 @@ export function RolesList({
                         <th key={r.id} className="py-3 px-3 text-center min-w-28">
                           <div className="flex flex-col items-center gap-0.5">
                             <span className="font-bold text-xs">{r.name}</span>
-                            <span className="text-[10px] text-muted-foreground font-normal font-mono">
+                            <span className="text-micro text-muted-foreground font-normal font-mono">
                               {isOwner ? 'All 18' : `${r.permissions.length} perms`}
                             </span>
                           </div>
@@ -394,7 +394,7 @@ export function RolesList({
                       <tr className="bg-muted/20">
                         <td
                           colSpan={roles.length + 1}
-                          className="py-2 px-4 font-semibold text-[11px] text-muted-foreground uppercase tracking-wider"
+                          className="py-2 px-4 font-semibold text-micro text-muted-foreground uppercase tracking-wider"
                         >
                           {cat.title}
                         </td>
@@ -407,7 +407,7 @@ export function RolesList({
                             <p className="font-medium text-xs text-foreground">
                               {perm.name}
                             </p>
-                            <p className="text-[11px] text-muted-foreground line-clamp-1">
+                            <p className="text-xs text-muted-foreground line-clamp-1">
                               {perm.description}
                             </p>
                           </td>

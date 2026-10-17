@@ -462,7 +462,7 @@ export function ReportsView() {
                         {formatNumber(s.totalItemsSold)}
                       </td>
                       <td className="px-4 py-3 text-right text-muted-foreground">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                        <Badge variant="outline" className="text-micro px-1.5 py-0 font-normal">
                           {formatNumber(s.uniqueProductsStocked)} Products ({formatNumber(s.totalUnitsInStock)} Units)
                         </Badge>
                       </td>
@@ -680,15 +680,15 @@ export function ReportsView() {
                     <tr key={item.productId} className="hover:bg-muted/20 transition-colors">
                       <td className="py-3 px-4 text-center font-bold">
                         {index === 0 ? (
-                          <Badge variant="warning" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
+                          <Badge variant="warning" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro">
                             1
                           </Badge>
                         ) : index === 1 ? (
-                          <Badge variant="secondary" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
+                          <Badge variant="secondary" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro">
                             2
                           </Badge>
                         ) : index === 2 ? (
-                          <Badge variant="outline" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-[11px]">
+                          <Badge variant="outline" className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro">
                             3
                           </Badge>
                         ) : (
@@ -699,7 +699,7 @@ export function ReportsView() {
                         {item.productName}
                       </td>
                       <td className="py-3 px-4">
-                        <Badge variant="outline" className="text-[10px] font-normal">
+                        <Badge variant="outline" className="text-micro font-normal">
                           {item.category}
                         </Badge>
                       </td>

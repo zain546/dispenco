@@ -259,7 +259,7 @@ export function AuditComplianceView() {
             {isExportingCsv ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
-              <FileSpreadsheet className="size-3.5 text-emerald-600" />
+              <FileSpreadsheet className="size-3.5 text-success" />
             )}
             Download CSV
           </Button>

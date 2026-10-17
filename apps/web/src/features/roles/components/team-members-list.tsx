@@ -93,7 +93,7 @@ export function TeamMembersList({
       return (
         <Badge
           variant="outline"
-          className="border-primary/30 text-primary bg-primary/5 text-[10px] font-medium gap-1"
+          className="border-primary/30 text-primary bg-primary/5 text-micro font-medium gap-1"
         >
           <ShieldCheck className="size-3" />
           <span>Owner</span>
@@ -101,7 +101,7 @@ export function TeamMembersList({
       );
     }
     return (
-      <Badge variant="secondary" className="text-[10px] font-medium">
+      <Badge variant="secondary" className="text-micro font-medium">
         {roleName}
       </Badge>
     );
@@ -211,13 +211,13 @@ export function TeamMembersList({
                                 {isSelf && (
                                   <Badge
                                     variant="secondary"
-                                    className="text-[9px] px-1.5 py-0"
+                                    className="text-micro px-1.5 py-0"
                                   >
                                     You
                                   </Badge>
                                 )}
                               </p>
-                              <p className="text-[11px] text-muted-foreground truncate">
+                              <p className="text-xs text-muted-foreground truncate">
                                 {u.email}
                               </p>
                             </div>
@@ -245,12 +245,12 @@ export function TeamMembersList({
                         {/* Status */}
                         <td className="py-3 px-4">
                           {u.isActive ? (
-                            <Badge variant="success" className="text-[10px] gap-1 px-1.5 py-0">
+                            <Badge variant="success" className="text-micro gap-1 px-1.5 py-0">
                               <CheckCircle2 className="size-2.5" />
                               <span>Active</span>
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0">
+                            <Badge variant="secondary" className="text-micro gap-1 px-1.5 py-0">
                               <XCircle className="size-2.5" />
                               <span>Deactivated</span>
                             </Badge>

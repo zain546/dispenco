@@ -201,7 +201,7 @@ export function InviteStaffModal({
               required={!isEditing}
             />
             {isEditing && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Email address is used as the unique login credential and cannot be changed.
               </p>
             )}
@@ -271,7 +271,7 @@ export function InviteStaffModal({
                       <div className="flex items-center justify-between gap-3 w-full pr-4">
                         <span className="font-medium text-xs">{r.name}</span>
                         <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <span className="text-[10px] font-mono">
+                          <span className="text-micro font-mono">
                             {isOwner ? '17 perms' : `${r.permissions.length} perms`}
                           </span>
                           <TooltipProvider delayDuration={100}>
@@ -295,7 +295,7 @@ export function InviteStaffModal({
                                     <ShieldCheck className="size-3.5 text-primary shrink-0" />
                                     <span>{r.name} Permissions</span>
                                   </div>
-                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                  <span className="text-micro text-muted-foreground font-mono">
                                     {isOwner ? '17 perms' : `${r.permissions.length} perms`}
                                   </span>
                                 </div>
@@ -305,12 +305,12 @@ export function InviteStaffModal({
                                     <p className="font-medium text-foreground text-xs">
                                       Full Administrator Authority
                                     </p>
-                                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
                                       Complete unrestricted access across all store branches, stock intake, billing, financial ledgers, staff accounts, and store settings.
                                     </p>
                                   </div>
                                 ) : r.permissions.length === 0 ? (
-                                  <p className="text-[11px] text-muted-foreground italic pt-1">
+                                  <p className="text-xs text-muted-foreground italic pt-1">
                                     No permissions assigned to this role.
                                   </p>
                                 ) : (
@@ -320,7 +320,7 @@ export function InviteStaffModal({
                                       return (
                                         <div
                                           key={p}
-                                          className="flex items-center gap-1.5 text-[11px] text-foreground/90"
+                                          className="flex items-center gap-1.5 text-xs text-foreground/90"
                                         >
                                           <Check className="size-3 text-primary shrink-0" />
                                           <span className="truncate">{def?.name || p}</span>

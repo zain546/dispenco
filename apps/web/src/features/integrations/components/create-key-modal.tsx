@@ -180,14 +180,14 @@ export function CreateKeyModal({
                           <span className="font-medium text-foreground">
                             {scopeDef.name}
                           </span>
-                          <span className="font-mono text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          <span className="font-mono text-micro text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                             {scopeDef.scope}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {scopeDef.description}
                         </p>
-                        <p className="text-[11px] text-primary/80 font-medium pt-0.5">
+                        <p className="text-xs text-primary/80 font-medium pt-0.5">
                           Use case: {scopeDef.recommendedFor}
                         </p>
                       </div>
@@ -202,7 +202,7 @@ export function CreateKeyModal({
               {/* Rate Limit */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold flex items-center gap-1.5">
-                  <Zap className="size-4 text-amber-500" />
+                  <Zap className="size-4 text-warning" />
                   Rate Limit
                 </Label>
                 <Select value={rateLimit} onValueChange={setRateLimit}>
@@ -224,7 +224,7 @@ export function CreateKeyModal({
               {/* Expiry */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold flex items-center gap-1.5">
-                  <Clock className="size-4 text-blue-500" />
+                  <Clock className="size-4 text-primary" />
                   Key Expiration
                 </Label>
                 <Select value={expiresInDays} onValueChange={setExpiresInDays}>

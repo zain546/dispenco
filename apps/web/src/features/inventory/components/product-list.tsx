@@ -289,7 +289,7 @@ function ProductTableRow({
               {product.isControlledSubstance && (
                 <Badge
                   variant="outline"
-                  className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
+                  className="bg-destructive/10 text-destructive border-destructive/20 text-micro px-1.5 py-0"
                 >
                   Rx Schedule
                 </Badge>
@@ -299,7 +299,7 @@ function ProductTableRow({
               <p className="text-xs text-muted-foreground truncate">{product.genericName}</p>
             )}
             {product.barcode && (
-              <p className="text-[11px] text-muted-foreground/80 font-mono">{product.barcode}</p>
+              <p className="text-micro text-muted-foreground/80 font-mono">{product.barcode}</p>
             )}
           </div>
         </div>
@@ -308,7 +308,7 @@ function ProductTableRow({
       {/* Category & Pack */}
       <td className="py-3 px-4">
         <div className="space-y-0.5">
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-micro">
             {formatCategory(product.category)}
           </Badge>
           <p className="text-xs text-muted-foreground">
@@ -334,7 +334,7 @@ function ProductTableRow({
               <Badge
                 variant="outline"
                 onClick={() => onViewBatches(product)}
-                className="cursor-pointer hover:bg-primary/10 text-[10px] gap-1 px-1.5 py-0 border-primary/20 text-primary font-medium"
+                className="cursor-pointer hover:bg-primary/10 text-micro gap-1 px-1.5 py-0 border-primary/20 text-primary font-medium"
                 title={`${product.batchCount} stock batch(es)`}
               >
                 <Layers className="size-3" />
@@ -366,7 +366,7 @@ function ProductTableRow({
             </strong>
           </div>
           {product.latestCostPrice !== null && product.latestCostPrice !== undefined && (
-            <div className="text-muted-foreground text-[11px] tabular-nums">
+            <div className="text-muted-foreground text-xs tabular-nums">
               Cost: {formatCurrency(product.latestCostPrice)}
             </div>
           )}
@@ -516,13 +516,13 @@ function ProductCardItem({
 
         {/* Badges Strip */}
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-          <Badge variant="secondary" className="text-[10px] font-medium">
+          <Badge variant="secondary" className="text-micro font-medium">
             {formatCategory(product.category)}
           </Badge>
           {product.isControlledSubstance && (
             <Badge
               variant="outline"
-              className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-semibold"
+              className="bg-destructive/10 text-destructive border-destructive/20 text-micro font-semibold"
             >
               Rx Schedule
             </Badge>
@@ -531,7 +531,7 @@ function ProductCardItem({
             <Badge
               variant="outline"
               onClick={() => onViewBatches(product)}
-              className="cursor-pointer hover:bg-primary/10 text-[10px] gap-1 px-2 py-0 border-primary/30 text-primary font-semibold"
+              className="cursor-pointer hover:bg-primary/10 text-micro gap-1 px-2 py-0 border-primary/30 text-primary font-semibold"
               title={`${product.batchCount} stock batch(es)`}
             >
               <Layers className="size-3" />
@@ -552,7 +552,7 @@ function ProductCardItem({
         {/* Financials & Stock Sub-Grid */}
         <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg bg-muted/30 border border-border/50 text-xs">
           <div>
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider block">
+            <span className="text-micro text-muted-foreground font-medium uppercase tracking-wider block">
               Stock Level
             </span>
             <span className="font-bold text-foreground text-xs mt-0.5 block">
@@ -560,7 +560,7 @@ function ProductCardItem({
             </span>
           </div>
           <div>
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider block">
+            <span className="text-micro text-muted-foreground font-medium uppercase tracking-wider block">
               Retail MRP
             </span>
             <span className="font-bold text-primary text-xs mt-0.5 block tabular-nums">

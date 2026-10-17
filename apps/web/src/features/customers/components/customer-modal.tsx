@@ -145,7 +145,7 @@ export function CustomerModal({
                 onChange={(e) => setPhone(e.target.value)}
                 className="h-9 text-sm"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Used to quickly lookup customer at the POS counter and send digital invoices.
               </p>
             </div>
@@ -200,7 +200,7 @@ export function CustomerModal({
                     PKR
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   If migrating from an existing paper Khata ledger, enter their current balance.
                 </p>
               </div>

@@ -161,25 +161,25 @@ export function TransfersManager() {
     switch (status) {
       case 'RECEIVED':
         return (
-          <Badge variant="success" className="text-[10px] gap-1 px-1.5 py-0 font-medium">
+          <Badge variant="success" className="text-micro gap-1 px-1.5 py-0 font-medium">
             <CheckCircle2 className="size-2.5" /> Received
           </Badge>
         );
       case 'DISPATCHED':
         return (
-          <Badge variant="warning" className="text-[10px] gap-1 px-1.5 py-0 font-medium">
+          <Badge variant="warning" className="text-micro gap-1 px-1.5 py-0 font-medium">
             <Truck className="size-2.5" /> In-Transit
           </Badge>
         );
       case 'REQUESTED':
         return (
-          <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0 font-medium">
+          <Badge variant="secondary" className="text-micro gap-1 px-1.5 py-0 font-medium">
             <Clock className="size-2.5" /> Requested
           </Badge>
         );
       case 'CANCELLED':
         return (
-          <Badge variant="destructive" className="text-[10px] gap-1 px-1.5 py-0 font-medium">
+          <Badge variant="destructive" className="text-micro gap-1 px-1.5 py-0 font-medium">
             <XCircle className="size-2.5" /> Cancelled
           </Badge>
         );
@@ -265,7 +265,7 @@ export function TransfersManager() {
             <Building2 className="size-4" />
             <span>Multi-Branch Setup Recommended</span>
           </div>
-          <p className="text-muted-foreground mt-1 text-[11px]">
+          <p className="text-muted-foreground mt-1 text-micro">
             Stock transfers require at least two registered pharmacy stores. You can add secondary branch locations in the store switcher in the top navigation header.
           </p>
         </Card>
@@ -367,7 +367,7 @@ export function TransfersManager() {
                             <span className="font-bold text-foreground block font-mono text-xs">
                               {t.transferNumber}
                             </span>
-                            <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <span className="text-micro text-muted-foreground flex items-center gap-1 mt-0.5">
                               <Calendar className="size-3 text-muted-foreground" />
                               {formatDateTime(t.createdAt)}
                             </span>
@@ -378,14 +378,14 @@ export function TransfersManager() {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <Badge
                                 variant={isSourceBranch ? 'secondary' : 'outline'}
-                                className="text-[10px] font-medium"
+                                className="text-micro font-medium"
                               >
                                 {t.sourceStore.name}
                               </Badge>
-                              <span className="text-muted-foreground text-[10px]">➔</span>
+                              <span className="text-muted-foreground text-micro">➔</span>
                               <Badge
                                 variant={isTargetBranch ? 'secondary' : 'outline'}
-                                className="text-[10px] font-medium"
+                                className="text-micro font-medium"
                               >
                                 {t.targetStore.name}
                               </Badge>
@@ -398,7 +398,7 @@ export function TransfersManager() {
                               <span className="font-semibold text-foreground">
                                 {t.items.length} {t.items.length === 1 ? 'Medicine' : 'Medicines'}
                               </span>
-                              <p className="text-[11px] text-muted-foreground truncate max-w-48">
+                              <p className="text-micro text-muted-foreground truncate max-w-48">
                                 {t.items.map((i) => `${i.product.name} (${i.quantityRequested})`).join(', ')}
                               </p>
                             </div>
@@ -412,7 +412,7 @@ export function TransfersManager() {
                             <span className="font-medium text-foreground block">
                               {t.requestedByUser.name}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">
+                            <span className="text-micro text-muted-foreground">
                               {t.requestedByUser.email}
                             </span>
                           </td>
