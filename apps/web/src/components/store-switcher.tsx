@@ -30,17 +30,49 @@ interface StoreSwitcherProps {
   isCollapsed?: boolean;
 }
 
-export function StoreSwitcher({ className, isCollapsed }: StoreSwitcherProps) {
-  const { stores, activeStoreId, activeStore, isAllStores, setActiveStoreId } = useStore();
+export function StoreSwitcher({ className }: StoreSwitcherProps) {
+  const { stores, activeStoreId, activeStore, isAllStores, isMultiStore, setActiveStoreId } = useStore();
   const permissions = usePermissions();
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const displayTitle = isAllStores
     ? 'All Stores (Org Overview)'
-    : activeStore?.name || 'Select Store Branch';
+    : activeStore?.name || stores[0]?.name || 'Select Store Branch';
 
   const canManageStores = permissions.canManageSettings;
 
+  // Single-Store View: Zero clutter, clean pharmacy badge without dropdown distraction
+  if (!isMultiStore) {
+    return (
+      <>
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/70 bg-muted/40 text-xs font-semibold text-foreground shrink-0 max-w-[200px] sm:max-w-[260px] shadow-2xs',
+            className
+          )}
+        >
+          <div className="size-5 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Store className="size-3.5" />
+          </div>
+          <span className="truncate font-semibold text-foreground text-left flex-1">
+            {displayTitle}
+          </span>
+          {canManageStores && (
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded shrink-0"
+              title="Add a 2nd branch store to unlock multi-store features"
+            >
+              <PlusCircle className="size-3.5" />
+            </button>
+          )}
+        </div>
+        <CreateStoreModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
+      </>
+    );
+  }
+
+  // Multi-Store View: Full branch switcher with Org-level overview
   return (
     <>
       <DropdownMenu>
@@ -50,7 +82,7 @@ export function StoreSwitcher({ className, isCollapsed }: StoreSwitcherProps) {
             role="combobox"
             aria-label="Select a store branch"
             className={cn(
-              'h-9 gap-2 px-2.5 sm:px-3 text-xs sm:text-sm font-medium border-border/80 hover:bg-accent/60 hover:text-accent-foreground transition-all shrink-0 max-w-[200px] sm:max-w-[260px] justify-between',
+              'h-9 gap-2 px-2.5 sm:px-3 text-xs sm:text-sm font-medium border-border/80 hover:bg-accent/60 hover:text-accent-foreground transition-all shrink-0 max-w-[200px] sm:max-w-[260px] justify-between shadow-2xs',
               className
             )}
           >
@@ -75,8 +107,8 @@ export function StoreSwitcher({ className, isCollapsed }: StoreSwitcherProps) {
         <DropdownMenuContent align="start" className="w-64 sm:w-72 p-1.5 shadow-md">
           <DropdownMenuLabel className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 flex items-center justify-between">
             <span>Branches & Outlets</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-              {stores.length} {stores.length === 1 ? 'Store' : 'Stores'}
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-semibold">
+              {stores.length} Stores
             </Badge>
           </DropdownMenuLabel>
 

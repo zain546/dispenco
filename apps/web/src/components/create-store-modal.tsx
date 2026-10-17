@@ -38,9 +38,10 @@ type CreateStoreFormValues = z.infer<typeof createStoreSchema>;
 interface CreateStoreModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function CreateStoreModal({ open, onOpenChange }: CreateStoreModalProps) {
+export function CreateStoreModal({ open, onOpenChange, onSuccess }: CreateStoreModalProps) {
   const { createStore } = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -74,6 +75,7 @@ export function CreateStoreModal({ open, onOpenChange }: CreateStoreModalProps) 
       });
       reset();
       onOpenChange(false);
+      if (onSuccess) onSuccess();
     } catch {
       // Error toast handled in createStore
     } finally {

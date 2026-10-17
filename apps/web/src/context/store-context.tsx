@@ -10,6 +10,8 @@ interface StoreContextType {
   activeStoreId: string;
   activeStore: StoreData | null;
   isAllStores: boolean;
+  isMultiStore: boolean;
+  storeCount: number;
   isLoading: boolean;
   setActiveStoreId: (storeId: string) => void;
   refreshStores: () => Promise<void>;
@@ -43,7 +45,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         // Determine active store ID
         const storedId = localStorage.getItem(ACTIVE_STORE_STORAGE_KEY);
-        if (storedId === 'all') {
+        if (storedId === 'all' && activeList.length > 1) {
           setActiveStoreIdState('all');
         } else if (storedId && activeList.some((s) => s.id === storedId)) {
           setActiveStoreIdState(storedId);
@@ -123,6 +125,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         activeStoreId,
         activeStore,
         isAllStores,
+        isMultiStore: stores.length > 1,
+        storeCount: stores.length,
         isLoading,
         setActiveStoreId,
         refreshStores: fetchStores,

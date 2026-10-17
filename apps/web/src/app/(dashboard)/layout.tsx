@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Menu,
   FileText,
+  Building2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +48,7 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null },
   { name: 'Inventory', href: '/inventory', icon: Package, permission: null },
-  { name: 'Stock Transfers', href: '/transfers', icon: ArrowRightLeft, permission: null },
+  { name: 'Stock Transfers', href: '/transfers', icon: ArrowRightLeft, permission: null, requiresMultiStore: true },
   { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null },
   { name: 'Prescriptions', href: '/prescriptions', icon: FileText, permission: null },
   { name: 'Returns', href: '/returns', icon: RotateCcw, permission: null },
@@ -55,6 +56,7 @@ const NAV_ITEMS = [
   { name: 'Purchases', href: '/purchases', icon: Truck, permission: null },
   { name: 'Customers', href: '/customers', icon: Users, permission: null },
   { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
+  { name: 'Chain Operations', href: '/chain', icon: Building2, permission: 'canManageSettings', requiresMultiStore: true },
   { name: 'Settings', href: '/settings', icon: Settings, permission: 'canManageSettings' },
 ];
 
@@ -65,7 +67,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const { user, storeName, logout } = useAuth();
-  const { activeStore, isAllStores } = useStore();
+  const { activeStore, isAllStores, isMultiStore } = useStore();
   const permissions = usePermissions();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -102,6 +104,7 @@ export default function DashboardLayout({
   const userInitials = getInitials(userName);
 
   const filteredNavItems = NAV_ITEMS.filter((item) => {
+    if (item.requiresMultiStore && !isMultiStore) return false;
     if (!item.permission) return true;
     return Boolean((permissions as any)[item.permission]);
   });

@@ -12,6 +12,8 @@ import { Permission } from '@dispenco/types';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dtos/create-store.dto';
 import { UpdateStoreDto } from './dtos/update-store.dto';
+import { BulkPricePushDto } from './dtos/bulk-price-push.dto';
+import { BroadcastSettingDto } from './dtos/broadcast-setting.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,6 +32,30 @@ export class StoresController {
     @Body() dto: CreateStoreDto
   ) {
     return this.storesService.createStore(user.tenantId, dto);
+  }
+
+  @Get('chain/overview')
+  @RequirePermissions(Permission.SETTINGS_MANAGE)
+  async getChainOverview(@CurrentUser() user: AuthenticatedUser) {
+    return this.storesService.getChainOverview(user.tenantId);
+  }
+
+  @Post('chain/bulk-price-push')
+  @RequirePermissions(Permission.SETTINGS_MANAGE)
+  async bulkPricePush(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BulkPricePushDto
+  ) {
+    return this.storesService.bulkPricePush(user.tenantId, dto);
+  }
+
+  @Post('chain/broadcast-setting')
+  @RequirePermissions(Permission.SETTINGS_MANAGE)
+  async broadcastSetting(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BroadcastSettingDto
+  ) {
+    return this.storesService.broadcastSetting(user.tenantId, dto);
   }
 
   @Get()
