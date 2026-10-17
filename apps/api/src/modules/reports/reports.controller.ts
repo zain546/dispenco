@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Param,
   Body,
   Query,
   UseGuards,
@@ -11,10 +13,16 @@ import { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { AnalyticsCopilotService } from './services/analytics-copilot.service';
 import { AuditExportService } from './services/audit-export.service';
+import { AnomalyDetectionService } from './services/anomaly-detection.service';
 import { GetSalesReportDto } from './dto/get-sales-report.dto';
 import { GetOrgOverviewDto } from './dto/get-org-overview.dto';
 import { CopilotQueryDto } from './dto/copilot-query.dto';
 import { GetAuditLogsDto } from './dto/get-audit-logs.dto';
+import {
+  GetAnomaliesDto,
+  UpdateAnomalyStatusDto,
+  TriggerAnomalyScanDto,
+} from './dto/anomaly.dtos';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
@@ -28,6 +36,7 @@ export class ReportsController {
     private readonly reportsService: ReportsService,
     private readonly copilotService: AnalyticsCopilotService,
     private readonly auditExportService: AuditExportService,
+    private readonly anomalyService: AnomalyDetectionService,
   ) {}
 
   @Get('sales')
@@ -108,5 +117,53 @@ export class ReportsController {
       `attachment; filename="dispenco-audit-report-${dateStr}.csv"`
     );
     return res.send(csvContent);
+  }
+
+  /**
+   * Step 5.5 — Operational Integrity & Discrepancy Review
+   * GET /api/v1/reports/anomalies
+   */
+  @Get('anomalies')
+  @RequirePermissions(Permission.REPORTS_READ)
+  getAnomalies(
+    @CurrentUser('tenantId') tenantId: string,
+    @Query() query: GetAnomaliesDto,
+  ) {
+    return this.anomalyService.listFlags(tenantId, query);
+  }
+
+  /**
+   * GET /api/v1/reports/anomalies/summary
+   */
+  @Get('anomalies/summary')
+  @RequirePermissions(Permission.REPORTS_READ)
+  getAnomaliesSummary(@CurrentUser('tenantId') tenantId: string) {
+    return this.anomalyService.getKpiSummary(tenantId);
+  }
+
+  /**
+   * POST /api/v1/reports/anomalies/scan
+   */
+  @Post('anomalies/scan')
+  @RequirePermissions(Permission.REPORTS_READ)
+  triggerScan(
+    @CurrentUser('tenantId') tenantId: string,
+    @Body() dto: TriggerAnomalyScanDto,
+  ) {
+    return this.anomalyService.runScan(tenantId, dto);
+  }
+
+  /**
+   * PATCH /api/v1/reports/anomalies/:id/status
+   */
+  @Patch('anomalies/:id/status')
+  @RequirePermissions(Permission.REPORTS_READ)
+  updateAnomalyStatus(
+    @CurrentUser('tenantId') tenantId: string,
+    @CurrentUser('userId') reviewerId: string,
+    @Param('id') flagId: string,
+    @Body() dto: UpdateAnomalyStatusDto,
+  ) {
+    return this.anomalyService.updateStatus(tenantId, flagId, reviewerId, dto);
   }
 }

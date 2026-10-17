@@ -33,9 +33,11 @@ import {
   Layers,
   Trophy,
   ShieldAlert,
+  AlertOctagon,
 } from 'lucide-react';
 import { AnalyticsCopilotView } from './analytics-copilot-view';
 import { AuditComplianceView } from './audit-compliance-view';
+import { AnomaliesReviewView } from './anomalies-review-view';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -61,7 +63,7 @@ export function ReportsView() {
   const [orgOverviewData, setOrgOverviewData] = useState<OrgOverviewResponse['data'] | null>(null);
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
-  const [currentView, setCurrentView] = useState<'charts' | 'copilot' | 'audit'>('charts');
+  const [currentView, setCurrentView] = useState<'charts' | 'copilot' | 'audit' | 'integrity'>('charts');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -71,6 +73,8 @@ export function ReportsView() {
         setCurrentView('copilot');
       } else if (tabParam === 'audit' || tabParam === 'compliance') {
         setCurrentView('audit');
+      } else if (tabParam === 'integrity' || tabParam === 'anomalies' || tabParam === 'shrinkage') {
+        setCurrentView('integrity');
       }
     }
   }, []);
@@ -239,12 +243,33 @@ export function ReportsView() {
             Inspection
           </Badge>
         </Button>
+        <Button
+          variant={currentView === 'integrity' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setCurrentView('integrity')}
+          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
+            currentView === 'integrity'
+              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <AlertOctagon className="size-4 text-amber-500 shrink-0" />
+          <span>Operational Integrity</span>
+          <Badge
+            variant="outline"
+            className="ml-1 text-[9px] px-1 py-0 border-border text-muted-foreground uppercase font-bold"
+          >
+            Variance
+          </Badge>
+        </Button>
       </div>
 
       {currentView === 'copilot' ? (
         <AnalyticsCopilotView />
       ) : currentView === 'audit' ? (
         <AuditComplianceView />
+      ) : currentView === 'integrity' ? (
+        <AnomaliesReviewView />
       ) : (
         <>
           {/* Date Range & Filter Controls */}

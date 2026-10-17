@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { QUEUE_SCHEDULER } from '../jobs.constants';
 import { LowStockScanProcessor } from './low-stock-scan.processor';
 import { ExpiryScanProcessor } from './expiry-scan.processor';
+import { AnomalyScanProcessor } from './anomaly-scan.processor';
 
 @Processor(QUEUE_SCHEDULER)
 export class SchedulerProcessor extends WorkerHost {
@@ -12,6 +13,7 @@ export class SchedulerProcessor extends WorkerHost {
   constructor(
     private readonly lowStockProcessor: LowStockScanProcessor,
     private readonly expiryScanProcessor: ExpiryScanProcessor,
+    private readonly anomalyScanProcessor: AnomalyScanProcessor,
   ) {
     super();
   }
@@ -29,6 +31,9 @@ export class SchedulerProcessor extends WorkerHost {
 
       case 'scan-expiry':
         return this.expiryScanProcessor.process(job);
+
+      case 'scan-anomalies':
+        return this.anomalyScanProcessor.process(job);
 
       default:
         this.logger.warn(`Unhandled job name '${job.name}' on scheduler queue`);

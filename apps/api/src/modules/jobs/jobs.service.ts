@@ -47,6 +47,19 @@ export class JobsService implements OnApplicationBootstrap {
         },
       );
 
+      this.logger.log('Scheduling nightly operational integrity anomaly scan job...');
+      await (this.schedulerQueue.add as any)(
+        'scan-anomalies',
+        { source: 'scheduled' },
+        {
+          repeat: {
+            pattern: '0 3 * * *',
+          },
+          jobId: 'nightly-anomaly-scan',
+          removeOnComplete: 100,
+        },
+      );
+
       this.logger.log('BullMQ scheduled jobs registered successfully.');
     } catch (err: any) {
       this.logger.error(`Failed to register BullMQ jobs: ${err.message}`);
@@ -64,6 +77,14 @@ export class JobsService implements OnApplicationBootstrap {
   async triggerExpiryScan() {
     return this.schedulerQueue.add(
       'scan-expiry',
+      { source: 'manual-trigger', timestamp: new Date().toISOString() },
+      { removeOnComplete: true },
+    );
+  }
+
+  async triggerAnomalyScan() {
+    return this.schedulerQueue.add(
+      'scan-anomalies',
       { source: 'manual-trigger', timestamp: new Date().toISOString() },
       { removeOnComplete: true },
     );

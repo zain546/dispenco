@@ -28,3 +28,4 @@ export * from './product-attributes.js';
 export * from './permissions.js';
 export * from './integrations.js';
 export * from './audit.js';
+export * from './anomalies.js';
