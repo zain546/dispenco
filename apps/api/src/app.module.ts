@@ -28,6 +28,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
 import { SearchModule } from './modules/search/search.module';
 import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { PrescriptionsModule } from './modules/prescriptions/prescriptions.modul
     TransfersModule,
     SearchModule,
     PrescriptionsModule,
+    IntegrationsModule,
   ],
   controllers: [AppController],
   providers: [

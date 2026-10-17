@@ -32,6 +32,7 @@ export enum Permission {
   ROLES_MANAGE = 'roles:manage',
   USERS_MANAGE = 'users:manage', // Legacy alias for staff:manage
   SETTINGS_MANAGE = 'settings:manage',
+  INTEGRATIONS_MANAGE = 'integrations:manage',
 }
 
 export const ALL_PERMISSIONS = Object.values(Permission);
@@ -178,6 +179,11 @@ export const PERMISSION_CATEGORIES: PermissionCategory[] = [
         name: 'Store & Pharmacy Settings',
         description: 'Configure branch stores, currency, tax rates, and expiry alert windows',
       },
+      {
+        code: Permission.INTEGRATIONS_MANAGE,
+        name: 'Manage API & Developer Integrations',
+        description: 'Create, rotate, and revoke public API keys for accounting and distributor ERP software',
+      },
     ],
   },
 ];
@@ -209,6 +215,7 @@ export const DEFAULT_MANAGER_PERMISSIONS = [
   Permission.REPORTS_READ,
   Permission.REPORTS_EXPORT,
   Permission.STAFF_MANAGE,
+  Permission.INTEGRATIONS_MANAGE,
 ];
 
 export const DEFAULT_PHARMACIST_PERMISSIONS = [

@@ -30,6 +30,7 @@ model Tenant {
   taxRates         TaxRate[]
   transfers        StockTransfer[]
   prescriptions    Prescription[]
+  apiKeys          ApiKey[]
 }
 
 model User {
@@ -531,6 +532,27 @@ model PrescriptionItem {
 
   @@index([prescriptionId])
   @@index([productId])
+}
+
+model ApiKey {
+  id           String    @id @default(uuid())
+  tenantId     String
+  name         String
+  keyPrefix    String
+  keyHash      String
+  permissions  String[]
+  rateLimit    Int       @default(60)
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  isActive     Boolean   @default(true)
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([keyPrefix])
 }
 
 
