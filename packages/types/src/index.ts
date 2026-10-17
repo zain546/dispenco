@@ -27,3 +27,4 @@ export interface ApiResponse<T = unknown> {
 export * from './product-attributes.js';
 export * from './permissions.js';
 export * from './integrations.js';
+export * from './audit.js';

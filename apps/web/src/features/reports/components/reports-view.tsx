@@ -32,8 +32,10 @@ import {
   BarChart3,
   Layers,
   Trophy,
+  ShieldAlert,
 } from 'lucide-react';
 import { AnalyticsCopilotView } from './analytics-copilot-view';
+import { AuditComplianceView } from './audit-compliance-view';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -59,7 +61,7 @@ export function ReportsView() {
   const [orgOverviewData, setOrgOverviewData] = useState<OrgOverviewResponse['data'] | null>(null);
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
-  const [currentView, setCurrentView] = useState<'charts' | 'copilot'>('charts');
+  const [currentView, setCurrentView] = useState<'charts' | 'copilot' | 'audit'>('charts');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -67,6 +69,8 @@ export function ReportsView() {
       const tabParam = params.get('tab');
       if (tabParam === 'copilot' || tabParam === 'ai' || tabParam === 'assistant') {
         setCurrentView('copilot');
+      } else if (tabParam === 'audit' || tabParam === 'compliance') {
+        setCurrentView('audit');
       }
     }
   }, []);
@@ -186,8 +190,8 @@ export function ReportsView() {
         }
       />
 
-      {/* View Switcher: Standard Reports vs AI Copilot */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
+      {/* View Switcher: Standard Reports vs AI Copilot vs Audit & Compliance */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
         <Button
           variant={currentView === 'charts' ? 'default' : 'ghost'}
           size="sm"
@@ -213,13 +217,34 @@ export function ReportsView() {
             variant="outline"
             className="ml-1 text-[9px] px-1 py-0 border-primary/30 text-primary uppercase font-bold"
           >
-            New
+            AI
+          </Badge>
+        </Button>
+        <Button
+          variant={currentView === 'audit' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setCurrentView('audit')}
+          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
+            currentView === 'audit'
+              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <ShieldAlert className="size-4 text-emerald-500 shrink-0" />
+          <span>Compliance & Audit Log</span>
+          <Badge
+            variant="outline"
+            className="ml-1 text-[9px] px-1 py-0 border-border text-muted-foreground uppercase font-bold"
+          >
+            Inspection
           </Badge>
         </Button>
       </div>
 
       {currentView === 'copilot' ? (
         <AnalyticsCopilotView />
+      ) : currentView === 'audit' ? (
+        <AuditComplianceView />
       ) : (
         <>
           {/* Date Range & Filter Controls */}
