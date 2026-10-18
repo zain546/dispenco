@@ -112,6 +112,7 @@ export function POSTerminal() {
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
   const [overallDiscountType, setOverallDiscountType] = useState<'FLAT' | 'PERCENT'>('FLAT');
   const customerSearchRef = useRef<HTMLDivElement>(null);
+  const cashInputRef = useRef<HTMLInputElement>(null);
 
   // Checkout State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -302,12 +303,55 @@ export function POSTerminal() {
     focusSearchInput();
   }, []);
 
-  // Global Keyboard Shortcuts (F2: Focus Search, F9: Checkout, Esc: Clear)
+  // Reset selected search index when search results change
+  useEffect(() => {
+    setSelectedResultIndex(0);
+  }, [searchResults]);
+
+  // Search input keyboard navigation (ArrowUp, ArrowDown, Enter, Esc)
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (searchResults.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedResultIndex((prev) => (prev < searchResults.length - 1 ? prev + 1 : 0));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedResultIndex((prev) => (prev > 0 ? prev - 1 : searchResults.length - 1));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const selected = searchResults[selectedResultIndex] || searchResults[0];
+        if (selected) {
+          addToCart(selected, 'BOX');
+          setSearchQuery('');
+          setSearchResults([]);
+          setSelectedResultIndex(0);
+          focusSearchInput();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setSearchResults([]);
+        setSelectedResultIndex(0);
+      }
+    }
+  };
+
+  // Global Keyboard Shortcuts (F2: Search, F4: Payment Mode, F8: Cash Tendered, F9: Checkout, Esc: Clear)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F2') {
         e.preventDefault();
         focusSearchInput();
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        setPaymentMethod((prev) => {
+          if (prev === 'CASH') return 'DIGITAL';
+          if (prev === 'DIGITAL') return 'CREDIT';
+          return 'CASH';
+        });
+      } else if (e.key === 'F8') {
+        e.preventDefault();
+        if (paymentMethod !== 'CASH') setPaymentMethod('CASH');
+        setTimeout(() => cashInputRef.current?.focus(), 60);
       } else if (e.key === 'F9') {
         e.preventDefault();
         if (cart.length > 0 && !isSubmitting && !isReceiptOpen) {
@@ -316,13 +360,14 @@ export function POSTerminal() {
       } else if (e.key === 'Escape') {
         if (searchResults.length > 0) {
           setSearchResults([]);
+          setSelectedResultIndex(0);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, isSubmitting, isReceiptOpen, searchResults]);
+  }, [cart, isSubmitting, isReceiptOpen, searchResults, paymentMethod]);
 
   // Live product search effect with instantaneous local-first read (<5ms)
   useEffect(() => {
@@ -845,15 +890,24 @@ export function POSTerminal() {
             <span>Recent Transactions</span>
           </Button>
 
-          <div className="hidden md:flex items-center gap-1.5">
+          <div className="hidden lg:flex items-center gap-1.5 flex-wrap">
             <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
-              F2 Focus Search
+              F2 Search
+            </kbd>
+            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+              ↑↓ / ↵ Select
+            </kbd>
+            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+              F4 Payment Mode
+            </kbd>
+            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+              F8 Tender Cash
             </kbd>
             <kbd className="px-2 py-1 bg-primary/10 border border-primary/20 text-primary rounded-md text-micro font-mono font-semibold shadow-2xs">
               F9 Complete Sale
             </kbd>
             <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
-              Esc Clear Search
+              Esc Dismiss
             </kbd>
           </div>
         </div>
@@ -901,6 +955,7 @@ export function POSTerminal() {
                     value={searchQuery}
                     onChange={(val) => setSearchQuery(val)}
                     onScan={handleBarcodeScan}
+                    onKeyDown={handleSearchKeyDown}
                     className="h-11 text-sm bg-background"
                   />
                   {isSearching && (
@@ -1743,6 +1798,7 @@ export function POSTerminal() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-foreground">Cash Received:</span>
                     <Input
+                      ref={cashInputRef}
                       type="number"
                       placeholder="0.00"
                       value={cashTendered}

@@ -18,6 +18,7 @@ export interface ScannerInputProps {
   value?: string;
   onChange?: (value: string) => void;
   onScan?: (barcode: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   placeholder?: string;
   autoFocus?: boolean;
   disabled?: boolean;
@@ -33,6 +34,7 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
       value = '',
       onChange,
       onScan,
+      onKeyDown: onKeyDownProp,
       placeholder = 'Scan barcode or type...',
       autoFocus = false,
       disabled = false,
@@ -103,6 +105,9 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    onKeyDownProp?.(e);
+    if (e.defaultPrevented) return;
+
     if (e.key === 'Enter') {
       e.preventDefault();
       const trimmed = internalValue.trim();
