@@ -93,46 +93,41 @@ export function RecentSalesWidget() {
 
   return (
     <Card className="border-border/70 shadow-2xs overflow-hidden flex flex-col justify-between">
-      <CardHeader className="p-4 pb-3 border-b border-border/50 bg-muted/20 flex flex-row items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Receipt className="size-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-bold text-foreground truncate">
-                Recent Sales Activity
-              </CardTitle>
-              <span className="flex items-center gap-1.5 text-micro font-medium text-success">
-                <span className="size-1.5 rounded-full bg-success animate-pulse shrink-0" />
-                Live
-              </span>
+      <CardHeader className="p-3.5 sm:p-4 pb-2.5 sm:pb-3 border-b border-border/50 bg-muted/20 flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Receipt className="size-3.5" />
             </div>
-            <p className="text-micro text-muted-foreground mt-0.5">
-              Live transaction feed for the current shift
-            </p>
+            <CardTitle className="text-sm font-bold text-foreground truncate">
+              Recent Sales Activity
+            </CardTitle>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => fetchSales(true)}
+              disabled={isRefreshing || isLoading}
+              className="size-7 text-muted-foreground hover:text-foreground"
+              title="Refresh recent sales feed"
+            >
+              <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
+            </Button>
+            <Button asChild variant="outline" size="sm" className="h-7 text-xs px-2 sm:px-2.5 font-medium gap-1 shadow-2xs">
+              <Link href="/reports">
+                <span>All Sales</span>
+                <ArrowRight className="size-3 text-muted-foreground" />
+              </Link>
+            </Button>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => fetchSales(true)}
-            disabled={isRefreshing || isLoading}
-            className="size-7 text-muted-foreground hover:text-foreground"
-            title="Refresh recent sales feed"
-          >
-            <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
-          </Button>
-          <Button asChild variant="outline" size="sm" className="h-7 text-xs px-2.5 font-medium gap-1">
-            <Link href="/reports">
-              <span>All Sales</span>
-              <ArrowRight className="size-3 text-muted-foreground" />
-            </Link>
-          </Button>
-        </div>
+        <p className="text-micro text-muted-foreground pl-9 leading-normal">
+          Live transaction feed for the current shift
+        </p>
       </CardHeader>
 
       <CardContent className="p-0 flex-1">
