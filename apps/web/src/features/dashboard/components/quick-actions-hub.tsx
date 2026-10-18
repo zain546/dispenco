@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ShoppingCart,
   PackagePlus,
@@ -25,7 +26,19 @@ interface ActionItem {
 }
 
 export function QuickActionsHub() {
+  const router = useRouter();
   const { canManageInventory, canManageTransfers } = usePermissions();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        router.push('/pos');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [router]);
 
   const actions: ActionItem[] = [
     {
@@ -109,12 +122,15 @@ export function QuickActionsHub() {
                       <Icon className="size-3.5 sm:size-4" />
                     </div>
                     {act.badge && (
-                      <Badge
-                        variant={act.primary ? 'default' : 'secondary'}
-                        className="text-micro font-mono px-1.5 py-0 shrink-0"
+                      <kbd
+                        className={`text-micro font-mono px-1.5 py-0.5 rounded border shadow-2xs font-bold shrink-0 ${
+                          act.primary
+                            ? 'bg-primary/15 text-primary border-primary/30 group-hover:bg-primary group-hover:text-primary-foreground transition-colors'
+                            : 'bg-muted border-border/70 text-muted-foreground'
+                        }`}
                       >
                         {act.badge}
-                      </Badge>
+                      </kbd>
                     )}
                   </div>
                   <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-snug truncate sm:whitespace-normal">

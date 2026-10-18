@@ -59,11 +59,12 @@ export function CatalogCompletionWidget() {
     );
   }
 
-  if (!stats || stats.totalCatalogItems === 0) {
+  // Auto-hide when store catalog is 100% stocked to eliminate dashboard clutter
+  if (!stats || stats.totalCatalogItems === 0 || stats.unstockedCount === 0) {
     return null;
   }
 
-  const isFullyStocked = stats.unstockedCount === 0;
+  const isFullyStocked = false;
 
   return (
     <Card className={`border-border/60 shadow-2xs overflow-hidden ${isFullyStocked ? 'border-success/30' : 'border-warning/30'}`}>

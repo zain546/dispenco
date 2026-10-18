@@ -132,10 +132,10 @@ export function UrgentAttentionPanel() {
                   ? 'All items stocked safely'
                   : `${formatNumber(data.lowStockCount)} Item${data.lowStockCount === 1 ? '' : 's'} Below Threshold`}
               </p>
-              <p className="text-micro text-muted-foreground mt-0.5 truncate">
+              <p className="text-micro text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
                 {data.lowStockCount === 0
-                  ? 'No critical stockouts detected in this branch'
-                  : 'Fast-depleting catalog items requiring reorder'}
+                  ? 'No critical stockouts or low inventory detected in this branch.'
+                  : 'Fast-depleting catalog items requiring inventory replenishment.'}
               </p>
             </div>
           </div>
@@ -159,10 +159,10 @@ export function UrgentAttentionPanel() {
                   ? 'No near-expiry inventory'
                   : `${formatNumber(data.expiringSoonCount)} Batch Lot${data.expiringSoonCount === 1 ? '' : 's'} Expiring Soon`}
               </p>
-              <p className="text-micro text-muted-foreground mt-0.5 truncate">
+              <p className="text-micro text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
                 {data.expiringSoonCount === 0
-                  ? 'All stock batches expire well beyond alert threshold'
-                  : 'Prioritize via FEFO counter dispensation'}
+                  ? 'All stock batches expire well beyond the alert threshold.'
+                  : 'Prioritize via FEFO counter dispensing or supplier return.'}
               </p>
             </div>
           </div>
