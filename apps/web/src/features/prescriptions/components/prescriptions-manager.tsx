@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import {
   FileText,
@@ -424,7 +425,7 @@ export function PrescriptionsManager() {
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50 flex-wrap">
                     <Button
                       variant="outline"
                       size="sm"
@@ -439,15 +440,31 @@ export function PrescriptionsManager() {
                     </Button>
 
                     {rx.status === 'ACTIVE' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleDispense(rx.id)}
-                        disabled={isDispensing}
-                        className="gap-1.5 text-xs h-8 font-bold"
-                      >
-                        <CheckCircle2 className="size-3.5" />
-                        <span>Dispense Rx</span>
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="secondary"
+                          className="gap-1.5 text-xs h-8 font-semibold text-primary hover:text-primary"
+                        >
+                          <Link
+                            href={`/pos?customerName=${encodeURIComponent(rx.patientName || '')}&customerPhone=${encodeURIComponent(rx.patientPhone || '')}`}
+                          >
+                            <ShoppingCart className="size-3.5 text-primary" />
+                            <span>Bill in POS</span>
+                          </Link>
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          onClick={() => handleDispense(rx.id)}
+                          disabled={isDispensing}
+                          className="gap-1.5 text-xs h-8 font-bold"
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                          <span>Dispense</span>
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -572,7 +589,7 @@ export function PrescriptionsManager() {
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -582,15 +599,30 @@ export function PrescriptionsManager() {
                 Close
               </Button>
               {selectedRx.status === 'ACTIVE' && (
-                <Button
-                  size="sm"
-                  onClick={() => handleDispense(selectedRx.id)}
-                  disabled={isDispensing}
-                  className="text-xs font-bold gap-1.5"
-                >
-                  <CheckCircle2 className="size-3.5" />
-                  <span>Mark as Dispensed</span>
-                </Button>
+                <>
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="secondary"
+                    className="text-xs font-semibold gap-1.5 text-primary hover:text-primary"
+                  >
+                    <Link
+                      href={`/pos?customerName=${encodeURIComponent(selectedRx.patientName || '')}&customerPhone=${encodeURIComponent(selectedRx.patientPhone || '')}`}
+                    >
+                      <ShoppingCart className="size-3.5 text-primary" />
+                      <span>Transfer to POS Counter</span>
+                    </Link>
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleDispense(selectedRx.id)}
+                    disabled={isDispensing}
+                    className="text-xs font-bold gap-1.5"
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    <span>Mark as Dispensed</span>
+                  </Button>
+                </>
               )}
             </DialogFooter>
           </DialogContent>

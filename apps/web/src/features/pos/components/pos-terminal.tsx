@@ -177,6 +177,20 @@ export function POSTerminal() {
     }
   }, [activeStoreId, isAllStores]);
 
+  // Read prescription or customer parameters from URL (e.g. from Prescriptions Manager)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const custName = params.get('customerName');
+      const custPhone = params.get('customerPhone');
+      if (custName) {
+        setCustomerName(custName);
+        toast.info(`Loaded patient "${custName}" for POS billing.`);
+      }
+      if (custPhone) setCustomerPhone(custPhone);
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsOnline(navigator.onLine);
