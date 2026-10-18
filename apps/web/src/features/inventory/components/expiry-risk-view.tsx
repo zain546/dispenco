@@ -241,7 +241,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
           <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
             {/* Timeframe selector */}
             <div className="flex items-center bg-secondary/50 p-1 rounded-lg border border-border/60">
-              <span className="text-[11px] font-medium text-muted-foreground px-2">Velocity:</span>
+              <span className="text-micro font-medium text-muted-foreground px-2">Velocity:</span>
               {[14, 30, 60, 90].map((days) => (
                 <button
                   key={days}

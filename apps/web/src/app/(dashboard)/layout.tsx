@@ -246,7 +246,7 @@ export default function DashboardLayout({
                     <h1 className="text-xl font-bold tracking-tight text-primary leading-none truncate">
                       Dispenco
                     </h1>
-                    <span className="text-[11px] font-medium text-muted-foreground leading-tight block mt-1 truncate">
+                    <span className="text-micro font-medium text-muted-foreground leading-tight block mt-1 truncate">
                       Pharmacy POS
                     </span>
                   </div>
@@ -285,7 +285,7 @@ export default function DashboardLayout({
                   </TooltipTrigger>
                   <TooltipContent side="right" className="text-xs">
                     <p className="font-semibold">{userName}</p>
-                    <p className="text-[11px] text-muted-foreground">{role}</p>
+                    <p className="text-micro text-muted-foreground">{role}</p>
                   </TooltipContent>
                 </Tooltip>
 

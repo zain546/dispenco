@@ -131,7 +131,7 @@ export function CatalogCompletionWidget() {
               <p className="font-semibold text-foreground">
                 ⚡ Pro-tip: Prioritize fast-moving items first
               </p>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-micro">
                 You can receive stock shipments for individual unstocked products or create purchase orders to populate remaining inventory.
               </p>
             </div>

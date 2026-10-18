@@ -112,7 +112,7 @@ export function CreateStoreModal({ open, onOpenChange, onSuccess }: CreateStoreM
               {...register('name')}
             />
             {errors.name && (
-              <p className="text-[11px] text-destructive font-medium">{errors.name.message}</p>
+              <p className="text-micro text-destructive font-medium">{errors.name.message}</p>
             )}
           </div>
 

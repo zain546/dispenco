@@ -322,7 +322,7 @@ export function OcrPrescriptionModal({
                   <span>Prescription OCR & Verification</span>
                   <Badge
                     variant="outline"
-                    className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold"
+                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold"
                   >
                     Clinical Compliance
                   </Badge>

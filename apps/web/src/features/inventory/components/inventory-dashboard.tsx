@@ -268,32 +268,32 @@ export function InventoryDashboard() {
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
-          <TabsList className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 h-auto border border-border/40 scrollbar-none">
-            <TabsTrigger value="in-stock" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+          <TabsList className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto p-1 h-auto border border-border/40 scrollbar-none snap-x">
+            <TabsTrigger value="in-stock" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap snap-start">
               <Boxes className="size-3.5 text-success shrink-0" />
               <span>In-Stock ({data.summary.stockedCount ?? 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+            <TabsTrigger value="full-catalog" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap snap-start">
               <Package className="size-3.5 text-primary shrink-0" />
               <span>Master Catalog ({data.summary.totalCatalogItems})</span>
             </TabsTrigger>
-            <TabsTrigger value="priority-top-sellers" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+            <TabsTrigger value="priority-top-sellers" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap snap-start">
               <Star className="size-3.5 text-warning fill-warning shrink-0" />
               <span>Top Sellers ({data.summary.priorityCount})</span>
             </TabsTrigger>
-            <TabsTrigger value="unstocked" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+            <TabsTrigger value="unstocked" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap snap-start">
               <TrendingDown className="size-3.5 text-warning shrink-0" />
               <span>Unstocked ({data.summary.unstockedCount ?? 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="expiring-soon" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+            <TabsTrigger value="expiring-soon" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap snap-start">
               <Clock className="size-3.5 text-destructive shrink-0" />
               <span>Expiring ({data.summary.expiringSoonCount})</span>
             </TabsTrigger>
-            <TabsTrigger value="expiry-risk" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5 text-primary data-[state=active]:bg-primary/10">
+            <TabsTrigger value="expiry-risk" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 text-primary data-[state=active]:bg-primary/10 shrink-0 whitespace-nowrap snap-start">
               <Sparkles className="size-3.5 text-primary shrink-0" />
               <span>Risk Forecast</span>
             </TabsTrigger>
-            <TabsTrigger value="low-stock" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-1.5 sm:px-3 py-1.5">
+            <TabsTrigger value="low-stock" className="gap-1 sm:gap-1.5 font-medium text-xs sm:text-sm px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap snap-start">
               <AlertTriangle className="size-3.5 text-warning shrink-0" />
               <span>Low Stock ({data.summary.lowStockCount})</span>
             </TabsTrigger>

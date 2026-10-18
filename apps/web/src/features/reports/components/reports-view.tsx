@@ -214,12 +214,12 @@ export function ReportsView() {
       />
 
       {/* View Switcher: Standard Reports vs AI Copilot vs Audit & Compliance */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
+      <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto scrollbar-none snap-x">
         <Button
           variant={currentView === 'charts' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setCurrentView('charts')}
-          className="gap-1.5 font-medium text-xs sm:text-sm h-9"
+          className="gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start"
         >
           <BarChart3 className="size-4 shrink-0" />
           <span>Sales & Org Analytics</span>
@@ -228,7 +228,7 @@ export function ReportsView() {
           variant={currentView === 'copilot' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setCurrentView('copilot')}
-          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
+          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start ${
             currentView === 'copilot'
               ? 'bg-primary text-primary-foreground font-bold shadow-xs'
               : 'text-muted-foreground hover:text-foreground'
@@ -247,7 +247,7 @@ export function ReportsView() {
           variant={currentView === 'audit' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setCurrentView('audit')}
-          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
+          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start ${
             currentView === 'audit'
               ? 'bg-primary text-primary-foreground font-bold shadow-xs'
               : 'text-muted-foreground hover:text-foreground'
@@ -266,7 +266,7 @@ export function ReportsView() {
           variant={currentView === 'integrity' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => setCurrentView('integrity')}
-          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
+          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start ${
             currentView === 'integrity'
               ? 'bg-primary text-primary-foreground font-bold shadow-xs'
               : 'text-muted-foreground hover:text-foreground'

@@ -400,7 +400,7 @@ export function CustomerList() {
                               title="View full Khata ledger and invoices"
                             >
                               <Receipt className="size-3 text-primary" />
-                              <span>Ledger</span>
+                              <span className="hidden xs:inline">Ledger</span>
                             </Button>
 
                             <Button
@@ -411,7 +411,7 @@ export function CustomerList() {
                               title="Record debt repayment"
                             >
                               <Banknote className="size-3 text-primary" />
-                              <span>Pay</span>
+                              <span className="hidden xs:inline">Pay</span>
                             </Button>
 
                             <Button

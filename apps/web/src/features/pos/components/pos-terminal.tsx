@@ -40,6 +40,14 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -114,6 +122,40 @@ export function POSTerminal() {
   const [isOnline, setIsOnline] = useState(true);
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
+
+  // Pack Size Edit Dialog State (replaces native prompt)
+  const [packSizeModal, setPackSizeModal] = useState<{
+    isOpen: boolean;
+    itemIndex: number;
+    productName: string;
+    packSize: string;
+  }>({
+    isOpen: false,
+    itemIndex: -1,
+    productName: '',
+    packSize: '100',
+  });
+
+  const handleOpenPackSizeModal = (idx: number, name: string, currentSize: number) => {
+    setPackSizeModal({
+      isOpen: true,
+      itemIndex: idx,
+      productName: name,
+      packSize: String(currentSize > 1 ? currentSize : 100),
+    });
+  };
+
+  const handleSavePackSize = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const parsed = parseInt(packSizeModal.packSize, 10);
+    if (!isNaN(parsed) && parsed > 0 && packSizeModal.itemIndex >= 0) {
+      updatePackSize(packSizeModal.itemIndex, parsed);
+      toast.success(`Pack size for "${packSizeModal.productName}" updated to ${parsed} units/box`);
+    } else {
+      toast.error('Please enter a valid positive number for pack size.');
+    }
+    setPackSizeModal((prev) => ({ ...prev, isOpen: false }));
+  };
 
   const checkPendingOfflineSales = useCallback(async () => {
     try {
@@ -1095,13 +1137,7 @@ export function POSTerminal() {
                                     {packSize === 1 && (
                                       <button
                                         type="button"
-                                        onClick={() => {
-                                          const sizeStr = prompt(`Set Pack Size (Units/Box) for ${item.product.name}:`, '100');
-                                          if (sizeStr) {
-                                            const parsed = parseInt(sizeStr, 10);
-                                            if (parsed > 0) updatePackSize(idx, parsed);
-                                          }
-                                        }}
+                                        onClick={() => handleOpenPackSizeModal(idx, item.product.name, packSize)}
                                         className="text-micro underline font-bold text-warning hover:underline"
                                       >
                                         ⚙️ Set Pack Size
@@ -1300,13 +1336,7 @@ export function POSTerminal() {
                                         {packSize === 1 && (
                                           <button
                                             type="button"
-                                            onClick={() => {
-                                              const sizeStr = prompt(`Set Pack Size (Units/Box) for ${item.product.name}:`, '100');
-                                              if (sizeStr) {
-                                                const parsed = parseInt(sizeStr, 10);
-                                                if (parsed > 0) updatePackSize(idx, parsed);
-                                              }
-                                            }}
+                                            onClick={() => handleOpenPackSizeModal(idx, item.product.name, packSize)}
                                             className="text-micro underline font-bold text-warning hover:underline"
                                           >
                                             ⚙️ Set Pack Size
@@ -1436,7 +1466,7 @@ export function POSTerminal() {
         {/* Right Column: Checkout Sidebar (4-5 cols) */}
         <div className="lg:col-span-5 xl:col-span-4 space-y-4">
           {/* Billing & Payment Details Card */}
-          <Card className="shadow-xs border-border/80 bg-card overflow-hidden">
+          <Card id="payment-summary-card" className="shadow-xs border-border/80 bg-card overflow-hidden scroll-mt-20">
             <CardHeader className="p-4 pb-3 border-b border-border/60">
               <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
                 <Banknote className="size-4 text-primary shrink-0" />
@@ -1848,6 +1878,88 @@ export function POSTerminal() {
           }
         }}
       />
+
+      {/* Pack Size Configuration Dialog Modal */}
+      <Dialog
+        open={packSizeModal.isOpen}
+        onOpenChange={(open) => setPackSizeModal((prev) => ({ ...prev, isOpen: open }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Package className="size-4 text-primary" />
+              <span>Configure Medicine Pack Size</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Define how many tablets or single units are contained in 1 full box of <strong>{packSizeModal.productName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSavePackSize} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="pos-pack-size-input" className="text-xs font-semibold">
+                Units / Tablets per Box:
+              </Label>
+              <Input
+                id="pos-pack-size-input"
+                type="number"
+                min="1"
+                step="1"
+                autoFocus
+                value={packSizeModal.packSize}
+                onChange={(e) => setPackSizeModal((prev) => ({ ...prev, packSize: e.target.value }))}
+                placeholder="e.g. 10, 20, 100"
+                className="h-10 text-sm font-semibold"
+              />
+              <p className="text-micro text-muted-foreground">
+                This enables loose-strip and single tablet POS dispensing with automatic FEFO fractional box deductions.
+              </p>
+            </div>
+
+            <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPackSizeModal((prev) => ({ ...prev, isOpen: false }))}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="font-semibold gap-1.5">
+                <CheckCircle2 className="size-3.5" />
+                <span>Save Pack Size</span>
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mobile Sticky Checkout Bar (Screens < lg) */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border p-3 flex lg:hidden items-center justify-between shadow-xl gap-3">
+          <div className="min-w-0">
+            <span className="text-micro text-muted-foreground uppercase tracking-wider block font-semibold truncate">
+              {cart.reduce((acc, it) => acc + it.quantity, 0)} item{cart.length > 1 ? 's' : ''} in Cart
+            </span>
+            <span className="text-base font-extrabold text-foreground tracking-tight">
+              {totals.grandTotal.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">PKR</span>
+            </span>
+          </div>
+          <Button
+            type="button"
+            onClick={() => {
+              const paySection = document.getElementById('payment-summary-card');
+              if (paySection) {
+                paySection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className="h-9 sm:h-10 px-3.5 text-xs font-bold gap-1.5 shadow-xs shrink-0"
+          >
+            <span>Review & Pay</span>
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

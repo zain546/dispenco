@@ -281,7 +281,7 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
                   <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary" />
                   <div className="w-full h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse absolute top-1/2 -translate-y-1/2" />
                 </div>
-                <p className="mt-3 text-[11px] font-medium text-white/80 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-xs">
+                <p className="mt-3 text-micro font-medium text-white/80 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-xs">
                   Scanning for barcode...
                 </p>
               </div>

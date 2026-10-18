@@ -41,7 +41,7 @@ export function ConnectivityIndicator() {
                 size="sm"
                 className="gap-1.5"
               >
-                <span>Online</span>
+                <span className="hidden sm:inline">Online</span>
               </StatusBadge>
             ) : (
               <StatusBadge
@@ -50,7 +50,7 @@ export function ConnectivityIndicator() {
                 size="sm"
                 className="gap-1.5"
               >
-                <span>Offline (Local)</span>
+                <span className="hidden sm:inline">Offline (Local)</span>
               </StatusBadge>
             )}
           </div>

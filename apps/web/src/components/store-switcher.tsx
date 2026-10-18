@@ -47,7 +47,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
       <>
         <div
           className={cn(
-            'flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/70 bg-muted/40 text-xs font-semibold text-foreground shrink-0 max-w-[200px] sm:max-w-[260px] shadow-2xs',
+            'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-border/70 bg-muted/40 text-xs font-semibold text-foreground shrink-0 max-w-[130px] xs:max-w-[190px] sm:max-w-[260px] shadow-2xs',
             className
           )}
         >
@@ -82,7 +82,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
             role="combobox"
             aria-label="Select a store branch"
             className={cn(
-              'h-9 gap-2 px-2.5 sm:px-3 text-xs sm:text-sm font-medium border-border/80 hover:bg-accent/60 hover:text-accent-foreground transition-all shrink-0 max-w-[200px] sm:max-w-[260px] justify-between shadow-2xs',
+              'h-9 gap-1.5 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-border/80 hover:bg-accent/60 hover:text-accent-foreground transition-all shrink-0 max-w-[130px] xs:max-w-[190px] sm:max-w-[260px] justify-between shadow-2xs',
               className
             )}
           >
