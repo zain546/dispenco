@@ -43,23 +43,23 @@ export function StatCard({
 
   return (
     <Card className={cn('border-border/80 shadow-2xs hover:border-border transition-colors', className)}>
-      <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-3">
-        <div className="space-y-1 min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider text-overline truncate">
+      <CardContent className="p-3 sm:p-5 flex items-center justify-between gap-2.5 sm:gap-3">
+        <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1">
+          <p className="text-micro sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider text-overline truncate">
             {displayLabel}
           </p>
           {isLoading ? (
-            <div className="space-y-1.5 py-1">
-              <Skeleton className="h-7 w-28" />
-              {caption && <Skeleton className="h-3.5 w-36" />}
+            <div className="space-y-1 py-1">
+              <Skeleton className="h-6 sm:h-7 w-20 sm:w-28" />
+              {caption && <Skeleton className="h-3 sm:h-3.5 w-24 sm:w-36" />}
             </div>
           ) : (
             <>
-              <div className={cn('text-xl sm:text-2xl font-bold tracking-tight tabular-nums', valueColorClass)}>
+              <div className={cn('text-lg sm:text-2xl font-bold tracking-tight tabular-nums truncate', valueColorClass)}>
                 {value}
               </div>
               {caption && (
-                <p className="text-xs text-muted-foreground truncate leading-normal">
+                <p className="text-micro sm:text-xs text-muted-foreground truncate leading-normal">
                   {caption}
                 </p>
               )}
@@ -68,8 +68,8 @@ export function StatCard({
         </div>
 
         {Icon && (
-          <div className={cn('size-10 rounded-xl flex items-center justify-center shrink-0', iconBgClass)}>
-            <Icon className="size-5" />
+          <div className={cn('size-8 sm:size-10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0', iconBgClass)}>
+            <Icon className="size-4 sm:size-5" />
           </div>
         )}
       </CardContent>

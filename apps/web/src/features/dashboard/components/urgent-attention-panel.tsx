@@ -77,7 +77,7 @@ export function UrgentAttentionPanel() {
 
   return (
     <Card className="border-border/70 shadow-2xs overflow-hidden flex flex-col justify-between">
-      <CardHeader className="p-4 pb-3 border-b border-border/50 bg-muted/20 flex flex-row items-center justify-between gap-2">
+      <CardHeader className="p-3 sm:p-4 pb-2.5 sm:pb-3 border-b border-border/50 bg-muted/20 flex flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <AlertTriangle
             className={`size-4 ${hasUrgentIssues ? 'text-warning' : 'text-success'}`}
@@ -88,21 +88,21 @@ export function UrgentAttentionPanel() {
         </div>
         <Badge
           variant={hasUrgentIssues ? 'warning' : 'success'}
-          className="text-micro font-medium"
+          className="text-micro font-medium shrink-0"
         >
           {hasUrgentIssues ? 'Action Required' : 'Optimal'}
         </Badge>
       </CardHeader>
 
-      <CardContent className="p-4 space-y-2.5 flex-1">
+      <CardContent className="p-3 sm:p-4 space-y-2.5 flex-1">
         {/* Critical Out of Stock Alert (if any) */}
         {data.outOfStockCount > 0 && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-between gap-2 transition-all">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center justify-between gap-2 transition-all">
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
               <div className="size-7 rounded-md bg-destructive/20 text-destructive flex items-center justify-center shrink-0">
                 <AlertTriangle className="size-3.5" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="font-bold text-xs text-destructive">
                   {formatNumber(data.outOfStockCount)} Critical Stockout{data.outOfStockCount === 1 ? '' : 's'}
                 </p>
@@ -111,7 +111,7 @@ export function UrgentAttentionPanel() {
                 </p>
               </div>
             </div>
-            <Button asChild size="sm" variant="destructive" className="h-7 text-xs px-2.5 shrink-0 gap-1 font-medium">
+            <Button asChild size="sm" variant="destructive" className="h-7 text-xs px-2 sm:px-2.5 shrink-0 gap-1 font-medium whitespace-nowrap">
               <Link href="/inventory?tab=unstocked">
                 <span>Restock</span>
                 <ChevronRight className="size-3" />
@@ -121,12 +121,12 @@ export function UrgentAttentionPanel() {
         )}
 
         {/* Low Stock Alert */}
-        <div className="p-3 rounded-lg bg-card border border-border/70 flex items-center justify-between gap-2 hover:border-warning/50 transition-colors">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="p-2.5 sm:p-3 rounded-lg bg-card border border-border/70 flex items-center justify-between gap-2 hover:border-warning/50 transition-colors">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
             <div className="size-7 rounded-md bg-warning/15 text-warning flex items-center justify-center shrink-0">
               <TrendingDown className="size-3.5" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-xs text-foreground">
                 {data.lowStockCount === 0
                   ? 'All items stocked safely'
@@ -139,7 +139,7 @@ export function UrgentAttentionPanel() {
               </p>
             </div>
           </div>
-          <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2.5 shrink-0 gap-1 font-medium">
+          <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2 sm:px-2.5 shrink-0 gap-1 font-medium whitespace-nowrap">
             <Link href="/inventory?tab=low_stock">
               <span>Inspect</span>
               <ChevronRight className="size-3 text-muted-foreground" />
@@ -148,12 +148,12 @@ export function UrgentAttentionPanel() {
         </div>
 
         {/* Expiring Soon Alert */}
-        <div className="p-3 rounded-lg bg-card border border-border/70 flex items-center justify-between gap-2 hover:border-primary/50 transition-colors">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="p-2.5 sm:p-3 rounded-lg bg-card border border-border/70 flex items-center justify-between gap-2 hover:border-primary/50 transition-colors">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
             <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
               <Clock className="size-3.5" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-xs text-foreground">
                 {data.expiringSoonCount === 0
                   ? 'No near-expiry inventory'
@@ -166,7 +166,7 @@ export function UrgentAttentionPanel() {
               </p>
             </div>
           </div>
-          <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2.5 shrink-0 gap-1 font-medium">
+          <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2 sm:px-2.5 shrink-0 gap-1 font-medium whitespace-nowrap">
             <Link href="/inventory?tab=expiring">
               <span>View FEFO</span>
               <ChevronRight className="size-3 text-muted-foreground" />

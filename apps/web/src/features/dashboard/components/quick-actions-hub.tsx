@@ -91,7 +91,7 @@ export function QuickActionsHub() {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Quick Operations Hub
         </h3>
-        <span className="text-micro text-muted-foreground">
+        <span className="text-micro text-muted-foreground hidden sm:inline">
           Press keyboard shortcuts or click to launch
         </span>
       </div>
@@ -133,7 +133,7 @@ export function QuickActionsHub() {
                       </kbd>
                     )}
                   </div>
-                  <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-snug truncate sm:whitespace-normal">
+                  <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">
                     {act.title}
                   </h4>
                   <p className="text-micro text-muted-foreground mt-0.5 sm:mt-1 hidden xs:block line-clamp-2 leading-relaxed">

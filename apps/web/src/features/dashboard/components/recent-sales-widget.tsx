@@ -12,6 +12,7 @@ import {
   Banknote,
   Smartphone,
   ExternalLink,
+  ChevronRight,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -166,70 +167,109 @@ export function RecentSalesWidget() {
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-border/50 bg-muted/30 text-muted-foreground font-semibold text-micro uppercase tracking-wider">
-                  <th className="py-2.5 px-4">Receipt</th>
-                  <th className="py-2.5 px-4">Customer</th>
-                  <th className="py-2.5 px-3">Method</th>
-                  <th className="py-2.5 px-3">Time</th>
-                  <th className="py-2.5 px-4 text-right">Amount</th>
-                  <th className="py-2.5 px-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40">
-                {sales.map((s) => (
-                  <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="py-2.5 px-4 font-mono font-medium text-xs text-foreground">
-                      <Link
-                        href={`/pos/receipt/${s.id}`}
-                        className="hover:text-primary transition-colors hover:underline"
-                        title="View printable receipt"
-                      >
+          <>
+            {/* Mobile Touch Card List (< sm) */}
+            <div className="block sm:hidden divide-y divide-border/40">
+              {sales.map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/pos/receipt/${s.id}`}
+                  className="p-3 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors block"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-semibold text-xs text-foreground tracking-tight whitespace-nowrap">
                         {s.receiptNumber}
-                      </Link>
-                    </td>
-
-                    <td className="py-2.5 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <User className="size-3 text-muted-foreground shrink-0" />
-                        <span className="truncate max-w-32 font-medium text-foreground">
-                          {s.customerName || 'Walk-in'}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className="py-2.5 px-3">
+                      </span>
                       {getPaymentBadge(s.paymentMethod || 'CASH')}
-                    </td>
-
-                    <td className="py-2.5 px-3 text-muted-foreground text-micro whitespace-nowrap">
-                      {formatRelativeTime(s.createdAt)}
-                    </td>
-
-                    <td className="py-2.5 px-4 text-right font-bold text-foreground tabular-nums">
+                    </div>
+                    <div className="flex items-center gap-2 text-micro text-muted-foreground">
+                      <span className="flex items-center gap-1 truncate max-w-[120px]">
+                        <User className="size-3 shrink-0" />
+                        {s.customerName || 'Walk-in'}
+                      </span>
+                      <span>•</span>
+                      <span className="whitespace-nowrap">{formatRelativeTime(s.createdAt)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-xs font-bold text-foreground tabular-nums">
                       {formatCurrency(s.totalAmount)}
-                    </td>
+                    </div>
+                    <span className="text-micro text-primary flex items-center justify-end gap-0.5 mt-0.5">
+                      View <ChevronRight className="size-2.5" />
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
 
-                    <td className="py-2.5 px-3 text-right">
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 text-muted-foreground hover:text-primary"
-                        title="View receipt"
-                      >
-                        <Link href={`/pos/receipt/${s.id}`}>
-                          <ExternalLink className="size-3" />
-                        </Link>
-                      </Button>
-                    </td>
+            {/* Desktop Full Table (sm+) */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30 text-muted-foreground font-semibold text-micro uppercase tracking-wider">
+                    <th className="py-2.5 px-4">Receipt</th>
+                    <th className="py-2.5 px-4">Customer</th>
+                    <th className="py-2.5 px-3">Method</th>
+                    <th className="py-2.5 px-3">Time</th>
+                    <th className="py-2.5 px-4 text-right">Amount</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {sales.map((s) => (
+                    <tr key={s.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="py-2.5 px-4 font-mono font-medium text-xs text-foreground whitespace-nowrap">
+                        <Link
+                          href={`/pos/receipt/${s.id}`}
+                          className="hover:text-primary transition-colors hover:underline"
+                          title="View printable receipt"
+                        >
+                          {s.receiptNumber}
+                        </Link>
+                      </td>
+
+                      <td className="py-2.5 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <User className="size-3 text-muted-foreground shrink-0" />
+                          <span className="truncate max-w-32 font-medium text-foreground">
+                            {s.customerName || 'Walk-in'}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="py-2.5 px-3">
+                        {getPaymentBadge(s.paymentMethod || 'CASH')}
+                      </td>
+
+                      <td className="py-2.5 px-3 text-muted-foreground text-micro whitespace-nowrap">
+                        {formatRelativeTime(s.createdAt)}
+                      </td>
+
+                      <td className="py-2.5 px-4 text-right font-bold text-foreground tabular-nums">
+                        {formatCurrency(s.totalAmount)}
+                      </td>
+
+                      <td className="py-2.5 px-3 text-right">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 text-muted-foreground hover:text-primary"
+                          title="View receipt"
+                        >
+                          <Link href={`/pos/receipt/${s.id}`}>
+                            <ExternalLink className="size-3" />
+                          </Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

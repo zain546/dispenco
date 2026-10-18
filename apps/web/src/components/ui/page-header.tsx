@@ -46,7 +46,7 @@ export function PageHeader({
       </div>
 
       {actions && (
-        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto self-stretch sm:self-center">
           {actions}
         </div>
       )}
