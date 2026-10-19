@@ -96,13 +96,13 @@ export function QuickActionsHub() {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      <div className="flex sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-2.5 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {actions.map((act) => {
           if (act.requiredPermission === false) return null;
           const Icon = act.icon;
 
           return (
-            <Link key={act.title} href={act.href} className="group block h-full">
+            <Link key={act.title} href={act.href} className="shrink-0 w-[145px] xs:w-[160px] sm:w-auto snap-start block group h-full">
               <Card
                 className={`h-full p-2.5 sm:p-3 transition-all duration-200 border cursor-pointer select-none flex flex-col justify-between ${
                   act.primary

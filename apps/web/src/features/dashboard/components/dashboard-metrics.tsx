@@ -71,7 +71,7 @@ export function DashboardMetrics() {
   }, [activeStoreId, isAllStores]);
 
   return (
-    <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 -mx-3.5 px-3.5 sm:mx-0 sm:px-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {/* Today's Sales */}
       <Link href="/reports" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start block group">
         <StatCard

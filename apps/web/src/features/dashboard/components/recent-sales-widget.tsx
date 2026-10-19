@@ -100,7 +100,7 @@ export function RecentSalesWidget() {
               <Receipt className="size-3.5" />
             </div>
             <CardTitle className="text-sm font-bold text-foreground truncate">
-              Recent Sales Activity
+              Recent Sales
             </CardTitle>
           </div>
 
