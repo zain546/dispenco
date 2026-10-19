@@ -348,8 +348,8 @@ export default function DashboardLayout({
         {/* Main Content Container */}
         <div className="flex-1 flex flex-col min-w-0 bg-muted/20">
           {/* Top Header */}
-          <header className="h-14 sm:h-16 bg-card border-b border-border flex items-center justify-between px-3 sm:px-6 shadow-xs shrink-0 gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <header className="h-14 sm:h-16 bg-card border-b border-border flex items-center justify-between px-2.5 sm:px-6 shadow-xs shrink-0 gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[calc(100%-115px)] sm:max-w-none">
               {/* Mobile Drawer Trigger (Visible on < lg) */}
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetTrigger asChild>
@@ -409,7 +409,7 @@ export default function DashboardLayout({
               <StoreSwitcher />
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2.5 text-xs text-muted-foreground shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 text-xs text-muted-foreground shrink-0">
               <ThemeToggle />
               <NotificationBell />
               <ConnectivityIndicator />

@@ -47,14 +47,14 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
       <>
         <div
           className={cn(
-            'flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg border border-border/70 bg-muted/40 text-xs font-semibold text-foreground shrink-0 max-w-[205px] sm:max-w-[260px] shadow-2xs',
+            'flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg border border-border/70 bg-muted/40 text-xs font-semibold text-foreground min-w-0 max-w-[155px] xs:max-w-[190px] sm:max-w-[260px] shadow-2xs',
             className
           )}
         >
           <div className="size-5 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Store className="size-3.5" />
           </div>
-          <span className="truncate font-semibold text-foreground text-left flex-1">
+          <span className="truncate font-semibold text-foreground text-left min-w-0 flex-1">
             {displayTitle}
           </span>
           {canManageStores && (
@@ -82,7 +82,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
             role="combobox"
             aria-label="Select a store branch"
             className={cn(
-              'h-9 gap-1.5 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-border/80 hover:bg-accent/60 hover:text-accent-foreground transition-all shrink-0 max-w-[205px] sm:max-w-[260px] justify-between shadow-2xs',
+              'h-9 gap-1.5 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-border/80 hover:bg-accent/60 hover:text-accent-foreground transition-all min-w-0 max-w-[155px] xs:max-w-[190px] sm:max-w-[260px] justify-between shadow-2xs',
               className
             )}
           >
