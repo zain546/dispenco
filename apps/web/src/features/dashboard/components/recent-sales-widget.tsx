@@ -93,41 +93,40 @@ export function RecentSalesWidget() {
 
   return (
     <Card className="border-border/70 shadow-2xs overflow-hidden flex flex-col justify-between">
-      <CardHeader className="p-3.5 sm:p-4 pb-2.5 sm:pb-3 border-b border-border/50 bg-muted/20 flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Receipt className="size-3.5" />
-            </div>
-            <CardTitle className="text-sm font-bold text-foreground truncate">
+      <CardHeader className="p-3.5 sm:p-4 pb-3 border-b border-border/50 flex flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Receipt className="size-4" />
+          </div>
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-bold text-foreground leading-none truncate">
               Recent Sales
             </CardTitle>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => fetchSales(true)}
-              disabled={isRefreshing || isLoading}
-              className="size-7 text-muted-foreground hover:text-foreground"
-              title="Refresh recent sales feed"
-            >
-              <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
-            </Button>
-            <Button asChild variant="outline" size="sm" className="h-7 text-xs px-2 sm:px-2.5 font-medium gap-1 shadow-2xs">
-              <Link href="/reports">
-                <span>All Sales</span>
-                <ArrowRight className="size-3 text-muted-foreground" />
-              </Link>
-            </Button>
+            <p className="text-micro text-muted-foreground mt-1 truncate">
+              Live shift transactions
+            </p>
           </div>
         </div>
 
-        <p className="text-micro text-muted-foreground pl-9 leading-normal">
-          Live transaction feed for the current shift
-        </p>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => fetchSales(true)}
+            disabled={isRefreshing || isLoading}
+            className="size-8 text-muted-foreground hover:text-foreground rounded-lg"
+            title="Refresh recent sales feed"
+          >
+            <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
+          </Button>
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs px-2.5 font-medium gap-1 shadow-2xs">
+            <Link href="/reports">
+              <span>View All</span>
+              <ArrowRight className="size-3 text-muted-foreground" />
+            </Link>
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="p-0 flex-1">
@@ -169,31 +168,29 @@ export function RecentSalesWidget() {
                 <Link
                   key={s.id}
                   href={`/pos/receipt/${s.id}`}
-                  className="p-3 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors block"
+                  className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 active:bg-muted/50 transition-colors group"
                 >
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-semibold text-xs text-foreground tracking-tight whitespace-nowrap">
-                        {s.receiptNumber}
+                  <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-primary/20">
+                    {s.customerName ? s.customerName.charAt(0).toUpperCase() : <Receipt className="size-4" />}
+                  </div>
+
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-xs text-foreground truncate max-w-[130px]">
+                        {s.customerName || 'Walk-in'}
                       </span>
                       {getPaymentBadge(s.paymentMethod || 'CASH')}
                     </div>
-                    <div className="flex items-center gap-2 text-micro text-muted-foreground">
-                      <span className="flex items-center gap-1 truncate max-w-[120px]">
-                        <User className="size-3 shrink-0" />
-                        {s.customerName || 'Walk-in'}
-                      </span>
-                      <span>•</span>
-                      <span className="whitespace-nowrap">{formatRelativeTime(s.createdAt)}</span>
-                    </div>
+                    <p className="text-micro text-muted-foreground truncate font-mono">
+                      {s.receiptNumber} • {formatRelativeTime(s.createdAt)}
+                    </p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs font-bold text-foreground tabular-nums">
+
+                  <div className="text-right shrink-0 flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground tabular-nums">
                       {formatCurrency(s.totalAmount)}
-                    </div>
-                    <span className="text-micro text-primary flex items-center justify-end gap-0.5 mt-0.5">
-                      View <ChevronRight className="size-2.5" />
                     </span>
+                    <ChevronRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
                   </div>
                 </Link>
               ))}
