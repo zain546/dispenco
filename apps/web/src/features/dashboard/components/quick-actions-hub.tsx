@@ -96,21 +96,25 @@ export function QuickActionsHub() {
         </span>
       </div>
 
-      <div className="flex sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-2.5 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex items-stretch sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-2.5 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {actions.map((act) => {
           if (act.requiredPermission === false) return null;
           const Icon = act.icon;
 
           return (
-            <Link key={act.title} href={act.href} className="shrink-0 w-[145px] xs:w-[160px] sm:w-auto snap-start block group h-full">
+            <Link
+              key={act.title}
+              href={act.href}
+              className="shrink-0 w-[145px] xs:w-[160px] sm:w-auto snap-start flex flex-col group"
+            >
               <Card
-                className={`h-full p-2.5 sm:p-3 transition-all duration-200 border cursor-pointer select-none flex flex-col justify-between ${
+                className={`flex-1 w-full h-[92px] sm:h-full p-2.5 sm:p-3 transition-all duration-200 border cursor-pointer select-none flex flex-col justify-between ${
                   act.primary
                     ? 'border-primary/40 bg-primary/[0.03] hover:bg-primary/[0.08] hover:border-primary shadow-xs'
                     : 'border-border/70 hover:border-border hover:bg-muted/40 shadow-2xs'
                 }`}
               >
-                <div>
+                <div className="flex flex-col justify-between h-full">
                   <div className="flex items-start justify-between gap-1 mb-1.5 sm:mb-2">
                     <div
                       className={`size-7 sm:size-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
@@ -133,7 +137,7 @@ export function QuickActionsHub() {
                       </kbd>
                     )}
                   </div>
-                  <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2">
+                  <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2 min-h-[2rem] flex items-center">
                     {act.title}
                   </h4>
                   <p className="text-micro text-muted-foreground mt-0.5 sm:mt-1 hidden xs:block line-clamp-2 leading-relaxed">

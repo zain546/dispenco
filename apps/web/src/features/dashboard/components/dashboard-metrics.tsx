@@ -71,9 +71,9 @@ export function DashboardMetrics() {
   }, [activeStoreId, isAllStores]);
 
   return (
-    <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex items-stretch sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {/* Today's Sales */}
-      <Link href="/reports" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start block group">
+      <Link href="/reports" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
         <StatCard
           label="Today's Sales"
           value={formatCurrency(todaySales.revenue)}
@@ -81,12 +81,12 @@ export function DashboardMetrics() {
           icon={DollarSign}
           variant="success"
           isLoading={isLoading}
-          className="group-hover:border-success/50 transition-colors h-full"
+          className="group-hover:border-success/50 transition-colors h-full flex-1"
         />
       </Link>
 
       {/* Low Stock Alerts */}
-      <Link href="/inventory?tab=low_stock" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start block group">
+      <Link href="/inventory?tab=low_stock" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
         <StatCard
           label="Low Stock Alerts"
           value={formatNumber(metrics.lowStockCount)}
@@ -94,12 +94,12 @@ export function DashboardMetrics() {
           icon={AlertTriangle}
           variant={metrics.lowStockCount > 0 ? 'warning' : 'default'}
           isLoading={isLoading}
-          className="group-hover:border-warning/50 transition-colors h-full"
+          className="group-hover:border-warning/50 transition-colors h-full flex-1"
         />
       </Link>
 
       {/* Expiring Soon */}
-      <Link href="/inventory?tab=expiring" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start block group">
+      <Link href="/inventory?tab=expiring" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
         <StatCard
           label="Expiring Batches"
           value={formatNumber(metrics.expiringSoonCount)}
@@ -107,12 +107,12 @@ export function DashboardMetrics() {
           icon={Clock}
           variant={metrics.expiringSoonCount > 0 ? 'destructive' : 'default'}
           isLoading={isLoading}
-          className="group-hover:border-destructive/50 transition-colors h-full"
+          className="group-hover:border-destructive/50 transition-colors h-full flex-1"
         />
       </Link>
 
       {/* Active Catalog */}
-      <Link href="/inventory" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start block group">
+      <Link href="/inventory" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
         <StatCard
           label="Active Catalog"
           value={formatNumber(metrics.totalProducts)}
@@ -120,7 +120,7 @@ export function DashboardMetrics() {
           icon={PackageCheck}
           variant="default"
           isLoading={isLoading}
-          className="group-hover:border-primary/50 transition-colors h-full"
+          className="group-hover:border-primary/50 transition-colors h-full flex-1"
         />
       </Link>
     </div>
