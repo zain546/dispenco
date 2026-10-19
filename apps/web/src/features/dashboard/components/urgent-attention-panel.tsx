@@ -86,14 +86,9 @@ export function UrgentAttentionPanel() {
           )}>
             <AlertTriangle className="size-4" />
           </div>
-          <div className="min-w-0">
-            <CardTitle className="text-sm font-bold text-foreground leading-none truncate">
-              Stock & Expiry Alerts
-            </CardTitle>
-            <p className="text-micro text-muted-foreground mt-1 truncate">
-              Branch inventory health
-            </p>
-          </div>
+          <CardTitle className="text-sm font-bold text-foreground leading-none truncate">
+            Stock Alerts
+          </CardTitle>
         </div>
         <Badge
           variant={hasUrgentIssues ? 'warning' : 'success'}
@@ -152,7 +147,7 @@ export function UrgentAttentionPanel() {
               </p>
               <p className="text-micro text-muted-foreground mt-0.5 truncate">
                 {data.lowStockCount === 0
-                  ? 'No critical low inventory detected'
+                  ? 'All stock levels healthy'
                   : 'Fast-depleting items requiring replenishment'}
               </p>
             </div>
@@ -185,7 +180,7 @@ export function UrgentAttentionPanel() {
               <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
                 {data.expiringSoonCount === 0
                   ? 'No near-expiry inventory'
-                  : `${formatNumber(data.expiringSoonCount)} Batch Lot${data.expiringSoonCount === 1 ? '' : 's'} Expiring`}
+                  : `${formatNumber(data.expiringSoonCount)} Lots Expiring Soon`}
               </p>
               <p className="text-micro text-muted-foreground mt-0.5 truncate">
                 {data.expiringSoonCount === 0

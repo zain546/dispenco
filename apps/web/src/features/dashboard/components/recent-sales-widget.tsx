@@ -98,14 +98,9 @@ export function RecentSalesWidget() {
           <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <Receipt className="size-4" />
           </div>
-          <div className="min-w-0">
-            <CardTitle className="text-sm font-bold text-foreground leading-none truncate">
-              Recent Sales
-            </CardTitle>
-            <p className="text-micro text-muted-foreground mt-1 truncate">
-              Live shift transactions
-            </p>
-          </div>
+          <CardTitle className="text-sm font-bold text-foreground leading-none truncate">
+            Recent Sales
+          </CardTitle>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -164,36 +159,40 @@ export function RecentSalesWidget() {
           <>
             {/* Mobile Touch Card List (< sm) */}
             <div className="block sm:hidden divide-y divide-border/40">
-              {sales.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/pos/receipt/${s.id}`}
-                  className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 active:bg-muted/50 transition-colors group"
-                >
-                  <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-primary/20">
-                    {s.customerName ? s.customerName.charAt(0).toUpperCase() : <Receipt className="size-4" />}
-                  </div>
+              {sales.map((s) => {
+                const compactReceipt = s.receiptNumber?.replace(/^REC-\d{8}-/, '#') || s.receiptNumber;
 
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-xs text-foreground truncate max-w-[130px]">
-                        {s.customerName || 'Walk-in'}
-                      </span>
-                      {getPaymentBadge(s.paymentMethod || 'CASH')}
+                return (
+                  <Link
+                    key={s.id}
+                    href={`/pos/receipt/${s.id}`}
+                    className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 active:bg-muted/50 transition-colors group"
+                  >
+                    <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-primary/20">
+                      {s.customerName ? s.customerName.charAt(0).toUpperCase() : <Receipt className="size-4" />}
                     </div>
-                    <p className="text-micro text-muted-foreground truncate font-mono">
-                      {s.receiptNumber} • {formatRelativeTime(s.createdAt)}
-                    </p>
-                  </div>
 
-                  <div className="text-right shrink-0 flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-foreground tabular-nums">
-                      {formatCurrency(s.totalAmount)}
-                    </span>
-                    <ChevronRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
-                  </div>
-                </Link>
-              ))}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-xs text-foreground truncate max-w-[130px]">
+                          {s.customerName || 'Walk-in'}
+                        </span>
+                        {getPaymentBadge(s.paymentMethod || 'CASH')}
+                      </div>
+                      <p className="text-micro text-muted-foreground truncate font-mono">
+                        {compactReceipt} • {formatRelativeTime(s.createdAt)}
+                      </p>
+                    </div>
+
+                    <div className="text-right shrink-0 flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-foreground tabular-nums">
+                        {formatCurrency(s.totalAmount)}
+                      </span>
+                      <ChevronRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Desktop Full Table (sm+) */}
