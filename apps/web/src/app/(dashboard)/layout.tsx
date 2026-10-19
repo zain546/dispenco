@@ -44,6 +44,7 @@ import { useStore } from '@/context/store-context';
 import { usePermissions } from '@/hooks/use-permissions';
 import { StoreSwitcher } from '@/components/store-switcher';
 import { ConnectivityIndicator } from '@/components/layout/connectivity-indicator';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -408,7 +409,8 @@ export default function DashboardLayout({
               <StoreSwitcher />
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 text-xs text-muted-foreground shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 text-xs text-muted-foreground shrink-0">
+              <ThemeToggle />
               <NotificationBell />
               <ConnectivityIndicator />
             </div>
