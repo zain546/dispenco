@@ -45,7 +45,7 @@ export function StatCard({
     <Card className={cn('border-border/80 shadow-2xs hover:border-border transition-colors', className)}>
       <CardContent className="p-3.5 sm:p-5 flex items-center justify-between gap-3 h-full">
         <div className="space-y-0.5 sm:space-y-1 min-w-0 flex-1">
-          <p className="text-micro sm:text-xs text-muted-foreground font-semibold uppercase tracking-wider text-overline truncate">
+          <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold tracking-wide leading-tight line-clamp-2">
             {displayLabel}
           </p>
           {isLoading ? (

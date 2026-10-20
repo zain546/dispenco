@@ -168,40 +168,44 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-3xl max-h-[92vh] flex flex-col p-4 sm:p-6 overflow-hidden">
-          <DialogHeader>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Database className="size-5" />
-                </div>
-                <div>
-                  <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
-                    <span>Local-First POS & Offline Queue</span>
-                    <StatusBadge variant={isOnline ? 'success' : 'danger'}>
-                      {isOnline ? 'Online' : 'Offline'}
-                    </StatusBadge>
+        <DialogContent className="w-[calc(100vw-20px)] sm:max-w-2xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden rounded-2xl sm:rounded-xl gap-3 sm:gap-4">
+          <DialogHeader className="pr-10 sm:pr-12">
+            <div className="flex items-start gap-3">
+              <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                <Database className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-base sm:text-lg font-bold">
+                    Local-First POS & Offline Queue
                   </DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                    IndexedDB local catalog cache & opportunistic sync with conflict resolution
-                  </DialogDescription>
+                  <StatusBadge variant={isOnline ? 'success' : 'danger'}>
+                    {isOnline ? 'Online' : 'Offline'}
+                  </StatusBadge>
                 </div>
+                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5">
+                  IndexedDB local catalog cache & opportunistic sync with conflict resolution
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
           {/* Local Catalog Cache Banner */}
-          <div className="p-3 bg-muted/40 rounded-xl border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
-            <div className="flex items-center gap-2">
-              <PackageCheck className="size-4 text-primary shrink-0" />
-              <div>
-                <span className="font-semibold text-foreground">Local Catalog Cache: </span>
-                <span className="text-muted-foreground">
-                  {status ? `${status.cachedProductsCount} medicines cached in IndexedDB` : 'Loading cache...'}
-                </span>
+          <div className="p-3 sm:p-3.5 bg-muted/30 rounded-xl border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <PackageCheck className="size-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-foreground">Local Catalog Cache:</span>
+                  <span className="text-muted-foreground">
+                    {status ? `${status.cachedProductsCount} medicines cached` : 'Loading cache...'}
+                  </span>
+                </div>
                 {status?.lastSyncedAt && (
-                  <span className="text-micro text-muted-foreground block sm:inline sm:ml-2">
-                    (Last synced: {new Date(status.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                  <span className="text-[11px] text-muted-foreground/80 block mt-0.5">
+                    Last synced: {new Date(status.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
               </div>
@@ -212,41 +216,73 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
               size="sm"
               onClick={handleSyncCatalog}
               disabled={!isOnline || isCatalogSyncing}
-              className="h-7 text-xs font-semibold gap-1.5 shrink-0 self-start sm:self-auto"
+              className="h-8 text-xs font-semibold gap-1.5 shrink-0 w-full sm:w-auto justify-center"
             >
-              <RefreshCw className={`size-3 ${isCatalogSyncing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`size-3.5 ${isCatalogSyncing ? 'animate-spin' : ''}`} />
               <span>{isCatalogSyncing ? 'Updating Cache...' : 'Refresh Catalog Cache'}</span>
             </Button>
           </div>
 
           {/* Summary Badges */}
-          <div className="grid grid-cols-3 gap-2 my-1">
-            <div className="bg-warning/10 border border-warning/20 rounded-lg p-2 text-center">
-              <span className="block text-xs font-semibold text-warning">Pending Sync</span>
-              <span className="text-lg font-bold text-warning">{pendingCount}</span>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {/* Pending Sync */}
+            <div className="relative overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-card to-amber-500/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[11px] sm:text-xs font-semibold text-amber-500 leading-tight">
+                  Pending Sync
+                </span>
+                <Clock className="size-3.5 text-amber-500 shrink-0 hidden xs:block" />
+              </div>
+              <strong className="text-xl sm:text-2xl font-extrabold text-amber-500 mt-1 block tabular-nums">
+                {pendingCount}
+              </strong>
             </div>
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-2 text-center">
-              <span className="block text-xs font-semibold text-destructive">Stock Conflicts</span>
-              <span className="text-lg font-bold text-destructive">{conflictCount}</span>
+
+            {/* Stock Conflicts */}
+            <div className="relative overflow-hidden rounded-xl border border-rose-500/25 bg-gradient-to-br from-card to-rose-500/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[11px] sm:text-xs font-semibold text-rose-500 leading-tight">
+                  Conflicts
+                </span>
+                <ShieldAlert className="size-3.5 text-rose-500 shrink-0 hidden xs:block" />
+              </div>
+              <strong className="text-xl sm:text-2xl font-extrabold text-rose-500 mt-1 block tabular-nums">
+                {conflictCount}
+              </strong>
             </div>
-            <div className="bg-success/10 border border-success/20 rounded-lg p-2 text-center">
-              <span className="block text-xs font-semibold text-success">Synced</span>
-              <span className="text-lg font-bold text-success">{syncedCount}</span>
+
+            {/* Synced */}
+            <div className="relative overflow-hidden rounded-xl border border-emerald-500/25 bg-gradient-to-br from-card to-emerald-500/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-[11px] sm:text-xs font-semibold text-emerald-500 leading-tight">
+                  Synced
+                </span>
+                <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0 hidden xs:block" />
+              </div>
+              <strong className="text-xl sm:text-2xl font-extrabold text-emerald-500 mt-1 block tabular-nums">
+                {syncedCount}
+              </strong>
             </div>
           </div>
 
           {/* Transactions List */}
-          <div className="flex-1 overflow-y-auto space-y-2.5 my-1 pr-1 max-h-[380px] divide-y divide-border/60">
+          <div className="flex-1 overflow-y-auto space-y-2 py-1 max-h-[40vh] divide-y divide-border/60">
             {isLoading ? (
-              <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+              <div className="py-10 text-center text-muted-foreground flex flex-col items-center gap-2">
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <span className="text-xs">Loading local IndexedDB transaction queue...</span>
               </div>
             ) : records.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground space-y-2">
-                <CheckCircle2 className="size-8 text-success mx-auto" />
-                <p className="font-semibold text-sm text-foreground">Local Transaction Queue Clean</p>
-                <p className="text-xs text-muted-foreground">All POS checkouts are fully synchronized with the cloud backend.</p>
+              <div className="py-6 sm:py-8 text-center text-muted-foreground space-y-2 flex flex-col items-center justify-center">
+                <div className="size-11 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <CheckCircle2 className="size-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-foreground">Local Transaction Queue Clean</p>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto mt-0.5">
+                    All POS checkouts are fully synchronized with the cloud backend.
+                  </p>
+                </div>
               </div>
             ) : (
               records.map((rec) => (
@@ -335,24 +371,24 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
             )}
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-border/80 pt-3">
+          <DialogFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-t border-border/80 pt-3">
             {syncedCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleClearSynced}
-                className="text-xs text-muted-foreground hover:text-foreground h-8 px-2"
+                className="text-xs text-muted-foreground hover:text-foreground h-8.5 px-2 order-2 sm:order-1"
               >
                 Clear Synced ({syncedCount})
               </Button>
             )}
 
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end ml-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end ml-auto order-1 sm:order-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onOpenChange(false)}
-                className="h-8.5 text-xs font-semibold"
+                className="h-8.5 text-xs font-semibold flex-1 sm:flex-initial"
               >
                 Close
               </Button>
@@ -361,7 +397,7 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
                 size="sm"
                 onClick={handleSyncAllSales}
                 disabled={!isOnline || isSyncing || pendingCount === 0}
-                className="h-8.5 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+                className="h-8.5 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs flex-1 sm:flex-initial"
               >
                 <RefreshCw className={`size-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span>{isSyncing ? 'Syncing...' : `Sync All Pending (${pendingCount})`}</span>
