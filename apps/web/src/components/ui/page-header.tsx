@@ -33,7 +33,7 @@ export function PageHeader({
               <Icon className="size-4.5" />
             </div>
           )}
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground truncate">
+          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-foreground">
             {title}
           </h1>
           {badge}

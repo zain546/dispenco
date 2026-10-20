@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Layers,
+  Stethoscope,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -155,19 +156,19 @@ export function PrescriptionsManager() {
   const dispensedCount = prescriptions.filter((p) => p.status === 'DISPENSED').length;
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
       {/* Header Banner */}
       <PageHeader
         title="Prescription Management & Compliance"
         description="Verify physician prescriptions, inspect clinical directions, and manage controlled narcotic schedules."
         icon={FileText}
         actions={
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <Button
               onClick={() => setOcrModalOpen(true)}
-              className="gap-2 font-bold shadow-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="gap-2 font-bold shadow-xs h-9.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto justify-center"
             >
-              <Sparkles className="size-4" />
+              <Camera className="size-4" />
               <span>Scan Doctor Slip (OCR Assist)</span>
             </Button>
           </div>
@@ -175,67 +176,91 @@ export function PrescriptionsManager() {
       />
 
       {/* Summary Metrics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="border-border/60 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Active Prescriptions */}
+        <Card className="relative overflow-hidden border border-emerald-500/20 bg-gradient-to-br from-card via-card to-emerald-500/[0.04] shadow-xs hover:border-emerald-500/40 transition-colors">
+          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs font-semibold text-foreground/85 leading-snug">
                 Active Prescriptions
               </span>
-              <strong className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 block tabular-nums">
+              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="size-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between gap-2">
+              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
                 {activeCount}
               </strong>
-            </div>
-            <div className="size-10 rounded-xl bg-success/10 text-success flex items-center justify-center">
-              <CheckCircle2 className="size-5" />
+              <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
+                Active
+              </span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
-                Controlled Substance Rx
+        {/* Controlled Substance Rx */}
+        <Card className="relative overflow-hidden border border-rose-500/25 bg-gradient-to-br from-card via-card to-rose-500/[0.06] shadow-xs hover:border-rose-500/45 transition-colors">
+          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs font-semibold text-foreground/85 leading-snug">
+                Controlled Drugs
               </span>
-              <strong className="text-xl sm:text-2xl font-bold text-destructive mt-0.5 block tabular-nums">
+              <div className="size-8 rounded-lg bg-rose-500/10 text-rose-500 ring-1 ring-rose-500/20 flex items-center justify-center shrink-0">
+                <ShieldAlert className="size-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between gap-2">
+              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-rose-500 tabular-nums">
                 {controlledCount}
               </strong>
-            </div>
-            <div className="size-10 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center">
-              <ShieldAlert className="size-5" />
+              <span className="text-[10px] font-semibold text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded-md">
+                Schedule II-V
+              </span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
+        {/* Fully Dispensed */}
+        <Card className="relative overflow-hidden border border-sky-500/20 bg-gradient-to-br from-card via-card to-sky-500/[0.04] shadow-xs hover:border-sky-500/40 transition-colors">
+          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs font-semibold text-foreground/85 leading-snug">
                 Fully Dispensed
               </span>
-              <strong className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 block tabular-nums">
+              <div className="size-8 rounded-lg bg-sky-500/10 text-sky-500 ring-1 ring-sky-500/20 flex items-center justify-center shrink-0">
+                <ShieldCheck className="size-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between gap-2">
+              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
                 {dispensedCount}
               </strong>
-            </div>
-            <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <ShieldCheck className="size-5" />
+              <span className="text-[10px] font-semibold text-sky-500 bg-sky-500/10 px-1.5 py-0.5 rounded-md">
+                Fulfilled
+              </span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-2xs">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <span className="text-micro text-muted-foreground font-semibold uppercase tracking-wider block">
-                Total Recorded
+        {/* Total Recorded */}
+        <Card className="relative overflow-hidden border border-border/70 bg-gradient-to-br from-card via-card to-muted/30 shadow-xs hover:border-primary/40 transition-colors">
+          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-xs font-semibold text-foreground/85 leading-snug">
+                Total Prescriptions
               </span>
-              <strong className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 block tabular-nums">
+              <div className="size-8 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+                <Layers className="size-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between gap-2">
+              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
                 {prescriptions.length}
               </strong>
-            </div>
-            <div className="size-10 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center">
-              <Layers className="size-5" />
+              <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
+                Recorded
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -243,21 +268,21 @@ export function PrescriptionsManager() {
 
       {/* Filter & Search Bar */}
       <Card className="border-border/70 shadow-2xs">
-        <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-3">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search patient, phone, doctor, Rx number, CNIC..."
-              className="pl-9 pr-4 h-9 text-xs"
+              placeholder="Search patient, doctor, Rx #..."
+              className="pl-9 pr-4 h-9 text-xs w-full"
             />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 text-xs w-36">
+              <SelectTrigger className="h-9 text-xs flex-1 sm:w-36 sm:flex-initial">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -273,10 +298,11 @@ export function PrescriptionsManager() {
               variant={controlledOnly ? 'destructive' : 'outline'}
               size="sm"
               onClick={() => setControlledOnly(!controlledOnly)}
-              className="h-9 gap-1.5 text-xs font-semibold"
+              className="h-9 gap-1.5 text-xs font-semibold shrink-0 px-2.5 sm:px-3"
             >
               <ShieldAlert className="size-3.5" />
-              <span>Controlled Medicines Only</span>
+              <span className="hidden xs:inline">Controlled Only</span>
+              <span className="xs:hidden">Controlled</span>
             </Button>
 
             <Button
@@ -284,7 +310,8 @@ export function PrescriptionsManager() {
               size="sm"
               onClick={fetchPrescriptions}
               disabled={loading}
-              className="h-9 px-3 gap-1.5 text-xs"
+              className="h-9 px-2.5 sm:px-3 gap-1.5 text-xs shrink-0"
+              title="Refresh Prescriptions"
             >
               <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -310,7 +337,7 @@ export function PrescriptionsManager() {
               onClick={() => setOcrModalOpen(true)}
               className="gap-2 font-bold text-xs"
             >
-              <Sparkles className="size-3.5" />
+              <Camera className="size-3.5" />
               <span>Scan Doctor Slip</span>
             </Button>
           }
@@ -326,10 +353,11 @@ export function PrescriptionsManager() {
                   hasControlled ? 'border-destructive/30 bg-destructive/2' : 'border-border'
                 }`}
               >
-                <CardHeader className="p-4 pb-2 border-b border-border/50 flex flex-row items-start justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs font-bold text-primary">
+                <CardHeader className="p-3.5 sm:p-4 pb-3 border-b border-border/50 space-y-2">
+                  {/* Top Bar: Rx Number, Badges, Dates */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-xs sm:text-sm font-bold text-primary">
                         {rx.prescriptionNumber}
                       </span>
                       <Badge
@@ -340,59 +368,82 @@ export function PrescriptionsManager() {
                             ? 'secondary'
                             : 'outline'
                         }
-                        className="text-micro font-semibold"
+                        className="text-[11px] font-semibold h-5 px-1.5"
                       >
                         {rx.status}
                       </Badge>
                       {hasControlled && (
                         <Badge
                           variant="destructive"
-                          className="text-micro font-bold gap-1 px-1.5 py-0"
+                          className="text-[11px] font-bold gap-1 h-5 px-1.5 py-0"
                         >
                           <ShieldAlert className="size-3" />
                           <span>Controlled Rx</span>
                         </Badge>
                       )}
                     </div>
-                    <h4 className="font-bold text-sm text-foreground mt-1 flex items-center gap-1.5">
-                      <User className="size-3.5 text-muted-foreground" />
-                      <span>{rx.patientName}</span>
-                      {rx.patientAge && (
-                        <span className="text-xs text-muted-foreground font-normal">
-                          ({rx.patientAge}y, {rx.patientGender || 'N/A'})
+                    <div className="text-right text-micro text-muted-foreground shrink-0 flex items-center gap-1.5 ml-auto">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="size-3 text-muted-foreground/70" />
+                        <span>{formatDate(rx.prescriptionDate)}</span>
+                      </span>
+                      {rx.expiryDate && (
+                        <span className="hidden xs:inline text-muted-foreground/70">
+                          • Exp: {formatDate(rx.expiryDate)}
                         </span>
                       )}
-                    </h4>
+                    </div>
                   </div>
-                  <div className="text-right text-micro text-muted-foreground shrink-0">
-                    <span className="flex items-center gap-1 justify-end">
-                      <Calendar className="size-3 text-muted-foreground/70" />
-                      <span>{formatDate(rx.prescriptionDate)}</span>
-                    </span>
+
+                  {/* Patient Line with Avatar */}
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="size-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <User className="size-3.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5 flex-wrap">
+                          <span className="truncate">{rx.patientName}</span>
+                          {rx.patientAge && (
+                            <span className="text-xs text-muted-foreground font-normal shrink-0">
+                              ({rx.patientAge}y{rx.patientGender ? `, ${rx.patientGender}` : ''})
+                            </span>
+                          )}
+                        </h4>
+                      </div>
+                    </div>
                     {rx.expiryDate && (
-                      <span className="text-micro block mt-0.5">
-                        Expires: {formatDate(rx.expiryDate)}
+                      <span className="xs:hidden text-[10px] text-muted-foreground shrink-0">
+                        Exp: {formatDate(rx.expiryDate)}
                       </span>
                     )}
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-4 space-y-3">
+                <CardContent className="p-3.5 sm:p-4 space-y-3">
                   {/* Doctor Info */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div>
-                      <span className="text-foreground font-semibold">{rx.doctorName}</span>
-                      {rx.doctorHospital && <span> • {rx.doctorHospital}</span>}
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Stethoscope className="size-3.5 text-primary shrink-0" />
+                      <span className="text-foreground font-semibold truncate">{rx.doctorName}</span>
+                      {rx.doctorHospital && (
+                        <span className="truncate hidden xs:inline">• {rx.doctorHospital}</span>
+                      )}
                     </div>
                     {rx.doctorLicenseNumber && (
-                      <Badge variant="outline" className="text-micro font-mono">
+                      <Badge variant="outline" className="text-[10px] font-mono shrink-0 h-5 px-1.5">
                         {rx.doctorLicenseNumber}
                       </Badge>
                     )}
                   </div>
+                  {rx.doctorHospital && (
+                    <div className="xs:hidden text-micro text-muted-foreground -mt-2 pl-5 truncate">
+                      {rx.doctorHospital}
+                    </div>
+                  )}
 
                   {/* Medicines Summary */}
-                  <div className="space-y-1 pt-1">
+                  <div className="space-y-1.5 pt-1">
                     <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
                       Prescribed Medicines ({rx.items.length})
                     </span>
@@ -401,14 +452,14 @@ export function PrescriptionsManager() {
                         <Badge
                           key={it.id}
                           variant="secondary"
-                          className={`text-xs gap-1.5 ${
+                          className={`text-xs gap-1.5 py-1 px-2 rounded-lg border ${
                             it.product?.isControlledSubstance
-                              ? 'border-destructive/30 text-destructive font-semibold'
-                              : ''
+                              ? 'border-destructive/30 bg-destructive/10 text-destructive font-semibold'
+                              : 'border-border/60 bg-muted/50 text-foreground'
                           }`}
                         >
-                          <Pill className="size-3 text-primary" />
-                          <span>{it.product?.name || 'Medicine'}</span>
+                          <Pill className="size-3 text-primary shrink-0" />
+                          <span className="font-medium">{it.product?.name || 'Medicine'}</span>
                           <span className="text-muted-foreground text-micro">
                             ({it.quantityPrescribed} {it.product?.unit || 'Units'})
                           </span>
@@ -419,13 +470,14 @@ export function PrescriptionsManager() {
 
                   {/* Diagnosis / Instructions */}
                   {rx.diagnosis && (
-                    <p className="text-xs text-muted-foreground italic line-clamp-1">
-                      Diagnosis: {rx.diagnosis}
-                    </p>
+                    <div className="text-xs text-muted-foreground italic line-clamp-2 bg-muted/20 rounded-md p-2 border border-border/40">
+                      <span className="font-medium not-italic text-foreground/80">Diagnosis: </span>
+                      {rx.diagnosis}
+                    </div>
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50 flex-wrap">
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/50">
                     <Button
                       variant="outline"
                       size="sm"
@@ -433,19 +485,21 @@ export function PrescriptionsManager() {
                         setSelectedRx(rx);
                         setDetailModalOpen(true);
                       }}
-                      className="gap-1.5 text-xs h-8 font-semibold"
+                      className={`gap-1.5 text-xs h-8.5 font-semibold ${
+                        rx.status === 'ACTIVE' ? 'flex-1 sm:flex-initial' : 'w-full sm:w-auto'
+                      }`}
                     >
                       <Eye className="size-3.5 text-primary" />
                       <span>Inspect Details</span>
                     </Button>
 
                     {rx.status === 'ACTIVE' && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
                         <Button
                           asChild
                           size="sm"
                           variant="secondary"
-                          className="gap-1.5 text-xs h-8 font-semibold text-primary hover:text-primary"
+                          className="gap-1.5 text-xs h-8.5 font-semibold text-primary hover:text-primary flex-1 sm:flex-initial"
                         >
                           <Link
                             href={`/pos?customerName=${encodeURIComponent(rx.patientName || '')}&customerPhone=${encodeURIComponent(rx.patientPhone || '')}`}
@@ -459,7 +513,7 @@ export function PrescriptionsManager() {
                           size="sm"
                           onClick={() => handleDispense(rx.id)}
                           disabled={isDispensing}
-                          className="gap-1.5 text-xs h-8 font-bold"
+                          className="gap-1.5 text-xs h-8.5 font-bold flex-1 sm:flex-initial"
                         >
                           <CheckCircle2 className="size-3.5" />
                           <span>Dispense</span>
@@ -486,18 +540,18 @@ export function PrescriptionsManager() {
       {/* Prescription Detail Modal */}
       {selectedRx && (
         <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl sm:rounded-xl">
+            <DialogHeader className="pr-10 sm:pr-12">
               <div className="flex items-center justify-between">
                 <div>
-                  <DialogTitle className="text-base font-bold flex items-center gap-2">
-                    <FileText className="size-4 text-primary" />
+                  <DialogTitle className="text-base font-bold flex items-center gap-2 flex-wrap">
+                    <FileText className="size-4 text-primary shrink-0" />
                     <span>Prescription {selectedRx.prescriptionNumber}</span>
                     <Badge variant="outline" className="text-xs font-mono">
                       {selectedRx.status}
                     </Badge>
                   </DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5">
                     Recorded on {formatDate(selectedRx.prescriptionDate)} for store {selectedRx.store?.name}
                   </DialogDescription>
                 </div>
@@ -506,15 +560,15 @@ export function PrescriptionsManager() {
 
             <div className="space-y-4 py-2 text-xs">
               {/* Patient & Doctor Sub-Grid */}
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-muted/30 border border-border">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-muted/30 border border-border">
+                <div className="space-y-0.5">
                   <span className="text-micro text-muted-foreground uppercase font-bold tracking-wider block">
                     Patient Information
                   </span>
-                  <strong className="text-sm font-bold text-foreground block mt-1">
+                  <strong className="text-sm font-bold text-foreground block pt-0.5">
                     {selectedRx.patientName}
                   </strong>
-                  <p className="text-muted-foreground mt-0.5">Phone: {selectedRx.patientPhone || 'N/A'}</p>
+                  <p className="text-muted-foreground">Phone: {selectedRx.patientPhone || 'N/A'}</p>
                   <p className="text-muted-foreground">CNIC: {selectedRx.patientCnic || 'N/A'}</p>
                   {selectedRx.patientAge && (
                     <p className="text-muted-foreground">
@@ -523,14 +577,14 @@ export function PrescriptionsManager() {
                   )}
                 </div>
 
-                <div>
+                <div className="space-y-0.5 border-t sm:border-t-0 sm:border-l border-border/60 pt-2.5 sm:pt-0 sm:pl-3">
                   <span className="text-micro text-muted-foreground uppercase font-bold tracking-wider block">
                     Prescribing Doctor
                   </span>
-                  <strong className="text-sm font-bold text-foreground block mt-1">
+                  <strong className="text-sm font-bold text-foreground block pt-0.5">
                     {selectedRx.doctorName}
                   </strong>
-                  <p className="text-muted-foreground mt-0.5">License: {selectedRx.doctorLicenseNumber || 'N/A'}</p>
+                  <p className="text-muted-foreground">License: {selectedRx.doctorLicenseNumber || 'N/A'}</p>
                   <p className="text-muted-foreground">Hospital: {selectedRx.doctorHospital || 'N/A'}</p>
                 </div>
               </div>
@@ -540,8 +594,8 @@ export function PrescriptionsManager() {
                 <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                   Prescribed Clinical Regimen
                 </span>
-                <div className="border border-border rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-xs">
+                <div className="border border-border rounded-xl overflow-x-auto">
+                  <table className="w-full min-w-[460px] text-left text-xs">
                     <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro">
                       <tr>
                         <th className="py-2.5 px-3">Medicine</th>
