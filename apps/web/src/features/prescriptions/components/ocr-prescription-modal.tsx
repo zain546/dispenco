@@ -309,25 +309,27 @@ export function OcrPrescriptionModal({
         onOpenChange(val);
       }}
     >
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="w-[calc(100vw-20px)] sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
         {/* Header */}
-        <DialogHeader className="p-4 sm:p-6 border-b border-border/60 bg-muted/20 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <FileText className="size-5" />
+        <DialogHeader className="p-3.5 sm:p-6 pr-11 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="size-8 sm:size-10 rounded-lg sm:rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                <FileText className="size-4 sm:size-5" />
               </div>
-              <div>
-                <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  <span>Prescription OCR & Verification</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <DialogTitle className="text-sm sm:text-lg font-bold text-foreground">
+                    Prescription OCR & Verification
+                  </DialogTitle>
                   <Badge
                     variant="outline"
-                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold"
+                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold hidden xs:inline-flex"
                   >
                     Clinical Compliance
                   </Badge>
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                </div>
+                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
                   Scan doctor slips to automatically extract patient details, dosage directions, and cross-reference controlled substances.
                 </DialogDescription>
               </div>
@@ -337,23 +339,23 @@ export function OcrPrescriptionModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => setStep('upload')}
-                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 h-8"
               >
                 <RefreshCw className="size-3.5" />
-                <span>Re-scan</span>
+                <span className="hidden sm:inline">Re-scan</span>
               </Button>
             )}
           </div>
         </DialogHeader>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4 sm:space-y-6">
           {step === 'upload' ? (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Dropzone */}
               <div
                 onClick={() => !isProcessing && fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-4 ${
+                className={`border-2 border-dashed rounded-xl p-5 sm:p-12 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 sm:gap-4 ${
                   isProcessing
                     ? 'border-primary/50 bg-primary/5 pointer-events-none'
                     : 'border-border/80 hover:border-primary/60 hover:bg-muted/30'
@@ -370,8 +372,8 @@ export function OcrPrescriptionModal({
                 {isProcessing ? (
                   <div className="flex flex-col items-center gap-3 py-4">
                     <div className="relative">
-                      <div className="size-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                      <Sparkles className="size-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                      <div className="size-14 sm:size-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                      <Sparkles className="size-5 sm:size-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                     </div>
                     <p className="font-semibold text-sm text-foreground">
                       Reading doctor handwriting & typography...
@@ -382,23 +384,23 @@ export function OcrPrescriptionModal({
                   </div>
                 ) : (
                   <>
-                    <div className="size-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
-                      <UploadCloud className="size-8" />
+                    <div className="size-12 sm:size-16 rounded-xl sm:rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                      <UploadCloud className="size-6 sm:size-8" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-base text-foreground">
+                      <h4 className="font-bold text-sm sm:text-base text-foreground">
                         Upload or snap doctor prescription slip
                       </h4>
-                      <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                      <p className="text-micro sm:text-xs text-muted-foreground mt-1 max-w-md">
                         Supports photographed medical receipts, clinical hospital slips, and PDF prescriptions (PNG, JPG, WebP, PDF).
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-2 pt-1 sm:pt-2 w-full sm:w-auto">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="gap-2 text-xs font-semibold"
+                        className="gap-2 text-xs font-semibold w-full sm:w-auto h-9 justify-center"
                         onClick={(e) => {
                           e.stopPropagation();
                           fileInputRef.current?.click();
@@ -414,10 +416,10 @@ export function OcrPrescriptionModal({
 
               {/* Demo 1-Click Sandbox Test */}
               <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                      <FileText className="size-5" />
+                    <div className="size-8 sm:size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                      <FileText className="size-4 sm:size-5" />
                     </div>
                     <div>
                       <h5 className="font-semibold text-xs text-foreground">
@@ -434,7 +436,7 @@ export function OcrPrescriptionModal({
                     size="sm"
                     disabled={isProcessing}
                     onClick={handleSimulateSampleRx}
-                    className="gap-1.5 shrink-0 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 h-8"
+                    className="gap-1.5 shrink-0 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 h-8.5 w-full sm:w-auto justify-center"
                   >
                     <Sparkles className="size-3.5" />
                     <span>Try Sample Prescription Slip</span>
@@ -766,7 +768,7 @@ export function OcrPrescriptionModal({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-4 sm:p-5 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-between gap-2 shrink-0">
+        <DialogFooter className="p-3.5 sm:p-5 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-between gap-2 shrink-0">
           <Button
             type="button"
             variant="outline"
@@ -775,7 +777,7 @@ export function OcrPrescriptionModal({
               resetState();
               onOpenChange(false);
             }}
-            className="text-xs"
+            className="text-xs h-9 px-3"
           >
             Cancel
           </Button>
@@ -786,7 +788,7 @@ export function OcrPrescriptionModal({
               size="sm"
               disabled={isSaving}
               onClick={handleConfirmSave}
-              className="gap-2 text-xs font-bold"
+              className="gap-1.5 sm:gap-2 text-xs font-bold h-9 px-3 sm:px-4"
             >
               {isSaving ? (
                 <>
@@ -796,7 +798,8 @@ export function OcrPrescriptionModal({
               ) : (
                 <>
                   <CheckCircle2 className="size-4" />
-                  <span>Confirm & Save Verified Prescription</span>
+                  <span className="hidden xs:inline">Confirm & Save Verified Prescription</span>
+                  <span className="xs:hidden">Confirm & Save</span>
                 </>
               )}
             </Button>
