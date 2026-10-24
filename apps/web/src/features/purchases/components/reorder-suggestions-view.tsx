@@ -25,6 +25,8 @@ import {
   ArrowRight,
   CheckSquare,
   Square,
+  ShieldCheck,
+  Eye,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -186,40 +188,45 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
   };
 
   const summary = data?.summary;
+  const criticalCount = summary?.criticalReordersCount ?? 0;
+  const reorderSoonCount = summary?.reorderSoonCount ?? 0;
+  const totalReordersNeeded = criticalCount + reorderSoonCount;
+  const totalCatalogCount = summary?.totalProductsAnalyzed ?? 0;
 
   return (
     <div className="space-y-6">
       {/* Header explanation banner */}
       <Card className="border-border/80 bg-card shadow-xs">
-        <CardContent className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1 max-w-2xl">
-            <div className="flex items-center gap-2">
-              <span className="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
-                <Sparkles className="size-4" />
-              </span>
-              <h2 className="text-base font-semibold text-foreground tracking-tight">
-                Smart Dynamic Reorder Recommendations
-              </h2>
-              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
-                Phase 4: Sales Velocity & Supplier Lead Time
+        <CardContent className="p-3.5 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3.5 sm:gap-4">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="size-6 sm:size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+                  <Sparkles className="size-3.5 sm:size-4" />
+                </span>
+                <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
+                  Automated Stock Replenishment
+                </h2>
+              </div>
+              <Badge variant="outline" className="text-[10px] sm:text-xs bg-primary/10 text-primary border-primary/20 font-medium shrink-0">
+                Sales Velocity & Lead Times
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Calculates dynamic replenishment points per medicine using real POS sales velocity, current shelf stock,
-              and supplier delivery lead times. Automatically surfaces optimal reorder timing and quantities to prevent stockouts
-              without locking excess working capital.
+            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-none">
+              Calculates dynamic reorder points based on real POS sales burn rate, current shelf stock,
+              and distributor lead times to prevent stockouts while optimizing working capital.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+          <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2 w-full md:w-auto shrink-0 pt-1 md:pt-0 border-t md:border-t-0 border-border/50">
             {/* Timeframe selector */}
-            <div className="flex items-center bg-secondary/50 p-1 rounded-lg border border-border/60">
-              <span className="text-xs font-medium text-muted-foreground px-2">History:</span>
+            <div className="flex items-center bg-secondary/50 p-0.5 sm:p-1 rounded-lg border border-border/60">
+              <span className="text-[11px] sm:text-xs font-medium text-muted-foreground px-1.5 sm:px-2">History:</span>
               {[14, 30, 60, 90].map((days) => (
                 <button
                   key={days}
                   onClick={() => setTimeframeDays(days)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
+                  className={`px-2 sm:px-2.5 py-1 rounded text-[11px] sm:text-xs font-medium transition-all cursor-pointer ${
                     timeframeDays === days
                       ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -235,52 +242,54 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               size="sm"
               onClick={() => fetchSuggestions(true)}
               disabled={isRefreshing || isLoading}
-              className="gap-1.5 h-8 text-xs cursor-pointer"
+              className="gap-1.5 h-8 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
             >
               <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Recalculate
+              <span>Recalculate</span>
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* High-Level Metric StatCards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
           label="Out of Stock / Critical"
-          value={isLoading ? '...' : (summary?.criticalReordersCount ?? 0).toString()}
-          icon={AlertTriangle}
-          variant={summary?.criticalReordersCount && summary.criticalReordersCount > 0 ? 'destructive' : 'default'}
-          caption="Medicines with stockout occurring or imminent before delivery"
+          value={isLoading ? '...' : criticalCount.toString()}
+          icon={criticalCount > 0 ? AlertTriangle : ShieldCheck}
+          variant={criticalCount > 0 ? 'destructive' : 'success'}
+          caption={criticalCount > 0 ? 'Stockout imminent before delivery' : '0 stockout risks detected'}
         />
         <StatCard
           label="Reorder Actions Required"
+          value={isLoading ? '...' : totalReordersNeeded.toString()}
+          icon={totalReordersNeeded > 0 ? ShoppingCart : CheckCircle2}
+          variant={totalReordersNeeded > 0 ? 'warning' : 'success'}
+          caption={totalReordersNeeded > 0 ? 'Products below replenishment threshold' : 'All stock levels healthy'}
+        />
+        <StatCard
+          label={totalReordersNeeded > 0 ? 'Suggested Units to Order' : 'Catalog Medicines Tracked'}
           value={
             isLoading
               ? '...'
-              : ((summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0)).toString()
+              : totalReordersNeeded > 0
+              ? (summary?.totalUnitsToOrder ?? 0).toLocaleString()
+              : totalCatalogCount.toString()
           }
-          icon={ShoppingCart}
-          variant="warning"
-          caption="Products at or below optimal replenishment point"
-        />
-        <StatCard
-          label="Total Units Suggested"
-          value={isLoading ? '...' : (summary?.totalUnitsToOrder ?? 0).toLocaleString()}
           icon={Package}
-          caption="Replenishment quantity to maintain 14-day stock safety coverage"
+          caption={totalReordersNeeded > 0 ? '14-day stock safety coverage' : '100% adequate coverage'}
         />
         <StatCard
-          label="Est. Working Capital"
+          label={totalReordersNeeded > 0 ? 'Est. Working Capital' : 'Reorder Capital Needed'}
           value={isLoading ? 'Calculating...' : formatCurrency(summary?.totalEstimatedCost ?? 0)}
           icon={DollarSign}
-          caption="Projected purchase cost for recommended replenish quantities"
+          caption={totalReordersNeeded > 0 ? 'Projected purchase outlay' : 'No purchase outlay needed'}
         />
       </div>
 
       {/* Filter and Search Bar */}
       <Card className="border-border/60">
-        <CardContent className="p-4 space-y-3">
+        <CardContent className="p-3.5 sm:p-4 space-y-3">
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             {/* Search Input */}
             <div className="relative flex-1">
@@ -294,32 +303,27 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             </div>
 
             {/* Quick Action Badges / Filters */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {[
-                { label: 'Reorder Needed', value: 'REORDER_NEEDED', count: (summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0), variant: 'warning' },
-                { label: 'Critical Only', value: 'CRITICAL', count: summary?.criticalReordersCount, variant: 'destructive' },
-                { label: 'Upcoming', value: 'UPCOMING', count: summary?.upcomingCount },
-                { label: 'All Catalog', value: 'ALL', count: summary?.totalProductsAnalyzed },
-                { label: 'Adequate', value: 'ADEQUATE', count: summary?.adequateCount, variant: 'success' },
-              ].map((tier) => (
-                <Button
-                  key={tier.value}
-                  variant={urgencyFilter === tier.value ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setUrgencyFilter(tier.value)}
-                  className={`h-8 text-xs gap-1.5 cursor-pointer ${
-                    urgencyFilter === tier.value
-                      ? ''
-                      : tier.variant === 'destructive'
-                      ? 'text-destructive border-destructive/30 hover:bg-destructive/10'
-                      : tier.variant === 'warning'
-                      ? 'text-warning border-warning/30 hover:bg-warning/10'
-                      : tier.variant === 'success'
-                      ? 'text-success border-success/30 hover:bg-success/10'
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  {tier.label}
+            <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-0.5">
+              <div className="flex items-center gap-1.5 w-max">
+                {[
+                  { label: 'Reorder Needed', value: 'REORDER_NEEDED', count: (summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0), variant: 'warning' },
+                  { label: 'Critical Only', value: 'CRITICAL', count: summary?.criticalReordersCount, variant: 'destructive' },
+                  { label: 'Upcoming', value: 'UPCOMING', count: summary?.upcomingCount },
+                  { label: 'All Catalog', value: 'ALL', count: summary?.totalProductsAnalyzed },
+                  { label: 'Adequate', value: 'ADEQUATE', count: summary?.adequateCount, variant: 'success' },
+                ].map((tier) => (
+                  <Button
+                    key={tier.value}
+                    variant={urgencyFilter === tier.value ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setUrgencyFilter(tier.value)}
+                    className={`h-8 text-xs gap-1.5 shrink-0 rounded-lg cursor-pointer ${
+                      urgencyFilter === tier.value
+                        ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+                        : 'bg-card hover:bg-muted border-border/80 text-foreground/80'
+                    }`}
+                  >
+                    {tier.label}
                   {tier.count !== undefined && (
                     <span
                       className={`px-1.5 py-0.2 rounded-full text-micro font-mono ${
@@ -335,8 +339,9 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
 
       {/* Main Suggestions Table */}
       <Card className="border-border/80 overflow-hidden shadow-xs">
@@ -377,12 +382,36 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               </p>
             </div>
           ) : !data?.suggestions || data.suggestions.length === 0 ? (
-            <EmptyState
-              icon={CheckCircle2}
-              title="No Reorders Needed Under Current Filter"
-              description="All products in this category have adequate shelf coverage and do not require replenishment."
-              action={
-                search || urgencyFilter !== 'ALL' ? (
+            urgencyFilter === 'REORDER_NEEDED' && !search ? (
+              <div className="p-8 sm:p-12 text-center flex flex-col items-center justify-center space-y-3.5">
+                <div className="size-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center ring-8 ring-emerald-500/5 shadow-xs">
+                  <CheckCircle2 className="size-7" />
+                </div>
+                <div className="space-y-1.5 max-w-md">
+                  <h3 className="text-base font-bold text-foreground">
+                    All Catalog Inventory is Healthy
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Based on your live sales velocity and supplier lead times, all {totalCatalogCount} products have adequate buffer stock. No distributor purchase orders are needed today.
+                  </p>
+                </div>
+                <div className="pt-1.5 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setUrgencyFilter('ALL')}
+                    className="gap-1.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer h-9 px-4"
+                  >
+                    <Eye className="size-4" />
+                    <span>Inspect All Catalog Stock ({totalCatalogCount})</span>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                icon={CheckCircle2}
+                title="No Products Match Filters"
+                description="No medicines in your inventory currently match the selected search or urgency tier."
+                action={
                   <Button
                     variant="outline"
                     size="sm"
@@ -390,15 +419,16 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                       setSearch('');
                       setUrgencyFilter('ALL');
                     }}
+                    className="gap-1.5 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
                   >
-                    Reset Filters
+                    View All Catalog ({totalCatalogCount})
                   </Button>
-                ) : undefined
-              }
-            />
+                }
+              />
+            )
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
+              <table className="w-full text-xs text-left border-collapse min-w-[760px]">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/40 text-overline font-semibold text-muted-foreground uppercase tracking-wider">
                     <th className="py-3 px-3 w-10 text-center">

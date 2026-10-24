@@ -37,6 +37,7 @@ import {
   Layers,
   FileCheck,
   Sparkles,
+  Camera,
 } from 'lucide-react';
 import { storesApi, StoreData } from '@/lib/stores-api';
 import { useStore } from '@/context/store-context';
@@ -321,7 +322,7 @@ export function PurchasesManager() {
   );
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header Banner */}
       <PageHeader
         title={activeView === 'orders' ? 'Purchase Orders & Shipments' : 'Smart Reorder Suggestions'}
@@ -332,47 +333,74 @@ export function PurchasesManager() {
         }
         icon={activeView === 'orders' ? Truck : Sparkles}
         actions={
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
             <Button
               variant="outline"
+              size="sm"
               onClick={handleOpenOcrModal}
-              className="gap-2 font-bold shadow-xs border-primary/30 text-primary hover:bg-primary/5 h-9"
+              className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer"
             >
-              <Sparkles className="size-4 text-primary" />
-              <span>OCR Invoice Assist</span>
+              <Camera className="size-4 text-primary shrink-0" />
+              <span className="sm:hidden">OCR Invoice</span>
+              <span className="hidden sm:inline">OCR Invoice Assist</span>
             </Button>
-            <Button onClick={handleOpenCreateModal} className="gap-2 font-bold shadow-xs h-9">
-              <Plus className="size-4" /> Create Purchase Order
+            <Button
+              size="sm"
+              onClick={handleOpenCreateModal}
+              className="h-9 px-3.5 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-center cursor-pointer"
+            >
+              <Plus className="size-4 shrink-0" />
+              <span className="sm:hidden">Create Order</span>
+              <span className="hidden sm:inline">Create Purchase Order</span>
             </Button>
           </div>
         }
       />
 
       {/* Navigation View Switcher */}
-      <div className="flex items-center gap-2 border-b border-border pb-2">
-        <Button
-          variant={activeView === 'orders' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveView('orders')}
-          className="gap-1.5 font-medium text-xs sm:text-sm h-9"
-        >
-          <Truck className="size-4 shrink-0" />
-          <span>Purchase Orders & Shipments</span>
-        </Button>
-        <Button
-          variant={activeView === 'suggestions' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setActiveView('suggestions')}
-          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 ${
-            activeView !== 'suggestions' ? 'text-primary hover:bg-primary/5' : ''
-          }`}
-        >
-          <Sparkles className="size-4 shrink-0 text-warning fill-warning" />
-          <span>Smart Reorder Suggestions</span>
-          <Badge variant="outline" className="text-micro bg-primary/10 text-primary border-primary/20 ml-1">
-            AI Velocity
-          </Badge>
-        </Button>
+      <div className="border-b border-border pb-2">
+        <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none">
+          <div className="flex items-center gap-1.5 p-1 bg-muted/30 border border-border/60 rounded-xl w-max">
+            <Button
+              variant={activeView === 'orders' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveView('orders')}
+              className={`gap-1.5 font-semibold text-xs sm:text-sm h-8.5 rounded-lg shrink-0 cursor-pointer ${
+                activeView === 'orders'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Truck className="size-3.5 sm:size-4 shrink-0" />
+              <span>Purchase Orders</span>
+              <span className="hidden sm:inline">&amp; Shipments</span>
+            </Button>
+            <Button
+              variant={activeView === 'suggestions' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveView('suggestions')}
+              className={`gap-1.5 font-semibold text-xs sm:text-sm h-8.5 rounded-lg shrink-0 cursor-pointer ${
+                activeView === 'suggestions'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Sparkles className="size-3.5 sm:size-4 shrink-0" />
+              <span>Smart Reorder</span>
+              <span className="hidden sm:inline">Suggestions</span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 rounded-md font-bold ml-1 ${
+                  activeView === 'suggestions'
+                    ? 'bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30'
+                    : 'bg-primary/10 text-primary border-primary/25'
+                }`}
+              >
+                AI
+              </Badge>
+            </Button>
+          </div>
+        </div>
       </div>
 
       {activeView === 'suggestions' ? (
@@ -380,102 +408,112 @@ export function PurchasesManager() {
       ) : (
         <>
           {/* Filter Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
-            {['ALL', 'PENDING', 'PARTIAL', 'RECEIVED', 'CANCELLED'].map((st) => (
-              <Button
-                key={st}
-                variant={statusFilter === st ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setStatusFilter(st)}
-                className="text-xs capitalize h-8 font-semibold shrink-0"
-              >
-                {st.toLowerCase()}
-              </Button>
-            ))}
+          <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-1">
+            <div className="flex items-center gap-1.5 w-max">
+              {['ALL', 'PENDING', 'PARTIAL', 'RECEIVED', 'CANCELLED'].map((st) => (
+                <Button
+                  key={st}
+                  variant={statusFilter === st ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter(st)}
+                  className={`text-xs capitalize h-8 px-3 font-semibold shrink-0 rounded-lg cursor-pointer ${
+                    statusFilter === st
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'bg-card hover:bg-muted border-border/80 text-foreground/80'
+                  }`}
+                >
+                  {st.toLowerCase()}
+                </Button>
+              ))}
+            </div>
           </div>
 
-      {/* Content Cards */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      ) : orders.length === 0 ? (
-        <EmptyState
-          icon={Box}
-          title={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} Orders` : 'No Purchase Orders Found'}
-          description={
-            statusFilter !== 'ALL'
-              ? `No purchase orders found with status "${statusFilter}".`
-              : 'Create a new purchase order to start tracking shipments from suppliers.'
-          }
-          action={
-            <Button variant="outline" size="sm" onClick={handleOpenCreateModal} className="gap-1.5 text-xs font-semibold">
-              <Plus className="size-3.5" /> Create Purchase Order
-            </Button>
-          }
-        />
-      ) : (
-        <div className="space-y-3">
-          {orders.map((po) => (
-            <Card
-              key={po.id}
-              className="hover:border-primary/50 transition-colors shadow-xs"
-            >
-              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="font-mono text-sm font-bold text-primary">{po.orderNumber}</span>
-                    {getStatusBadge(po.status)}
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Calendar className="size-3" />
-                      {formatDate(po.createdAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1 font-medium text-foreground">
-                      <Building2 className="size-3.5 text-primary" /> {po.supplierName}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Layers className="size-3.5" /> {po.itemCount} Product Items
-                    </span>
-                    <span className="flex items-center gap-1 font-bold text-foreground tabular-nums">
-                      <DollarSign className="size-3.5 text-success" /> {formatCurrency(po.totalCost)}
-                    </span>
-                  </div>
-                </div>
+          {/* Content Cards */}
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+          ) : orders.length === 0 ? (
+            <EmptyState
+              icon={Box}
+              title={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} Orders` : 'No Purchase Orders Found'}
+              description={
+                statusFilter !== 'ALL'
+                  ? `No purchase orders found with status "${statusFilter}".`
+                  : 'Create a new purchase order to start tracking shipments from suppliers.'
+              }
+              action={
+                <Button
+                  size="sm"
+                  onClick={handleOpenCreateModal}
+                  className="gap-1.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs h-9 px-4 cursor-pointer"
+                >
+                  <Plus className="size-4" /> Create Purchase Order
+                </Button>
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {orders.map((po) => (
+                <Card
+                  key={po.id}
+                  className="hover:border-primary/50 transition-colors shadow-xs"
+                >
+                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="font-mono text-sm font-bold text-primary">{po.orderNumber}</span>
+                        {getStatusBadge(po.status)}
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="size-3" />
+                          {formatDate(po.createdAt)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                        <span className="flex items-center gap-1 font-medium text-foreground">
+                          <Building2 className="size-3.5 text-primary" /> {po.supplierName}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Layers className="size-3.5" /> {po.itemCount} Product Items
+                        </span>
+                        <span className="flex items-center gap-1 font-bold text-foreground tabular-nums">
+                          <DollarSign className="size-3.5 text-success" /> {formatCurrency(po.totalCost)}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleOpenReceiveModal(po.id)}
-                      className="gap-1.5 text-xs font-semibold"
-                    >
-                      <FileCheck className="size-3.5" /> Receive Stock
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenReceiveModal(po.id)}
-                    className="gap-1.5 text-xs font-semibold"
-                  >
-                    <Eye className="size-3.5" /> Details
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                      {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenReceiveModal(po.id)}
+                          className="gap-1.5 text-xs font-bold flex-1 sm:flex-initial h-8.5 justify-center cursor-pointer"
+                        >
+                          <FileCheck className="size-3.5" /> Receive Stock
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenReceiveModal(po.id)}
+                        className="gap-1.5 text-xs font-semibold flex-1 sm:flex-initial h-8.5 justify-center bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
+                      >
+                        <Eye className="size-3.5" /> Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </>
       )}
 
       {/* Create Purchase Order Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-20px)] sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-xl p-4 sm:p-6 pr-10 sm:pr-12">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Truck className="size-5 text-primary" /> Create Purchase Order
@@ -489,7 +527,7 @@ export function PurchasesManager() {
             {/* Quick OCR Assist Banner */}
             <div className="p-3 rounded-lg border border-primary/25 bg-primary/5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 text-xs">
-                <Sparkles className="size-4 text-primary shrink-0" />
+                <Camera className="size-4 text-primary shrink-0" />
                 <span className="text-muted-foreground">
                   Have a distributor bill? Use <strong>Smart OCR Assist</strong> to extract & match items automatically.
                 </span>
@@ -502,9 +540,9 @@ export function PurchasesManager() {
                   setIsCreateModalOpen(false);
                   setIsOcrModalOpen(true);
                 }}
-                className="h-7 text-xs font-bold shrink-0 border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
+                className="h-7 text-xs font-bold shrink-0 bg-card border-border/80 text-foreground hover:bg-muted gap-1.5 cursor-pointer"
               >
-                <Sparkles className="size-3" />
+                <Camera className="size-3 text-primary" />
                 <span>Scan Bill</span>
               </Button>
             </div>
@@ -655,7 +693,7 @@ export function PurchasesManager() {
 
       {/* Receive Stock Check-in Modal */}
       <Dialog open={isReceiveModalOpen} onOpenChange={setIsReceiveModalOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-20px)] sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-xl p-4 sm:p-6 pr-10 sm:pr-12">
           <DialogHeader>
             <DialogTitle className="text-base font-bold flex items-center gap-2 text-success">
               <FileCheck className="size-5" />

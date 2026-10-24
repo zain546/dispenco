@@ -59,7 +59,7 @@ export function StatCard({
                 {value}
               </div>
               {caption && (
-                <p className="text-micro sm:text-xs text-muted-foreground truncate leading-normal">
+                <p className="text-micro sm:text-xs text-muted-foreground line-clamp-2 leading-tight">
                   {caption}
                 </p>
               )}

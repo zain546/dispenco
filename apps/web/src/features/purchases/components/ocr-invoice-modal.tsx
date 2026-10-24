@@ -312,16 +312,16 @@ export function OcrInvoiceModal({
         onOpenChange(val);
       }}
     >
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="w-[calc(100vw-20px)] sm:max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
         {/* Header */}
-        <DialogHeader className="p-4 sm:p-6 border-b border-border/60 bg-muted/20 shrink-0">
+        <DialogHeader className="p-4 sm:p-6 pr-10 sm:pr-12 border-b border-border/60 bg-muted/20 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Sparkles className="size-5" />
+                <Camera className="size-5" />
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
                   <span>Smart Invoice OCR Assist</span>
                   <Badge
                     variant="outline"
@@ -435,9 +435,9 @@ export function OcrInvoiceModal({
                     size="sm"
                     disabled={isProcessing}
                     onClick={handleSimulateSampleInvoice}
-                    className="gap-1.5 shrink-0 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 h-8"
+                    className="gap-1.5 shrink-0 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs h-8 cursor-pointer"
                   >
-                    <Sparkles className="size-3.5" />
+                    <FileText className="size-3.5 text-primary" />
                     <span>Try Sample Distributor Bill</span>
                   </Button>
                 </CardContent>
