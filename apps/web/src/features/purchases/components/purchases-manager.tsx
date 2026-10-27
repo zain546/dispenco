@@ -513,8 +513,8 @@ export function PurchasesManager() {
 
       {/* Create Purchase Order Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="w-[calc(100vw-20px)] sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-xl p-4 sm:p-6 pr-10 sm:pr-12">
-          <DialogHeader>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
+          <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
             <DialogTitle className="text-base font-bold flex items-center gap-2">
               <Truck className="size-5 text-primary" /> Create Purchase Order
             </DialogTitle>
@@ -523,168 +523,181 @@ export function PurchasesManager() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateOrderSubmit} className="space-y-4 py-2">
-            {/* Quick OCR Assist Banner */}
-            <div className="p-3 rounded-lg border border-primary/25 bg-primary/5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 text-xs">
-                <Camera className="size-4 text-primary shrink-0" />
-                <span className="text-muted-foreground">
-                  Have a distributor bill? Use <strong>Smart OCR Assist</strong> to extract & match items automatically.
-                </span>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsCreateModalOpen(false);
-                  setIsOcrModalOpen(true);
-                }}
-                className="h-7 text-xs font-bold shrink-0 bg-card border-border/80 text-foreground hover:bg-muted gap-1.5 cursor-pointer"
-              >
-                <Camera className="size-3 text-primary" />
-                <span>Scan Bill</span>
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Select Supplier Vendor *</Label>
-                <select
-                  value={selectedSupplierId}
-                  onChange={(e) => setSelectedSupplierId(e.target.value)}
-                  required
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">-- Select Supplier --</option>
-                  {suppliers.map((sup) => (
-                    <option key={sup.id} value={sup.id}>
-                      {sup.name} ({sup.leadTimeDays}d lead time)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Order Notes (Optional)</Label>
-                <Input
-                  placeholder="e.g., Urgent delivery requested"
-                  value={poNotes}
-                  onChange={(e) => setPoNotes(e.target.value)}
-                  className="text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Line Items List */}
-            <div className="space-y-2 border-t border-border/60 pt-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Order Line Items ({poItems.length})
-                </Label>
+          <form onSubmit={handleCreateOrderSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+              {/* Quick OCR Assist Banner */}
+              <div className="p-3 rounded-xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                <div className="flex items-center gap-2.5 text-xs">
+                  <Camera className="size-4 text-primary shrink-0" />
+                  <span className="text-muted-foreground">
+                    Have a distributor bill? Use <strong>Smart OCR Assist</strong> to extract &amp; match items automatically.
+                  </span>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={handleAddPoItem}
-                  className="gap-1 text-xs h-7"
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setIsOcrModalOpen(true);
+                  }}
+                  className="w-full sm:w-auto h-8 sm:h-7 text-xs font-bold shrink-0 bg-card border-border/80 text-foreground hover:bg-muted gap-1.5 cursor-pointer justify-center"
                 >
-                  <Plus className="size-3" /> Add Product
+                  <Camera className="size-3 text-primary" />
+                  <span>Scan Bill</span>
                 </Button>
               </div>
 
-              {poItems.length === 0 ? (
-                <div className="p-4 border border-dashed border-border rounded-lg text-center text-xs text-muted-foreground">
-                  Click "+ Add Product" to include item quantities and cost prices in this purchase order.
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Select Supplier Vendor *</Label>
+                  <select
+                    value={selectedSupplierId}
+                    onChange={(e) => setSelectedSupplierId(e.target.value)}
+                    required
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">-- Select Supplier --</option>
+                    {suppliers.map((sup) => (
+                      <option key={sup.id} value={sup.id}>
+                        {sup.name} ({sup.leadTimeDays}d lead time)
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ) : (
-                <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                  {poItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2.5 rounded-md bg-muted/40 border border-border/60 text-xs">
-                      <select
-                        value={item.productId}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setPoItems((prev) =>
-                            prev.map((it, i) => (i === idx ? { ...it, productId: val } : it)),
-                          );
-                        }}
-                        className="flex-1 h-8 rounded border border-input bg-background px-2 text-xs"
-                      >
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.unit})
-                          </option>
-                        ))}
-                      </select>
 
-                      <div className="w-24">
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="Qty"
-                          value={item.expectedQuantity}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Order Notes (Optional)</Label>
+                  <Input
+                    placeholder="e.g., Urgent delivery requested"
+                    value={poNotes}
+                    onChange={(e) => setPoNotes(e.target.value)}
+                    className="text-xs h-9"
+                  />
+                </div>
+              </div>
+
+              {/* Line Items List */}
+              <div className="space-y-2 border-t border-border/60 pt-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Order Line Items ({poItems.length})
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddPoItem}
+                    className="gap-1 text-xs h-7 font-semibold"
+                  >
+                    <Plus className="size-3" /> Add Product
+                  </Button>
+                </div>
+
+                {poItems.length === 0 ? (
+                  <div className="p-4 border border-dashed border-border rounded-lg text-center text-xs text-muted-foreground">
+                    Click &quot;+ Add Product&quot; to include item quantities and cost prices in this purchase order.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                    {poItems.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs"
+                      >
+                        <select
+                          value={item.productId}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const val = e.target.value;
                             setPoItems((prev) =>
-                              prev.map((it, i) => (i === idx ? { ...it, expectedQuantity: val } : it)),
+                              prev.map((it, i) => (i === idx ? { ...it, productId: val } : it)),
                             );
                           }}
-                          className="h-8 text-xs"
-                        />
-                      </div>
+                          className="w-full sm:flex-1 h-8 rounded border border-input bg-background px-2 text-xs"
+                        >
+                          {products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} ({p.unit})
+                            </option>
+                          ))}
+                        </select>
 
-                      <div className="w-28">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Unit Cost"
-                          value={item.unitCost}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            setPoItems((prev) =>
-                              prev.map((it, i) => (i === idx ? { ...it, unitCost: val } : it)),
-                            );
-                          }}
-                          className="h-8 text-xs"
-                        />
-                      </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <div className="flex-1 sm:w-24">
+                            <Input
+                              type="number"
+                              min="1"
+                              placeholder="Qty"
+                              value={item.expectedQuantity}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setPoItems((prev) =>
+                                  prev.map((it, i) => (i === idx ? { ...it, expectedQuantity: val } : it)),
+                                );
+                              }}
+                              className="h-8 text-xs font-bold"
+                            />
+                          </div>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemovePoItem(idx)}
-                        className="size-8 text-destructive shrink-0"
-                      >
-                        &times;
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+                          <div className="flex-1 sm:w-28">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="Unit Cost"
+                              value={item.unitCost}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setPoItems((prev) =>
+                                  prev.map((it, i) => (i === idx ? { ...it, unitCost: val } : it)),
+                                );
+                              }}
+                              className="h-8 text-xs font-bold"
+                            />
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemovePoItem(idx)}
+                            className="size-8 text-destructive shrink-0 cursor-pointer"
+                          >
+                            &times;
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Total Cost Display */}
+              <div className="flex justify-between items-center py-2.5 px-3 rounded-lg bg-muted/30 border border-border/60 text-sm font-bold">
+                <span>Estimated Order Total:</span>
+                <span className="text-primary text-base tabular-nums">{formatCurrency(calculatedTotalCost)}</span>
+              </div>
             </div>
 
-            {/* Total Cost Display */}
-            <div className="flex justify-between items-center pt-2 border-t border-border text-sm font-bold">
-              <span>Estimated Order Total:</span>
-              <span className="text-primary text-base tabular-nums">{formatCurrency(calculatedTotalCost)}</span>
-            </div>
-
-            <DialogFooter className="pt-2">
+            <DialogFooter className="p-3.5 sm:p-4 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-end gap-2 shrink-0">
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => setIsCreateModalOpen(false)}
                 disabled={submitting}
-                className="text-xs"
+                className="h-9 px-4 text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting} className="text-xs font-bold gap-1.5">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submitting}
+                className="h-9 px-4 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+              >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}
-                Confirm & Submit Order
+                Confirm &amp; Submit Order
               </Button>
             </DialogFooter>
           </form>
@@ -693,8 +706,8 @@ export function PurchasesManager() {
 
       {/* Receive Stock Check-in Modal */}
       <Dialog open={isReceiveModalOpen} onOpenChange={setIsReceiveModalOpen}>
-        <DialogContent className="w-[calc(100vw-20px)] sm:max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-xl p-4 sm:p-6 pr-10 sm:pr-12">
-          <DialogHeader>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
+          <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
             <DialogTitle className="text-base font-bold flex items-center gap-2 text-success">
               <FileCheck className="size-5" />
               Receive Shipment #{selectedOrder?.orderNumber}
@@ -704,14 +717,14 @@ export function PurchasesManager() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleReceiveSubmit} className="space-y-4 py-2">
-            <div className="space-y-3">
+          <form onSubmit={handleReceiveSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 custom-scrollbar">
               <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Receiving Line Items
               </Label>
 
               {receiveItems.map((item, idx) => (
-                <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border/80 space-y-2 text-xs">
+                <div key={idx} className="p-3 rounded-xl bg-muted/30 border border-border/80 space-y-2 text-xs">
                   <div className="flex justify-between items-center font-semibold">
                     <span className="text-foreground">{item.productName}</span>
                     <span className="text-muted-foreground text-micro">
@@ -719,7 +732,7 @@ export function PurchasesManager() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                     <div>
                       <Label className="text-micro text-muted-foreground">Received Qty</Label>
                       <Input
@@ -788,20 +801,26 @@ export function PurchasesManager() {
               ))}
             </div>
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="p-3.5 sm:p-4 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-end gap-2 shrink-0">
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => setIsReceiveModalOpen(false)}
                 disabled={submitting}
-                className="text-xs"
+                className="h-9 px-4 text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </Button>
               {selectedOrder?.status !== 'RECEIVED' && selectedOrder?.status !== 'CANCELLED' && (
-                <Button type="submit" disabled={submitting} className="text-xs font-bold gap-1.5">
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={submitting}
+                  className="h-9 px-4 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                >
                   {submitting && <Loader2 className="size-3.5 animate-spin" />}
-                  Confirm Stock Arrival & Create Batches
+                  Confirm Stock Arrival
                 </Button>
               )}
             </DialogFooter>

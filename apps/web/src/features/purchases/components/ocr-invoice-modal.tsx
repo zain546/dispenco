@@ -312,25 +312,27 @@ export function OcrInvoiceModal({
         onOpenChange(val);
       }}
     >
-      <DialogContent className="w-[calc(100vw-20px)] sm:max-w-4xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
+      <DialogContent className="w-[calc(100vw-24px)] sm:max-w-4xl max-h-[88dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
         {/* Header */}
-        <DialogHeader className="p-4 sm:p-6 pr-10 sm:pr-12 border-b border-border/60 bg-muted/20 shrink-0">
+        <DialogHeader className="p-3.5 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <Camera className="size-5" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="size-9 sm:size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Camera className="size-4.5 sm:size-5" />
               </div>
-              <div>
-                <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
-                  <span>Smart Invoice OCR Assist</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <DialogTitle className="text-sm sm:text-base font-bold">
+                    Invoice OCR Assist
+                  </DialogTitle>
                   <Badge
                     variant="outline"
-                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold"
+                    className="bg-primary/10 text-primary border-primary/20 text-[10px] font-semibold py-0 px-1.5"
                   >
                     AI Powered
                   </Badge>
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                </div>
+                <DialogDescription className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 sm:line-clamp-none">
                   Photograph or upload a supplier bill to automatically extract and match items with zero manual entry.
                 </DialogDescription>
               </div>
@@ -340,7 +342,7 @@ export function OcrInvoiceModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => setStep('upload')}
-                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
               >
                 <RefreshCw className="size-3.5" />
                 <span>Re-upload</span>
@@ -350,13 +352,13 @@ export function OcrInvoiceModal({
         </DialogHeader>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4 sm:space-y-5 custom-scrollbar">
           {step === 'upload' ? (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Dropzone */}
               <div
                 onClick={() => !isProcessing && fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-4 ${
+                className={`border-2 border-dashed rounded-xl p-5 sm:p-8 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-3 ${
                   isProcessing
                     ? 'border-primary/50 bg-primary/5 pointer-events-none'
                     : 'border-border/80 hover:border-primary/60 hover:bg-muted/30'
@@ -373,33 +375,33 @@ export function OcrInvoiceModal({
                 {isProcessing ? (
                   <div className="flex flex-col items-center gap-3 py-4">
                     <div className="relative">
-                      <div className="size-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                      <Sparkles className="size-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                      <div className="size-14 sm:size-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+                      <Sparkles className="size-5 sm:size-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                     </div>
-                    <p className="font-semibold text-sm text-foreground">{processingStatus}</p>
-                    <p className="text-xs text-muted-foreground max-w-sm">
+                    <p className="font-semibold text-xs sm:text-sm text-foreground">{processingStatus}</p>
+                    <p className="text-micro sm:text-xs text-muted-foreground max-w-sm">
                       Running OCR extraction, fuzzy matching catalog items, and extracting batch metadata...
                     </p>
                   </div>
                 ) : (
                   <>
-                    <div className="size-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
-                      <UploadCloud className="size-8" />
+                    <div className="size-12 sm:size-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                      <UploadCloud className="size-6 sm:size-7" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-base text-foreground">
+                      <h4 className="font-bold text-sm sm:text-base text-foreground">
                         Click or drag supplier invoice here
                       </h4>
-                      <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                      <p className="text-micro sm:text-xs text-muted-foreground mt-0.5 max-w-md">
                         Supports photographed distributor receipts, delivery challans, and PDF invoices (PNG, JPG, WebP, PDF up to 25MB).
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 pt-2">
+                    <div className="flex items-center gap-2 pt-1">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="gap-2 text-xs font-semibold"
+                        className="gap-2 text-xs font-semibold h-8.5"
                         onClick={(e) => {
                           e.stopPropagation();
                           fileInputRef.current?.click();
@@ -415,16 +417,16 @@ export function OcrInvoiceModal({
 
               {/* Demo 1-Click Sandbox Test */}
               <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                      <FileText className="size-5" />
+                    <div className="size-8 sm:size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                      <FileText className="size-4 sm:size-5" />
                     </div>
                     <div>
                       <h5 className="font-semibold text-xs text-foreground">
                         No physical invoice right now?
                       </h5>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-micro sm:text-xs text-muted-foreground mt-0.5">
                         Test the OCR line-item extraction and catalog fuzzy-matcher using simulated distributor bill data.
                       </p>
                     </div>
@@ -435,7 +437,7 @@ export function OcrInvoiceModal({
                     size="sm"
                     disabled={isProcessing}
                     onClick={handleSimulateSampleInvoice}
-                    className="gap-1.5 shrink-0 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs h-8 cursor-pointer"
+                    className="w-full sm:w-auto gap-1.5 shrink-0 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs h-8 cursor-pointer justify-center"
                   >
                     <FileText className="size-3.5 text-primary" />
                     <span>Try Sample Distributor Bill</span>
@@ -741,7 +743,7 @@ export function OcrInvoiceModal({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-4 sm:p-5 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-between gap-2 shrink-0">
+        <DialogFooter className="p-3 sm:p-4 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-between gap-2 shrink-0">
           <Button
             type="button"
             variant="outline"
@@ -750,7 +752,7 @@ export function OcrInvoiceModal({
               resetState();
               onOpenChange(false);
             }}
-            className="text-xs"
+            className="h-9 px-4 text-xs font-semibold cursor-pointer"
           >
             Cancel
           </Button>
@@ -760,10 +762,10 @@ export function OcrInvoiceModal({
               type="button"
               size="sm"
               onClick={handleConfirm}
-              className="gap-2 text-xs font-bold"
+              className="gap-2 text-xs font-bold h-9 px-4 bg-primary text-primary-foreground shadow-xs cursor-pointer"
             >
-              <CheckCircle2 className="size-4 text-primary-foreground" />
-              <span>Confirm & Load into Purchase Order</span>
+              <CheckCircle2 className="size-4" />
+              <span>Confirm &amp; Load PO</span>
               <ArrowRight className="size-3.5" />
             </Button>
           )}

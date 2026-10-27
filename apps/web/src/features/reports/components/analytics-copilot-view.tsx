@@ -116,28 +116,32 @@ export function AnalyticsCopilotView() {
       {/* Search Header Banner */}
       <Card className="border-primary/20 bg-linear-to-r from-primary/5 via-primary/10 to-background shadow-xs overflow-hidden">
         <CardContent className="p-4 sm:p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="size-11 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/20 shrink-0">
-              <Sparkles className="size-6 animate-pulse" />
-            </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-foreground flex items-center gap-2">
-                <span>Dispenco AI Analytics Copilot</span>
-                <Badge
-                  variant="outline"
-                  className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold"
-                >
-                  Safe Natural Language
-                </Badge>
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 max-w-2xl">
-                Ask questions in plain English to interrogate your sales, profitability, expiry risk, and customer ledger — backed by your real live database.
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="size-10 sm:size-11 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/20 shrink-0 mt-0.5 sm:mt-0">
+                <Sparkles className="size-5 sm:size-6" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-bold text-foreground">
+                    Dispenco AI Analytics Copilot
+                  </h3>
+                  <Badge
+                    variant="outline"
+                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold"
+                  >
+                    Safe Natural Language
+                  </Badge>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 max-w-2xl">
+                  Ask questions in plain English to interrogate your sales, profitability, expiry risk, and customer ledger — backed by your real live database.
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Natural Language Query Bar */}
-          <div className="relative flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
@@ -145,19 +149,19 @@ export function AnalyticsCopilotView() {
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything (e.g. 'What were my top 5 medicines this month?', 'Show expiry risk', 'Which branch sold the most?')..."
-                className="pl-10 pr-4 h-11 text-xs sm:text-sm bg-background border-border/80 focus:border-primary shadow-2xs rounded-xl"
+                placeholder="Ask anything (e.g. 'Top 5 medicines this month', 'Expiry risk', 'Branch comparison')..."
+                className="pl-10 pr-4 h-11 text-xs sm:text-sm bg-background border-border/80 focus:border-primary shadow-2xs rounded-xl w-full"
               />
             </div>
             <Button
               onClick={() => handleQuery()}
               disabled={loading || !question.trim()}
-              className="h-11 px-5 rounded-xl font-bold gap-2 text-xs shrink-0 shadow-xs"
+              className="h-11 px-5 rounded-xl font-bold gap-2 text-xs shrink-0 shadow-xs w-full sm:w-auto cursor-pointer"
             >
               {loading ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  <span className="hidden sm:inline">Analyzing...</span>
+                  <span>Analyzing...</span>
                 </>
               ) : (
                 <>
@@ -169,29 +173,36 @@ export function AnalyticsCopilotView() {
           </div>
 
           {/* Quick Suggestion Chips */}
-          <div className="flex items-center gap-2 flex-wrap pt-1">
-            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1 shrink-0">
-              <HelpCircle className="size-3" />
-              <span>Suggested Prompts:</span>
-            </span>
-            {QUICK_SUGGESTIONS.map((s, idx) => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setQuestion(s.query);
-                    handleQuery(s.query);
-                  }}
-                  disabled={loading}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/70 bg-card hover:border-primary/40 hover:bg-primary/5 text-xs text-muted-foreground hover:text-foreground font-medium transition-all"
-                >
-                  <Icon className="size-3 text-primary shrink-0" />
-                  <span>{s.title}</span>
-                </button>
-              );
-            })}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="size-3 text-primary" />
+                <span>Suggested Questions</span>
+              </span>
+              <span className="text-micro text-muted-foreground sm:hidden">Swipe sideways →</span>
+            </div>
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none pb-0.5">
+              <div className="flex items-center gap-1.5 sm:flex-wrap w-max sm:w-auto">
+                {QUICK_SUGGESTIONS.map((s, idx) => {
+                  const Icon = s.icon;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setQuestion(s.query);
+                        handleQuery(s.query);
+                      }}
+                      disabled={loading}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/70 bg-card hover:border-primary/40 hover:bg-primary/5 text-xs text-muted-foreground hover:text-foreground font-medium transition-all shrink-0 cursor-pointer shadow-2xs active:scale-95"
+                    >
+                      <Icon className="size-3 text-primary shrink-0" />
+                      <span>{s.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -387,7 +398,7 @@ export function AnalyticsCopilotView() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left text-xs min-w-[500px]">
                     <thead className="bg-muted/50 border-y border-border text-muted-foreground font-semibold uppercase text-micro tracking-wider">
                       <tr>
                         {currentResult.tableColumns.map((col) => (
@@ -425,17 +436,84 @@ export function AnalyticsCopilotView() {
 
       {/* Empty State before first search */}
       {!currentResult && !loading && (
-        <Card className="border-dashed border-border/80">
-          <CardContent className="p-8 sm:p-12 text-center space-y-3">
-            <div className="size-14 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center shadow-xs">
-              <Sparkles className="size-7" />
+        <Card className="border border-border/70 bg-muted/10 shadow-2xs overflow-hidden">
+          <CardContent className="p-6 sm:p-10 space-y-6 text-center">
+            <div className="max-w-md mx-auto space-y-2">
+              <div className="size-12 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center shadow-xs">
+                <Sparkles className="size-6" />
+              </div>
+              <h4 className="font-bold text-base text-foreground">
+                Ask anything about your pharmacy operations
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                Get instant executive narratives, charts, and verified database aggregates. Select a capability below to try:
+              </p>
             </div>
-            <h4 className="font-bold text-base text-foreground">
-              Ready to answer your pharmacy questions
-            </h4>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              Select one of the suggested prompts above or type your own question to get an executive breakdown with charts and verified metrics.
-            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left max-w-3xl mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  const q = 'What were my top 5 selling medicines this month?';
+                  setQuestion(q);
+                  handleQuery(q);
+                }}
+                className="p-3.5 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                    <TrendingUp className="size-4" />
+                  </div>
+                  <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <span className="font-semibold text-xs block text-foreground">Revenue & Top Sellers</span>
+                <span className="text-micro text-muted-foreground block mt-1">
+                  Identify revenue champions, high-margin products, and branch benchmarks.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const q = 'What medicines are at risk of expiring soon?';
+                  setQuestion(q);
+                  handleQuery(q);
+                }}
+                className="p-3.5 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="size-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                    <AlertTriangle className="size-4" />
+                  </div>
+                  <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <span className="font-semibold text-xs block text-foreground">Expiry Risk & Dead Stock</span>
+                <span className="text-micro text-muted-foreground block mt-1">
+                  Audit expiring stock capital and detect stagnant inventory tying up cash.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const q = 'What is our total customer credit balance and who owes us?';
+                  setQuestion(q);
+                  handleQuery(q);
+                }}
+                className="p-3.5 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="size-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                    <CreditCard className="size-4" />
+                  </div>
+                  <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <span className="font-semibold text-xs block text-foreground">Credit Ledger (Khata)</span>
+                <span className="text-micro text-muted-foreground block mt-1">
+                  Monitor outstanding patient credit balances, aged receivables, and debtors.
+                </span>
+              </button>
+            </div>
           </CardContent>
         </Card>
       )}

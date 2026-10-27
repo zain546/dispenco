@@ -184,7 +184,7 @@ export function ReportsView() {
   }[currentView];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header Banner */}
       <PageHeader
         title={headerInfo.title}
@@ -192,7 +192,7 @@ export function ReportsView() {
         badge={
           <Badge
             variant={isAllStores ? 'secondary' : 'outline'}
-            className="text-xs font-medium"
+            className="text-xs font-medium bg-primary/10 text-primary border-primary/25"
           >
             {isAllStores ? 'Org Overview (All Branches)' : activeStore?.name || 'Active Branch'}
           </Badge>
@@ -204,83 +204,103 @@ export function ReportsView() {
               size="sm"
               onClick={fetchReport}
               disabled={loading}
-              className="h-8 gap-1.5 text-xs font-medium"
+              className="h-9 px-3.5 gap-1.5 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs cursor-pointer justify-center"
             >
-              <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Data
+              <RefreshCw className={`size-3.5 text-primary shrink-0 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh Data</span>
             </Button>
           ) : undefined
         }
       />
 
       {/* View Switcher: Standard Reports vs AI Copilot vs Audit & Compliance */}
-      <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto scrollbar-none snap-x">
-        <Button
-          variant={currentView === 'charts' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('charts')}
-          className="gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start"
-        >
-          <BarChart3 className="size-4 shrink-0" />
-          <span>Sales & Org Analytics</span>
-        </Button>
-        <Button
-          variant={currentView === 'copilot' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('copilot')}
-          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start ${
-            currentView === 'copilot'
-              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Sparkles className="size-4 text-warning shrink-0" />
-          <span>AI Analytics Copilot</span>
-          <Badge
-            variant="outline"
-            className="ml-1 text-micro px-1 py-0 border-primary/30 text-primary uppercase font-bold"
-          >
-            AI
-          </Badge>
-        </Button>
-        <Button
-          variant={currentView === 'audit' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('audit')}
-          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start ${
-            currentView === 'audit'
-              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ShieldAlert className="size-4 text-success shrink-0" />
-          <span>Compliance & Audit Log</span>
-          <Badge
-            variant="outline"
-            className="ml-1 text-micro px-1 py-0 border-border text-muted-foreground uppercase font-bold"
-          >
-            Inspection
-          </Badge>
-        </Button>
-        <Button
-          variant={currentView === 'integrity' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => setCurrentView('integrity')}
-          className={`gap-1.5 font-medium text-xs sm:text-sm h-9 shrink-0 whitespace-nowrap snap-start ${
-            currentView === 'integrity'
-              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <AlertOctagon className="size-4 text-warning shrink-0" />
-          <span>Operational Integrity</span>
-          <Badge
-            variant="outline"
-            className="ml-1 text-micro px-1 py-0 border-border text-muted-foreground uppercase font-bold"
-          >
-            Variance
-          </Badge>
-        </Button>
+      <div className="border-b border-border pb-2">
+        <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none">
+          <div className="flex items-center gap-1.5 p-1 bg-muted/30 border border-border/60 rounded-xl w-max">
+            <Button
+              variant={currentView === 'charts' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('charts')}
+              className={`gap-1.5 font-semibold text-xs sm:text-sm h-8.5 rounded-lg shrink-0 cursor-pointer ${
+                currentView === 'charts'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BarChart3 className="size-3.5 sm:size-4 shrink-0" />
+              <span>Sales &amp; Analytics</span>
+            </Button>
+            <Button
+              variant={currentView === 'copilot' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('copilot')}
+              className={`gap-1.5 font-semibold text-xs sm:text-sm h-8.5 rounded-lg shrink-0 cursor-pointer ${
+                currentView === 'copilot'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Sparkles className="size-3.5 sm:size-4 shrink-0" />
+              <span>AI Copilot</span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 rounded-md font-bold ml-0.5 ${
+                  currentView === 'copilot'
+                    ? 'bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30'
+                    : 'bg-primary/10 text-primary border-primary/25'
+                }`}
+              >
+                AI
+              </Badge>
+            </Button>
+            <Button
+              variant={currentView === 'audit' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('audit')}
+              className={`gap-1.5 font-semibold text-xs sm:text-sm h-8.5 rounded-lg shrink-0 cursor-pointer ${
+                currentView === 'audit'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ShieldAlert className="size-3.5 sm:size-4 shrink-0" />
+              <span>Audit Log</span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 rounded-md font-semibold ml-0.5 ${
+                  currentView === 'audit'
+                    ? 'bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30'
+                    : 'bg-muted text-muted-foreground border-border'
+                }`}
+              >
+                Inspection
+              </Badge>
+            </Button>
+            <Button
+              variant={currentView === 'integrity' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setCurrentView('integrity')}
+              className={`gap-1.5 font-semibold text-xs sm:text-sm h-8.5 rounded-lg shrink-0 cursor-pointer ${
+                currentView === 'integrity'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <AlertOctagon className="size-3.5 sm:size-4 shrink-0" />
+              <span>Integrity</span>
+              <Badge
+                variant="outline"
+                className={`text-[10px] px-1.5 py-0 rounded-md font-semibold ml-0.5 ${
+                  currentView === 'integrity'
+                    ? 'bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30'
+                    : 'bg-muted text-muted-foreground border-border'
+                }`}
+              >
+                Variance
+              </Badge>
+            </Button>
+          </div>
+        </div>
       </div>
 
       {currentView === 'copilot' ? (
@@ -292,108 +312,122 @@ export function ReportsView() {
       ) : (
         <>
           {/* Date Range & Filter Controls */}
-      <Card className="border-border/60 shadow-2xs">
-        <CardContent className="p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1">
-              <Calendar className="size-3.5" /> Date Range:
-            </span>
-            {(['today', '7d', '30d', 'month', 'custom'] as PresetRange[]).map((p) => (
-              <Button
-                key={p}
-                variant={preset === p ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setPreset(p)}
-                className="h-8 text-xs px-3 capitalize font-medium"
-              >
-                {p === 'today'
-                  ? 'Today'
-                  : p === '7d'
-                  ? 'Last 7 Days'
-                  : p === '30d'
-                  ? 'Last 30 Days'
-                  : p === 'month'
-                  ? 'This Month'
-                  : 'Custom'}
-              </Button>
-            ))}
+          <Card className="border-border/60 shadow-2xs">
+            <CardContent className="p-3.5 sm:p-4 space-y-3">
+              {/* Presets Row */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Calendar className="size-3.5 text-primary" /> Date Range
+                </span>
+                <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-0.5">
+                  <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-max">
+                    {(['today', '7d', '30d', 'month', 'custom'] as PresetRange[]).map((p) => (
+                      <Button
+                        key={p}
+                        variant={preset === p ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setPreset(p)}
+                        className={`h-7.5 text-xs px-2.5 sm:px-3 font-semibold rounded-lg shrink-0 cursor-pointer ${
+                          preset === p
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {p === 'today'
+                          ? 'Today'
+                          : p === '7d'
+                          ? '7 Days'
+                          : p === '30d'
+                          ? '30 Days'
+                          : p === 'month'
+                          ? 'This Month'
+                          : 'Custom'}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom Date Inputs if 'custom' preset */}
+              {preset === 'custom' && (
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border/60">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-8 text-xs w-full sm:w-36"
+                  />
+                  <span className="text-xs text-muted-foreground hidden sm:inline">to</span>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-8 text-xs w-full sm:w-36"
+                  />
+                  <Button size="sm" onClick={handleApplyCustomDates} className="h-8 text-xs font-bold w-full sm:w-auto">
+                    Apply Custom Range
+                  </Button>
+                </div>
+              )}
+
+              {/* Frequency Grouping Row */}
+              <div className="flex items-center justify-between pt-2.5 border-t border-border/60">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Filter className="size-3.5 text-primary" /> Group By
+                </span>
+                <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl">
+                  {(['day', 'week', 'month'] as const).map((g) => (
+                    <Button
+                      key={g}
+                      variant={groupBy === g ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setGroupBy(g)}
+                      className={`h-7 text-xs px-2.5 capitalize font-semibold rounded-lg cursor-pointer ${
+                        groupBy === g
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {g}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Summary KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+            <StatCard
+              title="Total Revenue"
+              value={formatCurrency(summary?.totalRevenue ?? 0)}
+              caption="Gross completed transactions"
+              icon={DollarSign}
+              variant="success"
+              isLoading={loading}
+            />
+            <StatCard
+              title="Completed Sales"
+              value={formatNumber(summary?.totalTransactions ?? 0)}
+              caption="Total receipts generated"
+              icon={ShoppingCart}
+              isLoading={loading}
+            />
+            <StatCard
+              title="Avg Order Value (AOV)"
+              value={formatCurrency(summary?.averageOrderValue ?? 0)}
+              caption="Average spend per sale"
+              icon={TrendingUp}
+              isLoading={loading}
+            />
+            <StatCard
+              title="Items Dispensed"
+              value={formatNumber(summary?.totalItemsSold ?? 0)}
+              caption="Medicine units sold"
+              icon={Package}
+              isLoading={loading}
+            />
           </div>
-
-          {/* Custom Date Inputs if 'custom' preset */}
-          {preset === 'custom' && (
-            <div className="flex items-center gap-2">
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-8 text-xs w-36"
-              />
-              <span className="text-xs text-muted-foreground">to</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-8 text-xs w-36"
-              />
-              <Button size="sm" onClick={handleApplyCustomDates} className="h-8 text-xs">
-                Apply
-              </Button>
-            </div>
-          )}
-
-          {/* Frequency Grouping */}
-          <div className="flex items-center gap-1.5 border-t md:border-t-0 pt-2 md:pt-0 border-border">
-            <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1">
-              <Filter className="size-3.5" /> Group By:
-            </span>
-            {(['day', 'week', 'month'] as const).map((g) => (
-              <Button
-                key={g}
-                variant={groupBy === g ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => setGroupBy(g)}
-                className="h-7 text-xs px-2.5 capitalize font-medium"
-              >
-                {g}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Revenue"
-          value={formatCurrency(summary?.totalRevenue ?? 0)}
-          caption="Gross completed transactions"
-          icon={DollarSign}
-          variant="success"
-          isLoading={loading}
-        />
-        <StatCard
-          title="Completed Sales"
-          value={formatNumber(summary?.totalTransactions ?? 0)}
-          caption="Total receipts generated"
-          icon={ShoppingCart}
-          isLoading={loading}
-        />
-        <StatCard
-          title="Avg Order Value (AOV)"
-          value={formatCurrency(summary?.averageOrderValue ?? 0)}
-          caption="Average spend per sale"
-          icon={TrendingUp}
-          isLoading={loading}
-        />
-        <StatCard
-          title="Items Dispensed"
-          value={formatNumber(summary?.totalItemsSold ?? 0)}
-          caption="Medicine units sold"
-          icon={Package}
-          isLoading={loading}
-        />
-      </div>
 
       {/* Multi-Branch Comparative Performance Card */}
       {isAllStores && orgOverviewData && orgOverviewData.stores.length > 0 && (
@@ -416,7 +450,7 @@ export function ReportsView() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+              <table className="w-full text-xs text-left min-w-[700px]">
                 <thead className="bg-muted/50 text-muted-foreground uppercase text-overline border-y border-border/60">
                   <tr>
                     <th className="px-4 py-2.5 font-semibold">Store / Branch</th>
@@ -508,22 +542,30 @@ export function ReportsView() {
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl">
             <Button
-              variant={chartType === 'area' ? 'default' : 'outline'}
+              variant={chartType === 'area' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setChartType('area')}
-              className="h-7 text-xs px-2.5"
+              className={`h-7 text-xs px-2.5 font-semibold rounded-lg cursor-pointer ${
+                chartType === 'area'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              Area Chart
+              Area
             </Button>
             <Button
-              variant={chartType === 'bar' ? 'default' : 'outline'}
+              variant={chartType === 'bar' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setChartType('bar')}
-              className="h-7 text-xs px-2.5"
+              className={`h-7 text-xs px-2.5 font-semibold rounded-lg cursor-pointer ${
+                chartType === 'bar'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              Bar Chart
+              Bar
             </Button>
           </div>
         </CardHeader>
@@ -628,20 +670,28 @@ export function ReportsView() {
             </CardDescription>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-fit">
             <Button
-              variant={activeTab === 'revenue' ? 'default' : 'outline'}
+              variant={activeTab === 'revenue' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveTab('revenue')}
-              className="h-8 text-xs font-medium"
+              className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
+                activeTab === 'revenue'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               By Revenue
             </Button>
             <Button
-              variant={activeTab === 'quantity' ? 'default' : 'outline'}
+              variant={activeTab === 'quantity' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveTab('quantity')}
-              className="h-8 text-xs font-medium"
+              className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
+                activeTab === 'quantity'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
               By Quantity Sold
             </Button>
@@ -665,7 +715,7 @@ export function ReportsView() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
+              <table className="w-full text-xs text-left border-collapse min-w-[540px]">
                 <thead>
                   <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
                     <th className="py-3 px-4 w-12 text-center">Rank</th>
