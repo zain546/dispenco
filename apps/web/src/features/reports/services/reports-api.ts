@@ -107,6 +107,9 @@ export interface CopilotQueryResult {
   intent: string;
   timeframeLabel: string;
   narrative: string;
+  executiveTakeaway?: string;
+  actionItems?: string[];
+  aiModel?: string;
   chartType: 'bar' | 'line' | 'pie' | 'kpi' | 'table';
   summaryMetrics: Array<{
     label: string;

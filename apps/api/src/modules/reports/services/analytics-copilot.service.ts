@@ -18,6 +18,9 @@ export interface CopilotQueryResult {
   intent: SafeAnalyticsIntent;
   timeframeLabel: string;
   narrative: string;
+  executiveTakeaway?: string;
+  actionItems?: string[];
+  aiModel?: string;
   chartType: 'bar' | 'line' | 'pie' | 'kpi' | 'table';
   summaryMetrics: Array<{
     label: string;
@@ -141,6 +144,38 @@ export class AnalyticsCopilotService {
         );
     }
 
+    // 3. AI Executive Narrative & Recommendations Synthesis (via Gemini if available)
+    let aiEnhanced = {
+      narrative: result.narrative,
+      executiveTakeaway: undefined as string | undefined,
+      actionItems: undefined as string[] | undefined,
+      suggestedFollowUps: result.suggestedFollowUps,
+      aiModel: 'Deterministic Engine',
+    };
+
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey) {
+      try {
+        const briefing = await this.synthesizeBriefingWithGemini(
+          geminiKey,
+          cleanQuestion,
+          parsed.intent,
+          parsed.timeframeLabel,
+          result.summaryMetrics,
+          (result.tableData || result.chartData || []) as Array<Record<string, unknown>>,
+        );
+        if (briefing.narrative) aiEnhanced.narrative = briefing.narrative;
+        if (briefing.executiveTakeaway) aiEnhanced.executiveTakeaway = briefing.executiveTakeaway;
+        if (briefing.actionItems && briefing.actionItems.length > 0) aiEnhanced.actionItems = briefing.actionItems;
+        if (briefing.suggestedFollowUps && briefing.suggestedFollowUps.length > 0) {
+          aiEnhanced.suggestedFollowUps = briefing.suggestedFollowUps;
+        }
+        aiEnhanced.aiModel = 'Dispenco Intelligence';
+      } catch (err: unknown) {
+        this.logger.warn(`Gemini executive synthesis fallback to deterministic: ${err}`);
+      }
+    }
+
     const executionTimeMs = Date.now() - startTime;
 
     return {
@@ -148,6 +183,11 @@ export class AnalyticsCopilotService {
       intent: parsed.intent,
       timeframeLabel: parsed.timeframeLabel,
       ...result,
+      narrative: aiEnhanced.narrative,
+      executiveTakeaway: aiEnhanced.executiveTakeaway,
+      actionItems: aiEnhanced.actionItems,
+      suggestedFollowUps: aiEnhanced.suggestedFollowUps,
+      aiModel: aiEnhanced.aiModel,
       executionTimeMs,
     };
   }
@@ -308,7 +348,7 @@ export class AnalyticsCopilotService {
    * LLM Intent Classifier via Gemini
    */
   private async classifyWithGemini(apiKey: string, question: string) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
     const prompt = `Classify this pharmacy analytics query into safe intent:
 Available intents:
 - SALES_SUMMARY
@@ -328,6 +368,62 @@ Return strict JSON:
   "timeframe": "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_30_days" | "this_year",
   "limit": 5
 }`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Gemini status ${res.status}`);
+    const json = (await res.json()) as any;
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    return JSON.parse(text);
+  }
+
+  /**
+   * AI Executive Synthesis via Gemini
+   */
+  private async synthesizeBriefingWithGemini(
+    apiKey: string,
+    question: string,
+    intent: SafeAnalyticsIntent,
+    timeframeLabel: string,
+    metrics: Array<{ label: string; value: string | number }>,
+    sampleRecords: Array<Record<string, unknown>>,
+  ): Promise<{
+    narrative?: string;
+    executiveTakeaway?: string;
+    actionItems?: string[];
+    suggestedFollowUps?: string[];
+  }> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
+    const prompt = `You are the Lead Healthcare & Pharmacy Business Intelligence Analyst for Dispenco.
+A pharmacy owner asked: "${question}"
+Domain Intent: ${intent} (${timeframeLabel})
+Verified Live Database Metrics:
+${JSON.stringify(metrics, null, 2)}
+Sample Verified Data Records:
+${JSON.stringify(sampleRecords.slice(0, 8), null, 2)}
+
+Provide an executive, highly professional briefing in strict JSON:
+{
+  "narrative": "A concise, impactful 2-3 sentence markdown summary highlighting the exact numbers, rupee amounts (Rs.), percentages, and critical items. Use **bold** for metrics.",
+  "executiveTakeaway": "1 sentence high-impact strategic takeaway for the pharmacy owner.",
+  "actionItems": [
+    "Immediate operational or clinical action 1 (e.g. stock replenishment, supplier return, pricing, or collection)",
+    "Immediate action 2"
+  ],
+  "suggestedFollowUps": [
+    "Contextual follow-up question 1",
+    "Contextual follow-up question 2",
+    "Contextual follow-up question 3"
+  ]
+}
+Return ONLY valid JSON matching this schema.`;
 
     const res = await fetch(url, {
       method: 'POST',

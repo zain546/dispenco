@@ -45,6 +45,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { StoreSwitcher } from '@/components/store-switcher';
 import { ConnectivityIndicator } from '@/components/layout/connectivity-indicator';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { AiAssistantWidget } from '@/components/layout/ai-assistant-widget';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -418,6 +419,9 @@ export default function DashboardLayout({
 
           {/* Page View Body */}
           <main className="flex-1 p-3.5 sm:p-6 overflow-y-auto">{children}</main>
+
+          {/* Floating AI Assistant Widget (Available Globally across all Dashboard Screens) */}
+          <AiAssistantWidget />
         </div>
       </div>
     </TooltipProvider>
