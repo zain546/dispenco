@@ -32,13 +32,13 @@ export function SettingsHub() {
   return (
     <div className="space-y-6">
       <div className="border-b border-border/80 pb-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Settings className="size-6 text-primary" />
-              Settings & Organization
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              <Settings className="size-5 sm:size-6 text-primary" />
+              Settings &amp; Organization
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 hidden sm:block">
               Manage your pharmacy team members, operational roles, and external developer API integrations.
             </p>
           </div>
@@ -48,14 +48,20 @@ export function SettingsHub() {
             onValueChange={handleTabChange}
             className="w-full sm:w-auto"
           >
-            <TabsList className="grid w-full sm:w-80 grid-cols-2">
-              <TabsTrigger value="team" className="gap-2">
-                <Users className="size-4" />
-                Team & Access
+            <TabsList className="grid w-full sm:w-80 grid-cols-2 h-9 p-1 bg-muted/60 rounded-xl border border-border/60">
+              <TabsTrigger
+                value="team"
+                className="gap-2 text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+              >
+                <Users className="size-3.5" />
+                Team &amp; Access
               </TabsTrigger>
-              <TabsTrigger value="integrations" className="gap-2">
-                <Key className="size-4" />
-                API & Integrations
+              <TabsTrigger
+                value="integrations"
+                className="gap-2 text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+              >
+                <Key className="size-3.5" />
+                API &amp; Integrations
               </TabsTrigger>
             </TabsList>
           </Tabs>

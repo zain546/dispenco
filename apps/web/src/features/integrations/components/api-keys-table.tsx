@@ -135,12 +135,88 @@ export function ApiKeysTable({
 
   return (
     <>
-      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-xs">
+      {/* Mobile API Key Card List (Visible on < md) */}
+      <div className="md:hidden rounded-xl border border-border/70 bg-card divide-y divide-border/60 overflow-hidden shadow-xs">
+        {keys.map((k) => (
+          <div key={k.id} className="p-3.5 space-y-2.5 hover:bg-muted/15 transition-colors">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+                  <Key className="size-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-xs sm:text-sm text-foreground truncate">
+                    {k.name}
+                  </p>
+                  <p className="font-mono text-micro text-muted-foreground select-all">
+                    {k.keyPrefix}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Switch
+                  checked={k.isActive}
+                  disabled={togglingId === k.id}
+                  onCheckedChange={() => handleToggle(k)}
+                  aria-label={`Toggle active status for ${k.name}`}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setKeyToRevoke(k)}
+                  title="Revoke API key"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Badges Row */}
+            <div className="flex items-center justify-between text-xs pt-1 border-t border-border/30 gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge variant="secondary" className="font-medium text-micro gap-1 px-1.5 py-0">
+                  <Zap className="size-2.5 text-warning" />
+                  {k.rateLimit} req/min
+                </Badge>
+                {getExpiryBadge(k.expiresAt)}
+              </div>
+
+              <span className="text-micro text-muted-foreground">
+                Last: {formatTimestamp(k.lastUsedAt)}
+              </span>
+            </div>
+
+            {/* Scopes */}
+            {k.permissions && k.permissions.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {k.permissions.map((p) => {
+                  const cleanScope = p.replace('public:', '').replace(':read', '');
+                  return (
+                    <Badge
+                      key={p}
+                      variant="outline"
+                      className="font-mono text-micro px-1.5 py-0 bg-background/80 flex items-center gap-1"
+                    >
+                      <ShieldCheck className="size-2.5 text-primary" />
+                      {cleanScope}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table (Visible on >= md) */}
+      <div className="hidden md:block rounded-xl border border-border/70 bg-card overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent bg-muted/40">
-              <TableHead className="w-[260px]">Key Name & Prefix</TableHead>
-              <TableHead>Permissions & Scopes</TableHead>
+              <TableHead className="w-[260px]">Key Name &amp; Prefix</TableHead>
+              <TableHead>Permissions &amp; Scopes</TableHead>
               <TableHead>Rate Limit</TableHead>
               <TableHead>Last Used</TableHead>
               <TableHead>Expiration</TableHead>
@@ -217,7 +293,7 @@ export function ApiKeysTable({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                     onClick={() => setKeyToRevoke(k)}
                     title="Revoke API key"
                   >

@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -108,40 +109,39 @@ export function TeamMembersList({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <Users className="size-4 text-primary" />
-            <span>Staff & Pharmacy Team</span>
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Manage employees, assign access roles, and control operational permissions.
-          </p>
+    <div className="space-y-3.5 sm:space-y-4">
+      {/* Search Toolbar & Quick Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search staff by name, email, or role..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 pr-7 h-8.5 text-xs bg-muted/20 focus-visible:bg-background rounded-lg border-border/70"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              title="Clear search"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
         </div>
 
         {canManageStaff && (
           <Button
             size="sm"
             onClick={handleOpenAdd}
-            className="gap-1.5 font-medium text-xs h-8 shadow-xs"
+            className="h-8.5 gap-1.5 font-bold text-xs shadow-xs cursor-pointer shrink-0 bg-primary hover:bg-primary/95 text-primary-foreground"
           >
             <UserPlus className="size-3.5" />
             <span>Add Team Member</span>
           </Button>
         )}
-      </div>
-
-      {/* Filter Bar */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          placeholder="Filter team members by name, email, or role..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-8 h-8 text-xs"
-        />
       </div>
 
       {/* Users Table */}
@@ -173,132 +173,246 @@ export function TeamMembersList({
               />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
-                    <th className="py-3 px-4">Employee</th>
-                    <th className="py-3 px-4">Assigned Role</th>
-                    <th className="py-3 px-4">Contact</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Joined</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {filteredUsers.map((u) => {
-                    const isSelf = u.id === currentUser?.id;
-                    const matchedRole = roles.find(
-                      (r) =>
-                        (u.roleId && r.id === u.roleId) ||
-                        r.name.toLowerCase() === u.role.toLowerCase()
-                    );
+            <>
+              {/* Mobile Card List (Visible on < md) */}
+              <div className="md:hidden divide-y divide-border/60">
+                {filteredUsers.map((u) => {
+                  const isSelf = u.id === currentUser?.id;
+                  const matchedRole = roles.find(
+                    (r) =>
+                      (u.roleId && r.id === u.roleId) ||
+                      r.name.toLowerCase() === u.role.toLowerCase()
+                  );
 
-                    return (
-                      <tr
-                        key={u.id}
-                        className="hover:bg-muted/20 transition-colors"
-                      >
-                        {/* Name & Avatar */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="size-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0">
-                              {getInitials(u.name)}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-semibold text-foreground text-xs flex items-center gap-1.5 truncate">
-                                <span>{u.name}</span>
-                                {isSelf && (
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-micro px-1.5 py-0"
-                                  >
-                                    You
-                                  </Badge>
-                                )}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {u.email}
-                              </p>
-                            </div>
+                  return (
+                    <div
+                      key={u.id}
+                      className="p-3.5 space-y-2.5 hover:bg-muted/15 transition-colors"
+                    >
+                      {/* Top Row: Avatar + Name + Status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="size-9 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0 ring-1 ring-primary/20">
+                            {getInitials(u.name)}
                           </div>
-                        </td>
-
-                        {/* Role */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
-                            {getRoleBadge(u.role)}
-                            <RolePermissionsPopover
-                              roleName={u.role}
-                              permissions={matchedRole?.permissions}
-                              isOwner={u.isOwner}
-                              triggerVariant="icon"
-                            />
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs sm:text-sm text-foreground flex items-center gap-1.5 truncate">
+                              <span>{u.name}</span>
+                              {isSelf && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-micro px-1.5 py-0 font-bold"
+                                >
+                                  You
+                                </Badge>
+                              )}
+                            </p>
+                            <p className="text-micro sm:text-xs text-muted-foreground truncate">
+                              {u.email}
+                            </p>
                           </div>
-                        </td>
+                        </div>
 
-                        {/* Contact Phone */}
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {u.phone || '—'}
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-3 px-4">
+                        <div>
                           {u.isActive ? (
-                            <Badge variant="success" className="text-micro gap-1 px-1.5 py-0">
+                            <Badge variant="success" className="text-micro gap-1 px-1.5 py-0.5">
                               <CheckCircle2 className="size-2.5" />
                               <span>Active</span>
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="text-micro gap-1 px-1.5 py-0">
+                            <Badge variant="secondary" className="text-micro gap-1 px-1.5 py-0.5">
                               <XCircle className="size-2.5" />
                               <span>Deactivated</span>
                             </Badge>
                           )}
-                        </td>
+                        </div>
+                      </div>
 
-                        {/* Joined Date */}
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {formatDate(u.createdAt)}
-                        </td>
+                      {/* Middle Row: Role badge + Contact */}
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-border/30">
+                        <div className="flex items-center gap-1.5">
+                          {getRoleBadge(u.role)}
+                          <RolePermissionsPopover
+                            roleName={u.role}
+                            permissions={matchedRole?.permissions}
+                            isOwner={u.isOwner}
+                            triggerVariant="icon"
+                          />
+                        </div>
 
-                        {/* Actions */}
-                        <td className="py-3 px-4 text-right">
-                          {canManageStaff && (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEdit(u)}
-                                className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
-                              >
-                                <Edit className="size-3" />
-                                <span>Edit</span>
-                              </Button>
+                        {u.phone ? (
+                          <span className="text-micro text-muted-foreground tabular-nums">
+                            {u.phone}
+                          </span>
+                        ) : (
+                          <span className="text-micro text-muted-foreground/60">
+                            Joined {formatDate(u.createdAt)}
+                          </span>
+                        )}
+                      </div>
 
-                              {!u.isOwner && !isSelf && (
+                      {/* Bottom Actions Row */}
+                      {canManageStaff && (
+                        <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-border/30">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEdit(u)}
+                            className="h-7 text-xs font-semibold px-2.5 gap-1 text-muted-foreground hover:text-foreground cursor-pointer shadow-2xs"
+                          >
+                            <Edit className="size-3 text-primary" />
+                            <span>Edit Role</span>
+                          </Button>
+
+                          {!u.isOwner && !isSelf && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleActive(u)}
+                              className={`h-7 text-xs font-semibold px-2.5 cursor-pointer ${
+                                u.isActive
+                                  ? 'text-destructive hover:bg-destructive/10'
+                                  : 'text-success hover:bg-success/10'
+                              }`}
+                            >
+                              {u.isActive ? 'Deactivate' : 'Reactivate'}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Data Table (Visible on >= md) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
+                      <th className="py-3 px-4">Employee</th>
+                      <th className="py-3 px-4">Assigned Role</th>
+                      <th className="py-3 px-4">Contact</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Joined</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {filteredUsers.map((u) => {
+                      const isSelf = u.id === currentUser?.id;
+                      const matchedRole = roles.find(
+                        (r) =>
+                          (u.roleId && r.id === u.roleId) ||
+                          r.name.toLowerCase() === u.role.toLowerCase()
+                      );
+
+                      return (
+                        <tr
+                          key={u.id}
+                          className="hover:bg-muted/20 transition-colors"
+                        >
+                          {/* Name & Avatar */}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="size-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs shrink-0">
+                                {getInitials(u.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-foreground text-xs flex items-center gap-1.5 truncate">
+                                  <span>{u.name}</span>
+                                  {isSelf && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-micro px-1.5 py-0"
+                                    >
+                                      You
+                                    </Badge>
+                                  )}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {u.email}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Role */}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-1.5">
+                              {getRoleBadge(u.role)}
+                              <RolePermissionsPopover
+                                roleName={u.role}
+                                permissions={matchedRole?.permissions}
+                                isOwner={u.isOwner}
+                                triggerVariant="icon"
+                              />
+                            </div>
+                          </td>
+
+                          {/* Contact Phone */}
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {u.phone || '—'}
+                          </td>
+
+                          {/* Status */}
+                          <td className="py-3 px-4">
+                            {u.isActive ? (
+                              <Badge variant="success" className="text-micro gap-1 px-1.5 py-0">
+                                <CheckCircle2 className="size-2.5" />
+                                <span>Active</span>
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-micro gap-1 px-1.5 py-0">
+                                <XCircle className="size-2.5" />
+                                <span>Deactivated</span>
+                              </Badge>
+                            )}
+                          </td>
+
+                          {/* Joined Date */}
+                          <td className="py-3 px-4 text-muted-foreground">
+                            {formatDate(u.createdAt)}
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-3 px-4 text-right">
+                            {canManageStaff && (
+                              <div className="flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleToggleActive(u)}
-                                  className={`h-7 text-xs px-2 ${
-                                    u.isActive
-                                      ? 'text-destructive hover:bg-destructive/10'
-                                      : 'text-success hover:bg-success/10'
-                                  }`}
+                                  onClick={() => handleOpenEdit(u)}
+                                  className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
                                 >
-                                  {u.isActive ? 'Deactivate' : 'Reactivate'}
+                                  <Edit className="size-3" />
+                                  <span>Edit</span>
                                 </Button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+
+                                {!u.isOwner && !isSelf && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleToggleActive(u)}
+                                    className={`h-7 text-xs px-2 ${
+                                      u.isActive
+                                        ? 'text-destructive hover:bg-destructive/10'
+                                        : 'text-success hover:bg-success/10'
+                                    }`}
+                                  >
+                                    {u.isActive ? 'Deactivate' : 'Reactivate'}
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

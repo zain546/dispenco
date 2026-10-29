@@ -119,61 +119,50 @@ export function RolesList({
 
   return (
     <div className="space-y-4">
-      {/* Action Header & View Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-            <span>Workspace Roles & Access Levels</span>
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Configure permission capabilities for managers, pharmacists, cashiers, and custom roles.
-          </p>
+      {/* Action Toolbar & View Switcher */}
+      <div className="flex flex-row items-center justify-between gap-2.5">
+        {/* View Mode Toggle */}
+        <div className="flex items-center p-0.5 bg-muted/80 rounded-lg border border-border/60 text-xs">
+          <button
+            type="button"
+            onClick={() => setViewMode('cards')}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all text-xs font-semibold cursor-pointer',
+              viewMode === 'cards'
+                ? 'bg-background text-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+            title="Cards Grid View"
+          >
+            <LayoutGrid className="size-3.5" />
+            <span>Cards</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('matrix')}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all text-xs font-semibold cursor-pointer',
+              viewMode === 'matrix'
+                ? 'bg-background text-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+            title="Full Permissions Matrix View"
+          >
+            <Table2 className="size-3.5" />
+            <span>Matrix</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* View Mode Toggle */}
-          <div className="flex items-center p-0.5 bg-muted/80 rounded-lg border border-border/60 text-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('cards')}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all text-xs font-medium cursor-pointer',
-                viewMode === 'cards'
-                  ? 'bg-background text-foreground shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              title="Cards Grid View"
-            >
-              <LayoutGrid className="size-3.5" />
-              <span className="hidden xs:inline">Cards</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('matrix')}
-              className={cn(
-                'flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all text-xs font-medium cursor-pointer',
-                viewMode === 'matrix'
-                  ? 'bg-background text-foreground shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              title="Full Permissions Matrix View"
-            >
-              <Table2 className="size-3.5" />
-              <span className="hidden xs:inline">Matrix View</span>
-            </button>
-          </div>
-
-          {canManageRoles && (
-            <Button
-              size="sm"
-              onClick={handleOpenCreate}
-              className="gap-1.5 font-medium text-xs h-8 shadow-2xs"
-            >
-              <Plus className="size-3.5" />
-              <span>Create Custom Role</span>
-            </Button>
-          )}
-        </div>
+        {canManageRoles && (
+          <Button
+            size="sm"
+            onClick={handleOpenCreate}
+            className="gap-1.5 font-bold text-xs h-8.5 shadow-xs cursor-pointer shrink-0 bg-primary hover:bg-primary/95 text-primary-foreground"
+          >
+            <Plus className="size-3.5" />
+            <span>Create Role</span>
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
