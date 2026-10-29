@@ -104,8 +104,8 @@ export function KeyCreatedDialog({ result, onClose }: KeyCreatedDialogProps) {
               </button>
             </div>
 
-            <div className="relative flex items-center">
-              <div className="w-full font-mono text-sm px-4 py-3 bg-muted/70 rounded-lg border border-border select-all break-all pr-24">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1 font-mono text-xs sm:text-sm px-3.5 py-2.5 bg-muted/70 rounded-lg border border-border select-all break-all">
                 {isRevealed ? rawKey : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
               </div>
               <Button
@@ -113,7 +113,7 @@ export function KeyCreatedDialog({ result, onClose }: KeyCreatedDialogProps) {
                 size="sm"
                 variant="secondary"
                 onClick={() => copyToClipboard(rawKey)}
-                className="absolute right-2 h-8 gap-1.5 shadow-xs font-medium"
+                className="h-9 sm:h-auto gap-1.5 shadow-xs font-medium shrink-0 w-full sm:w-auto"
               >
                 {copiedKey ? (
                   <>

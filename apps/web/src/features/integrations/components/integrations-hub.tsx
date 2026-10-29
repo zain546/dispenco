@@ -57,7 +57,7 @@ export function IntegrationsHub() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Top Action Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2.5">
         <div>
           <h2 className="text-base sm:text-lg font-bold text-foreground">
             API Credentials &amp; Endpoints
@@ -67,24 +67,26 @@ export function IntegrationsHub() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={fetchKeys}
             disabled={isLoading}
-            className="h-8.5 px-3 gap-1.5 text-xs font-semibold cursor-pointer shadow-2xs"
+            className="h-8.5 px-2.5 sm:px-3 gap-1.5 text-xs font-semibold cursor-pointer shadow-2xs"
+            title="Refresh integration keys"
           >
-            <RefreshCw className={`size-3 text-primary ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`size-3 text-primary shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
             <span className="hidden xs:inline">Refresh</span>
           </Button>
           <Button
             size="sm"
             onClick={() => setIsCreateOpen(true)}
-            className="h-8.5 px-3 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/95 text-primary-foreground shadow-xs cursor-pointer"
+            className="h-8.5 px-2.5 sm:px-3 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/95 text-primary-foreground shadow-xs cursor-pointer shrink-0"
           >
             <Plus className="size-3.5" />
-            <span>Generate Key</span>
+            <span className="hidden xs:inline">Generate Key</span>
+            <span className="xs:hidden">New Key</span>
           </Button>
         </div>
       </div>
@@ -114,8 +116,8 @@ export function IntegrationsHub() {
         />
         <StatCard
           title="Gateway Status"
-          value="Operational"
-          caption="Rate limiting active"
+          value="Healthy"
+          caption="Operational • Active"
           icon={Activity}
           variant="success"
         />

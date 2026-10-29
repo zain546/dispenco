@@ -176,11 +176,11 @@ export function CreateKeyModal({
                         className="mt-0.5"
                       />
                       <div className="space-y-0.5 flex-1 select-none">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                           <span className="font-medium text-foreground">
                             {scopeDef.name}
                           </span>
-                          <span className="font-mono text-micro text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          <span className="font-mono text-micro text-muted-foreground bg-muted px-1.5 py-0.5 rounded self-start sm:self-auto">
                             {scopeDef.scope}
                           </span>
                         </div>
