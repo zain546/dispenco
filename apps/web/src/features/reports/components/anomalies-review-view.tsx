@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Building2,
   User,
+  X,
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -281,58 +282,100 @@ export function AnomaliesReviewView() {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border border-border/70 bg-card shadow-2xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
-              <ShieldAlert className="size-5" />
-            </span>
-            <h2 className="text-xl font-bold tracking-tight">
-              Operational Integrity & Discrepancies
-            </h2>
-            <StatusBadge variant="info" size="xs">
-              Statistical Baselines
-            </StatusBadge>
+      {/* Top Banner & Header: streamlined and responsive */}
+      <Card className="border border-border/80 sm:border-primary/20 bg-muted/20 sm:bg-linear-to-r sm:from-primary/5 sm:via-primary/10 sm:to-background shadow-xs overflow-hidden">
+        <CardContent className="p-3 sm:p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center sm:items-start gap-2.5 sm:gap-3.5">
+            <div className="size-9 sm:size-11 md:size-12 rounded-xl sm:rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-xs ring-2 sm:ring-4 ring-primary/5">
+              <ShieldAlert className="size-4.5 sm:size-5 md:size-6 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h3 className="font-bold text-xs sm:text-sm md:text-base text-foreground leading-tight">
+                  Variance Detection Engine
+                </h3>
+                <Badge
+                  variant="outline"
+                  className="bg-primary/10 text-primary border-primary/25 text-[10px] sm:text-micro font-semibold px-1.5 py-0"
+                >
+                  Statistical Baselines
+                </Badge>
+              </div>
+              <p className="text-micro sm:text-xs text-muted-foreground mt-0.5 leading-relaxed hidden sm:block max-w-2xl">
+                Continuous anomaly analysis across cash registers, discretionary discounting, out-of-hours checkouts, and stock shrinkage.
+              </p>
+            </div>
+
+            {/* Mobile Actions in Header Row */}
+            <div className="flex md:hidden items-center gap-1.5 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  fetchSummary();
+                  fetchFlags();
+                }}
+                disabled={isLoading || isScanning}
+                className="h-8 px-2.5 gap-1 text-xs font-semibold cursor-pointer shadow-2xs"
+                title="Refresh"
+              >
+                <RefreshCw
+                  className={`size-3 text-primary shrink-0 ${isLoading ? 'animate-spin' : ''}`}
+                />
+                <span className="hidden xs:inline">Refresh</span>
+              </Button>
+
+              <Button
+                size="sm"
+                onClick={handleRunScan}
+                disabled={isScanning}
+                className="h-8 px-2.5 gap-1.5 text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-xs cursor-pointer"
+                title="Run integrity scan"
+              >
+                <Sparkles
+                  className={`size-3 text-warning shrink-0 ${
+                    isScanning ? 'animate-spin' : ''
+                  }`}
+                />
+                <span>{isScanning ? 'Scanning...' : 'Run Scan'}</span>
+              </Button>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Continuous variance monitoring across cash registers, discretionary
-            discounting, out-of-hours checkouts, and inventory shrinkage.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              fetchSummary();
-              fetchFlags();
-            }}
-            disabled={isLoading || isScanning}
-            className="h-9 gap-1.5 text-xs"
-          >
-            <RefreshCw
-              className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`}
-            />
-            Refresh
-          </Button>
+          {/* Desktop Actions */}
+          <div className="hidden md:flex items-center gap-2.5 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                fetchSummary();
+                fetchFlags();
+              }}
+              disabled={isLoading || isScanning}
+              className="h-9 gap-1.5 text-xs font-semibold cursor-pointer"
+            >
+              <RefreshCw
+                className={`size-3.5 text-primary ${isLoading ? 'animate-spin' : ''}`}
+              />
+              Refresh
+            </Button>
 
-          <Button
-            size="sm"
-            onClick={handleRunScan}
-            disabled={isScanning}
-            className="h-9 gap-2 text-xs font-semibold shadow-xs"
-          >
-            <Sparkles
-              className={`size-3.5 text-warning ${
-                isScanning ? 'animate-spin' : ''
-              }`}
-            />
-            {isScanning ? 'Analyzing Transactions...' : 'Run Integrity Scan'}
-          </Button>
-        </div>
-      </div>
+            <Button
+              size="sm"
+              onClick={handleRunScan}
+              disabled={isScanning}
+              className="h-9 gap-2 text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-xs cursor-pointer"
+            >
+              <Sparkles
+                className={`size-3.5 text-warning ${
+                  isScanning ? 'animate-spin' : ''
+                }`}
+              />
+              {isScanning ? 'Analyzing Transactions...' : 'Run Integrity Scan'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPI Stat Cards: 2-column grid on mobile, 4-column on desktop */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
@@ -349,20 +392,20 @@ export function AnomaliesReviewView() {
           }
           caption={
             summary && summary.pendingReviewCount > 0
-              ? `${summary.pendingReviewCount} items require review`
-              : 'Zero active variance alerts'
+              ? `${summary.pendingReviewCount} items pending`
+              : 'Zero active alerts'
           }
         />
 
         <StatCard
-          title="Requires Manager Review"
+          title="Requires Review"
           value={summary?.pendingReviewCount ?? 0}
           icon={AlertTriangle}
           variant={(summary?.pendingReviewCount ?? 0) > 0 ? 'warning' : 'default'}
           caption={
             summary?.criticalSeverityCount
-              ? `${summary.criticalSeverityCount} critical variances`
-              : 'Unresolved register & stock flags'
+              ? `${summary.criticalSeverityCount} critical flags`
+              : 'Active register flags'
           }
         />
 
@@ -370,130 +413,160 @@ export function AnomaliesReviewView() {
           title="Under Investigation"
           value={summary?.investigatingCount ?? 0}
           icon={Clock}
-          caption="Actively being reviewed with staff"
+          caption="Staff review in progress"
         />
 
         <StatCard
-          title="Resolved & Documented"
+          title="Resolved & Closed"
           value={(summary?.resolvedCount ?? 0) + (summary?.dismissedCount ?? 0)}
           icon={CheckCircle2}
           variant="success"
-          caption="Documented with resolution rationale"
+          caption="Documented & resolved"
         />
       </div>
 
       {/* Main Review Section */}
       <Card className="border-border/60 shadow-2xs">
-        <CardHeader className="pb-3 border-b border-border/40">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Status Tabs */}
-            <div className="flex flex-wrap items-center gap-1">
-              {[
-                {
-                  id: 'ALL',
-                  label: 'All Discrepancies',
-                  count: summary?.totalFlags,
-                },
-                {
-                  id: AnomalyStatus.FLAGGED,
-                  label: 'Pending Review',
-                  count: summary?.pendingReviewCount,
-                },
-                {
-                  id: AnomalyStatus.UNDER_REVIEW,
-                  label: 'Under Review',
-                  count: summary?.investigatingCount,
-                },
-                {
-                  id: AnomalyStatus.RESOLVED,
-                  label: 'Resolved',
-                  count: summary?.resolvedCount,
-                },
-                {
-                  id: AnomalyStatus.DISMISSED,
-                  label: 'Dismissed',
-                  count: summary?.dismissedCount,
-                },
-              ].map((tab) => (
-                <Button
-                  key={tab.id}
-                  variant={statusFilter === tab.id ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => {
-                    setStatusFilter(tab.id as AnomalyStatus | 'ALL');
-                    setPage(1);
-                  }}
-                  className="h-8 text-xs font-medium gap-1.5 px-3"
-                >
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <Badge
-                      variant="outline"
-                      className={`text-micro px-1 py-0 ${
-                        statusFilter === tab.id
-                          ? 'border-primary-foreground/30 text-primary-foreground bg-primary-foreground/15'
-                          : 'border-border text-muted-foreground'
+        <CardHeader className="p-3.5 sm:p-5 pb-3 border-b border-border/40 space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Status Tabs: Horizontally scrollable on mobile */}
+            <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-0.5">
+              <div className="flex items-center gap-1.5 w-max">
+                {[
+                  {
+                    id: 'ALL',
+                    label: 'All Discrepancies',
+                    count: summary?.totalFlags,
+                  },
+                  {
+                    id: AnomalyStatus.FLAGGED,
+                    label: 'Pending Review',
+                    count: summary?.pendingReviewCount,
+                  },
+                  {
+                    id: AnomalyStatus.UNDER_REVIEW,
+                    label: 'Under Review',
+                    count: summary?.investigatingCount,
+                  },
+                  {
+                    id: AnomalyStatus.RESOLVED,
+                    label: 'Resolved',
+                    count: summary?.resolvedCount,
+                  },
+                  {
+                    id: AnomalyStatus.DISMISSED,
+                    label: 'Dismissed',
+                    count: summary?.dismissedCount,
+                  },
+                ].map((tab) => {
+                  const isSelected = statusFilter === tab.id;
+                  return (
+                    <Button
+                      key={tab.id}
+                      variant={isSelected ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => {
+                        setStatusFilter(tab.id as AnomalyStatus | 'ALL');
+                        setPage(1);
+                      }}
+                      className={`h-8 text-xs font-semibold gap-1.5 px-2.5 sm:px-3 rounded-lg shrink-0 cursor-pointer ${
+                        isSelected
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                       }`}
                     >
-                      {tab.count}
-                    </Badge>
-                  )}
-                </Button>
-              ))}
+                      <span>{tab.label}</span>
+                      {tab.count !== undefined && (
+                        <Badge
+                          variant="outline"
+                          className={`text-micro px-1.5 py-0 rounded-full font-bold tabular-nums ${
+                            isSelected
+                              ? 'border-primary-foreground/30 text-primary-foreground bg-primary-foreground/20'
+                              : 'border-border text-muted-foreground bg-muted/40'
+                          }`}
+                        >
+                          {tab.count}
+                        </Badge>
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Search Box */}
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <div className="relative w-full md:w-64 shrink-0">
+              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
               <Input
                 placeholder="Search staff, receipt, or title..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 h-8 text-xs"
+                className="pl-8 pr-7 h-8.5 text-xs bg-muted/20 focus-visible:bg-background rounded-lg border-border/70"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Rule Type Selector */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-3">
-            <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center gap-1">
-              <Filter className="size-3" /> Rule Type:
-            </span>
-            <Button
-              variant={typeFilter === 'ALL' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => {
-                setTypeFilter('ALL');
-                setPage(1);
-              }}
-              className="h-7 text-xs px-2.5"
-            >
-              All Variance Rules
-            </Button>
-            {Object.entries(TYPE_CONFIG).map(([typeKey, cfg]) => {
-              const Icon = cfg.icon;
-              const count = summary?.breakdownByType?.[typeKey] || 0;
-              return (
-                <Button
-                  key={typeKey}
-                  variant={typeFilter === typeKey ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => {
-                    setTypeFilter(typeKey as AnomalyType);
-                    setPage(1);
-                  }}
-                  className="h-7 text-xs px-2.5 gap-1.5"
-                >
-                  <Icon className="size-3 shrink-0" />
-                  <span>{cfg.label}</span>
-                  {count > 0 && (
-                    <span className="text-micro opacity-75 tabular-nums">
-                      ({count})
-                    </span>
-                  )}
-                </Button>
-              );
-            })}
+          {/* Rule Type Selector: Horizontally scrollable single track */}
+          <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pt-2 border-t border-border/30">
+            <div className="flex items-center gap-1.5 w-max py-0.5">
+              <span className="text-micro font-bold text-muted-foreground uppercase tracking-wider mr-1 flex items-center gap-1 shrink-0">
+                <Filter className="size-3 text-primary" /> Rules:
+              </span>
+              <Button
+                variant={typeFilter === 'ALL' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setTypeFilter('ALL');
+                  setPage(1);
+                }}
+                className={`h-7 text-xs px-2.5 rounded-lg shrink-0 cursor-pointer ${
+                  typeFilter === 'ALL'
+                    ? 'bg-muted text-foreground font-semibold shadow-2xs border border-border/60'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All Variance Rules
+              </Button>
+              {Object.entries(TYPE_CONFIG).map(([typeKey, cfg]) => {
+                const Icon = cfg.icon;
+                const count = summary?.breakdownByType?.[typeKey] || 0;
+                const isSelected = typeFilter === typeKey;
+                return (
+                  <Button
+                    key={typeKey}
+                    variant={isSelected ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => {
+                      setTypeFilter(typeKey as AnomalyType);
+                      setPage(1);
+                    }}
+                    className={`h-7 text-xs px-2.5 gap-1.5 rounded-lg shrink-0 cursor-pointer ${
+                      isSelected
+                        ? 'bg-muted text-foreground font-semibold shadow-2xs border border-border/60'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="size-3 shrink-0 text-primary" />
+                    <span>{cfg.label}</span>
+                    {count > 0 && (
+                      <span className="text-micro font-bold tabular-nums opacity-75">
+                        ({count})
+                      </span>
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
         </CardHeader>
 
@@ -547,44 +620,61 @@ export function AnomaliesReviewView() {
                     SEVERITY_CONFIG[flag.severity] || SEVERITY_CONFIG.MEDIUM;
 
                   return (
-                    <div key={flag.id} className="p-4 space-y-3">
+                    <div
+                      key={flag.id}
+                      className="p-3.5 space-y-2.5 hover:bg-muted/15 transition-colors"
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-start gap-2.5 min-w-0">
                           <div
-                            className={`p-1.5 rounded-lg border ${cfg.color} shrink-0`}
+                            className={`p-2 rounded-xl border ${cfg.color} shrink-0 mt-0.5`}
                           >
                             <Icon className="size-4" />
                           </div>
-                          <div>
-                            <div className="font-semibold text-sm">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-xs sm:text-sm text-foreground leading-snug line-clamp-2">
                               {flag.title}
                             </div>
-                            <div className="text-micro text-muted-foreground">
-                              {new Date(flag.createdAt).toLocaleDateString(
-                                undefined,
-                                {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                },
+                            <div className="text-micro text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                              <span>
+                                {new Date(flag.createdAt).toLocaleDateString(
+                                  undefined,
+                                  {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  },
+                                )}
+                              </span>
+                              {flag.statisticalScore && (
+                                <>
+                                  <span>•</span>
+                                  <span className="font-semibold text-primary">
+                                    {flag.statisticalScore}x variance
+                                  </span>
+                                </>
                               )}
                             </div>
                           </div>
                         </div>
-                        <StatusBadge variant={sev.variant} size="xs">
+                        <StatusBadge
+                          variant={sev.variant}
+                          size="xs"
+                          className="shrink-0"
+                        >
                           {sev.label}
                         </StatusBadge>
                       </div>
 
-                      <p className="text-xs text-muted-foreground leading-relaxed">
+                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 bg-muted/20 p-2.5 rounded-lg border border-border/40">
                         {flag.description}
                       </p>
 
-                      <div className="flex items-center justify-between text-xs pt-1 border-t border-border/40">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border/40">
+                        <div className="flex items-center gap-2 min-w-0">
                           {renderStatusBadge(flag.status)}
-                          <span className="text-muted-foreground text-micro">
+                          <span className="text-muted-foreground text-micro truncate max-w-[120px]">
                             {flag.user?.name || 'Staff'}
                           </span>
                         </div>
@@ -592,9 +682,9 @@ export function AnomaliesReviewView() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenReview(flag)}
-                          className="h-7 text-xs gap-1 px-2.5"
+                          className="h-7 text-xs font-semibold gap-1 px-2.5 bg-card hover:bg-muted cursor-pointer shadow-2xs"
                         >
-                          <Eye className="size-3" />
+                          <Eye className="size-3 text-primary" />
                           Review
                         </Button>
                       </div>
@@ -897,7 +987,7 @@ export function AnomaliesReviewView() {
                 <label className="text-xs font-semibold text-foreground">
                   Manager Review Decision
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     {
                       status: AnomalyStatus.UNDER_REVIEW,
