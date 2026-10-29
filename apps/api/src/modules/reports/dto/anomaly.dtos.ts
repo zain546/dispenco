@@ -1,13 +1,15 @@
 import { IsOptional, IsString, IsEnum, IsInt, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { AnomalyType, AnomalyStatus } from '@dispenco/types';
 
 export class GetAnomaliesDto {
   @IsOptional()
+  @Transform(({ value }) => (value === 'ALL' || value === '' ? undefined : value))
   @IsEnum(AnomalyStatus)
   status?: AnomalyStatus | 'ALL';
 
   @IsOptional()
+  @Transform(({ value }) => (value === 'ALL' || value === '' ? undefined : value))
   @IsEnum(AnomalyType)
   type?: AnomalyType | 'ALL';
 

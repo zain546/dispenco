@@ -19,8 +19,16 @@ export const anomaliesApi = {
    * Fetch paginated list of operational discrepancy variance flags
    */
   async getAnomalies(params?: AnomalyQuery): Promise<AnomaliesListResponse> {
+    const cleanParams: Record<string, unknown> = {};
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== 'ALL') {
+          cleanParams[key] = val;
+        }
+      });
+    }
     const res = await apiClient.get<AnomaliesListResponse>('/reports/anomalies', {
-      params,
+      params: cleanParams,
     });
     return res.data;
   },

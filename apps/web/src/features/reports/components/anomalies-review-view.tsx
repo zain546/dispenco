@@ -189,8 +189,8 @@ export function AnomaliesReviewView() {
     try {
       const storeParam = !isAllStores && activeStoreId ? activeStoreId : undefined;
       const res = await anomaliesApi.getAnomalies({
-        status: statusFilter,
-        type: typeFilter,
+        status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        type: typeFilter !== 'ALL' ? typeFilter : undefined,
         storeId: storeParam,
         page,
         limit,
@@ -334,8 +334,8 @@ export function AnomaliesReviewView() {
         </div>
       </div>
 
-      {/* KPI Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Stat Cards: 2-column grid on mobile, 4-column on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
           title="Integrity Health Index"
           value={summary ? `${summary.integrityScorePercent}%` : '--'}
