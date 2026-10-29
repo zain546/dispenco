@@ -1997,12 +1997,12 @@ export function POSTerminal() {
                 </span>
               </div>
 
-              {/* Touch Stepper & Input */}
-              <div className="flex items-center gap-2">
+              {/* Touch Stepper & Input: Clean Icon-Only +/- Buttons */}
+              <div className="flex items-center gap-2.5">
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 px-3 text-xs font-bold rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0"
+                  className="size-11 rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0 flex items-center justify-center p-0 cursor-pointer"
                   onClick={() => {
                     const current = parseInt(packSizeModal.packSize, 10) || 10;
                     const next = Math.max(1, current - (current > 20 ? 10 : 1));
@@ -2010,8 +2010,7 @@ export function POSTerminal() {
                   }}
                   title="Decrease pack size"
                 >
-                  <Minus className="size-3.5 mr-1" />
-                  <span>Down</span>
+                  <Minus className="size-5 text-foreground" />
                 </Button>
 
                 <div className="relative flex-1">
@@ -2024,14 +2023,14 @@ export function POSTerminal() {
                     value={packSizeModal.packSize}
                     onChange={(e) => setPackSizeModal((prev) => ({ ...prev, packSize: e.target.value }))}
                     placeholder="e.g. 100"
-                    className="h-11 text-center text-lg font-bold tracking-tight rounded-xl bg-background border-border/80 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                    className="h-11 text-center text-xl font-extrabold tracking-tight rounded-xl bg-background border-border/80 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
                   />
                 </div>
 
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 px-3 text-xs font-bold rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0"
+                  className="size-11 rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0 flex items-center justify-center p-0 cursor-pointer"
                   onClick={() => {
                     const current = parseInt(packSizeModal.packSize, 10) || 0;
                     const next = current + (current >= 20 ? 10 : 1);
@@ -2039,13 +2038,12 @@ export function POSTerminal() {
                   }}
                   title="Increase pack size"
                 >
-                  <Plus className="size-3.5 mr-1" />
-                  <span>Up</span>
+                  <Plus className="size-5 text-foreground" />
                 </Button>
               </div>
 
               {/* Quick Pharmacy Presets */}
-              <div className="space-y-1 pt-1">
+              <div className="space-y-1.5 pt-1">
                 <span className="text-[10px] font-medium text-muted-foreground block">
                   Quick Standard Presets:
                 </span>
@@ -2058,7 +2056,7 @@ export function POSTerminal() {
                         type="button"
                         variant={isSelected ? 'default' : 'outline'}
                         size="sm"
-                        className={`h-7 px-1 text-xs rounded-lg font-semibold transition-all ${
+                        className={`h-7 px-1 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-primary text-primary-foreground shadow-2xs font-bold'
                             : 'bg-muted/40 hover:bg-muted text-foreground border-border/60'
@@ -2077,22 +2075,22 @@ export function POSTerminal() {
               </p>
             </div>
 
-            {/* Responsive Actions: Balanced 2-column on mobile */}
-            <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-border/60">
+            {/* Action Buttons: Clean, well-spaced, never overlapping */}
+            <div className="flex items-center gap-2.5 pt-2 border-t border-border/60">
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 rounded-xl font-semibold text-xs border-border/80 hover:bg-muted active:scale-98"
+                className="h-11 px-5 rounded-xl font-semibold text-xs border-border/80 hover:bg-muted active:scale-98 shrink-0 cursor-pointer"
                 onClick={() => setPackSizeModal((prev) => ({ ...prev, isOpen: false }))}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="h-10 rounded-xl font-bold text-xs bg-primary hover:bg-primary/95 text-primary-foreground gap-1.5 shadow-xs active:scale-98"
+                className="flex-1 h-11 px-4 rounded-xl font-bold text-xs sm:text-sm bg-primary hover:bg-primary/95 text-primary-foreground gap-2 shadow-xs active:scale-98 cursor-pointer"
               >
-                <CheckCircle2 className="size-4" />
-                <span>Save Pack Size</span>
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="whitespace-nowrap">Save Pack Size</span>
               </Button>
             </div>
           </form>
