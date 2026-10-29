@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dispenco_postgres_prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dispenco_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dispenco_password}
+      POSTGRES_DB: ${POSTGRES_DB:-dispenco_db}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dispenco_user} -d ${POSTGRES_DB:-dispenco_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dispenco_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: dispenco_redis_prod
+    volumes:
+      - redis_prod_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dispenco_network
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    container_name: dispenco_meilisearch_prod
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-dispenco_master_key_must_be_at_least_16_bytes}
+    volumes:
+      - meili_prod_data:/data.ms
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:7700/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dispenco_network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: dispenco_api_prod
+    environment:
+      PORT: 4000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dispenco_user}:${POSTGRES_PASSWORD:-dispenco_password}@postgres:5432/${POSTGRES_DB:-dispenco_db}?schema=public
+      REDIS_URL: redis://redis:6379
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_API_KEY: ${MEILI_MASTER_KEY:-dispenco_master_key_must_be_at_least_16_bytes}
+      JWT_SECRET: ${JWT_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    ports:
+      - "4000:4000"
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    networks:
+      - dispenco_network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: dispenco_web_prod
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/v1}
+    ports:
+      - "3000:3000"
+    restart: always
+    depends_on:
+      - api
+    networks:
+      - dispenco_network
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_prod_data:
+    driver: local
+  meili_prod_data:
+    driver: local
+
+networks:
+  dispenco_network:
+    driver: bridge

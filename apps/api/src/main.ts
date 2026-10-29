@@ -11,10 +11,13 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 4000);
-  const clientUrl = configService.get<string>(
+  const clientUrlRaw = configService.get<string>(
     'CLIENT_URL',
-    'http://localhost:3000',
+    configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
   );
+  const allowedOrigins = clientUrlRaw
+    ? clientUrlRaw.split(',').map((u) => u.trim())
+    : ['http://localhost:3000'];
 
   app.use(cookieParser());
   app.use(json({ limit: '25mb' }));
@@ -31,7 +34,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: [clientUrl],
+    origin: allowedOrigins.includes('*') ? true : allowedOrigins,
     credentials: true,
   });
 

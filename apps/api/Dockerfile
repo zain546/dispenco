@@ -6,6 +6,7 @@ RUN npm install -g pnpm
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
+COPY packages/config/package.json ./packages/config/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 
@@ -14,6 +15,8 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api ./apps/api
 COPY packages ./packages
 
+RUN pnpm --filter @dispenco/types build
+RUN pnpm --filter @dispenco/utils build
 RUN pnpm --filter @dispenco/api exec prisma generate
 RUN pnpm --filter @dispenco/api build
 

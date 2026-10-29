@@ -4,7 +4,9 @@
   "private": true,
   "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "build": "pnpm --filter @dispenco/api build && pnpm --filter @dispenco/web build",
+    "build": "pnpm --filter @dispenco/types build && pnpm --filter @dispenco/utils build && pnpm --filter @dispenco/api build && pnpm --filter @dispenco/web build",
+    "build:web": "pnpm --filter @dispenco/types build && pnpm --filter @dispenco/utils build && pnpm --filter @dispenco/web build",
+    "build:api": "pnpm --filter @dispenco/types build && pnpm --filter @dispenco/utils build && pnpm --filter @dispenco/api build",
     "dev": "pnpm --parallel --filter @dispenco/api --filter @dispenco/web dev",
     "dev:web": "pnpm --filter @dispenco/web dev",
     "dev:api": "pnpm --filter @dispenco/api dev",
