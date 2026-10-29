@@ -1954,52 +1954,147 @@ export function POSTerminal() {
         open={packSizeModal.isOpen}
         onOpenChange={(open) => setPackSizeModal((prev) => ({ ...prev, isOpen: open }))}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Package className="size-4 text-primary" />
-              <span>Configure Medicine Pack Size</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Define how many tablets or single units are contained in 1 full box of <strong>{packSizeModal.productName}</strong>.
-            </DialogDescription>
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-md rounded-2xl p-4 sm:p-5 border border-border/80 shadow-2xl bg-card">
+          <DialogHeader className="space-y-2 text-left pb-1">
+            <div className="flex items-center gap-2.5">
+              <div className="size-9 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
+                <Package className="size-4.5 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1 pr-6">
+                <DialogTitle className="text-sm sm:text-base font-bold text-foreground leading-tight">
+                  Configure Medicine Pack Size
+                </DialogTitle>
+                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5">
+                  Set single units or tablets per retail box
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <form onSubmit={handleSavePackSize} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="pos-pack-size-input" className="text-xs font-semibold">
-                Units / Tablets per Box:
-              </Label>
-              <Input
-                id="pos-pack-size-input"
-                type="number"
-                min="1"
-                step="1"
-                autoFocus
-                value={packSizeModal.packSize}
-                onChange={(e) => setPackSizeModal((prev) => ({ ...prev, packSize: e.target.value }))}
-                placeholder="e.g. 10, 20, 100"
-                className="h-10 text-sm font-semibold"
-              />
-              <p className="text-micro text-muted-foreground">
-                This enables loose-strip and single tablet POS dispensing with automatic FEFO fractional box deductions.
+          {/* Product Identification Card */}
+          <div className="p-3 rounded-xl bg-muted/40 border border-border/70 flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+              <Pill className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                Selected Medicine
+              </span>
+              <p className="text-xs sm:text-sm font-bold text-foreground truncate">
+                {packSizeModal.productName}
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSavePackSize} className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <Label htmlFor="pos-pack-size-input" className="font-semibold text-foreground">
+                  Units / Tablets per Box:
+                </Label>
+                <span className="font-mono text-micro text-primary font-semibold">
+                  1 Box = {packSizeModal.packSize || 0} Units
+                </span>
+              </div>
+
+              {/* Touch Stepper & Input */}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 px-3 text-xs font-bold rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0"
+                  onClick={() => {
+                    const current = parseInt(packSizeModal.packSize, 10) || 10;
+                    const next = Math.max(1, current - (current > 20 ? 10 : 1));
+                    setPackSizeModal((prev) => ({ ...prev, packSize: String(next) }));
+                  }}
+                  title="Decrease pack size"
+                >
+                  <Minus className="size-3.5 mr-1" />
+                  <span>Down</span>
+                </Button>
+
+                <div className="relative flex-1">
+                  <Input
+                    id="pos-pack-size-input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    autoFocus
+                    value={packSizeModal.packSize}
+                    onChange={(e) => setPackSizeModal((prev) => ({ ...prev, packSize: e.target.value }))}
+                    placeholder="e.g. 100"
+                    className="h-11 text-center text-lg font-bold tracking-tight rounded-xl bg-background border-border/80 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 px-3 text-xs font-bold rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0"
+                  onClick={() => {
+                    const current = parseInt(packSizeModal.packSize, 10) || 0;
+                    const next = current + (current >= 20 ? 10 : 1);
+                    setPackSizeModal((prev) => ({ ...prev, packSize: String(next) }));
+                  }}
+                  title="Increase pack size"
+                >
+                  <Plus className="size-3.5 mr-1" />
+                  <span>Up</span>
+                </Button>
+              </div>
+
+              {/* Quick Pharmacy Presets */}
+              <div className="space-y-1 pt-1">
+                <span className="text-[10px] font-medium text-muted-foreground block">
+                  Quick Standard Presets:
+                </span>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {[10, 20, 30, 50, 100, 120].map((preset) => {
+                    const isSelected = parseInt(packSizeModal.packSize, 10) === preset;
+                    return (
+                      <Button
+                        key={preset}
+                        type="button"
+                        variant={isSelected ? 'default' : 'outline'}
+                        size="sm"
+                        className={`h-7 px-1 text-xs rounded-lg font-semibold transition-all ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground shadow-2xs font-bold'
+                            : 'bg-muted/40 hover:bg-muted text-foreground border-border/60'
+                        }`}
+                        onClick={() => setPackSizeModal((prev) => ({ ...prev, packSize: String(preset) }))}
+                      >
+                        {preset}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <p className="text-micro text-muted-foreground leading-relaxed pt-1">
+                Enables loose-strip and single tablet POS dispensing with automatic FEFO fractional box deductions.
               </p>
             </div>
 
-            <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+            {/* Responsive Actions: Balanced 2-column on mobile */}
+            <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-border/60">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                className="h-10 rounded-xl font-semibold text-xs border-border/80 hover:bg-muted active:scale-98"
                 onClick={() => setPackSizeModal((prev) => ({ ...prev, isOpen: false }))}
               >
                 Cancel
               </Button>
-              <Button type="submit" size="sm" className="font-semibold gap-1.5">
-                <CheckCircle2 className="size-3.5" />
+              <Button
+                type="submit"
+                className="h-10 rounded-xl font-bold text-xs bg-primary hover:bg-primary/95 text-primary-foreground gap-1.5 shadow-xs active:scale-98"
+              >
+                <CheckCircle2 className="size-4" />
                 <span>Save Pack Size</span>
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
