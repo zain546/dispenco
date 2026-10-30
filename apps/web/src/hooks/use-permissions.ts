@@ -40,6 +40,7 @@ export function usePermissions() {
   const canManageSettings = isOwner || isManager || hasPermission(Permission.SETTINGS_MANAGE);
   const canManageInventory = isOwner || isManager || hasPermission(Permission.INVENTORY_CREATE) || hasPermission(Permission.INVENTORY_ADJUST);
   const canManageTransfers = isOwner || isManager || hasPermission(Permission.INVENTORY_ADJUST) || hasPermission(Permission.INVENTORY_CREATE);
+  const canManageBilling = isOwner || hasPermission(Permission.BILLING_MANAGE);
 
   return {
     role: user?.role || 'Owner',
@@ -61,5 +62,6 @@ export function usePermissions() {
     canManageSettings,
     canManageInventory,
     canManageTransfers,
+    canManageBilling,
   };
 }

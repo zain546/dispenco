@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Users, Key, ShieldCheck, Settings } from 'lucide-react';
+import { Users, Key, ShieldCheck, Settings, CreditCard } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RolesPermissionsView } from '@/features/roles/components/roles-permissions-view';
 import { IntegrationsHub } from '@/features/integrations/components/integrations-hub';
+import { BillingView } from './billing-view';
 
 export function SettingsHub() {
   const searchParams = useSearchParams();
@@ -13,11 +14,15 @@ export function SettingsHub() {
   const tabParam = searchParams.get('tab');
 
   const [activeTab, setActiveTab] = useState<string>(
-    tabParam === 'integrations' ? 'integrations' : 'team'
+    tabParam === 'integrations'
+      ? 'integrations'
+      : tabParam === 'billing'
+      ? 'billing'
+      : 'team'
   );
 
   useEffect(() => {
-    if (tabParam === 'integrations' || tabParam === 'team') {
+    if (tabParam === 'integrations' || tabParam === 'team' || tabParam === 'billing') {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -39,7 +44,7 @@ export function SettingsHub() {
               Settings &amp; Organization
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 hidden sm:block">
-              Manage your pharmacy team members, operational roles, and external developer API integrations.
+              Manage your pharmacy team members, operational roles, billing plan, and external developer API integrations.
             </p>
           </div>
 
@@ -48,20 +53,27 @@ export function SettingsHub() {
             onValueChange={handleTabChange}
             className="w-full sm:w-auto"
           >
-            <TabsList className="grid w-full sm:w-80 grid-cols-2 h-9 p-1 bg-muted/60 rounded-xl border border-border/60">
+            <TabsList className="grid w-full sm:w-[440px] grid-cols-3 h-9 p-1 bg-muted/60 rounded-xl border border-border/60">
               <TabsTrigger
                 value="team"
-                className="gap-2 text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
                 <Users className="size-3.5" />
-                Team &amp; Access
+                <span>Team</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="billing"
+                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+              >
+                <CreditCard className="size-3.5" />
+                <span>Billing</span>
               </TabsTrigger>
               <TabsTrigger
                 value="integrations"
-                className="gap-2 text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
               >
                 <Key className="size-3.5" />
-                API &amp; Integrations
+                <span>API</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -70,9 +82,12 @@ export function SettingsHub() {
 
       {activeTab === 'team' ? (
         <RolesPermissionsView />
+      ) : activeTab === 'billing' ? (
+        <BillingView />
       ) : (
         <IntegrationsHub />
       )}
     </div>
   );
 }
+

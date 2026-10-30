@@ -46,6 +46,7 @@ import { StoreSwitcher } from '@/components/store-switcher';
 import { ConnectivityIndicator } from '@/components/layout/connectivity-indicator';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { AiAssistantWidget } from '@/components/layout/ai-assistant-widget';
+import { SubscriptionBanner } from '@/components/subscription-banner';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -416,6 +417,9 @@ export default function DashboardLayout({
               <ConnectivityIndicator />
             </div>
           </header>
+
+          {/* Subscription and Trial Status Alert Banner */}
+          <SubscriptionBanner />
 
           {/* Page View Body */}
           <main className="flex-1 p-3.5 sm:p-6 overflow-y-auto">{children}</main>

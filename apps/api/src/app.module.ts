@@ -29,6 +29,7 @@ import { TransfersModule } from './modules/transfers/transfers.module';
 import { SearchModule } from './modules/search/search.module';
 import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { BillingModule } from './modules/billing/billing.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
     SearchModule,
     PrescriptionsModule,
     IntegrationsModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [

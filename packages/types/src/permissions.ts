@@ -33,6 +33,7 @@ export enum Permission {
   USERS_MANAGE = 'users:manage', // Legacy alias for staff:manage
   SETTINGS_MANAGE = 'settings:manage',
   INTEGRATIONS_MANAGE = 'integrations:manage',
+  BILLING_MANAGE = 'billing:manage',
 }
 
 export const ALL_PERMISSIONS = Object.values(Permission);

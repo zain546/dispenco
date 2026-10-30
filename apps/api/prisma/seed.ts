@@ -19,6 +19,21 @@ async function main() {
     include: { stores: true },
   });
 
+  // 1. Seed or find default Plan
+  const standardPlan = await prisma.plan.upsert({
+    where: { code: 'STANDARD_MONTHLY' },
+    update: {},
+    create: {
+      code: 'STANDARD_MONTHLY',
+      name: 'Standard Pharmacy Plan',
+      priceMinor: 250000, // PKR 2,500.00
+      currency: 'PKR',
+      intervalDays: 30,
+      isActive: true,
+    },
+  });
+  console.log(`📦 Seeded/Verified Plan: ${standardPlan.name} (${standardPlan.code})`);
+
   if (tenants.length === 0) {
     const defaultTenant = await prisma.tenant.create({
       data: {
@@ -34,6 +49,26 @@ async function main() {
       include: { stores: true },
     });
     tenants.push(defaultTenant);
+  }
+
+  // 2. Ensure each tenant has an active 30-day trial subscription
+  for (const tenant of tenants) {
+    const existingSub = await prisma.subscription.findUnique({
+      where: { tenantId: tenant.id },
+    });
+    if (!existingSub) {
+      const trialEnds = new Date();
+      trialEnds.setDate(trialEnds.getDate() + 30);
+      await prisma.subscription.create({
+        data: {
+          tenantId: tenant.id,
+          planId: standardPlan.id,
+          status: 'TRIALING',
+          trialEndsAt: trialEnds,
+        },
+      });
+      console.log(`🎟️ Backfilled 30-day Free Trial subscription for tenant: ${tenant.name}`);
+    }
   }
 
   const dummyProducts = [

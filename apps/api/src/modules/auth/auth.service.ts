@@ -37,6 +37,35 @@ export class AuthService {
         data: { name: tenantName },
       });
 
+      let standardPlan = await tx.plan.findUnique({
+        where: { code: 'STANDARD_MONTHLY' },
+      });
+
+      if (!standardPlan) {
+        standardPlan = await tx.plan.create({
+          data: {
+            code: 'STANDARD_MONTHLY',
+            name: 'Standard Pharmacy Plan',
+            priceMinor: 250000, // PKR 2,500.00
+            currency: 'PKR',
+            intervalDays: 30,
+            isActive: true,
+          },
+        });
+      }
+
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+
+      await tx.subscription.create({
+        data: {
+          tenantId: tenant.id,
+          planId: standardPlan.id,
+          status: 'TRIALING',
+          trialEndsAt,
+        },
+      });
+
       let store = null;
       if (dto.storeName) {
         store = await tx.store.create({

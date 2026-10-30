@@ -32,6 +32,7 @@ model Tenant {
   prescriptions    Prescription[]
   apiKeys          ApiKey[]
   anomalyFlags     AnomalyFlag[]
+  subscription     Subscription?
 }
 
 model User {
@@ -608,5 +609,95 @@ model AnomalyFlag {
   @@index([tenantId, createdAt])
 }
 
+// ==========================================
+// SAAS SUBSCRIPTION & BILLING
+// ==========================================
 
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  EXPIRED
+  CANCELED
+}
 
+enum BillingInvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  code          String         @unique // "STANDARD_MONTHLY"
+  name          String         // "Standard Pharmacy"
+  priceMinor    Int            // in paisa: 250000 = PKR 2,500
+  currency      String         @default("PKR")
+  intervalDays  Int            @default(30)
+  maxStores     Int?
+  maxUsers      Int?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                   String               @id @default(uuid())
+  tenantId             String               @unique
+  planId               String
+  status               SubscriptionStatus   @default(TRIALING)
+  trialEndsAt          DateTime
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  graceEndsAt          DateTime?
+  cancelAtPeriodEnd    Boolean              @default(false)
+  autoRenew            Boolean              @default(false)
+  providerCustomerId   String?
+  providerPaymentToken String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  tenant               Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan                 Plan                 @relation(fields: [planId], references: [id])
+  invoices             SubscriptionInvoice[]
+
+  @@index([status, currentPeriodEnd])
+  @@index([status, trialEndsAt])
+}
+
+model SubscriptionInvoice {
+  id                 String               @id @default(uuid())
+  subscriptionId     String
+  tenantId           String
+  invoiceNumber      String               @unique
+  amountMinor        Int
+  currency           String               @default("PKR")
+  status             BillingInvoiceStatus @default(PENDING)
+  periodStart        DateTime
+  periodEnd          DateTime
+  provider           String               @default("SAFEPAY")
+  providerTrackerId  String?              @unique
+  providerPaymentRef String?
+  paidAt             DateTime?
+  failureReason      String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  subscription       Subscription         @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+model BillingWebhookEvent {
+  id          String    @id
+  provider    String    @default("SAFEPAY")
+  type        String
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  receivedAt  DateTime  @default(now())
+}
