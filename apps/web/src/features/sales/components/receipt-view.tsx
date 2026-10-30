@@ -49,6 +49,19 @@ import {
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/use-permissions';
 
+function WhatsAppIcon({ className = 'size-3.5' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.414-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.82 11.82 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
 interface ReceiptViewProps {
   saleId: string;
   autoPrint?: boolean;
@@ -167,6 +180,44 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
     setIsWhatsAppModalOpen(true);
   };
 
+  const handleDirectWhatsAppShare = () => {
+    const rawPhone = saleData?.customer?.phone || '';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+
+    const receiptUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const itemsList = (saleData?.items || [])
+      .map((it: any) => `• ${it.productName} (${it.quantity} ${it.unit || 'Box'}) - ${formatCurrency(it.lineTotal)}`)
+      .slice(0, 5)
+      .join('\n');
+    const extra = (saleData?.items?.length || 0) > 5 ? `\n...and ${saleData!.items.length - 5} more item(s)` : '';
+
+    const textMessage = `🧾 *Pharmacy Tax Invoice: ${saleData?.receiptNumber}*
+🏪 *${saleData?.store?.name || 'Dispenco Pharmacy'}*
+👤 *Customer:* ${saleData?.customer?.name || 'Valued Customer'}
+💳 *Payment:* ${saleData?.payment?.method || 'CASH'} (PAID)
+💰 *Total Paid:* ${formatCurrency(saleData?.totalAmount || 0)}
+
+📦 *Medicine Items:*
+${itemsList}${extra}
+
+📄 *View / Download Official Invoice:*
+${receiptUrl}
+
+Thank you for choosing ${saleData?.store?.name || 'our pharmacy'}!`;
+
+    const encoded = encodeURIComponent(textMessage);
+    const waUrl = cleanPhone
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`
+      : `https://api.whatsapp.com/send?text=${encoded}`;
+
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+    toast.success('Opening WhatsApp to share receipt...');
+
+    if (cleanPhone) {
+      salesApi.sendDigitalInvoice(saleId, cleanPhone).catch(() => {});
+    }
+  };
+
   const handleSendWhatsApp = async () => {
     if (!whatsAppPhone.trim()) {
       toast.error('Please enter customer phone number');
@@ -255,138 +306,130 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   return (
     <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
       {/* Top Toolbar (Hidden on Print) */}
-      <div className="max-w-4xl mx-auto mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 print:hidden">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push('/pos')}
-            className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
-          >
-            <ArrowLeft className="size-3.5" /> POS Counter
-          </Button>
+      <div className="max-w-4xl mx-auto mb-6 space-y-3 print:hidden">
+        {/* Row 1: Navigation, Format Switcher & Administration */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/pos')}
+              className="gap-1.5 text-xs h-8.5 font-semibold cursor-pointer shadow-2xs hover:bg-muted"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>POS Counter</span>
+            </Button>
 
-          {/* Document Format Switcher */}
-          <div className="flex items-center rounded-lg border border-border/80 bg-background p-0.5 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('a4')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                viewMode === 'a4'
-                  ? 'bg-primary text-primary-foreground shadow-2xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <FileSpreadsheet className="size-3.5" />
-              <span>A4 Tax Invoice</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('thermal')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                viewMode === 'thermal'
-                  ? 'bg-primary text-primary-foreground shadow-2xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Receipt className="size-3.5" />
-              <span>Thermal Slip (80mm)</span>
-            </button>
+            {/* Document Format Switcher */}
+            <div className="flex items-center rounded-lg border border-border/80 bg-background p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('a4')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                  viewMode === 'a4'
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FileSpreadsheet className="size-3.5" />
+                <span>A4 Tax Invoice</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('thermal')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                  viewMode === 'thermal'
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Receipt className="size-3.5" />
+                <span>Thermal Slip (80mm)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Admin Actions: Return & Void */}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {!isVoided && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsReturnModalOpen(true)}
+                className="gap-1.5 text-xs h-8 font-medium hover:bg-muted cursor-pointer shadow-2xs"
+              >
+                <RotateCcw className="size-3.5 text-primary" />
+                <span>Process Return</span>
+              </Button>
+            )}
+
+            {!isVoided && canVoidSales && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsVoidModalOpen(true)}
+                className="gap-1.5 text-xs h-8 font-medium cursor-pointer shadow-2xs"
+              >
+                <Ban className="size-3.5" />
+                <span>Void</span>
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Row 2: Customer Delivery & Output Bar */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Primary Print */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handlePrint}
+              className="gap-1.5 text-xs h-8.5 font-bold shadow-xs cursor-pointer bg-primary hover:bg-primary/95 text-primary-foreground"
+            >
+              <Printer className="size-3.5" />
+              <span>Print {viewMode === 'a4' ? 'Invoice' : 'Slip'}</span>
+            </Button>
+
+            {/* Download PDF */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={viewMode === 'a4' ? handleDownloadA4 : handleDownloadThermal}
+              disabled={isDownloading}
+              className="gap-1.5 text-xs h-8.5 font-semibold cursor-pointer shadow-2xs"
+            >
+              {isDownloading ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5 text-primary" />
+              )}
+              <span>Download PDF</span>
+            </Button>
+
+            {/* Send WhatsApp (Branded with official WhatsApp icon & 1-click dispatch) */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDirectWhatsAppShare}
+              className="gap-1.5 text-xs h-8.5 font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/30 bg-[#25D366]/5 hover:bg-[#25D366]/15 dark:hover:bg-[#25D366]/20 cursor-pointer shadow-2xs"
+            >
+              <WhatsAppIcon className="size-3.5 shrink-0" />
+              <span>Send WhatsApp</span>
+            </Button>
+          </div>
+
+          {/* Share Link */}
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={handleCopyLink}
-            className="gap-1.5 text-xs h-8 cursor-pointer"
+            className="gap-1.5 text-xs h-8.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer ml-auto"
           >
             {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
-            <span>{copied ? 'Copied' : 'Share'}</span>
+            <span>{copied ? 'Link Copied' : 'Share Link'}</span>
           </Button>
-
-          {/* Download Options */}
-          {viewMode === 'a4' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadA4}
-              disabled={isDownloading}
-              className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
-            >
-              {isDownloading ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Download className="size-3.5 text-primary" />
-              )}
-              <span>Download A4 PDF</span>
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadThermal}
-              disabled={isDownloading}
-              className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
-            >
-              {isDownloading ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Download className="size-3.5 text-primary" />
-              )}
-              <span>Download Thermal PDF</span>
-            </Button>
-          )}
-
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handlePrint}
-            className="gap-1.5 text-xs h-8 font-medium shadow-xs cursor-pointer"
-          >
-            <Printer className="size-3.5" />
-            <span>Print {viewMode === 'a4' ? 'Invoice' : 'Slip'}</span>
-          </Button>
-
-          {/* WhatsApp Digital Delivery Action */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpenWhatsAppModal}
-            className="gap-1.5 text-xs h-8 font-medium text-success border-success/30 hover:bg-success/10 cursor-pointer"
-          >
-            <MessageSquare className="size-3.5 text-success" />
-            <span>Send WhatsApp</span>
-          </Button>
-
-          {/* Return Processing Action */}
-          {!isVoided && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsReturnModalOpen(true)}
-              className="gap-1.5 text-xs h-8 font-medium text-foreground hover:bg-muted cursor-pointer"
-            >
-              <RotateCcw className="size-3.5 text-primary" />
-              <span>Process Return</span>
-            </Button>
-          )}
-
-          {/* Void Action */}
-          {!isVoided && canVoidSales && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setIsVoidModalOpen(true)}
-              className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
-            >
-              <Ban className="size-3.5" />
-              <span>Void</span>
-            </Button>
-          )}
         </div>
       </div>
 
@@ -394,7 +437,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       {viewMode === 'a4' ? (
         <div className="max-w-4xl mx-auto bg-card border border-border/80 shadow-lg rounded-xl overflow-hidden text-foreground font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full">
           {/* Top Decorative Brand Ribbon */}
-          <div className="h-2 bg-primary w-full" />
+          <div className="h-1.5 bg-linear-to-r from-primary via-primary/80 to-primary/50 w-full" />
 
           <div className="p-6 sm:p-10 space-y-6">
             {/* Header: Store Identity & Document Title */}
@@ -501,18 +544,18 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             )}
 
             {/* Medicine Line Items Table */}
-            <div className="border border-border/70 rounded-xl overflow-hidden">
-              <table className="w-full text-xs">
-                <thead className="bg-primary text-primary-foreground font-semibold">
+            <div className="overflow-x-auto custom-scrollbar border border-border/80 rounded-xl shadow-2xs">
+              <table className="w-full text-xs min-w-[620px]">
+                <thead className="bg-muted/70 text-foreground font-bold border-b border-border/80">
                   <tr>
-                    <th className="py-2.5 px-3 text-left w-10">#</th>
-                    <th className="py-2.5 px-3 text-left">Medicine Description</th>
-                    <th className="py-2.5 px-3 text-left">Batch No</th>
-                    <th className="py-2.5 px-3 text-left">Exp</th>
-                    <th className="py-2.5 px-2 text-center w-14">Qty</th>
-                    <th className="py-2.5 px-3 text-right">Price</th>
-                    <th className="py-2.5 px-3 text-right">Disc</th>
-                    <th className="py-2.5 px-3 text-right">Total</th>
+                    <th className="py-2.5 px-3 text-left w-10 text-muted-foreground font-bold">#</th>
+                    <th className="py-2.5 px-3 text-left font-bold">Medicine Description</th>
+                    <th className="py-2.5 px-3 text-left font-bold">Batch No</th>
+                    <th className="py-2.5 px-3 text-left font-bold">Exp</th>
+                    <th className="py-2.5 px-2 text-center w-14 font-bold">Qty</th>
+                    <th className="py-2.5 px-3 text-right font-bold">Price</th>
+                    <th className="py-2.5 px-3 text-right font-bold">Disc</th>
+                    <th className="py-2.5 px-3 text-right font-bold">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -878,8 +921,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader className="space-y-2">
-            <div className="size-10 rounded-full bg-success/10 text-success flex items-center justify-center border border-success/20">
-              <MessageSquare className="size-5" />
+            <div className="size-10 rounded-full bg-[#25D366]/10 text-[#25D366] flex items-center justify-center border border-[#25D366]/30">
+              <WhatsAppIcon className="size-5 text-[#25D366]" />
             </div>
             <DialogTitle className="text-base font-bold text-foreground">
               Send Invoice via WhatsApp
