@@ -338,36 +338,21 @@ export function BillingView() {
               </div>
               <div className="col-span-2 sm:col-span-1">
                 <span className="text-muted-foreground block text-[11px] mb-1.5">Supported Channels</span>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
-                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img src="/images/payments/easypaisa.png" alt="Easypaisa" className="h-2.5 w-auto object-contain" />
-                    </span>
-                    Easypaisa
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <span title="Easypaisa Mobile Wallet" className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shadow-2xs border border-white/20 transition-transform hover:scale-105 cursor-pointer">
+                    <img src="/images/payments/easypaisa.png" alt="Easypaisa" className="h-3.5 w-auto object-contain" />
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
-                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img src="/images/payments/jazzcash.png" alt="JazzCash" className="h-3.5 w-auto object-contain" />
-                    </span>
-                    JazzCash
+                  <span title="JazzCash Mobile Wallet" className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shadow-2xs border border-white/20 transition-transform hover:scale-105 cursor-pointer">
+                    <img src="/images/payments/jazzcash.png" alt="JazzCash" className="h-4.5 w-auto object-contain" />
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
-                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img src="/images/payments/visa.svg" alt="Visa" className="h-2 w-auto object-contain" />
-                    </span>
-                    Visa
+                  <span title="Visa Debit & Credit" className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shadow-2xs border border-white/20 transition-transform hover:scale-105 cursor-pointer">
+                    <img src="/images/payments/visa.svg" alt="Visa" className="h-2.5 w-auto object-contain" />
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
-                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img src="/images/payments/mastercard.svg" alt="Mastercard" className="h-2.5 w-auto object-contain" />
-                    </span>
-                    Mastercard
+                  <span title="Mastercard Debit & Credit" className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shadow-2xs border border-white/20 transition-transform hover:scale-105 cursor-pointer">
+                    <img src="/images/payments/mastercard.svg" alt="Mastercard" className="h-3.5 w-auto object-contain" />
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
-                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img src="/images/payments/paypak.svg" alt="PayPak" className="h-2 w-auto object-contain" />
-                    </span>
-                    PayPak
+                  <span title="PayPak 1Link Domestic Cards" className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shadow-2xs border border-white/20 transition-transform hover:scale-105 cursor-pointer">
+                    <img src="/images/payments/paypak.svg" alt="PayPak" className="h-3 w-auto object-contain" />
                   </span>
                 </div>
               </div>
@@ -450,84 +435,89 @@ export function BillingView() {
               </p>
 
               {/* Official Payment Partner Logos & Badges */}
-              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/70 space-y-2.5">
-                <span className="font-semibold text-foreground text-[11px] block">
-                  Accepted Payment Methods:
-                </span>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/70 space-y-2">
+                <div className="flex items-center justify-between px-0.5">
+                  <span className="font-semibold text-foreground text-[11px] block">
+                    Accepted Payment Methods:
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    Instant & Direct Debit
+                  </span>
+                </div>
+                <div className="space-y-1.5">
                   {/* Easypaisa */}
-                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-emerald-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
-                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img
-                        src="/images/payments/easypaisa.png"
-                        alt="Easypaisa"
-                        className="h-4.5 w-auto max-w-[95%] object-contain"
-                      />
+                  <div className="h-10 rounded-xl border border-border/60 bg-background/50 hover:bg-background/80 hover:border-emerald-500/40 transition-all px-3 flex items-center justify-between cursor-default shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                        <img
+                          src="/images/payments/easypaisa.png"
+                          alt="Easypaisa"
+                          className="h-3.5 w-auto max-w-[95%] object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-foreground">Easypaisa</span>
                     </div>
-                    <div className="flex flex-col text-left min-w-0">
-                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Easypaisa</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">Mobile Wallet</span>
-                    </div>
+                    <span className="text-[11px] text-muted-foreground font-medium shrink-0">Mobile Wallet</span>
                   </div>
 
                   {/* JazzCash */}
-                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-red-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
-                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img
-                        src="/images/payments/jazzcash.png"
-                        alt="JazzCash"
-                        className="h-5.5 w-auto max-w-[95%] object-contain"
-                      />
+                  <div className="h-10 rounded-xl border border-border/60 bg-background/50 hover:bg-background/80 hover:border-red-500/40 transition-all px-3 flex items-center justify-between cursor-default shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                        <img
+                          src="/images/payments/jazzcash.png"
+                          alt="JazzCash"
+                          className="h-4.5 w-auto max-w-[95%] object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-foreground">JazzCash</span>
                     </div>
-                    <div className="flex flex-col text-left min-w-0">
-                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">JazzCash</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">Mobile Wallet</span>
-                    </div>
+                    <span className="text-[11px] text-muted-foreground font-medium shrink-0">Mobile Wallet</span>
                   </div>
 
                   {/* Visa */}
-                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-blue-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
-                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img
-                        src="/images/payments/visa.svg"
-                        alt="Visa"
-                        className="h-3.5 w-auto max-w-[95%] object-contain"
-                      />
+                  <div className="h-10 rounded-xl border border-border/60 bg-background/50 hover:bg-background/80 hover:border-blue-500/40 transition-all px-3 flex items-center justify-between cursor-default shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                        <img
+                          src="/images/payments/visa.svg"
+                          alt="Visa"
+                          className="h-2.5 w-auto max-w-[95%] object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-foreground">Visa Card</span>
                     </div>
-                    <div className="flex flex-col text-left min-w-0">
-                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Visa</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">Debit / Credit</span>
-                    </div>
+                    <span className="text-[11px] text-muted-foreground font-medium shrink-0">Debit & Credit</span>
                   </div>
 
                   {/* Mastercard */}
-                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-amber-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
-                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img
-                        src="/images/payments/mastercard.svg"
-                        alt="Mastercard"
-                        className="h-4.5 w-auto max-w-[95%] object-contain"
-                      />
+                  <div className="h-10 rounded-xl border border-border/60 bg-background/50 hover:bg-background/80 hover:border-amber-500/40 transition-all px-3 flex items-center justify-between cursor-default shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                        <img
+                          src="/images/payments/mastercard.svg"
+                          alt="Mastercard"
+                          className="h-3.5 w-auto max-w-[95%] object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-foreground">Mastercard</span>
                     </div>
-                    <div className="flex flex-col text-left min-w-0">
-                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Mastercard</span>
-                      <span className="text-[10px] text-muted-foreground leading-tight">Debit / Credit</span>
-                    </div>
+                    <span className="text-[11px] text-muted-foreground font-medium shrink-0">Debit & Credit</span>
                   </div>
 
                   {/* PayPak */}
-                  <div className="col-span-2 h-12 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-teal-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
-                    <div className="h-7 w-12 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
-                      <img
-                        src="/images/payments/paypak.svg"
-                        alt="PayPak"
-                        className="h-4 w-auto max-w-[95%] object-contain"
-                      />
+                  <div className="h-10 rounded-xl border border-border/60 bg-background/50 hover:bg-background/80 hover:border-teal-500/40 transition-all px-3 flex items-center justify-between cursor-default shadow-2xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                        <img
+                          src="/images/payments/paypak.svg"
+                          alt="PayPak"
+                          className="h-3 w-auto max-w-[95%] object-contain"
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-foreground">PayPak</span>
                     </div>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-bold text-foreground">PayPak</span>
-                      <span className="text-[11px] text-muted-foreground truncate">• Pakistan Domestic 1Link Debit Cards</span>
-                    </div>
+                    <span className="text-[11px] text-muted-foreground font-medium shrink-0">1Link Domestic Debit</span>
                   </div>
                 </div>
               </div>
