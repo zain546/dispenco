@@ -130,11 +130,23 @@ export function BillingView() {
     const tracker = searchParams.get('beacon') || searchParams.get('tracker');
 
     if (paymentStatus === 'success' || paymentStatus === 'completed') {
-      toast.success('Payment completed successfully! Subscription renewed.');
       if (tracker) {
-        billingApi.verifySession(tracker).then(setSubscription).catch(() => { });
+        billingApi.verifySession(tracker)
+          .then((data) => {
+            setSubscription(data);
+            toast.success('Payment completed successfully! Subscription extended by 30 days.');
+          })
+          .catch(() => {
+            fetchSubscription();
+          })
+          .finally(() => {
+            router.replace('/settings?tab=billing');
+          });
+      } else {
+        toast.success('Payment completed successfully! Subscription renewed.');
+        fetchSubscription();
+        router.replace('/settings?tab=billing');
       }
-      router.replace('/settings?tab=billing');
     }
   }, []);
 

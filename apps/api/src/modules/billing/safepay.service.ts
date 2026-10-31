@@ -109,10 +109,10 @@ export class SafepayService {
     });
 
     const clientUrl = this.configService.get<string>('CLIENT_URL') || 'http://localhost:3000';
-    const redirectUrl = `${clientUrl}/settings?tab=billing&status=success&beacon=${trackerToken}`;
+    const redirectUrl = `${clientUrl}/api/safepay/return`;
     const cancelUrl = `${clientUrl}/settings?tab=billing&status=cancelled`;
 
-    const checkoutUrl = `${this.checkoutBaseUrl}?env=${this.env}&beacon=${trackerToken}&source=custom&redirect_url=${encodeURIComponent(redirectUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`;
+    const checkoutUrl = `${this.checkoutBaseUrl}?env=${this.env}&beacon=${trackerToken}&source=custom&order_id=${encodeURIComponent(invoiceNumber)}&redirect_url=${encodeURIComponent(redirectUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}&webhooks=true`;
 
     return {
       success: true,
