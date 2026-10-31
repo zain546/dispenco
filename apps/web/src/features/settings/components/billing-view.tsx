@@ -337,23 +337,28 @@ export function BillingView() {
                 </span>
               </div>
               <div className="col-span-2 sm:col-span-1">
-                <span className="text-muted-foreground block text-[11px] mb-1">Supported Gateways</span>
+                <span className="text-muted-foreground block text-[11px] mb-1.5">Supported Channels</span>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <div className="h-6 px-1.5 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
-                    <img src="/images/payments/easypaisa.png" alt="Easypaisa" className="h-3 w-auto object-contain" />
-                  </div>
-                  <div className="h-6 px-1.5 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
-                    <img src="/images/payments/jazzcash.png" alt="JazzCash" className="h-4 w-auto object-contain" />
-                  </div>
-                  <div className="h-6 px-1 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
-                    <img src="/images/payments/visa.svg" alt="Visa" className="h-3.5 w-auto object-contain" />
-                  </div>
-                  <div className="h-6 px-1 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
-                    <img src="/images/payments/mastercard.svg" alt="Mastercard" className="h-4 w-auto object-contain" />
-                  </div>
-                  <div className="h-6 px-1.5 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
-                    <img src="/images/payments/paypak.png" alt="PayPak" className="h-3 w-auto object-contain" />
-                  </div>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
+                    <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                    Easypaisa
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
+                    <span className="size-1.5 rounded-full bg-red-500"></span>
+                    JazzCash
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
+                    <span className="size-1.5 rounded-full bg-blue-500"></span>
+                    Visa
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
+                    <span className="size-1.5 rounded-full bg-amber-500"></span>
+                    Mastercard
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
+                    <span className="size-1.5 rounded-full bg-teal-500"></span>
+                    PayPak
+                  </span>
                 </div>
               </div>
             </div>
@@ -434,49 +439,66 @@ export function BillingView() {
                 Dispenco uses <span className="font-semibold text-foreground">Safepay</span> (SBP-authorized PSO/PSP) for automated, instant subscription payments in Pakistan.
               </p>
 
-              {/* Official Payment Partner Logos */}
-              <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60 space-y-2.5">
+              {/* Minimalist Transparent Payment Partner Tiles */}
+              <div className="p-3.5 rounded-xl bg-muted/20 border border-border/70 space-y-2.5">
                 <span className="font-semibold text-foreground text-[11px] block">
                   Accepted Payment Methods:
                 </span>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-emerald-500/50 transition-all">
-                    <img
-                      src="/images/payments/easypaisa.png"
-                      alt="Easypaisa"
-                      className="h-5 w-auto max-w-[90%] object-contain"
-                    />
+                  {/* Easypaisa */}
+                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-emerald-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
+                    <div className="size-6 rounded-lg bg-[#00A651] flex items-center justify-center text-white shrink-0 shadow-2xs">
+                      <span className="font-black text-xs lowercase">e</span>
+                    </div>
+                    <div className="flex flex-col text-left min-w-0">
+                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Easypaisa</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">Mobile Wallet</span>
+                    </div>
                   </div>
-                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-red-500/50 transition-all">
-                    <img
-                      src="/images/payments/jazzcash.png"
-                      alt="JazzCash"
-                      className="h-7 w-auto max-w-[90%] object-contain"
-                    />
+
+                  {/* JazzCash */}
+                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-red-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
+                    <div className="size-6 rounded-lg bg-[#E61C24] flex items-center justify-center text-white shrink-0 shadow-2xs">
+                      <div className="size-3.5 rounded-full bg-[#FFC80A]"></div>
+                    </div>
+                    <div className="flex flex-col text-left min-w-0">
+                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">JazzCash</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">Mobile Wallet</span>
+                    </div>
                   </div>
-                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-blue-500/50 transition-all">
-                    <img
-                      src="/images/payments/visa.svg"
-                      alt="Visa Card"
-                      className="h-6 w-auto max-w-[90%] object-contain"
-                    />
+
+                  {/* Visa */}
+                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-blue-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
+                    <div className="h-6 w-8 rounded-md bg-[#0E4595] flex items-center justify-center text-white shrink-0 shadow-2xs px-1">
+                      <span className="font-black italic text-[11px] tracking-tighter">VISA</span>
+                    </div>
+                    <div className="flex flex-col text-left min-w-0">
+                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Visa</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">Debit / Credit</span>
+                    </div>
                   </div>
-                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-amber-500/50 transition-all">
-                    <img
-                      src="/images/payments/mastercard.svg"
-                      alt="Mastercard"
-                      className="h-6 w-auto max-w-[90%] object-contain"
-                    />
+
+                  {/* Mastercard */}
+                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-amber-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
+                    <div className="h-6 w-8 rounded-md bg-[#18181B] border border-white/10 flex items-center justify-center shrink-0 shadow-2xs">
+                      <div className="flex items-center -space-x-1.5">
+                        <div className="size-3 rounded-full bg-[#EB001B]"></div>
+                        <div className="size-3 rounded-full bg-[#F79E1B]/90"></div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col text-left min-w-0">
+                      <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Mastercard</span>
+                      <span className="text-[10px] text-muted-foreground leading-tight">Debit / Credit</span>
+                    </div>
                   </div>
-                  <div className="col-span-2 h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center gap-2 shadow-2xs hover:shadow-xs hover:border-emerald-600/50 transition-all">
-                    <img
-                      src="/images/payments/paypak.png"
-                      alt="PayPak"
-                      className="h-5 w-auto object-contain"
-                    />
-                    <span className="text-[11px] font-semibold text-slate-800 tracking-tight">
-                      Debit Cards (All Pakistani Banks)
-                    </span>
+
+                  {/* PayPak */}
+                  <div className="col-span-2 h-11 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-teal-500/50 transition-all px-3 py-2 flex items-center justify-center gap-2.5 cursor-default">
+                    <div className="size-5 rounded-full border-2 border-teal-500 flex items-center justify-center">
+                      <div className="size-2 rounded-full bg-emerald-500"></div>
+                    </div>
+                    <span className="text-xs font-bold text-foreground">PayPak</span>
+                    <span className="text-[11px] text-muted-foreground">• Pakistan Domestic 1Link Debit Cards</span>
                   </div>
                 </div>
               </div>
