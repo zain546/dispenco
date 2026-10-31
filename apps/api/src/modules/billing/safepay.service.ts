@@ -30,10 +30,7 @@ export class SafepayService {
         ? 'https://api.getsafepay.com'
         : 'https://sandbox.api.getsafepay.com';
 
-    this.checkoutBaseUrl =
-      this.env === 'production'
-        ? 'https://getsafepay.com/checkout/pay'
-        : 'https://sandbox.api.getsafepay.com/checkout/pay';
+    this.checkoutBaseUrl = `${this.apiBaseUrl}/components`;
   }
 
   /**
@@ -115,9 +112,11 @@ export class SafepayService {
       },
     });
 
-    const checkoutUrl = isLiveGatewayCall
-      ? `${this.checkoutBaseUrl}?beacon=${trackerToken}&source=custom`
-      : `${this.checkoutBaseUrl}?beacon=${trackerToken}&source=custom&test_mode=true`;
+    const clientUrl = this.configService.get<string>('CLIENT_URL') || 'http://localhost:3000';
+    const redirectUrl = `${clientUrl}/settings?tab=billing&status=success&beacon=${trackerToken}`;
+    const cancelUrl = `${clientUrl}/settings?tab=billing&status=cancelled`;
+
+    const checkoutUrl = `${this.checkoutBaseUrl}?env=${this.env}&beacon=${trackerToken}&source=custom&redirect_url=${encodeURIComponent(redirectUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`;
 
     return {
       success: true,
@@ -128,6 +127,35 @@ export class SafepayService {
       currency: 'PKR',
       environment: this.env,
     };
+  }
+
+  /**
+   * Verifies the session upon user redirect back from Safepay
+   */
+  async verifySession(tracker: string, tenantId: string) {
+    if (!tracker) {
+      return this.subscriptionService.getTenantSubscription(tenantId);
+    }
+
+    const invoice = await this.prisma.subscriptionInvoice.findUnique({
+      where: { providerTrackerId: tracker },
+    });
+
+    if (invoice && invoice.tenantId === tenantId && invoice.status !== 'PAID') {
+      await this.prisma.subscriptionInvoice.update({
+        where: { id: invoice.id },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          providerPaymentRef: tracker,
+        },
+      });
+
+      await this.subscriptionService.extendSubscriptionPeriod(tenantId, 30);
+      this.logger.log(`Verified and extended subscription for tenant ${tenantId} via tracker ${tracker}`);
+    }
+
+    return this.subscriptionService.getTenantSubscription(tenantId);
   }
 
   /**

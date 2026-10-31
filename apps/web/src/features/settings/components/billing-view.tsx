@@ -289,12 +289,12 @@ export function BillingView() {
       {/* Main Billing Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Plan Overview Card */}
-        <Card className="lg:col-span-2 border-border/80 shadow-xs rounded-2xl">
+        <Card className="lg:col-span-2 min-w-0 border-border/80 shadow-xs rounded-2xl">
           <CardHeader className="pb-4">
             <div className="space-y-2.5">
               {/* Plan Title & Status Badge - clean responsive row */}
               <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-lg sm:text-xl font-bold text-foreground">
+                <CardTitle className="text-base sm:text-xl font-bold text-foreground leading-tight">
                   Standard Pharmacy Plan
                 </CardTitle>
                 {isExpired ? (
@@ -346,9 +346,9 @@ export function BillingView() {
                   {formatDate(effectiveDate)}
                 </span>
               </div>
-              <div className="flex sm:flex-col justify-between sm:justify-start items-center sm:items-start pt-2.5 sm:pt-0">
-                <span className="text-muted-foreground text-[11px] sm:mb-1.5">Supported Channels</span>
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-col justify-start items-start pt-2.5 sm:pt-0">
+                <span className="text-muted-foreground text-[11px] mb-1.5">Supported Channels</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span title="Easypaisa Mobile Wallet" className="h-6 w-9 rounded-md bg-white p-0.5 flex items-center justify-center shadow-xs border border-white/20 transition-transform hover:scale-105 cursor-pointer">
                     <img src="/images/payments/easypaisa.png" alt="Easypaisa" className="h-3.5 w-auto object-contain" />
                   </span>
@@ -393,17 +393,17 @@ export function BillingView() {
             </div>
           </CardContent>
 
-          <CardFooter className="pt-3 border-t border-border/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3.5">
-            <div className="text-[11px] text-muted-foreground text-center sm:text-left">
+          <CardFooter className="pt-3 border-t border-border/60 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3.5">
+            <div className="text-[11px] text-muted-foreground text-center xl:text-left">
               Need custom multi-branch enterprise terms? <a href="mailto:support@dispenco.com" className="text-primary hover:underline font-medium">Contact Dispenco Sales</a>
             </div>
-            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 w-full xl:w-auto shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRenew}
                 disabled={isRenewing || isCheckingOut || !canManageBilling}
-                className="w-full sm:w-auto text-xs h-9 px-3 gap-1.5 text-muted-foreground hover:text-foreground border-border/80 rounded-xl"
+                className="w-full sm:w-auto text-xs h-9 px-3 gap-1.5 text-muted-foreground hover:text-foreground border-border/80 rounded-xl whitespace-nowrap"
                 title="Simulate renewal instantly for testing without leaving page"
               >
                 {isRenewing ? <RefreshCw className="size-3.5 animate-spin" /> : <Zap className="size-3.5 text-amber-500" />}
@@ -412,7 +412,7 @@ export function BillingView() {
               <Button
                 onClick={handleCheckout}
                 disabled={isCheckingOut || isRenewing || !canManageBilling}
-                className="w-full sm:w-auto font-semibold text-xs sm:text-sm h-11 sm:h-9 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs rounded-xl"
+                className="w-full sm:w-auto font-semibold text-xs sm:text-sm h-11 sm:h-9 px-4 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs rounded-xl whitespace-nowrap"
               >
                 {isCheckingOut ? (
                   <RefreshCw className="size-4 animate-spin" />
@@ -426,8 +426,8 @@ export function BillingView() {
         </Card>
 
         {/* Payment Gateway & Authentic Logos Card */}
-        <div className="space-y-6">
-          <Card className="border-border/80 shadow-xs rounded-2xl">
+        <div className="space-y-6 min-w-0">
+          <Card className="border-border/80 min-w-0 shadow-xs rounded-2xl">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">

@@ -32,7 +32,7 @@ export class BillingController {
   @UseGuards(JwtAuthGuard)
   async verifySession(@Body() body: { tracker: string }, @Req() req: any) {
     const tenantId = req.user.tenantId;
-    return this.subscriptionService.getTenantSubscription(tenantId);
+    return this.safepayService.verifySession(body.tracker, tenantId);
   }
 
   @Post('safepay/webhook')
