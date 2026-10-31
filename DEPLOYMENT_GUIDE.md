@@ -62,6 +62,12 @@ This is the recommended setup for scalability and low maintenance.
    MEILISEARCH_HOST="https://your-meilisearch-host"
    MEILISEARCH_API_KEY="your-meilisearch-master-key"
    GEMINI_API_KEY="your-gemini-key"
+
+   # Safepay Payment Gateway (Subscriptions & Invoicing)
+   SAFEPAY_ENV="production" # or "sandbox"
+   SAFEPAY_API_KEY="sec_live_..."
+   SAFEPAY_SECRET_KEY="sec_live_..."
+   SAFEPAY_WEBHOOK_SECRET="whsec_live_..."
    ```
 
 ### Part C: Deploy Frontend Web (Vercel)
@@ -100,6 +106,12 @@ REFRESH_TOKEN_SECRET=your_super_secret_refresh_key
 CLIENT_URL=https://your-domain.com
 CORS_ORIGIN=https://your-domain.com
 GEMINI_API_KEY=your_gemini_key
+
+# Safepay Payment Gateway
+SAFEPAY_ENV=production
+SAFEPAY_API_KEY=sec_live_...
+SAFEPAY_SECRET_KEY=sec_live_...
+SAFEPAY_WEBHOOK_SECRET=whsec_live_...
 
 NEXT_PUBLIC_API_URL=https://your-domain.com/api/v1
 ```
