@@ -339,24 +339,34 @@ export function BillingView() {
               <div className="col-span-2 sm:col-span-1">
                 <span className="text-muted-foreground block text-[11px] mb-1.5">Supported Channels</span>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
-                    <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
+                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img src="/images/payments/easypaisa.png" alt="Easypaisa" className="h-2.5 w-auto object-contain" />
+                    </span>
                     Easypaisa
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
-                    <span className="size-1.5 rounded-full bg-red-500"></span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
+                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img src="/images/payments/jazzcash.png" alt="JazzCash" className="h-3.5 w-auto object-contain" />
+                    </span>
                     JazzCash
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
-                    <span className="size-1.5 rounded-full bg-blue-500"></span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
+                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img src="/images/payments/visa.svg" alt="Visa" className="h-2 w-auto object-contain" />
+                    </span>
                     Visa
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
-                    <span className="size-1.5 rounded-full bg-amber-500"></span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
+                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img src="/images/payments/mastercard.svg" alt="Mastercard" className="h-2.5 w-auto object-contain" />
+                    </span>
                     Mastercard
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-muted/30 text-[10px] font-semibold text-foreground">
-                    <span className="size-1.5 rounded-full bg-teal-500"></span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border/70 bg-background/60 text-[10px] font-semibold text-foreground shadow-2xs">
+                    <span className="h-4.5 w-6 rounded bg-white p-0.5 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img src="/images/payments/paypak.svg" alt="PayPak" className="h-2 w-auto object-contain" />
+                    </span>
                     PayPak
                   </span>
                 </div>
@@ -439,16 +449,20 @@ export function BillingView() {
                 Dispenco uses <span className="font-semibold text-foreground">Safepay</span> (SBP-authorized PSO/PSP) for automated, instant subscription payments in Pakistan.
               </p>
 
-              {/* Minimalist Transparent Payment Partner Tiles */}
+              {/* Official Payment Partner Logos & Badges */}
               <div className="p-3.5 rounded-xl bg-muted/20 border border-border/70 space-y-2.5">
                 <span className="font-semibold text-foreground text-[11px] block">
                   Accepted Payment Methods:
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   {/* Easypaisa */}
-                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-emerald-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
-                    <div className="size-6 rounded-lg bg-[#00A651] flex items-center justify-center text-white shrink-0 shadow-2xs">
-                      <span className="font-black text-xs lowercase">e</span>
+                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-emerald-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
+                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img
+                        src="/images/payments/easypaisa.png"
+                        alt="Easypaisa"
+                        className="h-4.5 w-auto max-w-[95%] object-contain"
+                      />
                     </div>
                     <div className="flex flex-col text-left min-w-0">
                       <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Easypaisa</span>
@@ -457,9 +471,13 @@ export function BillingView() {
                   </div>
 
                   {/* JazzCash */}
-                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-red-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
-                    <div className="size-6 rounded-lg bg-[#E61C24] flex items-center justify-center text-white shrink-0 shadow-2xs">
-                      <div className="size-3.5 rounded-full bg-[#FFC80A]"></div>
+                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-red-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
+                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img
+                        src="/images/payments/jazzcash.png"
+                        alt="JazzCash"
+                        className="h-5.5 w-auto max-w-[95%] object-contain"
+                      />
                     </div>
                     <div className="flex flex-col text-left min-w-0">
                       <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">JazzCash</span>
@@ -468,9 +486,13 @@ export function BillingView() {
                   </div>
 
                   {/* Visa */}
-                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-blue-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
-                    <div className="h-6 w-8 rounded-md bg-[#0E4595] flex items-center justify-center text-white shrink-0 shadow-2xs px-1">
-                      <span className="font-black italic text-[11px] tracking-tighter">VISA</span>
+                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-blue-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
+                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img
+                        src="/images/payments/visa.svg"
+                        alt="Visa"
+                        className="h-3.5 w-auto max-w-[95%] object-contain"
+                      />
                     </div>
                     <div className="flex flex-col text-left min-w-0">
                       <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Visa</span>
@@ -479,12 +501,13 @@ export function BillingView() {
                   </div>
 
                   {/* Mastercard */}
-                  <div className="h-12 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-amber-500/50 transition-all px-3 py-2 flex items-center gap-2.5 cursor-default">
-                    <div className="h-6 w-8 rounded-md bg-[#18181B] border border-white/10 flex items-center justify-center shrink-0 shadow-2xs">
-                      <div className="flex items-center -space-x-1.5">
-                        <div className="size-3 rounded-full bg-[#EB001B]"></div>
-                        <div className="size-3 rounded-full bg-[#F79E1B]/90"></div>
-                      </div>
+                  <div className="h-13 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-amber-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
+                    <div className="h-7.5 w-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img
+                        src="/images/payments/mastercard.svg"
+                        alt="Mastercard"
+                        className="h-4.5 w-auto max-w-[95%] object-contain"
+                      />
                     </div>
                     <div className="flex flex-col text-left min-w-0">
                       <span className="text-xs font-bold tracking-tight text-foreground leading-tight truncate">Mastercard</span>
@@ -493,12 +516,18 @@ export function BillingView() {
                   </div>
 
                   {/* PayPak */}
-                  <div className="col-span-2 h-11 rounded-xl border border-border/70 bg-background/50 hover:bg-background/80 hover:border-teal-500/50 transition-all px-3 py-2 flex items-center justify-center gap-2.5 cursor-default">
-                    <div className="size-5 rounded-full border-2 border-teal-500 flex items-center justify-center">
-                      <div className="size-2 rounded-full bg-emerald-500"></div>
+                  <div className="col-span-2 h-12 rounded-xl border border-border/70 bg-background/60 hover:bg-background/90 hover:border-teal-500/50 transition-all px-3 py-2 flex items-center gap-3 cursor-default shadow-2xs">
+                    <div className="h-7 w-12 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-2xs border border-white/20">
+                      <img
+                        src="/images/payments/paypak.svg"
+                        alt="PayPak"
+                        className="h-4 w-auto max-w-[95%] object-contain"
+                      />
                     </div>
-                    <span className="text-xs font-bold text-foreground">PayPak</span>
-                    <span className="text-[11px] text-muted-foreground">• Pakistan Domestic 1Link Debit Cards</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-bold text-foreground">PayPak</span>
+                      <span className="text-[11px] text-muted-foreground truncate">• Pakistan Domestic 1Link Debit Cards</span>
+                    </div>
                   </div>
                 </div>
               </div>

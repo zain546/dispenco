@@ -1,0 +1,7 @@
+<svg viewBox="0 0 140 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="36" height="36" rx="9" fill="#00A651"/>
+  <path d="M18 9C12.48 9 8 13.48 8 19C8 24.52 12.48 29 18 29C22.84 29 26.86 25.57 27.79 21H15V17H27.79C26.86 12.43 22.84 9 18 9Z" fill="white"/>
+  <path d="M8 21C9.5 25.5 13.5 28.5 18 28.5C21.5 28.5 24.8 26.8 26.5 24" stroke="#00A651" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="44" y="24" fill="white" font-size="17" font-weight="800" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" letter-spacing="-0.5">easypaisa</text>
+  <circle cx="122.5" cy="12.5" r="2.8" fill="#00A651"/>
+</svg>
