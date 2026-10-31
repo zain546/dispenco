@@ -30,7 +30,10 @@ export class SafepayService {
         ? 'https://api.getsafepay.com'
         : 'https://sandbox.api.getsafepay.com';
 
-    this.checkoutBaseUrl = `${this.apiBaseUrl}/components`;
+    this.checkoutBaseUrl =
+      this.env === 'production'
+        ? 'https://getsafepay.com/checkout/pay'
+        : 'https://sandbox.api.getsafepay.com/checkout/pay';
   }
 
   /**
@@ -109,7 +112,7 @@ export class SafepayService {
     const redirectUrl = `${clientUrl}/settings?tab=billing&status=success&beacon=${trackerToken}`;
     const cancelUrl = `${clientUrl}/settings?tab=billing&status=cancelled`;
 
-    const checkoutUrl = `${this.checkoutBaseUrl}?env=${this.env}&beacon=${trackerToken}&source=custom&redirect_url=${encodeURIComponent(redirectUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`;
+    const checkoutUrl = `${this.checkoutBaseUrl}?beacon=${trackerToken}&source=custom&redirect_url=${encodeURIComponent(redirectUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`;
 
     return {
       success: true,
