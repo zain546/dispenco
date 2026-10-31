@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   CreditCard,
   ShieldCheck,
@@ -26,9 +27,13 @@ import { usePermissions } from '@/hooks/use-permissions';
 
 export function BillingView() {
   const { canManageBilling } = usePermissions();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRenewing, setIsRenewing] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const fetchSubscription = async () => {
     try {
@@ -44,7 +49,35 @@ export function BillingView() {
 
   useEffect(() => {
     fetchSubscription();
+
+    // Check if returning from Safepay checkout
+    const paymentStatus = searchParams.get('payment_status') || searchParams.get('status');
+    const tracker = searchParams.get('beacon') || searchParams.get('tracker');
+
+    if (paymentStatus === 'success' || paymentStatus === 'completed') {
+      toast.success('Payment completed successfully! Subscription renewed.');
+      if (tracker) {
+        billingApi.verifySession(tracker).then(setSubscription).catch(() => {});
+      }
+      // Remove query params from url
+      router.replace('/settings?tab=billing');
+    }
   }, []);
+
+  const handleCheckout = async () => {
+    try {
+      setIsCheckingOut(true);
+      const session = await billingApi.createCheckoutSession();
+      if (session?.checkoutUrl) {
+        toast.info('Opening Safepay hosted checkout...');
+        window.location.href = session.checkoutUrl;
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to initialize Safepay checkout');
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
 
   const handleRenew = async () => {
     try {
@@ -104,14 +137,27 @@ export function BillingView() {
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleRenew}
-            disabled={isRenewing || !canManageBilling}
-            className="w-full sm:w-auto shrink-0 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium text-xs sm:text-sm gap-2"
-          >
-            {isRenewing ? <RefreshCw className="size-4 animate-spin" /> : <Zap className="size-4" />}
-            Renew Now (PKR 2,500)
-          </Button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
+            <Button
+              onClick={handleCheckout}
+              disabled={isCheckingOut || isRenewing || !canManageBilling}
+              className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium text-xs sm:text-sm gap-2"
+            >
+              {isCheckingOut ? <RefreshCw className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+              Pay via Safepay (PKR 2,500)
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRenew}
+              disabled={isCheckingOut || isRenewing || !canManageBilling}
+              className="text-[11px] h-8 bg-background/50 border-destructive/30 text-destructive hover:bg-destructive/10"
+              title="Simulate renewal instantly for testing"
+            >
+              {isRenewing ? <RefreshCw className="size-3 animate-spin mr-1" /> : <Zap className="size-3 mr-1" />}
+              Instant Sim
+            </Button>
+          </div>
         </div>
       ) : isTrial ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5">
@@ -240,18 +286,31 @@ export function BillingView() {
             <div className="text-[11px] text-muted-foreground">
               Need custom multi-branch enterprise terms? <a href="mailto:support@dispenco.com" className="text-primary hover:underline font-medium">Contact Dispenco Sales</a>
             </div>
-            <Button
-              onClick={handleRenew}
-              disabled={isRenewing || !canManageBilling}
-              className="font-medium text-xs sm:text-sm gap-2"
-            >
-              {isRenewing ? (
-                <RefreshCw className="size-4 animate-spin" />
-              ) : (
-                <CreditCard className="size-4" />
-              )}
-              {isTrial ? 'Subscribe & Extend 30 Days' : 'Renew Subscription (PKR 2,500)'}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRenew}
+                disabled={isRenewing || isCheckingOut || !canManageBilling}
+                className="text-xs h-9 px-3 gap-1.5 text-muted-foreground hover:text-foreground border-border/80"
+                title="Simulate renewal instantly for testing without leaving page"
+              >
+                {isRenewing ? <RefreshCw className="size-3.5 animate-spin" /> : <Zap className="size-3.5 text-amber-500" />}
+                <span>Simulate Renewal (Dev)</span>
+              </Button>
+              <Button
+                onClick={handleCheckout}
+                disabled={isCheckingOut || isRenewing || !canManageBilling}
+                className="font-medium text-xs sm:text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+              >
+                {isCheckingOut ? (
+                  <RefreshCw className="size-4 animate-spin" />
+                ) : (
+                  <CreditCard className="size-4" />
+                )}
+                {isTrial ? 'Subscribe via Safepay (PKR 2,500)' : 'Renew via Safepay (PKR 2,500)'}
+              </Button>
+            </div>
           </CardFooter>
         </Card>
 

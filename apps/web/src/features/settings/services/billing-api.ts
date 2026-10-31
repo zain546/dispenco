@@ -40,5 +40,23 @@ export const billingApi = {
     const res = await apiClient.post('/billing/mock-renew', {});
     return res.data;
   },
+
+  createCheckoutSession: async (): Promise<{
+    success: boolean;
+    checkoutUrl: string;
+    tracker: string;
+    invoiceNumber: string;
+    amountPkr: number;
+    currency: string;
+    environment: string;
+  }> => {
+    const res = await apiClient.post('/billing/checkout-session', {});
+    return res.data;
+  },
+
+  verifySession: async (tracker: string): Promise<SubscriptionInfo> => {
+    const res = await apiClient.post('/billing/verify-session', { tracker });
+    return res.data;
+  },
 };
 
