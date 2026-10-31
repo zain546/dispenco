@@ -112,7 +112,7 @@ export class SafepayService {
     const redirectUrl = `${clientUrl}/settings?tab=billing&status=success&beacon=${trackerToken}`;
     const cancelUrl = `${clientUrl}/settings?tab=billing&status=cancelled`;
 
-    const checkoutUrl = `${this.checkoutBaseUrl}?beacon=${trackerToken}&source=custom&redirect_url=${encodeURIComponent(redirectUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`;
+    const checkoutUrl = `${this.checkoutBaseUrl}?env=${this.env}&beacon=${trackerToken}&source=custom&redirect_url=${encodeURIComponent(redirectUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`;
 
     return {
       success: true,
