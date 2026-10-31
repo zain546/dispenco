@@ -4,8 +4,8 @@ import { SettingsHub } from '@/features/settings/components/settings-hub';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export const metadata: Metadata = {
-  title: 'Settings & Integrations - Dispenco',
-  description: 'Manage pharmacy team members, custom roles, access permissions, and public API integrations',
+  title: 'Settings & Subscription - Dispenco',
+  description: 'Manage pharmacy team members, custom roles, subscription billing, and public API integrations',
 };
 
 export default function SettingsPage() {

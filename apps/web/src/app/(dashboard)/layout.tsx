@@ -92,7 +92,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { name: 'Analytics & Audits', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
       { name: 'Chain Operations', href: '/chain', icon: Building2, permission: 'canManageSettings', requiresMultiStore: true },
-      { name: 'Settings & Integrations', href: '/settings', icon: Settings, permission: 'canManageSettings' },
+      { name: 'Settings & Subscription', href: '/settings', icon: Settings, permission: 'canManageSettings' },
     ],
   },
 ];
