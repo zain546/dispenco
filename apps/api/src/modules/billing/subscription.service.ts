@@ -9,9 +9,9 @@ export class SubscriptionService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Retrieves subscription status, plan details, and remaining time for tenant
+   * Finds or auto-provisions a subscription and default plan for tenant
    */
-  async getTenantSubscription(tenantId: string) {
+  async getOrCreateSubscriptionRecord(tenantId: string) {
     let subscription = await this.prisma.subscription.findUnique({
       where: { tenantId },
       include: {
@@ -19,15 +19,23 @@ export class SubscriptionService {
       },
     });
 
-    // If tenant doesn't have a subscription yet (backfill on the fly)
     if (!subscription) {
-      const defaultPlan = await this.prisma.plan.findFirst({
+      let defaultPlan = await this.prisma.plan.findFirst({
         where: { isActive: true },
         orderBy: { createdAt: 'asc' },
       });
 
       if (!defaultPlan) {
-        throw new NotFoundException('No active subscription plans found');
+        defaultPlan = await this.prisma.plan.create({
+          data: {
+            code: 'STANDARD_MONTHLY',
+            name: 'Standard Pharmacy Plan',
+            priceMinor: 250000, // PKR 2,500 in paisa
+            currency: 'PKR',
+            intervalDays: 30,
+            isActive: true,
+          },
+        });
       }
 
       const trialEndsAt = new Date();
@@ -45,6 +53,15 @@ export class SubscriptionService {
         },
       });
     }
+
+    return subscription;
+  }
+
+  /**
+   * Retrieves subscription status, plan details, and remaining time for tenant
+   */
+  async getTenantSubscription(tenantId: string) {
+    const subscription = await this.getOrCreateSubscriptionRecord(tenantId);
 
     const now = new Date();
     const isTrial = subscription.status === SubscriptionStatus.TRIALING;

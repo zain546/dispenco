@@ -37,14 +37,7 @@ export class SafepayService {
    * Initializes a Safepay hosted checkout order tracker and creates a pending invoice
    */
   async createCheckoutSession(tenantId: string) {
-    const subscription = await this.prisma.subscription.findUnique({
-      where: { tenantId },
-      include: { plan: true },
-    });
-
-    if (!subscription) {
-      throw new NotFoundException('No active subscription found for tenant');
-    }
+    const subscription = await this.subscriptionService.getOrCreateSubscriptionRecord(tenantId);
 
     const now = new Date();
     const baseDate =
