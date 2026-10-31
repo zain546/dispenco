@@ -27,59 +27,6 @@ import { toast } from 'sonner';
 import { billingApi, SubscriptionInfo } from '../services/billing-api';
 import { usePermissions } from '@/hooks/use-permissions';
 
-// --- Official Vector Payment Brand Logos ---
-export function EasyPaisaLogo({ className = "h-5 w-auto" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 115 30" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect width="30" height="30" rx="7" fill="#00A651"/>
-      <path d="M15 7C10.58 7 7 10.58 7 15C7 19.42 10.58 23 15 23C18.87 23 22.09 20.26 22.83 16.6H12.6V13.4H22.83C22.09 9.74 18.87 7 15 7Z" fill="white"/>
-      <text x="36" y="20" fill="currentColor" fontSize="13" fontWeight="bold" fontFamily="system-ui, sans-serif">easypaisa</text>
-    </svg>
-  );
-}
-
-export function JazzCashLogo({ className = "h-5 w-auto" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 110 30" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect width="30" height="30" rx="7" fill="#E61C24"/>
-      <circle cx="15" cy="15" r="7.5" fill="#FFC80A"/>
-      <path d="M13 11L17.5 15L13 19" stroke="#E61C24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <text x="36" y="20" fill="currentColor" fontSize="13" fontWeight="bold" fontFamily="system-ui, sans-serif">JazzCash</text>
-    </svg>
-  );
-}
-
-export function VisaLogo({ className = "h-4 w-auto" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 54 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect width="54" height="20" rx="4" fill="#0E4595"/>
-      <path d="M21.5 16L23.8 4.5H27.3L25 16H21.5ZM36.5 4.8C35.8 4.5 34.7 4.3 33.4 4.3C29.8 4.3 27.3 6.2 27.3 8.8C27.3 10.8 29.1 11.9 30.5 12.6C31.9 13.3 32.4 13.7 32.4 14.3C32.4 15.2 31.3 15.7 30.3 15.7C28.7 15.7 27.8 15.4 26.8 14.9L26.3 14.7L25.8 17.8C26.7 18.2 28.3 18.6 30 18.6C33.9 18.6 36.4 16.7 36.4 13.8C36.4 11.7 35 10.5 33.1 9.5C32 8.9 31.3 8.5 31.3 7.9C31.3 7.2 32.1 6.5 33.5 6.5C34.7 6.5 35.6 6.8 36.3 7.1L36.6 7.3L37.1 4.3C37 4.5 36.7 4.6 36.5 4.8ZM42.8 4.5H40.1C39.2 4.5 38.5 4.8 38.2 5.6L32.6 18.9H36.6L37.4 16.8H42.3L42.7 18.9H46.2L42.8 4.5ZM38.4 14L40.6 8L41.9 14H38.4ZM18.5 4.5L15.1 14.1L14.7 12.2C14.1 10.2 12.1 7.9 10 6.8L13.1 18.9H17.2L22.5 4.5H18.5ZM10.8 4.5H5.2L5.1 4.8C9.4 5.9 12.2 8.5 13.3 11.8L12.1 5.6C11.9 4.8 11.5 4.5 10.8 4.5Z" fill="white"/>
-    </svg>
-  );
-}
-
-export function MastercardLogo({ className = "h-4 w-auto" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect width="38" height="24" rx="4" fill="#141414"/>
-      <circle cx="15" cy="12" r="7.5" fill="#EB001B"/>
-      <circle cx="23" cy="12" r="7.5" fill="#F79E1B"/>
-      <path d="M19 6.3A7.5 7.5 0 0 0 19 17.7A7.5 7.5 0 0 0 19 6.3Z" fill="#FF5F00"/>
-    </svg>
-  );
-}
-
-export function PayPakLogo({ className = "h-5 w-auto" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 100 30" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect width="30" height="30" rx="7" fill="#006838"/>
-      <circle cx="15" cy="15" r="7.5" fill="#F37021"/>
-      <circle cx="17" cy="13" r="5.5" fill="#006838"/>
-      <text x="36" y="20" fill="currentColor" fontSize="13" fontWeight="bold" fontFamily="system-ui, sans-serif">PayPak</text>
-    </svg>
-  );
-}
-
 // --- Skeleton Loading State ---
 function BillingSkeleton() {
   return (
@@ -390,11 +337,24 @@ export function BillingView() {
                 </span>
               </div>
               <div className="col-span-2 sm:col-span-1">
-                <span className="text-muted-foreground block text-[11px] mb-0.5">Payment Method</span>
-                <span className="font-semibold text-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="size-3.5 text-primary" />
-                  Safepay PK (EasyPaisa / Cards)
-                </span>
+                <span className="text-muted-foreground block text-[11px] mb-1">Supported Gateways</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="h-6 px-1.5 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
+                    <img src="/images/payments/easypaisa.png" alt="Easypaisa" className="h-3 w-auto object-contain" />
+                  </div>
+                  <div className="h-6 px-1.5 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
+                    <img src="/images/payments/jazzcash.png" alt="JazzCash" className="h-4 w-auto object-contain" />
+                  </div>
+                  <div className="h-6 px-1 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
+                    <img src="/images/payments/visa.svg" alt="Visa" className="h-3.5 w-auto object-contain" />
+                  </div>
+                  <div className="h-6 px-1 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
+                    <img src="/images/payments/mastercard.svg" alt="Mastercard" className="h-4 w-auto object-contain" />
+                  </div>
+                  <div className="h-6 px-1.5 bg-white rounded-md border border-slate-200/90 flex items-center justify-center shadow-2xs">
+                    <img src="/images/payments/paypak.png" alt="PayPak" className="h-3 w-auto object-contain" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -474,29 +434,49 @@ export function BillingView() {
                 Dispenco uses <span className="font-semibold text-foreground">Safepay</span> (SBP-authorized PSO/PSP) for automated, instant subscription payments in Pakistan.
               </p>
 
-              {/* Vector Brand Icons */}
+              {/* Official Payment Partner Logos */}
               <div className="p-3.5 rounded-xl bg-muted/40 border border-border/60 space-y-2.5">
                 <span className="font-semibold text-foreground text-[11px] block">
                   Accepted Payment Methods:
                 </span>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background border border-border/60 shadow-2xs hover:border-emerald-500/40 transition-colors">
-                    <EasyPaisaLogo className="h-4 w-auto shrink-0" />
+                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-emerald-500/50 transition-all">
+                    <img
+                      src="/images/payments/easypaisa.png"
+                      alt="Easypaisa"
+                      className="h-5 w-auto max-w-[90%] object-contain"
+                    />
                   </div>
-                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background border border-border/60 shadow-2xs hover:border-red-500/40 transition-colors">
-                    <JazzCashLogo className="h-4 w-auto shrink-0" />
+                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-red-500/50 transition-all">
+                    <img
+                      src="/images/payments/jazzcash.png"
+                      alt="JazzCash"
+                      className="h-7 w-auto max-w-[90%] object-contain"
+                    />
                   </div>
-                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background border border-border/60 shadow-2xs hover:border-blue-500/40 transition-colors">
-                    <VisaLogo className="h-3.5 w-auto shrink-0" />
-                    <span className="text-[11px] font-semibold text-foreground">Debit / Credit</span>
+                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-blue-500/50 transition-all">
+                    <img
+                      src="/images/payments/visa.svg"
+                      alt="Visa Card"
+                      className="h-6 w-auto max-w-[90%] object-contain"
+                    />
                   </div>
-                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-background border border-border/60 shadow-2xs hover:border-amber-500/40 transition-colors">
-                    <MastercardLogo className="h-4 w-auto shrink-0" />
-                    <span className="text-[11px] font-semibold text-foreground">Mastercard</span>
+                  <div className="h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center shadow-2xs hover:shadow-xs hover:border-amber-500/50 transition-all">
+                    <img
+                      src="/images/payments/mastercard.svg"
+                      alt="Mastercard"
+                      className="h-6 w-auto max-w-[90%] object-contain"
+                    />
                   </div>
-                  <div className="col-span-2 flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-lg bg-background border border-border/60 shadow-2xs hover:border-emerald-600/40 transition-colors">
-                    <PayPakLogo className="h-4 w-auto shrink-0" />
-                    <span className="text-[11px] font-semibold text-foreground">PayPak Debit (All Pakistani Banks)</span>
+                  <div className="col-span-2 h-12 bg-white rounded-xl border border-slate-200/90 px-3 py-1.5 flex items-center justify-center gap-2 shadow-2xs hover:shadow-xs hover:border-emerald-600/50 transition-all">
+                    <img
+                      src="/images/payments/paypak.png"
+                      alt="PayPak"
+                      className="h-5 w-auto object-contain"
+                    />
+                    <span className="text-[11px] font-semibold text-slate-800 tracking-tight">
+                      Debit Cards (All Pakistani Banks)
+                    </span>
                   </div>
                 </div>
               </div>
