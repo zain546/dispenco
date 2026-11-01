@@ -1,0 +1,57 @@
+/* Marketing is scoped to preserve the existing application screens. */
+.marketing-shell .text-muted-foreground {
+  /* A token-derived contrast lift for small text on layered muted panels. */
+  color: color-mix(in oklab, var(--muted-foreground) 95%, var(--foreground));
+}
+
+html:has(.marketing-shell) {
+  scroll-padding-top: calc(var(--spacing) * 24);
+}
+
+.marketing-shell :is(a, button):focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: calc(var(--spacing) * 1);
+}
+
+.marketing-shell main:focus {
+  outline: none;
+}
+
+.marketing-shell section[id] {
+  scroll-margin-top: calc(var(--spacing) * 4);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.marketing-shell) {
+    scroll-behavior: smooth;
+  }
+
+  @supports (animation-timeline: view()) {
+    .marketing-section > div {
+      animation: marketing-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 15%;
+    }
+  }
+}
+
+@keyframes marketing-reveal {
+  from {
+    opacity: 0.7;
+    transform: translateY(calc(var(--spacing) * 4));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-shell *,
+  [data-slot='sheet-content'],
+  [data-slot='sheet-overlay'] {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

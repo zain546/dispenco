@@ -5,25 +5,28 @@ import { AuthProvider } from '@/context/auth-context';
 import { StoreProvider } from '@/context/store-context';
 import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
-import { Inter } from "next/font/google";
-import { cn } from "@/lib/utils";
-import { Toaster } from "@/components/ui/sonner";
+import localFont from 'next/font/local';
+import { cn } from '@/lib/utils';
+import { Toaster } from '@/components/ui/sonner';
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+// The same Inter Latin variable font, served locally so builds work offline.
+const inter = localFont({
+  src: './fonts/inter-latin.woff2',
+  weight: '100 900',
+  style: 'normal',
+  display: 'swap',
+  variable: '--font-sans',
+  adjustFontFallback: 'Arial',
+});
 
 export const metadata: Metadata = {
   title: 'Dispenco — Modern Pharmacy Management',
-  description:
-    'Modern inventory and business management for pharmacies and medical stores.',
+  description: 'Modern inventory and business management for pharmacies and medical stores.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", inter.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn('font-sans', inter.variable)}>
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
         <ThemeProvider
           attribute="class"
