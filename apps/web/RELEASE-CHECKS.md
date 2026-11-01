@@ -67,10 +67,16 @@ messages.
 - Configure ingress rate limiting for login/signup/refresh and monitor failed auth
   attempts. Verify backup/restore, error monitoring and secret management in the
   deployment environment.
-- Approve the provisional Privacy Policy and Terms, and replace/approve illustrative
-  pricing and example testimonials. See `MARKETING.md`.
+- Approve the provisional Privacy Policy and Terms, and approve example testimonials. See `MARKETING.md`.
 - Test Safepay end to end with configured credentials and signed webhooks. A browser
   tracker cannot mark an invoice paid, and a return URL cannot announce success on
   its own. Production simulated renewals are disabled. Webhook retries/concurrency
   and settlement reconciliation still need a dedicated billing review before taking
   real payments; this route audit is not a payment-system certification.
+
+## Starter pricing update
+
+The only public offer is Starter: first 30 days free, then PKR 1,500/month. Deploy
+`20261101120000_update_starter_plan_price` with the API to update the existing
+`STANDARD_MONTHLY` plan. This does not rewrite historical invoices or trial dates.
+The migration is included in source; it is not applied automatically by the web build.

@@ -1,3 +1,4 @@
+import { STARTER_PLAN } from '@dispenco/types';
 import 'dotenv/config';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -21,14 +22,14 @@ async function main() {
 
   // 1. Seed or find default Plan
   const standardPlan = await prisma.plan.upsert({
-    where: { code: 'STANDARD_MONTHLY' },
-    update: {},
+    where: { code: STARTER_PLAN.code },
+    update: { name: STARTER_PLAN.name, priceMinor: STARTER_PLAN.priceMinor, currency: STARTER_PLAN.currency, intervalDays: STARTER_PLAN.intervalDays },
     create: {
-      code: 'STANDARD_MONTHLY',
-      name: 'Standard Pharmacy Plan',
-      priceMinor: 250000, // PKR 2,500.00
-      currency: 'PKR',
-      intervalDays: 30,
+      code: STARTER_PLAN.code,
+      name: STARTER_PLAN.name,
+      priceMinor: STARTER_PLAN.priceMinor,
+      currency: STARTER_PLAN.currency,
+      intervalDays: STARTER_PLAN.intervalDays,
       isActive: true,
     },
   });
@@ -42,7 +43,7 @@ async function main() {
         stores: {
           create: {
             name: 'Main Pharmacy Store',
-            currency: 'PKR',
+            currency: STARTER_PLAN.currency,
           },
         },
       },
@@ -249,7 +250,7 @@ async function main() {
         data: {
           tenantId: tenant.id,
           name: 'Main Pharmacy Branch',
-          currency: 'PKR',
+          currency: STARTER_PLAN.currency,
         },
       });
     }

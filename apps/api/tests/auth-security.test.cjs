@@ -22,6 +22,7 @@ const { TaxRatesController } = require('../src/modules/tax-rates/tax-rates.contr
 const { TaxRatesService } = require('../src/modules/tax-rates/tax-rates.service.ts');
 const { SafepayService } = require('../src/modules/billing/safepay.service.ts');
 const { envValidationSchema } = require('../src/common/config/env.schema.ts');
+const { SubscriptionService } = require('../src/modules/billing/subscription.service.ts');
 const accessSecret = 'test-access-secret-at-least-thirty-two-characters';
 const refreshSecret = 'different-test-refresh-secret-thirty-two-characters';
 let app, base, jwt, user;
@@ -118,4 +119,34 @@ test('production rejects weak/shared JWT secrets and wildcard HTTP origins', () 
   const config = { NODE_ENV: 'production', DATABASE_URL: 'postgresql://test', REDIS_URL: 'redis://test', JWT_SECRET: accessSecret, REFRESH_TOKEN_SECRET: refreshSecret, CLIENT_URL: 'https://dispenco.test' };
   assert.equal(envValidationSchema.validate(config).error, undefined);
   for (const bad of [{ JWT_SECRET: 'weak' }, { REFRESH_TOKEN_SECRET: accessSecret }, { CLIENT_URL: '*' }, { CLIENT_URL: 'http://dispenco.test' }]) assert.ok(envValidationSchema.validate({ ...config, ...bad }).error);
+});
+
+test('new Starter subscriptions receive a free 30-day trial with a PKR 1,500 recurring price', async () => {
+  let plan;
+  let created;
+  const service = new SubscriptionService({
+    subscription: { findUnique: async () => null, create: async ({ data }) => { created = data; return { ...data, plan }; } },
+    plan: { findUnique: async () => null, create: async ({ data }) => { plan = { id: 'starter-plan', ...data }; return plan; } },
+  });
+  const before = Date.now();
+  const result = await service.getOrCreateSubscriptionRecord('tenant-1');
+  assert.equal(result.plan.name, 'Starter');
+  assert.equal(result.plan.priceMinor, 150000);
+  assert.equal(result.plan.intervalDays, 30);
+  assert.equal(created.status, 'TRIALING');
+  const trialDays = (created.trialEndsAt.getTime() - before) / 86400000;
+  assert.ok(trialDays >= 29.95 && trialDays <= 30.05);
+});
+
+test('Starter checkout invoices use PKR 1,500 and begin after the remaining free trial', async () => {
+  const trialEndsAt = new Date(Date.now() + 7 * 86400000);
+  let invoice;
+  const service = new SafepayService(new ConfigService({}), {
+    subscriptionInvoice: { create: async ({ data }) => { invoice = data; return data; } },
+  }, { getOrCreateSubscriptionRecord: async () => ({ id: 'sub-1', trialEndsAt, plan: { priceMinor: 150000, intervalDays: 30 } }) });
+  const result = await service.createCheckoutSession('tenant-1');
+  assert.equal(result.amountPkr, 1500);
+  assert.equal(invoice.amountMinor, 150000);
+  assert.equal(invoice.status, 'PENDING');
+  assert.equal(invoice.periodStart, trialEndsAt);
 });

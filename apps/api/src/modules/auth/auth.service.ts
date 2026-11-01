@@ -1,3 +1,4 @@
+import { STARTER_PLAN } from '@dispenco/types';
 import { Injectable, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -39,24 +40,24 @@ export class AuthService {
       });
 
       let standardPlan = await tx.plan.findUnique({
-        where: { code: 'STANDARD_MONTHLY' },
+        where: { code: STARTER_PLAN.code },
       });
 
       if (!standardPlan) {
         standardPlan = await tx.plan.create({
           data: {
-            code: 'STANDARD_MONTHLY',
-            name: 'Standard Pharmacy Plan',
-            priceMinor: 250000, // PKR 2,500.00
-            currency: 'PKR',
-            intervalDays: 30,
+            code: STARTER_PLAN.code,
+            name: STARTER_PLAN.name,
+            priceMinor: STARTER_PLAN.priceMinor,
+            currency: STARTER_PLAN.currency,
+            intervalDays: STARTER_PLAN.intervalDays,
             isActive: true,
           },
         });
       }
 
       const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+      trialEndsAt.setDate(trialEndsAt.getDate() + STARTER_PLAN.trialDays);
 
       await tx.subscription.create({
         data: {

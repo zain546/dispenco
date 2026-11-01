@@ -1,3 +1,4 @@
+import { STARTER_PLAN } from '@dispenco/types';
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionStatus } from '@prisma/client';
@@ -20,26 +21,25 @@ export class SubscriptionService {
     });
 
     if (!subscription) {
-      let defaultPlan = await this.prisma.plan.findFirst({
-        where: { isActive: true },
-        orderBy: { createdAt: 'asc' },
+      let defaultPlan = await this.prisma.plan.findUnique({
+        where: { code: STARTER_PLAN.code },
       });
 
       if (!defaultPlan) {
         defaultPlan = await this.prisma.plan.create({
           data: {
-            code: 'STANDARD_MONTHLY',
-            name: 'Standard Pharmacy Plan',
-            priceMinor: 250000, // PKR 2,500 in paisa
-            currency: 'PKR',
-            intervalDays: 30,
+            code: STARTER_PLAN.code,
+            name: STARTER_PLAN.name,
+            priceMinor: STARTER_PLAN.priceMinor,
+            currency: STARTER_PLAN.currency,
+            intervalDays: STARTER_PLAN.intervalDays,
             isActive: true,
           },
         });
       }
 
       const trialEndsAt = new Date();
-      trialEndsAt.setDate(trialEndsAt.getDate() + 30);
+      trialEndsAt.setDate(trialEndsAt.getDate() + STARTER_PLAN.trialDays);
 
       subscription = await this.prisma.subscription.create({
         data: {
@@ -163,7 +163,7 @@ export class SubscriptionService {
         tenantId,
         invoiceNumber,
         amountMinor: sub.plan.priceMinor,
-        currency: 'PKR',
+        currency: STARTER_PLAN.currency,
         status: 'PAID',
         periodStart: baseDate,
         periodEnd: newPeriodEnd,

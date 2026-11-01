@@ -20,7 +20,7 @@ Paths below are relative to `apps/web`.
 | `src/app/fonts/inter-latin.woff2`                | The existing cached Inter variable font, unchanged.                                                                                             |
 | `src/app/fonts/OFL.txt`                          | Official Inter SIL Open Font License, retained alongside the font.                                                                              |
 | `src/app/robots.ts`                              | Crawler rules excluding application/auth routes while allowing public assets.                                                                   |
-| `src/components/marketing/config.ts`             | Editable prices, yearly totals, plan inclusions, example quotes, canonical domain, email, and CTA destinations.                                 |
+| `src/components/marketing/config.ts`             | Starter offer, plan inclusions, example quotes, canonical domain, email, and CTA destinations.                                 |
 | `src/components/marketing/shared.tsx`            | Wordmark, section heading, and linked CTA buttons.                                                                                              |
 | `src/components/marketing/navbar.tsx`            | Session-aware actions, scroll treatment, theme switch, and mobile/tablet sheet.                                                                 |
 | `src/components/marketing/hero.tsx`              | Primary headline, product introduction, and trial/demo actions.                                                                                 |
@@ -30,7 +30,7 @@ Paths below are relative to `apps/web`.
 | `src/components/marketing/features.tsx`          | Six-card bento with HTML POS and expiry previews.                                                                                               |
 | `src/components/marketing/how-it-works.tsx`      | Three onboarding steps.                                                                                                                         |
 | `src/components/marketing/ai-section.tsx`        | Clearly labeled future concept with transparent reorder arithmetic and disabled preview actions.                                                |
-| `src/components/marketing/pricing.tsx`           | Accessible monthly/yearly toggle; yearly prices are full annual totals.                                                                         |
+| `src/components/marketing/pricing.tsx`           | Single Starter card: PKR 0 for the first 30 days, then PKR 1,500/month.                                                                         |
 | `src/components/marketing/testimonials.tsx`      | Three explicitly fictional placeholder perspectives.                                                                                            |
 | `src/components/marketing/faq.tsx`               | Eight questions using the existing keyboard-accessible shadcn accordion.                                                                        |
 | `src/components/marketing/final-cta.tsx`         | Closing trial and demo actions.                                                                                                                 |
@@ -57,11 +57,11 @@ introduce a new typeface or package.
 
 In `src/components/marketing/config.ts`:
 
-- **Prices:** Starter PKR 2,500/month or 25,000/year; Growth PKR 4,500/month or
-  45,000/year. These and every tier's feature allocation are illustrative. Confirm
-  currency, tax treatment, billing rules, inclusions, and commercial terms, then
-  remove the placeholder labels in the pricing section. “Most popular” is also a
-  sample designation, not a customer statistic.
+- **Prices:** One Starter plan. PKR 0 for the first month (30-day trial), then
+  PKR 1,500/month. Growth, Chain and annual billing are not offered. The shared
+  commercial definition is `packages/types/src/subscription.ts`. Billing displays
+  the server's actual plan price. Apply the Starter-price database migration when
+  deploying to update existing monthly plan records; historical invoices are preserved.
 - **Testimonials:** Replace all three examples with approved customer quotes and
   attribution, then update the explicit placeholder copy in `testimonials.tsx`.
 - **Contact:** `/contact` displays the owner-provided email

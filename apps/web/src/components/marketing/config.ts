@@ -1,3 +1,5 @@
+import { STARTER_PLAN } from '@dispenco/types';
+
 /** Shared public destinations and commercial content. */
 const whatsappNumber = '+923424912546';
 
@@ -12,14 +14,10 @@ export const marketingConfig = {
   termsHref: '/terms',
   trialHref: '/signup',
   pricing: {
-    placeholder: true,
     plans: [
       {
-        name: 'Starter',
+        ...STARTER_PLAN,
         description: 'A simpler day for your first store.',
-        monthly: 2500,
-        yearly: 25000,
-        popular: false,
         cta: 'Start free trial',
         features: [
           'One store',
@@ -27,36 +25,6 @@ export const marketingConfig = {
           'Batch & expiry tracking',
           'Purchases & supplier balances',
           'CSV catalog import',
-        ],
-      },
-      {
-        name: 'Growth',
-        description: 'More clarity as your business grows.',
-        monthly: 4500,
-        yearly: 45000,
-        popular: true,
-        cta: 'Start free trial',
-        features: [
-          'Everything in Starter',
-          'Low-stock & expiry alerts',
-          'Customers & credit ledger',
-          'Sales reports & prescriptions',
-          'Digital payments via Safepay',
-        ],
-      },
-      {
-        name: 'Chain',
-        description: 'Your stores, working together.',
-        monthly: null,
-        yearly: null,
-        popular: false,
-        cta: 'Contact sales',
-        features: [
-          'For 2–10 outlets and beyond',
-          'A shared view across stores',
-          'Inter-store stock transfers',
-          'Store-level reporting',
-          'Discuss your rollout with us',
         ],
       },
     ],

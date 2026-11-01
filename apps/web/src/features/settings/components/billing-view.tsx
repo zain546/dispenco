@@ -25,6 +25,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { billingApi, SubscriptionInfo } from '../services/billing-api';
+import { STARTER_PLAN } from '@dispenco/types';
 import { usePermissions } from '@/hooks/use-permissions';
 
 // --- Skeleton Loading State ---
@@ -182,6 +183,8 @@ export function BillingView() {
     return <BillingSkeleton />;
   }
 
+  const pricePkr = new Intl.NumberFormat('en-PK').format(subscription?.plan.pricePkr ?? STARTER_PLAN.monthlyPkr);
+
   // --- Strict, Synchronized Subscription State Calculation ---
   const rawStatus = (subscription?.status || '').toUpperCase();
   const isExpired = subscription?.isExpired || rawStatus === 'EXPIRED';
@@ -234,7 +237,7 @@ export function BillingView() {
                 className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold text-xs sm:text-sm h-10 sm:h-9 gap-2 rounded-xl"
               >
                 {isCheckingOut ? <RefreshCw className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
-                Pay via Safepay (PKR 2,500)
+                Pay via Safepay (PKR {pricePkr})
               </Button>
               {process.env.NODE_ENV !== 'production' && (<Button
                 variant="outline"
@@ -307,7 +310,7 @@ export function BillingView() {
               {/* Plan Title & Status Badge - clean responsive row */}
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base sm:text-xl font-bold text-foreground leading-tight">
-                  Standard Pharmacy Plan
+                  {subscription?.plan.name || STARTER_PLAN.name}
                 </CardTitle>
                 {isExpired ? (
                   <Badge variant="destructive" className="text-xs font-semibold rounded-md shrink-0">
@@ -334,7 +337,7 @@ export function BillingView() {
               {/* Prominent Price Block */}
               <div className="flex items-baseline gap-2 pt-1">
                 <span className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-                  PKR 2,500
+                  PKR {pricePkr}
                 </span>
                 <span className="text-xs sm:text-sm text-muted-foreground font-medium">
                   / month
@@ -431,7 +434,7 @@ export function BillingView() {
                 ) : (
                   <CreditCard className="size-4" />
                 )}
-                {isTrial ? 'Subscribe via Safepay (PKR 2,500)' : 'Renew via Safepay (PKR 2,500)'}
+                {isTrial ? `Subscribe via Safepay (PKR ${pricePkr})` : `Renew via Safepay (PKR ${pricePkr})`}
               </Button>
             </div>
           </CardFooter>

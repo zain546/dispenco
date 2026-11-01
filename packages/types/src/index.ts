@@ -29,3 +29,4 @@ export * from './permissions.js';
 export * from './integrations.js';
 export * from './audit.js';
 export * from './anomalies.js';
+export * from './subscription.js';
