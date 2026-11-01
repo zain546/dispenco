@@ -17,6 +17,8 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api ./apps/api
 COPY packages ./packages
 
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+
 RUN pnpm --filter @dispenco/types build
 RUN pnpm --filter @dispenco/utils build
 RUN pnpm --filter @dispenco/api exec prisma generate
