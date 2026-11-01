@@ -1,4 +1,10 @@
-import { posDb, OfflineSalePayload, OfflineSaleRecord, generateLocalReceiptNumber } from '../db/pos-db';
+import {
+  getPosDatabase,
+  assertActivePosDatabase,
+  OfflineSalePayload,
+  OfflineSaleRecord,
+  generateLocalReceiptNumber,
+} from '../db/pos-db';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { toast } from 'sonner';
 
@@ -8,8 +14,9 @@ export const posOfflineService = {
    */
   async saveOfflineSale(
     payload: OfflineSalePayload,
-    totals: { subtotal: number; totalDiscount: number; taxTotal: number; grandTotal: number }
+    totals: { subtotal: number; totalDiscount: number; taxTotal: number; grandTotal: number },
   ): Promise<{ sale: SaleResponse; isOffline: true }> {
+    const posDb = getPosDatabase();
     const localReceiptNumber = generateLocalReceiptNumber();
     const createdAt = new Date().toISOString();
 
@@ -34,12 +41,14 @@ export const posOfflineService = {
       status: 'COMPLETED',
       paymentMethod: payload.paymentMethod,
       customerName: payload.customerName || null,
-      customer: payload.customerName ? { id: 'offline-cust', name: payload.customerName, phone: payload.customerPhone || null } : null,
+      customer: payload.customerName
+        ? { id: 'offline-cust', name: payload.customerName, phone: payload.customerPhone || null }
+        : null,
       cashierName: 'Offline Mode (Local Queue)',
       createdAt,
       itemsCount: payload.items.length,
       items: payload.items.map((item, idx) => {
-        const taxApplied = (item.taxRatePercent || 0) * item.unitPrice * item.quantity / 100;
+        const taxApplied = ((item.taxRatePercent || 0) * item.unitPrice * item.quantity) / 100;
         const discountAmount = item.discount || 0;
         return {
           id: `offline-item-${idx}`,
@@ -65,6 +74,7 @@ export const posOfflineService = {
    * Get all pending sales awaiting synchronization
    */
   async getPendingSales(): Promise<OfflineSaleRecord[]> {
+    const posDb = getPosDatabase();
     return await posDb.offlineSales.where('status').equals('pending_sync').toArray();
   },
 
@@ -72,6 +82,7 @@ export const posOfflineService = {
    * Get all offline transactions (pending, synced, conflict)
    */
   async getAllOfflineSales(): Promise<OfflineSaleRecord[]> {
+    const posDb = getPosDatabase();
     return await posDb.offlineSales.orderBy('createdAt').reverse().toArray();
   },
 
@@ -79,13 +90,19 @@ export const posOfflineService = {
    * Count pending sales needing sync
    */
   async getPendingCount(): Promise<number> {
+    const posDb = getPosDatabase();
     return await posDb.offlineSales.where('status').equals('pending_sync').count();
   },
 
   /**
    * Synchronize queued sales sequentially with the NestJS API
    */
-  async syncQueuedSales(): Promise<{ successCount: number; conflictCount: number; errorCount: number }> {
+  async syncQueuedSales(): Promise<{
+    successCount: number;
+    conflictCount: number;
+    errorCount: number;
+  }> {
+    const posDb = getPosDatabase();
     const pendingSales = await this.getPendingSales();
     if (pendingSales.length === 0) {
       return { successCount: 0, conflictCount: 0, errorCount: 0 };
@@ -99,6 +116,7 @@ export const posOfflineService = {
       if (!record.id) continue;
 
       try {
+        assertActivePosDatabase(posDb);
         const res = await salesApi.createSale(record.payload);
         if (res?.sale) {
           await posDb.offlineSales.update(record.id, {
@@ -135,10 +153,12 @@ export const posOfflineService = {
    * Retry single offline sale marked as conflict
    */
   async retrySingleSale(id: number): Promise<boolean> {
+    const posDb = getPosDatabase();
     const record = await posDb.offlineSales.get(id);
     if (!record) return false;
 
     try {
+      assertActivePosDatabase(posDb);
       const res = await salesApi.createSale(record.payload);
       if (res?.sale) {
         await posDb.offlineSales.update(id, {
@@ -166,6 +186,7 @@ export const posOfflineService = {
    * Remove single record from local IndexedDB
    */
   async deleteRecord(id: number): Promise<void> {
+    const posDb = getPosDatabase();
     await posDb.offlineSales.delete(id);
   },
 
@@ -173,6 +194,7 @@ export const posOfflineService = {
    * Clear all synced records to keep IndexedDB clean
    */
   async clearSyncedRecords(): Promise<void> {
+    const posDb = getPosDatabase();
     const syncedRecords = await posDb.offlineSales.where('status').equals('synced').toArray();
     const ids = syncedRecords.map((r) => r.id!).filter(Boolean);
     await posDb.offlineSales.bulkDelete(ids);

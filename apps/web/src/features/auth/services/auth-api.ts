@@ -4,7 +4,6 @@ import type { UserSession } from '@/context/auth-context';
 
 export interface AuthResponse {
   success: boolean;
-  accessToken?: string;
   user: UserSession;
 }
 

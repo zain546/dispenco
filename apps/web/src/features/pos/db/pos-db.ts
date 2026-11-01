@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { getSessionIdentity } from '@/lib/session-identity';
 
 export interface OfflineSaleItemPayload {
   productId: string;
@@ -94,8 +95,8 @@ export class DispencoPosDatabase extends Dexie {
   localCustomers!: Table<LocalCustomerRecord, string>;
   syncMetadata!: Table<SyncMetadataRecord, string>;
 
-  constructor() {
-    super('DispencoPosDatabase');
+  constructor(name: string) {
+    super(name);
 
     this.version(1).stores({
       offlineSales: '++id, localReceiptNumber, status, createdAt',
@@ -103,14 +104,33 @@ export class DispencoPosDatabase extends Dexie {
 
     this.version(2).stores({
       offlineSales: '++id, localReceiptNumber, clientTxId, status, createdAt',
-      localProducts: 'id, name, genericName, category, barcode, isControlledSubstance, totalStock, updatedAt',
+      localProducts:
+        'id, name, genericName, category, barcode, isControlledSubstance, totalStock, updatedAt',
       localCustomers: 'id, name, phone, creditBalance',
       syncMetadata: 'key, lastSyncedAt',
     });
   }
 }
 
-export const posDb = new DispencoPosDatabase();
+const sessionDatabases = new Map<string, DispencoPosDatabase>();
+
+/** Only verified identity selects a cache; never infer ownership of legacy data. */
+export function getPosDatabase(): DispencoPosDatabase {
+  const user = getSessionIdentity();
+  if (!user) throw new Error('A verified session is required for offline data');
+  const name = `DispencoPosDatabase:${encodeURIComponent(user.tenantId)}:${encodeURIComponent(user.id)}`;
+  let database = sessionDatabases.get(name);
+  if (!database) {
+    database = new DispencoPosDatabase(name);
+    sessionDatabases.set(name, database);
+  }
+  return database;
+}
+
+export function assertActivePosDatabase(database: DispencoPosDatabase) {
+  if (database !== getPosDatabase())
+    throw new Error('Your session changed. Please reopen the POS counter.');
+}
 
 /**
  * Generate a unique local receipt identifier for offline transactions

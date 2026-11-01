@@ -38,9 +38,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getProfile(@CurrentUser() user: AuthenticatedUser) {
+    const { userId: _userId, tokenVersion: _tokenVersion, ...profile } = user;
     return {
       success: true,
-      user,
+      user: profile,
     };
   }
 

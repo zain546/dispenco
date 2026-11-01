@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Headers, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Headers, UseGuards, Req, NotFoundException } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 import { SafepayService } from './safepay.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -41,7 +41,7 @@ export class BillingController {
     @Body() body: any,
     @Headers('x-sfpy-signature') signature?: string
   ) {
-    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(body);
+    const rawBody = req.rawBody?.toString('utf8') || '';
     return this.safepayService.handleWebhook(rawBody, signature, body);
   }
 
@@ -49,6 +49,7 @@ export class BillingController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.BILLING_MANAGE)
   async mockRenew(@Req() req: any) {
+    if (process.env.NODE_ENV === 'production') throw new NotFoundException();
     const tenantId = req.user.tenantId;
     return this.subscriptionService.extendSubscriptionPeriod(tenantId, 30);
   }

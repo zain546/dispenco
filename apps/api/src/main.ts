@@ -7,7 +7,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 4000);
@@ -20,7 +20,9 @@ async function bootstrap() {
     : ['http://localhost:3000'];
 
   app.use(cookieParser());
-  app.use(json({ limit: '25mb' }));
+  app.use(json({ limit: '25mb', verify: (req, _res, body) => {
+    (req as typeof req & { rawBody: Buffer }).rawBody = Buffer.from(body);
+  } }));
   app.use(urlencoded({ extended: true, limit: '25mb' }));
 
   app.setGlobalPrefix('api/v1');

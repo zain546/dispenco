@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { ProtectedRoute } from '@/features/auth/components/protected-route';
 import { SignOutDialog } from '@/features/auth/components/sign-out-dialog';
 import { useSignOutConfirmation } from '@/features/auth/hooks/use-sign-out-confirmation';
 import { NotificationBell } from '@/components/layout/notification-bell';
@@ -49,6 +50,7 @@ import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { AiAssistantWidget } from '@/components/layout/ai-assistant-widget';
 import { SubscriptionBanner } from '@/components/subscription-banner';
 import { cn } from '@/lib/utils';
+import { canAccessPage } from '@/lib/auth-policy';
 
 interface NavItem {
   name: string;
@@ -144,6 +146,7 @@ export default function DashboardLayout({
 
   const filterNavItems = (items: NavItem[]) =>
     items.filter((item) => {
+      if (!user || !canAccessPage(item.href, user)) return false;
       if (item.requiresMultiStore && !isMultiStore) return false;
       if (!item.permission) return true;
       return Boolean((permissions as any)[item.permission]);
@@ -212,7 +215,7 @@ export default function DashboardLayout({
   );
 
   return (
-    <TooltipProvider delayDuration={100}>
+    <ProtectedRoute><TooltipProvider delayDuration={100}>
       <div className="flex min-h-screen bg-background">
         {/* Desktop Collapsible Sidebar (Hidden on Mobile/Tablet < lg) */}
         <aside
@@ -431,6 +434,6 @@ export default function DashboardLayout({
         </div>
       </div>
       <SignOutDialog {...dialogProps} />
-    </TooltipProvider>
+    </TooltipProvider></ProtectedRoute>
   );
 }

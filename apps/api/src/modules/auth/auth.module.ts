@@ -13,7 +13,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'dispenco_secret_key_change_in_prod',
+        secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: { expiresIn: '15m' },
       }),
     }),

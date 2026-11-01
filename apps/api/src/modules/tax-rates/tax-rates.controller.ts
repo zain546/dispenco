@@ -13,13 +13,17 @@ import { CreateTaxRateDto } from './dtos/create-tax-rate.dto';
 import { UpdateTaxRateDto } from './dtos/update-tax-rate.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Permission } from '@dispenco/types';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 
 @Controller('tax-rates')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class TaxRatesController {
   constructor(private readonly taxRatesService: TaxRatesService) {}
 
   @Post()
+  @RequirePermissions(Permission.SETTINGS_MANAGE)
   create(
     @CurrentUser('tenantId') tenantId: string,
     @Body() dto: CreateTaxRateDto
@@ -41,6 +45,7 @@ export class TaxRatesController {
   }
 
   @Patch(':id')
+  @RequirePermissions(Permission.SETTINGS_MANAGE)
   update(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') id: string,
@@ -50,6 +55,7 @@ export class TaxRatesController {
   }
 
   @Delete(':id')
+  @RequirePermissions(Permission.SETTINGS_MANAGE)
   remove(
     @CurrentUser('tenantId') tenantId: string,
     @Param('id') id: string

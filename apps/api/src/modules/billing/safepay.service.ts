@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionService } from './subscription.service';
@@ -23,7 +23,7 @@ export class SafepayService {
     this.env = (this.configService.get<string>('SAFEPAY_ENV') || 'sandbox') as 'sandbox' | 'production';
     this.apiKey = this.configService.get<string>('SAFEPAY_API_KEY') || 'sec_sandbox_test_key';
     this.secretKey = this.configService.get<string>('SAFEPAY_SECRET_KEY') || 'sec_sandbox_secret';
-    this.webhookSecret = this.configService.get<string>('SAFEPAY_WEBHOOK_SECRET') || 'whsec_sandbox_secret';
+    this.webhookSecret = this.configService.get<string>('SAFEPAY_WEBHOOK_SECRET') || '';
 
     this.apiBaseUrl =
       this.env === 'production'
@@ -130,26 +130,17 @@ export class SafepayService {
    */
   async verifySession(tracker: string, tenantId: string) {
     if (!tracker) {
-      return this.subscriptionService.getTenantSubscription(tenantId);
+      throw new BadRequestException('A payment tracker is required');
     }
 
     const invoice = await this.prisma.subscriptionInvoice.findUnique({
       where: { providerTrackerId: tracker },
     });
 
-    if (invoice && invoice.tenantId === tenantId && invoice.status !== 'PAID') {
-      await this.prisma.subscriptionInvoice.update({
-        where: { id: invoice.id },
-        data: {
-          status: 'PAID',
-          paidAt: new Date(),
-          providerPaymentRef: tracker,
-        },
-      });
-
-      await this.subscriptionService.extendSubscriptionPeriod(tenantId, 30);
-      this.logger.log(`Verified and extended subscription for tenant ${tenantId} via tracker ${tracker}`);
-    }
+    if (!invoice || invoice.tenantId !== tenantId) throw new NotFoundException('Payment not found');
+    // A browser return URL is not proof of payment. Only the verified webhook
+    // may settle an invoice and extend the subscription.
+    if (invoice.status !== 'PAID') throw new ConflictException('Payment confirmation is pending');
 
     return this.subscriptionService.getTenantSubscription(tenantId);
   }
@@ -181,10 +172,12 @@ export class SafepayService {
    */
   async handleWebhook(rawBody: string, signature?: string, payload?: any) {
     const eventId = payload?.data?.tracker || payload?.id || `evt_${Date.now()}`;
-    const eventType = payload?.event || payload?.type || 'payment.completed';
+    const eventType = payload?.event || payload?.type;
+    if (!eventType) throw new BadRequestException('Missing webhook event type');
 
     // Verify signature in production
-    if (this.env === 'production') {
+    if (this.env === 'production' || process.env.NODE_ENV === 'production') {
+      if (!this.webhookSecret) throw new BadRequestException('Webhook verification is not configured');
       const isValid = this.verifyWebhookSignature(rawBody, signature);
       if (!isValid) {
         throw new BadRequestException('Invalid Safepay webhook signature');

@@ -1,3 +1,4 @@
+import { ProtectedRoute } from '@/features/auth/components/protected-route';
 import { OnboardingCard } from '@/features/auth/components/onboarding-card';
 
 export const metadata = {
@@ -6,5 +7,5 @@ export const metadata = {
 };
 
 export default function OnboardingPage() {
-  return <OnboardingCard />;
+  return <ProtectedRoute><OnboardingCard /></ProtectedRoute>;
 }

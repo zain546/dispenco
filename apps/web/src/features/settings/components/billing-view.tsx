@@ -129,7 +129,7 @@ export function BillingView() {
     const paymentStatus = searchParams.get('payment_status') || searchParams.get('status');
     const tracker = searchParams.get('beacon') || searchParams.get('tracker');
 
-    if (paymentStatus === 'success' || paymentStatus === 'completed') {
+    if (paymentStatus === 'pending' || paymentStatus === 'success' || paymentStatus === 'completed') {
       if (tracker) {
         billingApi.verifySession(tracker)
           .then((data) => {
@@ -143,7 +143,7 @@ export function BillingView() {
             router.replace('/settings?tab=billing');
           });
       } else {
-        toast.success('Payment completed successfully! Subscription renewed.');
+        toast.info('Check your subscription status below. Payment confirmation is not available yet.');
         fetchSubscription();
         router.replace('/settings?tab=billing');
       }
@@ -236,7 +236,7 @@ export function BillingView() {
                 {isCheckingOut ? <RefreshCw className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
                 Pay via Safepay (PKR 2,500)
               </Button>
-              <Button
+              {process.env.NODE_ENV !== 'production' && (<Button
                 variant="outline"
                 size="sm"
                 onClick={handleRenew}
@@ -246,7 +246,7 @@ export function BillingView() {
               >
                 {isRenewing ? <RefreshCw className="size-3 animate-spin mr-1" /> : <Zap className="size-3 mr-1" />}
                 Instant Sim
-              </Button>
+              </Button>)}
             </div>
           </div>
         </div>
@@ -410,7 +410,7 @@ export function BillingView() {
               Need custom multi-branch enterprise terms? <a href="mailto:support@dispenco.com" className="text-primary hover:underline font-medium">Contact Dispenco Sales</a>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 w-full xl:w-auto shrink-0">
-              <Button
+              {process.env.NODE_ENV !== 'production' && (<Button
                 variant="outline"
                 size="sm"
                 onClick={handleRenew}
@@ -420,7 +420,7 @@ export function BillingView() {
               >
                 {isRenewing ? <RefreshCw className="size-3.5 animate-spin" /> : <Zap className="size-3.5 text-amber-500" />}
                 <span>Simulate Renewal (Dev)</span>
-              </Button>
+              </Button>)}
               <Button
                 onClick={handleCheckout}
                 disabled={isCheckingOut || isRenewing || !canManageBilling}

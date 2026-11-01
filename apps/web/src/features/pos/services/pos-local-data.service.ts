@@ -1,5 +1,6 @@
 import {
-  posDb,
+  getPosDatabase,
+  assertActivePosDatabase,
   LocalProductRecord,
   LocalCustomerRecord,
   OfflineSalePayload,
@@ -26,6 +27,7 @@ export const posLocalDataService = {
    * 1. Pull latest server catalog and persist into local IndexedDB
    */
   async syncCatalogToLocal(storeId?: string): Promise<{ count: number; timestamp: string }> {
+    const posDb = getPosDatabase();
     try {
       const [productsRes, customersRes] = await Promise.all([
         productsApi.getProducts({ storeId, limit: 1000 }),
@@ -73,19 +75,23 @@ export const posLocalDataService = {
       }));
 
       // Transactional bulk overwrite in IndexedDB
-      await posDb.transaction('rw', [posDb.localProducts, posDb.localCustomers, posDb.syncMetadata], async () => {
-        await posDb.localProducts.clear();
-        await posDb.localProducts.bulkPut(localProductRecords);
+      await posDb.transaction(
+        'rw',
+        [posDb.localProducts, posDb.localCustomers, posDb.syncMetadata],
+        async () => {
+          await posDb.localProducts.clear();
+          await posDb.localProducts.bulkPut(localProductRecords);
 
-        await posDb.localCustomers.clear();
-        await posDb.localCustomers.bulkPut(localCustomerRecords);
+          await posDb.localCustomers.clear();
+          await posDb.localCustomers.bulkPut(localCustomerRecords);
 
-        await posDb.syncMetadata.put({
-          key: 'catalog_sync',
-          lastSyncedAt: now,
-          recordCount: localProductRecords.length,
-        });
-      });
+          await posDb.syncMetadata.put({
+            key: 'catalog_sync',
+            lastSyncedAt: now,
+            recordCount: localProductRecords.length,
+          });
+        },
+      );
 
       return { count: localProductRecords.length, timestamp: now };
     } catch (err: unknown) {
@@ -98,6 +104,7 @@ export const posLocalDataService = {
    * 2. Local-First Product Search: instantaneous queries directly from IndexedDB
    */
   async searchLocalProducts(query: string): Promise<ProductData[]> {
+    const posDb = getPosDatabase();
     const q = (query || '').trim().toLowerCase();
     if (!q) {
       const records = await posDb.localProducts.limit(30).toArray();
@@ -130,6 +137,7 @@ export const posLocalDataService = {
    * 3. Local-First Barcode lookup
    */
   async getLocalProductByBarcode(barcode: string): Promise<ProductData | null> {
+    const posDb = getPosDatabase();
     const clean = barcode.trim();
     if (!clean) return null;
 
@@ -144,6 +152,7 @@ export const posLocalDataService = {
     payload: OfflineSalePayload,
     totals: { subtotal: number; totalDiscount: number; taxTotal: number; grandTotal: number },
   ): Promise<{ sale: SaleResponse; isOffline: boolean }> {
+    const posDb = getPosDatabase();
     const localReceiptNumber = generateLocalReceiptNumber();
     const clientTxId = generateClientTxId();
     const createdAt = new Date().toISOString();
@@ -158,19 +167,23 @@ export const posLocalDataService = {
     };
 
     // Save transaction and decrement local product stock atomically
-    const id = await posDb.transaction('rw', [posDb.offlineSales, posDb.localProducts], async () => {
-      const recordId = await posDb.offlineSales.add(record);
+    const id = await posDb.transaction(
+      'rw',
+      [posDb.offlineSales, posDb.localProducts],
+      async () => {
+        const recordId = await posDb.offlineSales.add(record);
 
-      for (const item of payload.items) {
-        const prod = await posDb.localProducts.get(item.productId);
-        if (prod) {
-          const newStock = Math.max(0, prod.totalStock - item.quantity);
-          await posDb.localProducts.update(item.productId, { totalStock: newStock });
+        for (const item of payload.items) {
+          const prod = await posDb.localProducts.get(item.productId);
+          if (prod) {
+            const newStock = Math.max(0, prod.totalStock - item.quantity);
+            await posDb.localProducts.update(item.productId, { totalStock: newStock });
+          }
         }
-      }
 
-      return recordId;
-    });
+        return recordId;
+      },
+    );
 
     // Generate synthetic sale response for receipt printing
     const syntheticSale: SaleResponse = {
@@ -220,10 +233,8 @@ export const posLocalDataService = {
     conflictCount: number;
     errorCount: number;
   }> {
-    const pendingSales = await posDb.offlineSales
-      .where('status')
-      .equals('pending_sync')
-      .toArray();
+    const posDb = getPosDatabase();
+    const pendingSales = await posDb.offlineSales.where('status').equals('pending_sync').toArray();
 
     if (pendingSales.length === 0) {
       return { successCount: 0, conflictCount: 0, errorCount: 0 };
@@ -237,6 +248,7 @@ export const posLocalDataService = {
       if (!record.id) continue;
 
       try {
+        assertActivePosDatabase(posDb);
         const res = await salesApi.createSale(record.payload);
         if (res?.sale) {
           await posDb.offlineSales.update(record.id, {
@@ -280,6 +292,7 @@ export const posLocalDataService = {
     recordId: number,
     resolution: 'OVERRIDE_ADJUST' | 'CANCEL',
   ): Promise<boolean> {
+    const posDb = getPosDatabase();
     const record = await posDb.offlineSales.get(recordId);
     if (!record) return false;
 
@@ -301,6 +314,7 @@ export const posLocalDataService = {
     if (resolution === 'OVERRIDE_ADJUST') {
       // Force sync retry
       await posDb.offlineSales.update(recordId, { status: 'pending_sync' });
+      assertActivePosDatabase(posDb);
       const res = await this.syncPendingSales();
       return res.successCount > 0;
     }
@@ -312,6 +326,7 @@ export const posLocalDataService = {
    * 7. Get live sync status summary
    */
   async getStatus(): Promise<LocalSyncStatus> {
+    const posDb = getPosDatabase();
     const [meta, pendingCount, conflictCount, cachedCount] = await Promise.all([
       posDb.syncMetadata.get('catalog_sync'),
       posDb.offlineSales.where('status').equals('pending_sync').count(),
@@ -333,6 +348,7 @@ export const posLocalDataService = {
    * 8. Get all offline sale records ordered by creation date
    */
   async getAllOfflineSales(): Promise<OfflineSaleRecord[]> {
+    const posDb = getPosDatabase();
     return await posDb.offlineSales.orderBy('createdAt').reverse().toArray();
   },
 
@@ -340,6 +356,7 @@ export const posLocalDataService = {
    * 9. Delete a single offline sale record
    */
   async deleteRecord(id: number): Promise<void> {
+    const posDb = getPosDatabase();
     await posDb.offlineSales.delete(id);
   },
 
@@ -347,9 +364,9 @@ export const posLocalDataService = {
    * 10. Clear synced records from IndexedDB to maintain optimal performance
    */
   async clearSyncedRecords(): Promise<void> {
+    const posDb = getPosDatabase();
     const syncedRecords = await posDb.offlineSales.where('status').equals('synced').toArray();
     const ids = syncedRecords.map((r) => r.id!).filter(Boolean);
     await posDb.offlineSales.bulkDelete(ids);
   },
 };
-

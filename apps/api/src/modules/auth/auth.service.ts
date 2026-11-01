@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Response, Request } from 'express';
@@ -7,6 +7,7 @@ import { ALL_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS } from '@dispenco/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
+import { sessionProfile, sessionUserInclude } from './session-user';
 import { JwtPayload, AuthenticatedUser } from './interfaces/jwt-payload.interface';
 
 @Injectable()
@@ -171,22 +172,7 @@ export class AuthService {
     const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findFirst({
       where: { email },
-      include: {
-        tenant: {
-          include: { stores: { take: 1 } },
-        },
-        userRoles: {
-          include: {
-            role: {
-              include: {
-                rolePermissions: {
-                  include: { permission: true },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: sessionUserInclude,
     });
 
     if (!user) {
@@ -202,15 +188,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const primaryRole = user.userRoles[0]?.role;
-    const roleName = primaryRole?.name || 'User';
-    const store = user.tenant.stores[0] || null;
-    const storeName = store?.name || null;
-    const storeId = store?.id || null;
-
-    const userPermissions = primaryRole?.rolePermissions.map(
-      (rp) => rp.permission.name
-    ) || [];
+    const profile = sessionProfile(user);
+    const { role: roleName, permissions: userPermissions, storeId, storeName } = profile;
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -247,39 +226,26 @@ export class AuthService {
     }
 
     try {
-      const secret = this.configService.get<string>('JWT_SECRET') || 'dispenco_secret_key_change_in_prod';
-      const payload = this.jwtService.verify<JwtPayload>(refreshToken, { secret });
+      const secret = this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET');
+      const payload = this.jwtService.verify<JwtPayload>(refreshToken, { secret, algorithms: ['HS256'] });
+      if (payload.tokenUse !== 'refresh' || !payload.sub || !payload.tenantId) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
-        include: {
-          userRoles: {
-            include: {
-              role: {
-                include: {
-                  rolePermissions: {
-                    include: { permission: true },
-                  },
-                },
-              },
-            },
-          },
-        },
+        include: sessionUserInclude,
       });
 
       if (!user || !user.isActive) {
         throw new UnauthorizedException('User account invalid or inactive');
       }
 
-      if (user.tokenVersion !== payload.tokenVersion) {
+      if (user.tokenVersion !== payload.tokenVersion || user.tenantId !== payload.tenantId) {
         throw new UnauthorizedException('Token has been revoked');
       }
 
-      const primaryRole = user.userRoles[0]?.role;
-      const roleName = primaryRole?.name || payload.role;
-      const userPermissions = primaryRole?.rolePermissions.map(
-        (rp) => rp.permission.name
-      ) || payload.permissions || [];
+      const { role: roleName, permissions: userPermissions } = sessionProfile(user);
 
       const newPayload: JwtPayload = {
         sub: user.id,
@@ -297,8 +263,11 @@ export class AuthService {
         success: true,
         accessToken,
       };
-    } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+    } catch (error) {
+      if (error instanceof UnauthorizedException || (error instanceof Error && ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(error.name))) {
+        throw new UnauthorizedException('Invalid or expired refresh token');
+      }
+      throw new ServiceUnavailableException('Authentication service is temporarily unavailable');
     }
   }
 
@@ -320,7 +289,7 @@ export class AuthService {
     });
 
     res.clearCookie('dispenco_access_token', {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
@@ -342,24 +311,24 @@ export class AuthService {
   }
 
   /**
-   * Generate short-lived Access Token (1 day) and long-lived Refresh Token (30 days / 1 month)
+   * Generate short-lived Access Token (15 minutes) and long-lived Refresh Token (30 days / 1 month)
    */
   private generateTokens(payload: JwtPayload) {
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '1d' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
+    const accessToken = this.jwtService.sign({ ...payload, tokenUse: 'access' }, { expiresIn: '15m', algorithm: 'HS256' });
+    const refreshToken = this.jwtService.sign({ ...payload, tokenUse: 'refresh' }, { secret: this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET'), expiresIn: '30d', algorithm: 'HS256' });
     return { accessToken, refreshToken };
   }
 
   /**
-   * Set HTTP cookies: Access token expires in 1 day; Refresh token expires in 30 days
+   * Set HTTP cookies: Access token expires in 15 minutes; Refresh token expires in 30 days
    */
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
-    // 1-Day Access Token Cookie
+    // Short-lived access token cookie
     res.cookie('dispenco_access_token', accessToken, {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 24 * 3600 * 1000, // 1 day
+      maxAge: 15 * 60 * 1000,
     });
 
     // 30-Day (1 Month) Refresh Token HTTP-Only Cookie

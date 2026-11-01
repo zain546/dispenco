@@ -13,12 +13,12 @@ export async function POST(req: NextRequest) {
     }
 
     const redirectUrl = new URL(
-      `/settings?tab=billing&status=success${tracker ? `&beacon=${encodeURIComponent(tracker)}` : ''}`,
+      `/settings?tab=billing&status=pending${tracker ? `&beacon=${encodeURIComponent(tracker)}` : ''}`,
       req.url
     );
     return NextResponse.redirect(redirectUrl, 303);
   } catch {
-    const redirectUrl = new URL('/settings?tab=billing&status=success', req.url);
+    const redirectUrl = new URL('/settings?tab=billing&status=pending', req.url);
     return NextResponse.redirect(redirectUrl, 303);
   }
 }
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const tracker = req.nextUrl.searchParams.get('beacon') || req.nextUrl.searchParams.get('tracker') || '';
   const redirectUrl = new URL(
-    `/settings?tab=billing&status=success${tracker ? `&beacon=${encodeURIComponent(tracker)}` : ''}`,
+    `/settings?tab=billing&status=pending${tracker ? `&beacon=${encodeURIComponent(tracker)}` : ''}`,
     req.url
   );
   return NextResponse.redirect(redirectUrl, 303);

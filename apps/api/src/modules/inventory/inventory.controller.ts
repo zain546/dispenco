@@ -41,6 +41,7 @@ export class InventoryController {
    * Step 1.13 — Lookup product and active FEFO-ordered batches by barcode
    */
   @Get('barcode/:barcode')
+  @RequirePermissions(Permission.INVENTORY_READ)
   async lookupByBarcode(
     @CurrentUser('tenantId') tenantId: string,
     @Param('barcode') barcode: string,
@@ -54,6 +55,7 @@ export class InventoryController {
    * Get FEFO-ordered batches for a product
    */
   @Get('products/:productId/batches')
+  @RequirePermissions(Permission.INVENTORY_READ)
   async getProductBatches(
     @CurrentUser('tenantId') tenantId: string,
     @Param('productId') productId: string,
@@ -67,6 +69,7 @@ export class InventoryController {
    * Update details of a specific batch (batchNumber, expiryDate, prices, quantityRemaining)
    */
   @Patch('batches/:batchId')
+  @RequirePermissions(Permission.INVENTORY_UPDATE)
   async updateBatch(
     @CurrentUser('tenantId') tenantId: string,
     @Param('batchId') batchId: string,
@@ -80,6 +83,7 @@ export class InventoryController {
    * Calculate FEFO batch deduction plan for sale checkout
    */
   @Post('select-fefo-batches')
+  @RequirePermissions(Permission.SALES_CREATE)
   async selectFefoBatches(
     @CurrentUser('tenantId') tenantId: string,
     @Body() dto: { productId: string; quantityNeeded: number; storeId?: string; allowExpired?: boolean },
@@ -138,6 +142,7 @@ export class InventoryController {
    * Step 1.10 — Inventory aggregation per store / product across active batches
    */
   @Get('aggregation')
+  @RequirePermissions(Permission.INVENTORY_READ)
   async getInventoryAggregation(
     @CurrentUser('tenantId') tenantId: string,
     @Query('storeId') storeId?: string,
@@ -164,6 +169,7 @@ export class InventoryController {
   }
 
   @Get()
+  @RequirePermissions(Permission.INVENTORY_READ)
   async getInventoryOverview(
     @CurrentUser('tenantId') tenantId: string,
     @Query('storeId') storeId?: string,
