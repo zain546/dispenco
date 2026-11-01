@@ -8,7 +8,9 @@ export default defineConfig([
   },
   {
     files: [
+      'src/components/brand/**/*.{ts,tsx}',
       'src/components/marketing/**/*.{ts,tsx}',
+      'src/features/auth/components/auth-header.tsx',
       'src/app/(marketing)/**/*.{ts,tsx}',
       'src/app/robots.ts',
       'src/app/sitemap.ts',

@@ -1,30 +1,27 @@
 import Link from 'next/link';
-import { ArrowRight, Pill } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { DispencoMark } from '@/components/brand/dispenco-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { marketingConfig } from './config';
 
-export function Wordmark({ linked = true }: { linked?: boolean }) {
+export function Wordmark({ linked = true, className }: { linked?: boolean; className?: string }) {
   const mark = (
     <>
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <Pill className="size-5" aria-hidden="true" />
-      </span>
-      <span className="text-xl font-semibold tracking-tight">
-        dispenco<span className="text-primary dark:text-foreground">.</span>
-      </span>
+      <DispencoMark />
+      <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">dispenco</span>
     </>
   );
   return linked ? (
     <Link
       href="/"
       aria-label="Dispenco home"
-      className="inline-flex shrink-0 items-center gap-2.5 rounded-lg"
+      className={cn('inline-flex shrink-0 items-center gap-2.5 rounded-xl', className)}
     >
       {mark}
     </Link>
   ) : (
-    <span className="inline-flex items-center gap-2.5">{mark}</span>
+    <span className={cn('inline-flex shrink-0 items-center gap-2.5', className)}>{mark}</span>
   );
 }
 

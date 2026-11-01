@@ -10,7 +10,6 @@ import {
   LockKeyhole,
   Package,
   PanelLeft,
-  Plus,
   ReceiptText,
   Search,
   Settings2,
@@ -23,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import styles from './dashboard-preview.module.css';
+import { Wordmark } from './shared';
 
 const menu = [
   { icon: LayoutDashboard, label: 'Overview', active: true },
@@ -120,11 +120,8 @@ export function DashboardPreview() {
             aria-hidden="true"
           >
             <div>
-              <div className="mb-8 flex items-center gap-2 text-sm font-semibold">
-                <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Plus className="size-4" />
-                </span>
-                dispenco.
+              <div className="mb-8">
+                <Wordmark linked={false} />
               </div>
               <div className="mb-5 flex items-center gap-2 rounded-lg border bg-background p-2 text-xs">
                 <Store className="size-4 text-muted-foreground" />
