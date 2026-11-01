@@ -93,7 +93,7 @@ export function CtaButtons({
           appearance === 'hero' && 'hero-cta-secondary',
         )}
       >
-        <a href={marketingConfig.demoHref}>Book a demo</a>
+        <Link href={marketingConfig.contactHref}>Contact us</Link>
       </Button>
     </div>
   );

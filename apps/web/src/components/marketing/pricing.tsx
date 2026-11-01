@@ -120,10 +120,10 @@ export function Pricing() {
                   )}
                 >
                   {price === null ? (
-                    <a href={marketingConfig.contactHref}>
+                    <Link href={marketingConfig.contactHref}>
                       {plan.cta}
                       <ArrowRight className="marketing-arrow size-4" aria-hidden="true" />
-                    </a>
+                    </Link>
                   ) : (
                     <Link prefetch={false} href={marketingConfig.trialHref}>
                       {plan.cta}

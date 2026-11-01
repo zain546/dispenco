@@ -44,13 +44,13 @@ export function Navbar() {
         <Wordmark />
         <nav aria-label="Main navigation" className="hidden items-center gap-7 lg:flex">
           {navigation.map((item) => (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className="marketing-nav-link rounded-md py-2 text-sm text-muted-foreground hover:text-foreground"
             >
               {item.label}
-            </a>
+            </Link>
           ))}
         </nav>
         <div className="flex items-center gap-2">
@@ -100,12 +100,12 @@ export function Navbar() {
               <nav className="flex flex-col gap-2 px-6" aria-label="Mobile navigation">
                 {navigation.map((item) => (
                   <SheetClose asChild key={item.href}>
-                    <a
+                    <Link
                       href={item.href}
                       className="marketing-menu-link rounded-lg px-3 py-3 text-base hover:bg-muted"
                     >
                       {item.label}
-                    </a>
+                    </Link>
                   </SheetClose>
                 ))}
               </nav>

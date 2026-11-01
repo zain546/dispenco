@@ -1,9 +1,15 @@
-/** Launch placeholders: confirm all commercial details before publishing. */
+/** Shared public destinations and commercial content. */
+const whatsappNumber = '+923424912546';
+
 export const marketingConfig = {
   url: 'https://dispenco.com',
-  email: 'hello@dispenco.com', // Placeholder: replace with a monitored inbox.
-  demoHref: 'mailto:hello@dispenco.com?subject=Book%20a%20Dispenco%20demo', // Replace with booking URL.
-  contactHref: 'mailto:hello@dispenco.com',
+  email: 'zainali546official@gmail.com',
+  whatsappNumber,
+  whatsappHref: `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`,
+  contactHref: '/contact',
+  supportHref: '/support',
+  privacyHref: '/privacy',
+  termsHref: '/terms',
   trialHref: '/signup',
   pricing: {
     placeholder: true,
@@ -75,8 +81,8 @@ export const marketingConfig = {
 } as const;
 
 export const navigation = [
-  { label: 'Features', href: '#features' },
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'FAQ', href: '#faq' },
+  { label: 'Features', href: '/#features' },
+  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'Pricing', href: '/#pricing' },
+  { label: 'FAQ', href: '/#faq' },
 ] as const;

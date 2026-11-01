@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
 import { marketingConfig } from './config';
 import { Wordmark } from './shared';
 
@@ -6,20 +7,19 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { label: 'Features', href: '#features' },
-      { label: 'How it works', href: '#how-it-works' },
-      { label: 'Pricing', href: '#pricing' },
+      { label: 'Features', href: '/#features' },
+      { label: 'How it works', href: '/#how-it-works' },
+      { label: 'Pricing', href: '/#pricing' },
       { label: 'Dashboard', href: '/dashboard' },
     ],
   },
   {
     title: 'Company',
     links: [
-      { label: 'Book a demo', href: marketingConfig.demoHref },
       { label: 'Contact us', href: marketingConfig.contactHref },
       {
         label: 'Help & support',
-        href: `${marketingConfig.contactHref}?subject=Dispenco%20support`,
+        href: marketingConfig.supportHref,
       },
     ],
   },
@@ -27,12 +27,12 @@ const columns = [
     title: 'Legal',
     links: [
       {
-        label: 'Privacy enquiries',
-        href: `${marketingConfig.contactHref}?subject=Privacy%20policy%20enquiry`,
+        label: 'Privacy Policy',
+        href: marketingConfig.privacyHref,
       },
       {
-        label: 'Terms enquiries',
-        href: `${marketingConfig.contactHref}?subject=Terms%20of%20service%20enquiry`,
+        label: 'Terms of Service',
+        href: marketingConfig.termsHref,
       },
     ],
   },
@@ -49,15 +49,12 @@ export function Footer() {
               Modern inventory and business management for pharmacies and medical stores.
             </p>
             <a
-              href={marketingConfig.contactHref}
-              className="marketing-text-link mt-5 inline-flex items-center gap-1.5 rounded-md py-1 text-sm"
+              href={`mailto:${marketingConfig.email}`}
+              className="marketing-text-link mt-5 inline-flex max-w-full items-center gap-1.5 rounded-md py-1 text-sm"
             >
-              {marketingConfig.email}
-              <ArrowUpRight className="marketing-arrow size-3" aria-hidden="true" />
+              <span className="min-w-0 break-all">{marketingConfig.email}</span>
+              <ArrowUpRight className="marketing-arrow size-3 shrink-0" aria-hidden="true" />
             </a>
-            <p className="mt-2 text-micro text-muted-foreground">
-              Placeholder contact · confirm before launch
-            </p>
           </div>
           <div className="grid grid-cols-3 gap-5">
             {columns.map((column) => (
@@ -66,12 +63,13 @@ export function Footer() {
                 <ul className="space-y-4">
                   {column.links.map((link) => (
                     <li key={link.label}>
-                      <a
+                      <Link
                         href={link.href}
+                        prefetch={false}
                         className="marketing-text-link inline-block rounded-md py-1 text-xs leading-5 text-muted-foreground hover:text-foreground"
                       >
                         {link.label}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>

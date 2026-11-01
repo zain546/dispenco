@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
 import {
   Accordion,
   AccordionContent,
@@ -42,7 +43,7 @@ const questions = [
   {
     question: 'How do I get help getting started?',
     answer:
-      'Book a demo or contact our team to discuss your catalog, counter setup, and staff onboarding. Support channels, availability, and any onboarding fees will be confirmed with your plan.',
+      'Contact us by email or WhatsApp to discuss your catalog, counter setup, and staff onboarding. Support arrangements and any onboarding fees will be confirmed with your plan.',
   },
   {
     question: 'Can I cancel my subscription?',
@@ -65,13 +66,13 @@ export function Faq() {
             title="Good questions. Clear answers."
             description="Switching software is a big step. Here’s what to know before you start."
           />
-          <a
-            href={marketingConfig.demoHref}
+          <Link
+            href={marketingConfig.contactHref}
             className="marketing-text-link inline-flex items-center gap-2 rounded-md text-sm font-medium"
           >
             Talk it through with us
             <ArrowUpRight className="marketing-arrow size-4" aria-hidden="true" />
-          </a>
+          </Link>
         </div>
         <Accordion
           type="single"

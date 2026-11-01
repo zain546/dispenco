@@ -64,10 +64,10 @@ In `src/components/marketing/config.ts`:
   sample designation, not a customer statistic.
 - **Testimonials:** Replace all three examples with approved customer quotes and
   attribution, then update the explicit placeholder copy in `testimonials.tsx`.
-- **Contact:** Replace `hello@dispenco.com` with a monitored inbox, update
-  `contactHref`, and remove the footer's placeholder-contact label.
-- **Demo link:** Replace `demoHref` (currently a mailto) with the actual booking
-  URL. All demo CTAs share it.
+- **Contact:** `/contact` displays the owner-provided email
+  `zainali546official@gmail.com` and WhatsApp number `+923424912546` as direct links.
+- **Demo:** The demo page and enquiry forms have been removed. All contact CTAs
+  use `/contact`; legacy `/demo` URLs redirect to it and are excluded from the sitemap.
 - **Canonical domain:** `https://dispenco.com` is selected. Change `url` if
   `dispenco.pk` is the intended primary domain; it feeds metadata, schema,
   sitemap, and robots.
@@ -75,8 +75,31 @@ In `src/components/marketing/config.ts`:
 Confirm onboarding timing and the no-card trial before publishing. The FAQ
 deliberately avoids claiming an unverified security certification, uptime SLA,
 universal hardware support, or refund policy. Replace provisional support and
-cancellation language with confirmed policies. Legal links currently open email
-enquiries; connect published privacy and terms pages when available.
+cancellation language with confirmed policies. `/privacy` and `/terms` contain
+provisional Privacy Policy and Terms of Service drafts, labeled as provisional on
+the pages. Finalize the contracting entity, applicable jurisdiction, service providers,
+processing locations, retention schedules, and commercial terms before treating
+them as final legal documents. No particular privacy regime or compliance status is asserted.
+
+## Public contact, legal, and support pages
+
+- Footer destinations are `/contact`, `/support`, `/privacy`, and `/terms`.
+  Homepage section links use absolute `/#...` paths so they also work from these pages.
+- Contact Us is a static, minimal page with no forms or enquiry collection.
+  Email uses `mailto:` and WhatsApp uses the international number in the official
+  [click-to-chat format](https://faq.whatsapp.com/5913398998672934). Opening a link
+  does not send a message automatically.
+- `legal-content.ts` holds the two independent drafts and their update date;
+  `LegalPage` shares only their document layout, contents navigation, and contact links.
+  Drafting references for clarity and disclosure topics:
+  [ICO privacy information guidance](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/the-right-to-be-informed/what-privacy-information-should-we-provide/)
+  and [CMA clear and fair contract guidance](https://www.gov.uk/guidance/writing-a-fair-contract-for-customers).
+  These references are not a claim that UK law governs the service.
+- `/support` searches the shared guide data used by statically generated
+  `/support/[slug]` pages. Unknown guide slugs return 404. Topics cover setup, CSV
+  import, counter hardware, offline sales, and requesting support.
+- `PublicPage` shares the public page layout and metadata, and the sitemap includes
+  all public contact, legal, and support pages.
 
 All preview product records and amounts are illustrative. Future features remain
 marked **Coming soon**. The reorder buttons are intentionally disabled and cannot
