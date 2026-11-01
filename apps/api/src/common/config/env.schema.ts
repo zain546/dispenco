@@ -20,7 +20,7 @@ export const envValidationSchema = Joi.object({
   CLIENT_URL: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.string()
-      .pattern(/^https:\/\/[^*\s]+(?:,\s*https:\/\/[^*\s]+)*$/)
+      .pattern(/^https?:\/\/[^*\s]+(?:,\s*https?:\/\/[^*\s]+)*$/)
       .required(),
     otherwise: Joi.string().default('http://localhost:3000'),
   }),
