@@ -16,7 +16,10 @@ export function Wordmark({ linked = true, className }: { linked?: boolean; class
     <Link
       href="/"
       aria-label="Dispenco home"
-      className={cn('inline-flex shrink-0 items-center gap-2.5 rounded-xl', className)}
+      className={cn(
+        'marketing-wordmark inline-flex shrink-0 items-center gap-2.5 rounded-xl',
+        className,
+      )}
     >
       {mark}
     </Link>
@@ -37,8 +40,15 @@ export function SectionHeading({
   centered?: boolean;
 }) {
   return (
-    <div className={cn('mb-12 max-w-2xl', centered && 'mx-auto text-center')}>
-      <p className="mb-4 text-overline text-primary dark:text-foreground">{eyebrow}</p>
+    <div
+      className={cn(
+        'mb-12 max-w-2xl',
+        centered && 'marketing-heading-centered mx-auto text-center',
+      )}
+    >
+      <p className="marketing-eyebrow mb-4 text-overline text-primary dark:text-foreground">
+        {eyebrow}
+      </p>
       <h2 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">{title}</h2>
       {description && (
         <p className="mt-5 text-base leading-relaxed text-pretty text-muted-foreground md:text-lg">
@@ -61,12 +71,15 @@ export function CtaButtons({
       <Button
         asChild
         size="lg"
-        className={cn('h-12 shadow-none', appearance === 'hero' && 'hero-cta-primary group')}
+        className={cn(
+          'marketing-action marketing-action-primary h-12 shadow-none',
+          appearance === 'hero' && 'hero-cta-primary group',
+        )}
       >
         <Link href={marketingConfig.trialHref} prefetch={false}>
           Start free trial
           <ArrowRight
-            className={cn('size-4', appearance === 'hero' && 'hero-cta-arrow')}
+            className={cn('marketing-arrow size-4', appearance === 'hero' && 'hero-cta-arrow')}
             aria-hidden="true"
           />
         </Link>
@@ -75,7 +88,10 @@ export function CtaButtons({
         asChild
         variant="outline"
         size="lg"
-        className={cn('h-12 bg-background', appearance === 'hero' && 'hero-cta-secondary')}
+        className={cn(
+          'marketing-action h-12 bg-background',
+          appearance === 'hero' && 'hero-cta-secondary',
+        )}
       >
         <a href={marketingConfig.demoHref}>Book a demo</a>
       </Button>

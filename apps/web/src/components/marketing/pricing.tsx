@@ -30,7 +30,7 @@ export function Pricing() {
         />
         <div className="mb-5 flex justify-center">
           <div
-            className="inline-flex gap-1 rounded-xl border bg-muted/40 p-1"
+            className="marketing-billing inline-flex gap-1 rounded-xl border bg-muted/40 p-1"
             role="group"
             aria-label="Billing period"
           >
@@ -62,15 +62,19 @@ export function Pricing() {
             before purchase.
           </p>
         )}
-        <div className="grid gap-5 md:grid-cols-3" aria-live="polite" aria-atomic="true">
+        <div
+          className="mx-auto grid max-w-md gap-5 lg:max-w-none lg:grid-cols-3"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {marketingConfig.pricing.plans.map((plan) => {
             const price = yearly ? plan.yearly : plan.monthly;
             return (
               <Card
                 key={plan.name}
                 className={cn(
-                  'relative flex flex-col p-6 shadow-none sm:p-8 md:p-6 lg:p-8',
-                  plan.popular && 'border-primary bg-primary/5',
+                  'marketing-card relative flex flex-col p-6 shadow-none sm:p-8 md:p-6 lg:p-8',
+                  plan.popular && 'marketing-plan-featured border-primary/60 bg-primary/5',
                 )}
               >
                 <div className="mb-4 flex min-h-6 flex-wrap items-center justify-between gap-2">
@@ -110,17 +114,20 @@ export function Pricing() {
                 <Button
                   asChild
                   variant={plan.popular ? 'default' : 'outline'}
-                  className="mt-3 w-full shadow-none"
+                  className={cn(
+                    'marketing-action mt-3 h-11 w-full shadow-none',
+                    plan.popular && 'marketing-action-primary',
+                  )}
                 >
                   {price === null ? (
                     <a href={marketingConfig.contactHref}>
                       {plan.cta}
-                      <ArrowRight className="size-4" aria-hidden="true" />
+                      <ArrowRight className="marketing-arrow size-4" aria-hidden="true" />
                     </a>
                   ) : (
                     <Link prefetch={false} href={marketingConfig.trialHref}>
                       {plan.cta}
-                      <ArrowRight className="size-4" aria-hidden="true" />
+                      <ArrowRight className="marketing-arrow size-4" aria-hidden="true" />
                     </Link>
                   )}
                 </Button>

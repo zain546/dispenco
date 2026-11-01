@@ -15,7 +15,7 @@ export function Outcomes() {
             description="Your day is already full. Managing stock and sales shouldn’t make it harder."
           />
         </div>
-        <div className="grid gap-10 md:grid-cols-3 md:gap-8">
+        <div className="grid gap-4 md:grid-cols-3">
           {[
             {
               icon: Clock3,
@@ -39,10 +39,20 @@ export function Outcomes() {
                 'Scan a barcode, find the right medicine, and print a receipt. Give your staff a simpler way to get through the queue.',
             },
           ].map(({ icon: Icon, number, title, description }) => (
-            <article key={number} className="border-t pt-6">
+            <article
+              key={number}
+              className="marketing-card rounded-2xl border bg-card/60 p-6 sm:p-8 md:p-6 lg:p-8"
+            >
               <div className="mb-6 flex items-center justify-between">
-                <Icon className="size-5 text-primary dark:text-foreground" aria-hidden="true" />
-                <span className="text-overline text-muted-foreground">{number}</span>
+                <span className="marketing-feature-icon flex size-11 items-center justify-center rounded-xl border border-primary/10 bg-primary/5">
+                  <Icon
+                    className="size-5 text-primary dark:text-primary-foreground"
+                    aria-hidden="true"
+                  />
+                </span>
+                <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                  {number}
+                </span>
               </div>
               <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
               <p className="mt-3 text-sm leading-7 text-muted-foreground">{description}</p>

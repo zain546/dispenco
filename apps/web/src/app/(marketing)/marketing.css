@@ -21,9 +21,218 @@ html:has(.marketing-shell) {
   scroll-margin-top: calc(var(--spacing) * 4);
 }
 
+/* Shared finishing details stay inside the marketing route, including its menu portal. */
+.marketing-shell :where(a[href], button, [role='button']) {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.marketing-shell :is(button:disabled, [aria-disabled='true']) {
+  cursor: not-allowed;
+}
+
+.marketing-shell button {
+  transition-property: transform, opacity;
+}
+
+.marketing-shell .marketing-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 2.5);
+  line-height: 1.75;
+}
+
+.marketing-shell .marketing-eyebrow::before {
+  width: calc(var(--spacing) * 5);
+  height: 1px;
+  flex-shrink: 0;
+  background: currentColor;
+  opacity: 0.6;
+  content: '';
+}
+
+.marketing-shell .marketing-heading-centered .marketing-eyebrow {
+  justify-content: center;
+}
+
+.marketing-shell .marketing-card {
+  position: relative;
+  isolation: isolate;
+}
+
+.marketing-shell .marketing-card::before {
+  position: absolute;
+  z-index: -1;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at 15% 0%,
+    color-mix(in oklab, var(--primary) 7%, transparent),
+    transparent 65%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 30%, transparent);
+  content: '';
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.marketing-shell .marketing-card:focus-within::before {
+  opacity: 1;
+}
+
+.marketing-shell .marketing-feature-icon,
+.marketing-shell .marketing-preview {
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.marketing-shell .marketing-stage {
+  background-image: radial-gradient(
+    ellipse at 50% 0%,
+    color-mix(in oklab, var(--primary) 12%, transparent),
+    transparent 75%
+  );
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+.marketing-shell .marketing-plan-featured {
+  background-image: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--primary) 6%, transparent),
+    transparent 60%
+  );
+  box-shadow: 0 0 0 calc(var(--spacing)) color-mix(in oklab, var(--primary) 5%, transparent);
+}
+
+.marketing-shell :is(.marketing-action, .marketing-icon-button, .marketing-wordmark) {
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.marketing-shell .marketing-action {
+  position: relative;
+  isolation: isolate;
+}
+
+.marketing-shell .marketing-action::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 12%, transparent);
+  content: '';
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.marketing-shell .marketing-action-primary::before {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--primary-foreground) 12%, transparent),
+    transparent 70%
+  );
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 35%, transparent);
+}
+
+.marketing-shell .marketing-action:focus-visible::before {
+  opacity: 1;
+}
+
+.marketing-shell :is(.marketing-nav-link, .marketing-text-link) {
+  position: relative;
+  text-decoration: none;
+}
+
+.marketing-shell :is(.marketing-nav-link, .marketing-text-link)::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: currentColor;
+  content: '';
+  pointer-events: none;
+  opacity: 0;
+  transform: scaleX(0.65);
+  transform-origin: left;
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.marketing-shell :is(.marketing-nav-link, .marketing-text-link):focus-visible::after {
+  opacity: 0.6;
+  transform: scaleX(1);
+}
+
+.marketing-shell .marketing-faq [data-slot='accordion-trigger'] {
+  transition: none;
+}
+
+.marketing-shell .marketing-faq [data-slot='accordion-content'] {
+  /* Expand naturally, without the shared height animation. */
+  animation: none;
+}
+
+.marketing-shell .marketing-faq [data-slot='accordion-item'][data-state='open'] {
+  background: color-mix(in oklab, var(--primary) 4%, var(--card));
+}
+
+.marketing-shell .marketing-faq [data-slot='accordion-trigger'][data-state='open'] {
+  color: var(--foreground);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .marketing-shell .marketing-card:hover::before,
+  .marketing-shell .marketing-action:hover::before {
+    opacity: 1;
+  }
+
+  .marketing-shell .marketing-wordmark:hover {
+    opacity: 0.8;
+  }
+
+  .marketing-shell :is(.marketing-nav-link, .marketing-text-link):hover::after {
+    opacity: 0.6;
+    transform: scaleX(1);
+  }
+
+  .marketing-shell .marketing-faq [data-slot='accordion-trigger']:hover {
+    color: var(--primary);
+  }
+
+  .dark .marketing-shell .marketing-faq [data-slot='accordion-trigger']:hover {
+    color: var(--primary-foreground);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html:has(.marketing-shell) {
     scroll-behavior: smooth;
+  }
+
+  .marketing-shell .marketing-arrow {
+    transition: transform 180ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .marketing-shell .marketing-action:hover {
+      transform: translateY(calc(var(--spacing) * -0.5));
+    }
+
+    .marketing-shell :is(.marketing-action, .marketing-text-link):hover .marketing-arrow {
+      transform: translateX(calc(var(--spacing) * 0.5));
+    }
+
+    .marketing-shell .marketing-icon-button:hover svg {
+      transform: rotate(-8deg);
+    }
+  }
+
+  .marketing-shell .marketing-icon-button svg {
+    transition: transform 180ms ease;
   }
 
   @supports (animation-timeline: view()) {
@@ -47,7 +256,13 @@ html:has(.marketing-shell) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .marketing-shell .marketing-action:active {
+    scale: 1;
+  }
+
   .marketing-shell *,
+  .marketing-shell *::before,
+  .marketing-shell *::after,
   [data-slot='sheet-content'],
   [data-slot='sheet-overlay'] {
     animation: none !important;

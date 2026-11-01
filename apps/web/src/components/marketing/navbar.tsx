@@ -34,7 +34,7 @@ export function Navbar() {
   return (
     <header
       className={cn(
-        'sticky top-0 z-40 border-b transition-colors duration-200',
+        'sticky top-0 z-40 border-b',
         scrolled
           ? 'border-border bg-background/80 backdrop-blur-lg'
           : 'border-transparent bg-background/95',
@@ -47,7 +47,7 @@ export function Navbar() {
             <a
               key={item.href}
               href={item.href}
-              className="rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="marketing-nav-link rounded-md py-2 text-sm text-muted-foreground hover:text-foreground"
             >
               {item.label}
             </a>
@@ -59,19 +59,23 @@ export function Navbar() {
             size="icon-sm"
             aria-label="Toggle color theme"
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-            className="text-muted-foreground"
+            className="marketing-icon-button text-muted-foreground"
           >
             <Sun className="hidden size-4 dark:block" aria-hidden="true" />
             <Moon className="size-4 dark:hidden" aria-hidden="true" />
           </Button>
           <div className="hidden items-center gap-2 lg:flex">
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost" size="sm" className="marketing-action">
               <Link prefetch={false} href={user ? '/dashboard' : '/login'}>
                 {user ? 'Go to dashboard' : 'Log in'}
                 {user && <ArrowUpRight className="size-4" aria-hidden="true" />}
               </Link>
             </Button>
-            <Button asChild size="sm" className="h-10 px-4 shadow-none">
+            <Button
+              asChild
+              size="sm"
+              className="marketing-action marketing-action-primary h-10 px-4 shadow-none"
+            >
               <Link prefetch={false} href={marketingConfig.trialHref}>
                 Start free trial
               </Link>
@@ -80,7 +84,7 @@ export function Navbar() {
           <Sheet>
             <SheetTrigger asChild>
               <Button
-                className="lg:hidden"
+                className="marketing-icon-button lg:hidden"
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Open navigation menu"
@@ -96,7 +100,10 @@ export function Navbar() {
               <nav className="flex flex-col gap-2 px-6" aria-label="Mobile navigation">
                 {navigation.map((item) => (
                   <SheetClose asChild key={item.href}>
-                    <a href={item.href} className="rounded-lg px-3 py-3 text-base hover:bg-muted">
+                    <a
+                      href={item.href}
+                      className="marketing-menu-link rounded-lg px-3 py-3 text-base hover:bg-muted"
+                    >
                       {item.label}
                     </a>
                   </SheetClose>
@@ -104,14 +111,14 @@ export function Navbar() {
               </nav>
               <div className="mt-auto flex flex-col gap-3 p-6">
                 <SheetClose asChild>
-                  <Button asChild variant="outline">
+                  <Button asChild variant="outline" className="marketing-action">
                     <Link prefetch={false} href={user ? '/dashboard' : '/login'}>
                       {user ? 'Go to dashboard' : 'Log in'}
                     </Link>
                   </Button>
                 </SheetClose>
                 <SheetClose asChild>
-                  <Button asChild className="shadow-none">
+                  <Button asChild className="marketing-action marketing-action-primary shadow-none">
                     <Link prefetch={false} href={marketingConfig.trialHref}>
                       Start free trial
                     </Link>

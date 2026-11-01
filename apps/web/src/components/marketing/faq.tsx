@@ -1,3 +1,4 @@
+import { ArrowUpRight } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -58,7 +59,7 @@ export function Faq() {
       className="marketing-section px-5 py-24 sm:px-8 md:py-32"
     >
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-5 lg:gap-20">
-        <div className="lg:col-span-2">
+        <div className="self-start lg:sticky lg:top-28 lg:col-span-2">
           <SectionHeading
             eyebrow="A few things you might be wondering"
             title="Good questions. Clear answers."
@@ -66,19 +67,20 @@ export function Faq() {
           />
           <a
             href={marketingConfig.demoHref}
-            className="rounded-md text-sm font-medium underline underline-offset-4 hover:text-muted-foreground"
+            className="marketing-text-link inline-flex items-center gap-2 rounded-md text-sm font-medium"
           >
             Talk it through with us
+            <ArrowUpRight className="marketing-arrow size-4" aria-hidden="true" />
           </a>
         </div>
-        <Accordion type="single" collapsible className="rounded-none border-x-0 lg:col-span-3">
+        <Accordion
+          type="single"
+          collapsible
+          className="marketing-faq rounded-2xl bg-card lg:col-span-3"
+        >
           {questions.map((item, index) => (
-            <AccordionItem
-              key={item.question}
-              value={`question-${index}`}
-              className="data-open:bg-transparent"
-            >
-              <AccordionTrigger className="items-center px-1 py-6 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+            <AccordionItem key={item.question} value={`question-${index}`} className="px-4 sm:px-6">
+              <AccordionTrigger className="min-h-20 items-center px-1 py-6 text-sm leading-6 font-medium hover:no-underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
                 {item.question}
               </AccordionTrigger>
               <AccordionContent className="h-auto px-1 pb-6 text-sm leading-7 text-muted-foreground">

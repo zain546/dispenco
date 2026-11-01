@@ -1,4 +1,4 @@
-import { ArrowRight, BellRing, FileSpreadsheet, ScanLine } from 'lucide-react';
+import { ArrowRight, BellRing, Check, FileSpreadsheet, ScanLine } from 'lucide-react';
 import { SectionHeading } from './shared';
 
 export function HowItWorks() {
@@ -15,7 +15,7 @@ export function HowItWorks() {
           title="Your next working day can be simpler."
           description="Bring what you have. Start with your best sellers. Build the rest as you go."
         />
-        <ol className="grid gap-10 pt-4 md:grid-cols-3 md:gap-8">
+        <ol className="grid gap-4 pt-4 md:grid-cols-3">
           {[
             {
               icon: FileSpreadsheet,
@@ -36,13 +36,26 @@ export function HowItWorks() {
                 'Open your dashboard for low stock, near-expiry batches, and a clear picture of the day.',
             },
           ].map(({ icon: Icon, title, description }, index) => (
-            <li key={title} className="relative">
+            <li
+              key={title}
+              className="marketing-card relative rounded-2xl border bg-muted/15 p-6 sm:p-8 md:p-6 lg:p-8"
+            >
               <div className="mb-6 flex items-center gap-4">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-muted/40 text-base font-medium tabular-nums">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 font-mono text-sm font-medium text-primary tabular-nums dark:text-primary-foreground">
                   0{index + 1}
                 </span>
-                <span className="h-px flex-1 bg-border" />
-                <ArrowRight className="size-4 text-muted-foreground" aria-hidden="true" />
+                <span
+                  className="h-px flex-1 bg-gradient-to-r from-primary/25 to-border"
+                  aria-hidden="true"
+                />
+                {index < 2 ? (
+                  <ArrowRight className="size-4 text-muted-foreground" aria-hidden="true" />
+                ) : (
+                  <Check
+                    className="size-4 text-primary dark:text-primary-foreground"
+                    aria-hidden="true"
+                  />
+                )}
               </div>
               <Icon className="mb-4 size-5 text-primary dark:text-foreground" aria-hidden="true" />
               <h3 className="text-lg font-semibold tracking-tight">{title}</h3>

@@ -18,7 +18,7 @@ import { SectionHeading } from './shared';
 function PosPreview() {
   return (
     <div
-      className="mt-8 overflow-hidden rounded-t-xl border bg-background text-xs shadow-sm"
+      className="marketing-preview mt-8 overflow-hidden rounded-t-xl border bg-background text-xs shadow-sm"
       role="img"
       aria-label="Sample point of sale with three medicines and a total of PKR 1,180"
     >
@@ -68,7 +68,7 @@ function PosPreview() {
 function ExpiryPreview() {
   return (
     <div
-      className="mt-8 rounded-t-xl border bg-background p-4 shadow-sm"
+      className="marketing-preview mt-8 rounded-t-xl border bg-background p-4 shadow-sm"
       role="img"
       aria-label="Sample expiry alerts with batch and stock details"
     >
@@ -121,20 +121,20 @@ export function Features() {
       className="marketing-section border-y bg-muted/30 px-5 py-24 sm:px-8 md:py-32"
     >
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-wrap items-end justify-between gap-6">
+        <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between [&>div]:mb-0">
           <SectionHeading
             eyebrow="One workspace. Every working day."
             title="Everything your pharmacy needs. Nothing in your way."
             description="From the first delivery to the last sale, your records stay connected."
           />
-          <p className="mb-12 flex items-center gap-2 text-xs text-muted-foreground">
+          <p className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
             <span className="size-1.5 rounded-full bg-primary" />
             Available today
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-12">
-          <Card className="overflow-hidden p-6 pb-0 shadow-none sm:px-8 sm:pt-8 md:col-span-7">
-            <div className="mb-5 flex size-10 items-center justify-center rounded-lg border bg-muted/40">
+          <Card className="marketing-card overflow-hidden p-6 pb-0 shadow-none sm:px-8 sm:pt-8 md:col-span-7">
+            <div className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary dark:text-primary-foreground">
               <Barcode className="size-5" aria-hidden="true" />
             </div>
             <h3 className="text-xl font-semibold tracking-tight">Built for the busy counter.</h3>
@@ -143,8 +143,8 @@ export function Features() {
             </p>
             <PosPreview />
           </Card>
-          <Card className="overflow-hidden bg-muted/40 p-6 pb-0 shadow-none sm:px-8 sm:pt-8 md:col-span-5">
-            <div className="mb-5 flex size-10 items-center justify-center rounded-lg border bg-background">
+          <Card className="marketing-card overflow-hidden bg-muted/40 p-6 pb-0 shadow-none sm:px-8 sm:pt-8 md:col-span-5">
+            <div className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-background text-primary dark:text-primary-foreground">
               <ArrowDownUp className="size-5" aria-hidden="true" />
             </div>
             <h3 className="text-xl font-semibold tracking-tight">No batch left behind.</h3>
@@ -189,8 +189,13 @@ export function Features() {
               symbol: ArrowDownUp,
             },
           ].map(({ icon: Icon, title, description, preview, detail, symbol: Symbol }) => (
-            <Card key={title} className="flex flex-col p-6 shadow-none md:col-span-6 lg:col-span-3">
-              <Icon className="mb-5 size-5 text-muted-foreground" aria-hidden="true" />
+            <Card
+              key={title}
+              className="marketing-card flex flex-col p-6 shadow-none md:col-span-6 lg:col-span-3"
+            >
+              <span className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/10 bg-primary/5 text-primary dark:text-primary-foreground">
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
               <h3 className="text-base font-semibold tracking-tight">{title}</h3>
               <p className="mt-2 mb-7 text-sm leading-6 text-muted-foreground">{description}</p>
               <div className="mt-auto rounded-lg border bg-muted/30 p-3">

@@ -32,8 +32,8 @@ export function AiSection() {
             WhatsApp/SMS alerts. All coming soon.
           </p>
         </div>
-        <div className="rounded-2xl border bg-muted/40 p-4 sm:p-8">
-          <Card className="p-5 shadow-none sm:p-6">
+        <div className="marketing-stage rounded-2xl border bg-muted/40 p-4 sm:p-8">
+          <Card className="marketing-card p-5 shadow-none sm:p-6">
             <div className="flex items-center gap-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
                 <Sparkles className="size-4 text-primary dark:text-foreground" aria-hidden="true" />

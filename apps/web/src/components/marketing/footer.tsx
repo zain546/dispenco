@@ -40,7 +40,7 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="border-t px-5 pt-16 pb-8 sm:px-8">
+    <footer className="marketing-footer border-t bg-muted/10 px-5 pt-16 pb-8 sm:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-12 lg:grid-cols-2">
           <div>
@@ -50,10 +50,10 @@ export function Footer() {
             </p>
             <a
               href={marketingConfig.contactHref}
-              className="mt-5 inline-flex items-center gap-1.5 rounded-md text-sm hover:underline"
+              className="marketing-text-link mt-5 inline-flex items-center gap-1.5 rounded-md py-1 text-sm"
             >
               {marketingConfig.email}
-              <ArrowUpRight className="size-3" aria-hidden="true" />
+              <ArrowUpRight className="marketing-arrow size-3" aria-hidden="true" />
             </a>
             <p className="mt-2 text-micro text-muted-foreground">
               Placeholder contact · confirm before launch
@@ -68,7 +68,7 @@ export function Footer() {
                     <li key={link.label}>
                       <a
                         href={link.href}
-                        className="rounded-md text-xs leading-5 text-muted-foreground transition-colors hover:text-foreground"
+                        className="marketing-text-link inline-block rounded-md py-1 text-xs leading-5 text-muted-foreground hover:text-foreground"
                       >
                         {link.label}
                       </a>
@@ -81,7 +81,7 @@ export function Footer() {
         </div>
         <div className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t pt-6 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} Dispenco. All rights reserved.</p>
-          <p className="flex items-center gap-2">
+          <p className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5">
             <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
             Made in Pakistan
           </p>
