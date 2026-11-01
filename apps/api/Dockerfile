@@ -1,9 +1,9 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
 RUN apk add --no-cache openssl libc6-compat
-RUN npm install -g pnpm
+RUN npm install -g pnpm@11.22.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
@@ -22,7 +22,7 @@ RUN pnpm --filter @dispenco/utils build
 RUN pnpm --filter @dispenco/api exec prisma generate
 RUN pnpm --filter @dispenco/api build
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 RUN apk add --no-cache openssl libc6-compat

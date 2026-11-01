@@ -1,7 +1,7 @@
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@11.22.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
@@ -19,10 +19,10 @@ RUN pnpm --filter @dispenco/types build
 RUN pnpm --filter @dispenco/utils build
 RUN pnpm --filter @dispenco/web build
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@11.22.0
 
 ENV NODE_ENV=production
 ENV PORT=3000
