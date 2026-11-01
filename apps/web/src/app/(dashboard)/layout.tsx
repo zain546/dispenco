@@ -23,8 +23,9 @@ import {
   Building2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { SignOutDialog } from '@/features/auth/components/sign-out-dialog';
+import { useSignOutConfirmation } from '@/features/auth/hooks/use-sign-out-confirmation';
 import { NotificationBell } from '@/components/layout/notification-bell';
 import {
   Sheet,
@@ -108,6 +109,7 @@ export default function DashboardLayout({
   const permissions = usePermissions();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { requestSignOut, dialogProps } = useSignOutConfirmation(logout);
 
   useEffect(() => {
     const saved = localStorage.getItem('dispenco_sidebar_collapsed');
@@ -297,7 +299,8 @@ export default function DashboardLayout({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => logout()}
+                      onClick={requestSignOut}
+                      aria-haspopup="dialog"
                       className="size-9 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg"
                       aria-label="Sign Out"
                     >
@@ -336,7 +339,8 @@ export default function DashboardLayout({
 
                 <Button
                   variant="ghost"
-                  onClick={() => logout()}
+                  onClick={requestSignOut}
+                  aria-haspopup="dialog"
                   className="w-full justify-start gap-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive px-3 py-2 h-9 transition-colors"
                 >
                   <LogOut className="size-4" />
@@ -395,10 +399,8 @@ export default function DashboardLayout({
                     </div>
                     <Button
                       variant="ghost"
-                      onClick={() => {
-                        setMobileOpen(false);
-                        logout();
-                      }}
+                      onClick={requestSignOut}
+                      aria-haspopup="dialog"
                       className="w-full justify-start gap-2.5 text-xs text-destructive hover:bg-destructive/10 px-3 py-2 h-9"
                     >
                       <LogOut className="size-4" />
@@ -428,6 +430,7 @@ export default function DashboardLayout({
           <AiAssistantWidget />
         </div>
       </div>
+      <SignOutDialog {...dialogProps} />
     </TooltipProvider>
   );
 }
