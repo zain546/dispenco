@@ -1,11 +1,11 @@
 import {
-  ArrowDownToLine,
-  ArrowRight,
   ArrowUpRight,
   Bell,
+  Check,
   ChevronDown,
   CircleHelp,
   ClipboardList,
+  Clock3,
   LayoutDashboard,
   LockKeyhole,
   Package,
@@ -15,12 +15,14 @@ import {
   Search,
   Settings2,
   ShoppingBag,
+  Smartphone,
   Store,
   Users,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import styles from './dashboard-preview.module.css';
 
 const menu = [
   { icon: LayoutDashboard, label: 'Overview', active: true },
@@ -30,42 +32,80 @@ const menu = [
   { icon: Users, label: 'Customers', active: false },
   { icon: ClipboardList, label: 'Reports', active: false },
 ];
-const bars = [
-  'h-10',
-  'h-14',
-  'h-12',
-  'h-20',
-  'h-16',
-  'h-24',
-  'h-20',
-  'h-16',
-  'h-24',
-  'h-28',
-  'h-24',
-  'h-32',
-  'h-28',
-  'h-24',
-  'h-32',
-  'h-36',
-  'h-28',
-  'h-32',
-  'h-36',
-  'h-40',
-  'h-36',
+
+const stock = [
+  {
+    name: 'Augmentin 625mg',
+    batch: '#AG-882',
+    expiry: '14 Nov 2026',
+    remaining: '18 packs remaining',
+    status: 'Near Expiry (13 days)',
+    warning: true,
+  },
+  {
+    name: 'Panadol CF',
+    batch: '#PC-102',
+    expiry: '04 Mar 2028',
+    remaining: '4 packs remaining',
+    status: 'Low Stock Reorder',
+    warning: false,
+  },
 ];
+
+function OwnerCompanion() {
+  return (
+    <aside
+      aria-label="Illustrative owner's mobile overview"
+      className={cn(
+        styles.companion,
+        'relative z-10 mx-auto mt-5 w-full max-w-xs rounded-2xl border bg-card/90 p-5 shadow-2xl shadow-primary/20 backdrop-blur-md lg:absolute lg:-right-3 lg:bottom-10 lg:mt-0 lg:w-72 xl:-right-6',
+      )}
+    >
+      <div className="flex items-center gap-2.5 border-b pb-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <Smartphone
+            className="size-4 text-primary dark:text-primary-foreground"
+            aria-hidden="true"
+          />
+        </span>
+        <div>
+          <p className="text-xs font-semibold">Dispenco Mobile · Main Branch</p>
+          <p className="mt-1 text-micro text-muted-foreground">Your counter, wherever you are.</p>
+        </div>
+      </div>
+      <p className="mt-4 text-xs text-muted-foreground">Live Daily Cash</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">Rs 184,250</p>
+      <div className="mt-4 flex items-center gap-2 text-xs">
+        <span className="flex size-5 items-center justify-center rounded-full bg-success/10">
+          <Check className="size-3 text-success" aria-hidden="true" />
+        </span>
+        All registers balanced
+      </div>
+      <p className="mt-3 text-micro text-muted-foreground">Illustrative owner view</p>
+    </aside>
+  );
+}
 
 export function DashboardPreview() {
   return (
     <figure
-      aria-label="Illustrative Dispenco dashboard with sample sales, expiry alerts and low-stock items"
-      className="relative mx-auto mt-16 w-full text-left md:mt-20"
+      aria-label="Illustrative Dispenco pharmacy dashboard with sample sales, bills, expiry and stock records"
+      className="hero-stage relative mx-auto mt-16 w-full text-left tabular-nums md:mt-20"
     >
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-foreground/5">
+      <div aria-hidden="true" className="hero-horizon pointer-events-none absolute" />
+      <div aria-hidden="true" className="hero-floor pointer-events-none absolute" />
+      <div
+        className={cn(
+          styles.frame,
+          'hero-browser relative overflow-hidden rounded-2xl border border-border bg-card',
+        )}
+      >
+        <div aria-hidden="true" className="hero-browser-highlight pointer-events-none absolute" />
         <div className="flex h-11 items-center justify-between gap-3 border-b bg-muted/40 px-4 text-xs text-muted-foreground">
           <div className="flex gap-1.5" aria-hidden="true">
-            <span className="size-2 rounded-full bg-foreground/20" />
-            <span className="size-2 rounded-full bg-foreground/20" />
-            <span className="size-2 rounded-full bg-foreground/20" />
+            {[1, 2, 3].map((dot) => (
+              <span key={dot} className="size-2 rounded-full bg-foreground/20" />
+            ))}
           </div>
           <span className="flex items-center gap-2">
             <LockKeyhole className="size-3" aria-hidden="true" />
@@ -88,7 +128,7 @@ export function DashboardPreview() {
               </div>
               <div className="mb-5 flex items-center gap-2 rounded-lg border bg-background p-2 text-xs">
                 <Store className="size-4 text-muted-foreground" />
-                <span>My pharmacy</span>
+                <span>Main Branch</span>
                 <ChevronDown className="ml-auto size-3" />
               </div>
               <p className="mb-2 px-2 text-overline text-muted-foreground">Workspace</p>
@@ -109,7 +149,7 @@ export function DashboardPreview() {
                 ))}
               </div>
             </div>
-            <div className="space-y-3 px-2 text-xs text-muted-foreground">
+            <div className="space-y-3 px-2 pb-4 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CircleHelp className="size-4" />
                 Help & support
@@ -133,8 +173,8 @@ export function DashboardPreview() {
           <div className="min-w-0 flex-1">
             <div className="flex h-12 items-center justify-between border-b px-4 sm:px-6">
               <span className="text-xs text-muted-foreground">
-                Workspace{' '}
-                <span className="mx-2 text-border" aria-hidden="true">
+                Main Branch{' '}
+                <span className="mx-2" aria-hidden="true">
                   /
                 </span>
                 <span className="font-medium text-foreground">Overview</span>
@@ -147,159 +187,173 @@ export function DashboardPreview() {
                 </span>
               </div>
             </div>
-            <div className="bg-muted/20 p-4 sm:p-6">
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className={cn(styles.canvas, 'bg-muted/20 p-4 sm:p-6')}>
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-base font-semibold tracking-tight sm:text-lg">
-                    A good day starts with a clear view.
-                  </p>
+                  <h2 className="text-lg font-semibold tracking-tight">Pharmacy overview</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Here&apos;s what&apos;s happening at your pharmacy.
+                    Sample snapshot · 1 Nov 2026 · Main Branch
                   </p>
                 </div>
-                <span className="hidden items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs sm:flex">
-                  Today <ChevronDown className="size-3" aria-hidden="true" />
-                </span>
+                <Badge variant="outline" className="h-auto gap-2 bg-background px-2.5 py-1 text-xs">
+                  <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+                  Live overview
+                </Badge>
               </div>
-              <div className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
-                {[
-                  {
-                    label: 'Today’s sales',
-                    value: 'PKR 48,250',
-                    detail: '32 completed sales',
-                    icon: ReceiptText,
-                  },
-                  {
-                    label: 'Inventory value',
-                    value: 'PKR 842,600',
-                    detail: '1,248 products in stock',
-                    icon: Package,
-                  },
-                  {
-                    label: 'Near expiry',
-                    value: '08 batches',
-                    detail: 'Review upcoming expiries',
-                    icon: ClipboardList,
-                  },
-                  {
-                    label: 'Low stock',
-                    value: '12 products',
-                    detail: 'Ready for your review',
-                    icon: ShoppingBag,
-                  },
-                ].map(({ label, value, detail, icon: Icon }) => (
-                  <Card key={label} className="rounded-lg p-3 shadow-none sm:p-4">
-                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      {label}
-                      <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    </div>
-                    <p className="mt-3 text-base font-semibold tracking-tight tabular-nums sm:text-xl">
-                      {value}
-                    </p>
-                    <p className="mt-1.5 text-micro text-muted-foreground">{detail}</p>
-                  </Card>
-                ))}
-              </div>
-              <div className="grid gap-4 md:grid-cols-5">
-                <Card className="min-w-0 rounded-lg p-4 shadow-none md:col-span-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold">Sales overview</p>
-                    <span className="text-micro text-muted-foreground">
-                      This week <ChevronDown className="ml-1 inline size-3" aria-hidden="true" />
-                    </span>
+              <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                <Card className="min-w-0 rounded-xl p-4 shadow-none">
+                  <div className="flex min-h-8 items-start justify-between gap-2">
+                    <h3 className="text-xs font-medium text-muted-foreground">
+                      Today&apos;s Gross Sales
+                    </h3>
+                    <ReceiptText
+                      className="size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
                   </div>
-                  <div className="mt-4 flex items-baseline gap-3">
-                    <span className="text-2xl font-semibold tracking-tight tabular-nums">
-                      PKR 286,400
-                    </span>
-                    <span className="flex items-center gap-1 text-micro text-primary dark:text-foreground">
-                      <ArrowUpRight className="size-3" aria-hidden="true" />
-                      12.8%
-                    </span>
-                  </div>
-                  <p className="mt-1 text-micro text-muted-foreground">
-                    Compared with last week · sample data
+                  <p className="mt-4 text-2xl font-semibold tracking-tight tabular-nums">
+                    Rs 184,250
                   </p>
-                  <div
-                    role="img"
-                    aria-label="Sample weekly sales chart showing a rising trend"
-                    className="mt-6 flex h-44 items-end gap-1.5 border-b border-border bg-muted/20 px-2 pt-4 sm:gap-2"
+                  <Badge
+                    variant="secondary"
+                    className="mt-3 h-auto bg-success/10 px-2 py-1 text-xs text-foreground"
                   >
-                    {bars.map((height, index) => (
-                      <div
-                        key={index}
-                        className={cn(
-                          'min-w-0 flex-1 rounded-t-sm',
-                          height,
-                          index > 15 ? 'bg-primary' : 'bg-primary/25',
-                        )}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-3 flex justify-between text-micro text-muted-foreground">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                      <span key={day}>{day}</span>
-                    ))}
-                  </div>
+                    <ArrowUpRight aria-hidden="true" />
+                    +14.2% vs yesterday
+                  </Badge>
                 </Card>
-                <Card className="rounded-lg p-4 shadow-none md:col-span-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold">Needs your attention</p>
-                    <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-micro font-medium">
-                      20
-                    </span>
+                <Card className="min-w-0 rounded-xl p-4 shadow-none">
+                  <div className="flex min-h-8 items-start justify-between gap-2">
+                    <h3 className="text-xs font-medium text-muted-foreground">
+                      Active Prescriptions / Bills
+                    </h3>
+                    <ClipboardList
+                      className="size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
                   </div>
-                  <div className="mt-5 space-y-4">
-                    {[
-                      {
-                        name: 'Augmentin 625mg',
-                        detail: 'Batch AUG-2411 · 24 packs',
-                        status: 'Exp. 31 Jan 2027',
-                      },
-                      {
-                        name: 'Panadol 500mg',
-                        detail: 'Batch PND-2608 · 6 packs left',
-                        status: 'Below minimum stock',
-                      },
-                      {
-                        name: 'Glucophage 500mg',
-                        detail: 'Batch GLU-2412 · 18 packs',
-                        status: 'Exp. 28 Feb 2027',
-                      },
-                    ].map((item) => (
-                      <div key={item.name} className="border-b pb-4 last:border-0 last:pb-0">
-                        <p className="text-xs font-medium">{item.name}</p>
-                        <p className="mt-1 text-micro text-muted-foreground">{item.detail}</p>
-                        <Badge
-                          variant="secondary"
-                          className="mt-2 h-5 bg-primary/10 text-xs text-foreground"
-                        >
-                          {item.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-5 flex items-center gap-1 text-xs font-medium">
-                    Everything important, in one place{' '}
-                    <ArrowRight className="size-3" aria-hidden="true" />
+                  <p className="mt-4 text-2xl font-semibold tracking-tight tabular-nums">
+                    142 <span className="text-base font-normal text-muted-foreground">bills</span>
+                  </p>
+                  <p className="mt-4 text-xs text-muted-foreground tabular-nums">
+                    Avg basket: Rs 1,298
                   </p>
                 </Card>
+                <Card className="min-w-0 rounded-xl border-warning/20 bg-warning/5 p-4 shadow-none">
+                  <div className="flex min-h-8 items-start justify-between gap-2">
+                    <h3 className="text-xs font-medium text-foreground">Expiring Within 30 Days</h3>
+                    <Clock3 className="size-4 shrink-0 text-warning" aria-hidden="true" />
+                  </div>
+                  <p className="mt-4 text-2xl font-semibold tracking-tight text-warning tabular-nums">
+                    4 Batches
+                  </p>
+                  <Badge
+                    variant="warning"
+                    className="mt-3 h-auto px-2 py-1 text-xs text-foreground"
+                  >
+                    Review before expiry
+                  </Badge>
+                </Card>
               </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-micro text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-primary" />
-                  All records up to date
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <ArrowDownToLine className="size-3" aria-hidden="true" />
-                  Your business. Less guesswork.
-                </span>
+              <Card className="overflow-hidden rounded-xl shadow-none">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+                  <h3 className="text-sm font-semibold">Live expiry & stock</h3>
+                  <span className="text-xs text-muted-foreground">2 items need attention</span>
+                </div>
+                <table className="w-full table-fixed text-left text-xs">
+                  <caption className="sr-only">
+                    Sample batch expiry and reorder alerts for Main Branch on 1 November 2026
+                  </caption>
+                  <thead className="hidden bg-muted/30 text-muted-foreground sm:table-header-group">
+                    <tr>
+                      <th scope="col" className="w-1/3 px-4 py-3 font-medium">
+                        Medicine / batch
+                      </th>
+                      <th scope="col" className="px-3 py-3 font-medium">
+                        Expiry / stock
+                      </th>
+                      <th scope="col" className="w-1/3 px-4 py-3 font-medium">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {stock.map((item) => (
+                      <tr key={item.batch} className="block p-4 sm:table-row sm:p-0">
+                        <td className="block sm:table-cell sm:px-4 sm:py-4">
+                          <p className="font-semibold">{item.name}</p>
+                          <p className="mt-1 text-micro text-muted-foreground">
+                            Batch {item.batch}
+                          </p>
+                        </td>
+                        <td className="mt-2 block sm:mt-0 sm:table-cell sm:px-3 sm:py-4">
+                          <p className="tabular-nums">{item.expiry}</p>
+                          <p className="mt-1 text-micro text-muted-foreground tabular-nums">
+                            {item.remaining}
+                          </p>
+                        </td>
+                        <td className="mt-3 block sm:mt-0 sm:table-cell sm:px-4 sm:py-4">
+                          <Badge
+                            variant={item.warning ? 'warning' : 'secondary'}
+                            className={cn(
+                              'h-auto max-w-full px-2 py-1 text-micro whitespace-normal text-foreground',
+                              !item.warning && 'bg-primary/10',
+                            )}
+                          >
+                            <span className="text-xs tabular-nums">{item.status}</span>
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+              <div className="mt-5 pb-6 lg:pr-72">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-semibold">Today&apos;s counter activity</h3>
+                  <span className="text-micro text-muted-foreground">142 bills</span>
+                </div>
+                <div
+                  role="img"
+                  aria-label="Illustrative hourly billing activity with a busy afternoon"
+                  className="mt-4 flex h-16 items-end gap-2 border-b pb-1"
+                >
+                  {[
+                    'h-3',
+                    'h-5',
+                    'h-4',
+                    'h-8',
+                    'h-6',
+                    'h-10',
+                    'h-12',
+                    'h-9',
+                    'h-14',
+                    'h-11',
+                    'h-16',
+                    'h-12',
+                  ].map((height, index) => (
+                    <span
+                      key={index}
+                      className={cn(
+                        'min-w-0 flex-1 rounded-t-sm',
+                        height,
+                        index > 7 ? 'bg-primary' : 'bg-primary/25',
+                      )}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex justify-between text-micro text-muted-foreground">
+                  <span>08:00</span>
+                  <span>14:00</span>
+                  <span>20:00</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <figcaption className="mt-4 text-center text-xs text-muted-foreground">
+      <OwnerCompanion />
+      <figcaption className="relative mt-6 text-center text-xs text-muted-foreground lg:mt-14">
         A look inside Dispenco. All figures and pharmacy records shown are illustrative.
       </figcaption>
     </figure>

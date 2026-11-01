@@ -52,15 +52,34 @@ export function SectionHeading({
   );
 }
 
-export function CtaButtons({ centered = false }: { centered?: boolean }) {
+export function CtaButtons({
+  centered = false,
+  appearance = 'default',
+}: {
+  centered?: boolean;
+  appearance?: 'default' | 'hero';
+}) {
   return (
     <div className={cn('flex flex-col gap-3 sm:flex-row', centered && 'justify-center')}>
-      <Button asChild size="lg" className="h-12 shadow-none">
+      <Button
+        asChild
+        size="lg"
+        className={cn('h-12 shadow-none', appearance === 'hero' && 'hero-cta-primary group')}
+      >
         <Link href={marketingConfig.trialHref} prefetch={false}>
-          Start free trial <ArrowRight className="size-4" aria-hidden="true" />
+          Start free trial
+          <ArrowRight
+            className={cn('size-4', appearance === 'hero' && 'hero-cta-arrow')}
+            aria-hidden="true"
+          />
         </Link>
       </Button>
-      <Button asChild variant="outline" size="lg" className="h-12 bg-background">
+      <Button
+        asChild
+        variant="outline"
+        size="lg"
+        className={cn('h-12 bg-background', appearance === 'hero' && 'hero-cta-secondary')}
+      >
         <a href={marketingConfig.demoHref}>Book a demo</a>
       </Button>
     </div>

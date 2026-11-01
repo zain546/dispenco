@@ -1,0 +1,243 @@
+/* Decorative geometry uses the spacing scale; every tint comes from the theme. */
+.marketing-hero {
+  --hero-halo: color-mix(in oklab, var(--primary) 16%, transparent);
+  --hero-cyan: color-mix(in oklab, var(--chart-1) 12%, transparent);
+  --hero-shadow: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --hero-edge: color-mix(in oklab, var(--primary) 30%, transparent);
+}
+
+.dark .marketing-hero {
+  --hero-halo: color-mix(in oklab, var(--primary) 20%, transparent);
+  --hero-cyan: color-mix(in oklab, var(--chart-1) 14%, transparent);
+  --hero-shadow: color-mix(in oklab, var(--background) 95%, transparent);
+  --hero-edge: color-mix(in oklab, var(--primary-foreground) 45%, transparent);
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--foreground) 5%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--foreground) 5%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: calc(var(--spacing) * 8) calc(var(--spacing) * 8);
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 25%, var(--foreground) 20%, transparent 80%);
+}
+
+.hero-ambient {
+  position: absolute;
+  max-width: 100%;
+  border-radius: 50%;
+  filter: blur(calc(var(--spacing) * 30));
+}
+
+.hero-ambient-primary {
+  top: 16%;
+  left: 50%;
+  width: calc(var(--spacing) * 256);
+  height: calc(var(--spacing) * 144);
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, var(--hero-halo), transparent 72%);
+}
+
+.hero-ambient-secondary {
+  top: 30%;
+  left: 55%;
+  width: calc(var(--spacing) * 160);
+  height: calc(var(--spacing) * 80);
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, var(--hero-cyan), transparent 72%);
+}
+
+.hero-badge {
+  transition-property: none;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent),
+    0 calc(var(--spacing) * 2) calc(var(--spacing) * 8) calc(var(--spacing) * -6) var(--hero-halo);
+}
+
+.hero-badge:hover {
+  border-color: color-mix(in oklab, var(--primary) 40%, transparent);
+}
+
+.hero-status-dot {
+  box-shadow: 0 0 calc(var(--spacing) * 3) color-mix(in oklab, var(--primary) 45%, transparent);
+}
+
+.dark .hero-status-dot {
+  background-color: var(--chart-1);
+}
+
+.hero-accent {
+  color: var(--primary);
+}
+
+.dark .hero-accent {
+  color: var(--primary-foreground);
+  text-shadow: 0 0 calc(var(--spacing) * 12) var(--hero-halo);
+}
+
+@supports (background-clip: text) {
+  .hero-accent {
+    background-image: linear-gradient(
+      110deg,
+      var(--primary) 15%,
+      color-mix(in oklab, var(--primary) 85%, var(--foreground)) 55%,
+      var(--primary) 90%
+    );
+    background-clip: text;
+    color: transparent;
+  }
+
+  .dark .hero-accent {
+    background-image: linear-gradient(
+      110deg,
+      var(--primary-foreground) 15%,
+      var(--chart-1) 55%,
+      var(--primary-foreground) 90%
+    );
+    color: transparent;
+  }
+}
+
+.hero-horizon {
+  top: calc(var(--spacing) * -8);
+  right: 8%;
+  left: 8%;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in oklab, var(--primary) 30%, transparent),
+    transparent
+  );
+}
+
+.hero-floor {
+  right: 12%;
+  bottom: calc(var(--spacing) * 6);
+  left: 12%;
+  height: calc(var(--spacing) * 16);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, var(--hero-halo), var(--hero-cyan) 40%, transparent 72%);
+  filter: blur(calc(var(--spacing) * 6));
+}
+
+.hero-browser {
+  box-shadow:
+    0 calc(var(--spacing) * 6) calc(var(--spacing) * 20) calc(var(--spacing) * -10)
+      var(--hero-shadow),
+    0 0 calc(var(--spacing) * 16) calc(var(--spacing) * -3) var(--hero-halo);
+  transform-origin: top center;
+}
+
+.hero-browser-highlight {
+  top: 0;
+  right: calc(var(--spacing) * 4);
+  left: calc(var(--spacing) * 4);
+  z-index: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--hero-edge), transparent);
+}
+
+.hero-cta-primary,
+.hero-cta-secondary {
+  position: relative;
+  isolation: isolate;
+  transition-property: transform;
+}
+
+.hero-cta-primary {
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--primary-foreground) 25%, transparent),
+    0 calc(var(--spacing) * 2) calc(var(--spacing) * 6) calc(var(--spacing) * -2) var(--hero-halo);
+}
+
+.hero-cta-primary::after,
+.hero-cta-secondary::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  content: '';
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.hero-cta-primary::after {
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    color-mix(in oklab, var(--primary-foreground) 20%, transparent),
+    transparent 75%
+  );
+}
+
+.hero-cta-secondary {
+  border-color: color-mix(in oklab, var(--border) 80%, transparent);
+  background: color-mix(in oklab, var(--background) 50%, transparent);
+  backdrop-filter: blur(var(--spacing));
+}
+
+.hero-cta-secondary::after {
+  background: color-mix(in oklab, var(--muted) 50%, transparent);
+}
+
+.hero-cta-primary:is(:hover, :focus-visible)::after,
+.hero-cta-secondary:is(:hover, :focus-visible)::after {
+  opacity: 1;
+}
+
+@media (width >= 64rem) {
+  .hero-browser {
+    transform: perspective(calc(var(--spacing) * 500)) rotateX(1.5deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-status-ping {
+    animation: hero-status-pulse 2.8s ease-out infinite;
+  }
+
+  .hero-cta-primary:hover {
+    transform: translateY(calc(var(--spacing) * -0.5));
+  }
+
+  .hero-cta-arrow {
+    transition: transform 180ms ease;
+  }
+
+  .hero-cta-primary:hover .hero-cta-arrow {
+    transform: translateX(calc(var(--spacing) * 0.5));
+  }
+}
+
+@keyframes hero-status-pulse {
+  0%,
+  15% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(2.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-browser {
+    transform: none;
+  }
+
+  .hero-cta-primary::after,
+  .hero-cta-secondary::after {
+    transition: none;
+  }
+}

@@ -38,6 +38,12 @@ Paths below are relative to `apps/web`.
 | `eslint.config.mjs`                              | Enables Next.js and TypeScript lint rules for marketing and SEO files; the previous config contained only ignores.                              |
 | `MARKETING.md`                                   | Implementation notes, launch placeholders, and validation scope.                                                                                |
 
+Hero lighting and interaction styles are isolated in
+`src/components/marketing/hero.css`: token-based primary/cyan spotlights, a masked
+grid, gradient headline, browser edge lighting, floor glow, and CTA highlights.
+The decorations are absolutely positioned, and animations use opacity/transform
+with reduced-motion overrides. The `hero` CTA appearance leaves other CTAs unchanged.
+
 No dependencies were added. Server Components are the default; only navigation,
 theme switching, pricing, and the existing interactive shadcn primitives hydrate.
 The root Inter font, theme provider, and application providers are reused.
