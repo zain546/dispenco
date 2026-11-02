@@ -28,6 +28,7 @@ import { ProtectedRoute } from '@/features/auth/components/protected-route';
 import { SignOutDialog } from '@/features/auth/components/sign-out-dialog';
 import { useSignOutConfirmation } from '@/features/auth/hooks/use-sign-out-confirmation';
 import { NotificationBell } from '@/components/layout/notification-bell';
+import { DispencoMark } from '@/components/brand/dispenco-mark';
 import {
   Sheet,
   SheetContent,
@@ -229,8 +230,8 @@ export default function DashboardLayout({
             {/* Header / Brand */}
             {isCollapsed ? (
               <div className="pb-3 border-b border-sidebar-border flex flex-col items-center gap-2 shrink-0">
-                <Link href="/dashboard" className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-                  <Pill className="size-6" />
+                <Link href="/dashboard" aria-label="Dispenco Dashboard">
+                  <DispencoMark className="size-10 rounded-xl" />
                 </Link>
                 <Button
                   type="button"
@@ -247,9 +248,7 @@ export default function DashboardLayout({
             ) : (
               <div className="pb-3 border-b border-sidebar-border flex items-center justify-between gap-2 shrink-0">
                 <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
-                  <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-sm shrink-0">
-                    <Pill className="size-6" />
-                  </div>
+                  <DispencoMark className="size-10 rounded-xl" />
                   <div className="min-w-0 flex-1">
                     <h1 className="text-xl font-bold tracking-tight text-primary leading-none truncate">
                       Dispenco
@@ -374,9 +373,7 @@ export default function DashboardLayout({
                 <SheetContent side="left" className="w-72 p-4 flex flex-col justify-between bg-sidebar text-sidebar-foreground">
                   <SheetHeader className="p-0 pb-3 border-b border-sidebar-border text-left">
                     <SheetTitle className="flex items-center gap-3">
-                      <div className="size-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-                        <Pill className="size-5" />
-                      </div>
+                      <DispencoMark className="size-9 rounded-xl" />
                       <div>
                         <h2 className="text-lg font-bold text-primary leading-none">Dispenco</h2>
                         <span className="text-xs font-normal text-muted-foreground">Pharmacy POS</span>
