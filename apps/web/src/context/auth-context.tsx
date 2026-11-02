@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/features/auth/services/auth-api';
 import { setSessionIdentity } from '@/lib/session-identity';
@@ -21,7 +21,7 @@ interface AuthContextType {
   user: UserSession | null;
   storeName: string;
   isLoading: boolean;
-  verifiedPath: string | null;
+  verifiedPath?: string | null;
   sessionError: boolean;
   refreshSession: () => Promise<void>;
   login: (user: UserSession, storeName?: string) => void;
@@ -40,9 +40,7 @@ function notifySessionChanged() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [verifiedPath, setVerifiedPath] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState(false);
-  const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
   const requestVersion = useRef(0);
@@ -88,10 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       if (version === requestVersion.current) {
         setIsLoading(false);
-        setVerifiedPath(pathname);
       }
     }
-  }, [applyUser, pathname]);
+  }, [applyUser]);
 
   useEffect(() => {
     // Remove legacy identity data; only the API establishes identity and permissions.
@@ -101,8 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* Private browsing may disable storage. */
     }
-    // Session state is synchronized from the external auth API, including on navigation.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Updates follow asynchronous session verification.
+    // Synchronize session state on mount and tab focus
     void refreshSession();
     const recheck = () => {
       if (document.visibilityState === 'visible') void refreshSession();
@@ -134,7 +130,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await authApi.logout();
     ++requestVersion.current;
     applyUser(null);
-    setVerifiedPath(null);
     try {
       localStorage.removeItem('dispenco_active_store_id');
     } catch {
@@ -150,7 +145,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         storeName: user?.storeName || '',
         isLoading,
-        verifiedPath,
         sessionError,
         refreshSession,
         login,

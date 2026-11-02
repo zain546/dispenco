@@ -236,7 +236,7 @@ export function StockReceiveForm() {
     : 'Units';
 
   return (
-    <div className="space-y-5 max-w-3xl mx-auto pb-12 px-1 sm:px-0">
+    <div className="space-y-5 max-w-3xl mx-auto pb-28 sm:pb-12 px-1 sm:px-0">
       {/* Top Header */}
       <div className="flex items-start gap-3 pb-2 border-b border-border/80">
         <Button
@@ -698,25 +698,25 @@ export function StockReceiveForm() {
         </Card>
 
         {/* Submit Actions */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-2">
-          <Button asChild variant="outline" size="sm" className="h-10 px-5 text-xs sm:text-sm w-full sm:w-auto">
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <Button asChild variant="outline" size="sm" className="h-10 px-4 text-xs sm:text-sm flex-1 sm:flex-none sm:min-w-[100px]">
             <Link href="/inventory">Cancel</Link>
           </Button>
           <Button
             type="submit"
             size="sm"
             disabled={isSubmitting || !selectedProduct}
-            className="h-10 px-6 text-xs sm:text-sm gap-2 font-semibold shadow-xs w-full sm:w-auto"
+            className="h-10 px-6 text-xs sm:text-sm gap-2 font-semibold shadow-xs flex-[1.5] sm:flex-none sm:min-w-[140px]"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                <span>Receiving Batch...</span>
+                <span>Receiving...</span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="size-4" />
-                <span>Confirm Stock Receive</span>
+                <span>Receive Batch</span>
               </>
             )}
           </Button>
