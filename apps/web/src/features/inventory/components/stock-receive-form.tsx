@@ -27,7 +27,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScannerInput } from '@/components/ui/scanner-input';
+import { ScannerInput, type Gs1ParsedMedicineData } from '@/components/ui/scanner-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -65,6 +65,18 @@ export function StockReceiveForm() {
   const [purchaseInvoiceDate, setPurchaseInvoiceDate] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [pendingBarcodeToLink, setPendingBarcodeToLink] = useState<string>('');
+
+  // Pre-fill batch, expiry, mfg from URL query parameters if provided from scanner
+  useEffect(() => {
+    const qBatch = searchParams.get('batchNumber');
+    const qExpiry = searchParams.get('expiryDate');
+    const qMfg = searchParams.get('mfgDate');
+    if (qBatch) setBatchNumber(qBatch);
+    if (qExpiry) setExpiryDate(qExpiry);
+    if (qMfg) setMfgDate(qMfg);
+  }, [searchParams]);
 
   // Load preselected product if query parameter exists
   useEffect(() => {
@@ -113,7 +125,7 @@ export function StockReceiveForm() {
     return () => clearTimeout(timer);
   }, [productSearch]);
 
-  const handleSelectProduct = (product: ProductData) => {
+  const handleSelectProduct = async (product: ProductData) => {
     setSelectedProduct(product);
     setProductSearch('');
     setMatchingProducts([]);
@@ -124,6 +136,17 @@ export function StockReceiveForm() {
     const attrs = (product.attributes as Record<string, string>) || {};
     if (attrs.rackNumber) setRackNumber(attrs.rackNumber);
     if (attrs.vendorName) setVendorName(attrs.vendorName);
+
+    // If user scanned an unlinked box barcode right before selecting this medicine, link it automatically
+    if (pendingBarcodeToLink && !product.barcode) {
+      try {
+        await productsApi.updateProduct(product.id, { barcode: pendingBarcodeToLink });
+        toast.success(`Linked scanned barcode "${pendingBarcodeToLink}" to ${product.name}!`);
+        setPendingBarcodeToLink('');
+      } catch {
+        // Non-blocking if barcode link fails
+      }
+    }
   };
 
   const handleGenerateBatchNumber = () => {
@@ -302,22 +325,40 @@ export function StockReceiveForm() {
               <div className="space-y-3">
                 <div className="relative">
                   <ScannerInput
-                    placeholder="Search by medicine name, generic formula, or scan barcode..."
+                    placeholder="Scan medicine box QR / 2D barcode or type medicine name..."
                     value={productSearch}
                     onChange={(val) => setProductSearch(val)}
-                    onScan={async (scannedBarcode) => {
-                      setProductSearch(scannedBarcode);
+                    onScan={async (scannedBarcode, parsedData?: Gs1ParsedMedicineData) => {
+                      // Auto-fill Batch Number, Expiry Date, Mfg Date, and MRP from 2D DataMatrix / QR scan
+                      if (parsedData?.batchNumber) setBatchNumber(parsedData.batchNumber);
+                      if (parsedData?.expiryDate) setExpiryDate(parsedData.expiryDate);
+                      if (parsedData?.mfgDate) setMfgDate(parsedData.mfgDate);
+                      if (parsedData?.mrp && parsedData.mrp > 0) setSellPrice(parsedData.mrp);
+
                       try {
                         const res = await productsApi.lookupByBarcode(scannedBarcode);
                         if (res?.product) {
                           setSelectedProduct(res.product);
+                          setProductSearch('');
                           if (res.product.latestCostPrice) setCostPrice(res.product.latestCostPrice);
-                          if (res.product.latestSellPrice) setSellPrice(res.product.latestSellPrice);
-                          toast.success(`Selected medicine: ${res.product.name}`);
+                          if (res.product.latestSellPrice && !parsedData?.mrp) {
+                            setSellPrice(res.product.latestSellPrice);
+                          }
+                          const attrs = (res.product.attributes as Record<string, string>) || {};
+                          if (attrs.rackNumber) setRackNumber(attrs.rackNumber);
+                          if (attrs.vendorName) setVendorName(attrs.vendorName);
+                          toast.success(`Scanned "${res.product.name}" — Batch & Expiry pre-filled!`);
+                          return;
                         }
                       } catch {
-                        // Fallback to standard search if lookup fails
+                        // Barcode not yet linked to a medicine
                       }
+
+                      setPendingBarcodeToLink(scannedBarcode);
+                      setProductSearch('');
+                      toast.info(
+                        `Scanned GTIN ${scannedBarcode}${parsedData?.batchNumber ? ` (Batch ${parsedData.batchNumber})` : ''} — now type & select the medicine name below to link it!`
+                      );
                     }}
                   />
                   {isSearching && (

@@ -52,7 +52,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ScannerInput } from '@/components/ui/scanner-input';
+import { ScannerInput, type Gs1ParsedMedicineData } from '@/components/ui/scanner-input';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
@@ -141,6 +141,7 @@ export function POSTerminal() {
   const [linkCodeModal, setLinkCodeModal] = useState<{
     isOpen: boolean;
     scannedCode: string;
+    parsedData?: Gs1ParsedMedicineData;
     query: string;
     results: ProductData[];
     isSearching: boolean;
@@ -148,6 +149,7 @@ export function POSTerminal() {
   }>({
     isOpen: false,
     scannedCode: '',
+    parsedData: undefined,
     query: '',
     results: [],
     isSearching: false,
@@ -157,14 +159,18 @@ export function POSTerminal() {
   useEffect(() => {
     if (!linkCodeModal.isOpen) return;
     const term = linkCodeModal.query.trim();
+    if (!term) {
+      setLinkCodeModal((prev) => ({ ...prev, results: [], isSearching: false }));
+      return;
+    }
     let cancelled = false;
     const timer = setTimeout(async () => {
       setLinkCodeModal((prev) => ({ ...prev, isSearching: true }));
       try {
         const res = await productsApi.getProducts({
-          search: term || undefined,
+          search: term,
           storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-          limit: 12,
+          limit: 10,
         });
         if (!cancelled) {
           setLinkCodeModal((prev) => ({
@@ -178,7 +184,7 @@ export function POSTerminal() {
           setLinkCodeModal((prev) => ({ ...prev, isSearching: false }));
         }
       }
-    }, 180);
+    }, 150);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -657,7 +663,7 @@ export function POSTerminal() {
   };
 
   // Handle QR code, 2D DataMatrix, or 1D barcode scan with local-first lookup & 1-click linking
-  const handleBarcodeScan = async (scannedCode: string) => {
+  const handleBarcodeScan = async (scannedCode: string, parsedData?: Gs1ParsedMedicineData) => {
     const code = scannedCode.trim();
     if (!code) return;
 
@@ -708,12 +714,13 @@ export function POSTerminal() {
           }
         }
 
-        // 4. Unregistered QR / Barcode: Open 1-click Link QR/Barcode to Medicine modal
+        // 4. Unregistered QR / Barcode: Open clean Link or Create Medicine modal
         setLinkCodeModal({
           isOpen: true,
           scannedCode: code,
+          parsedData,
           query: '',
-          results: topSellers.slice(0, 8),
+          results: [],
           isSearching: false,
           isLinking: false,
         });
@@ -2212,23 +2219,54 @@ export function POSTerminal() {
         open={linkCodeModal.isOpen}
         onOpenChange={(open) => setLinkCodeModal((prev) => ({ ...prev, isOpen: open }))}
       >
-        <DialogContent className="sm:max-w-md p-5 rounded-2xl border-border shadow-2xl">
-          <DialogHeader className="space-y-1.5 text-left">
-            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+        <DialogContent className="w-[calc(100%-1.5rem)] sm:max-w-md p-4 sm:p-5 rounded-2xl border-border shadow-2xl overflow-hidden">
+          <DialogHeader className="space-y-1.5 text-left pr-8">
+            <DialogTitle className="flex items-center gap-2 text-sm sm:text-base font-bold text-foreground">
               <Tag className="size-4 text-primary shrink-0" />
-              <span>Link Scanned QR / Barcode to Medicine</span>
+              <span className="truncate">New Medicine Barcode Scanned</span>
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Code <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded">{linkCodeModal.scannedCode}</span> is not linked to a medicine yet. Select a medicine below to save this QR/barcode permanently and add it to the cart:
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              This box&apos;s barcode isn&apos;t linked to a medicine in your catalog yet. Link it once below so future scans add it to the cart automatically:
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 pt-2">
+          {/* Scanned GS1 / Barcode Details Badge Card */}
+          <div className="bg-muted/40 border border-border/80 rounded-xl p-2.5 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground font-medium">GTIN / Barcode:</span>
+              <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md truncate">
+                {linkCodeModal.scannedCode}
+              </span>
+            </div>
+            {(linkCodeModal.parsedData?.batchNumber ||
+              linkCodeModal.parsedData?.expiryDate ||
+              linkCodeModal.parsedData?.mfgDate) && (
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60 text-micro">
+                {linkCodeModal.parsedData?.batchNumber && (
+                  <Badge variant="outline" className="font-mono text-micro">
+                    Batch: {linkCodeModal.parsedData.batchNumber}
+                  </Badge>
+                )}
+                {linkCodeModal.parsedData?.expiryDate && (
+                  <Badge variant="outline" className="font-mono text-micro">
+                    Exp: {linkCodeModal.parsedData.expiryDate}
+                  </Badge>
+                )}
+                {linkCodeModal.parsedData?.mfgDate && (
+                  <Badge variant="outline" className="font-mono text-micro">
+                    Mfg: {linkCodeModal.parsedData.mfgDate}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3 min-w-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Type medicine name (e.g. Panadol, Augmentin, Risek)..."
+                placeholder="Type medicine name on box (e.g. Avsar, Panadol)..."
                 value={linkCodeModal.query}
                 onChange={(e) => setLinkCodeModal((prev) => ({ ...prev, query: e.target.value }))}
                 autoFocus
@@ -2239,20 +2277,28 @@ export function POSTerminal() {
               )}
             </div>
 
-            <div className="max-h-60 overflow-y-auto divide-y divide-border/60 border border-border rounded-xl bg-muted/20">
-              {linkCodeModal.results.length === 0 ? (
-                <div className="p-6 text-center text-xs text-muted-foreground">
-                  {linkCodeModal.query.trim()
-                    ? 'No matching medicines found. Try a different name.'
-                    : 'Type a medicine name above to search your inventory.'}
+            <div className="max-h-56 overflow-y-auto overflow-x-hidden divide-y divide-border/60 border border-border rounded-xl bg-muted/20">
+              {!linkCodeModal.query.trim() ? (
+                <div className="p-5 text-center space-y-1">
+                  <Pill className="size-6 text-primary/60 mx-auto mb-1" />
+                  <p className="text-xs font-medium text-foreground">
+                    Search the medicine name printed on the box
+                  </p>
+                  <p className="text-micro text-muted-foreground">
+                    Type a few letters above (e.g. &ldquo;Avsar&rdquo;) and tap Link &amp; Add.
+                  </p>
+                </div>
+              ) : linkCodeModal.results.length === 0 ? (
+                <div className="p-5 text-center text-xs text-muted-foreground">
+                  No matching medicine found for &ldquo;{linkCodeModal.query}&rdquo;. You can add it as a new medicine below.
                 </div>
               ) : (
                 linkCodeModal.results.map((prod) => (
                   <div
                     key={prod.id}
-                    className="p-2.5 flex items-center justify-between gap-2 hover:bg-primary/5 transition-colors"
+                    className="p-2.5 flex items-center justify-between gap-2 hover:bg-primary/5 transition-colors min-w-0"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{prod.name}</p>
                       <p className="text-micro text-muted-foreground truncate">
                         {prod.genericName || prod.category} • Stock: {prod.totalStock ?? 0} • {(prod.latestSellPrice ?? 0).toFixed(2)} PKR
@@ -2263,13 +2309,44 @@ export function POSTerminal() {
                       size="sm"
                       disabled={linkCodeModal.isLinking}
                       onClick={() => handleLinkCodeToProduct(prod)}
-                      className="h-8 px-3 text-xs font-semibold shrink-0"
+                      className="h-8 px-2.5 text-xs font-semibold shrink-0"
                     >
-                      Link & Add
+                      Link &amp; Add
                     </Button>
                   </div>
                 ))
               )}
+            </div>
+
+            {/* 1-Click Create New Medicine in Inventory with Scanned Box Data */}
+            <div className="pt-1 border-t border-border/60 flex items-center justify-between gap-2">
+              <span className="text-micro text-muted-foreground">Not in your catalog yet?</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  params.set('barcode', linkCodeModal.scannedCode);
+                  if (linkCodeModal.parsedData?.batchNumber) {
+                    params.set('batchNumber', linkCodeModal.parsedData.batchNumber);
+                  }
+                  if (linkCodeModal.parsedData?.expiryDate) {
+                    params.set('expiryDate', linkCodeModal.parsedData.expiryDate);
+                  }
+                  if (linkCodeModal.parsedData?.mfgDate) {
+                    params.set('mfgDate', linkCodeModal.parsedData.mfgDate);
+                  }
+                  if (linkCodeModal.query.trim()) {
+                    params.set('name', linkCodeModal.query.trim());
+                  }
+                  window.location.href = `/inventory/new?${params.toString()}`;
+                }}
+                className="h-8 text-xs gap-1.5 font-semibold border-primary/30 text-primary hover:bg-primary/5 shrink-0"
+              >
+                <Plus className="size-3.5" />
+                <span>Add New Medicine from Scan</span>
+              </Button>
             </div>
           </div>
         </DialogContent>

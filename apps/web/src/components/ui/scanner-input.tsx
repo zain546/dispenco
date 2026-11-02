@@ -15,45 +15,202 @@ import {
 import { QrCode, Camera, RefreshCw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+export interface Gs1ParsedMedicineData {
+  raw: string;
+  code: string; // Normalized GTIN or barcode
+  gtin?: string;
+  batchNumber?: string;
+  expiryDate?: string; // YYYY-MM-DD
+  mfgDate?: string; // YYYY-MM-DD
+  serialNumber?: string;
+  mrp?: number;
+  isGs1: boolean;
+}
+
 /**
- * Normalizes raw scanned strings from medicine boxes:
- * - Strips GS1 / symbology prefixes (e.g. \u001d, ]d2, ]Q3, ]C1)
- * - If the code is a GS1 2D DataMatrix or GS1 QR code (used on DRAP/pharma packs
- *   containing AI (01) GTIN + (17) Expiry + (10) Batch + (21) Serial), extracts the
- *   14-digit GTIN so every box of the same medicine shares the same identifier.
+ * Converts a 6-digit GS1 YYMMDD string into YYYY-MM-DD.
+ * In GS1 standard, DD = "00" means the last day of that month.
  */
-export function normalizeScannedMedicineCode(raw: string): string {
-  if (!raw) return '';
-  // Strip control characters (GS1 FNC1 = ASCII 29 / \x1d) and symbology identifiers
-  let cleaned = raw
-    .replace(/[\x00-\x1F\x7F]/g, '')
-    .replace(/^(\]d2|\]Q3|\]C1|\]e0)/i, '')
-    .trim();
+function parseGs1DateYYMMDD(yymmdd: string): string | undefined {
+  if (!/^\d{6}$/.test(yymmdd)) return undefined;
+  const yy = parseInt(yymmdd.slice(0, 2), 10);
+  const mm = parseInt(yymmdd.slice(2, 4), 10);
+  let dd = parseInt(yymmdd.slice(4, 6), 10);
 
-  // Check human-readable GS1 format: (01)08964001234567(17)...
-  const parenGs1Match = cleaned.match(/^\(01\)(\d{14})/);
-  if (parenGs1Match) {
-    return parenGs1Match[1];
+  if (mm < 1 || mm > 12) return undefined;
+  const yyyy = 2000 + yy;
+
+  // DD === 0 means end of month in GS1 specification
+  if (dd === 0) {
+    dd = new Date(yyyy, mm, 0).getDate();
+  } else if (dd > 31) {
+    return undefined;
   }
 
-  // Check standard unparenthesized GS1 2D DataMatrix / QR format:
-  // Starts with '01' followed by 14-digit GTIN, then AI '17' (YYMMDD) or '10' (Batch) or '21' (Serial)
-  if (cleaned.length >= 22 && cleaned.startsWith('01')) {
-    const potentialGtin = cleaned.slice(2, 16);
-    const remainder = cleaned.slice(16);
-    if (/^\d{14}$/.test(potentialGtin) && /^(17\d{6}|10|21|11\d{6})/.test(remainder)) {
-      return potentialGtin;
+  return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+}
+
+/**
+ * Parses a raw scanned string from a medicine box (2D GS1 DataMatrix, QR code, or 1D barcode)
+ * and extracts GTIN (01), Expiry Date (17), Mfg Date (11), Batch Number (10), and Serial Number (21).
+ */
+export function parseGs1MedicineCode(raw: string): Gs1ParsedMedicineData {
+  if (!raw) {
+    return { raw: '', code: '', isGs1: false };
+  }
+
+  // Strip symbology identifiers like ]d2, ]Q3, ]C1, ]e0 while preserving \x1d (GS1 Group Separator)
+  const withoutSymbology = raw.replace(/^(\]d2|\]Q3|\]C1|\]e0)/i, '').trim();
+
+  // Case 1: Human-readable parenthesized GS1 format e.g. (01)08964001422082(17)280600(10)6H121...
+  if (/^\(01\)\d{14}/.test(withoutSymbology)) {
+    const result: Gs1ParsedMedicineData = {
+      raw,
+      code: '',
+      isGs1: true,
+    };
+    const tokenRegex = /\((\d{2,4})\)([^()]+)/g;
+    let match: RegExpExecArray | null;
+    while ((match = tokenRegex.exec(withoutSymbology)) !== null) {
+      const ai = match[1];
+      const val = match[2].replace(/[\x00-\x1F\x7F]/g, '').trim();
+      if (ai === '01' && /^\d{14}$/.test(val)) {
+        result.gtin = val;
+        result.code = val;
+      } else if (ai === '17') {
+        result.expiryDate = parseGs1DateYYMMDD(val.slice(0, 6));
+      } else if (ai === '11') {
+        result.mfgDate = parseGs1DateYYMMDD(val.slice(0, 6));
+      } else if (ai === '10') {
+        result.batchNumber = val;
+      } else if (ai === '21') {
+        result.serialNumber = val;
+      }
     }
+    if (result.code) return result;
   }
 
-  // If it is a URL with a product code or query param, keep cleaned string
-  return cleaned;
+  // Case 2: Standard GS1 2D DataMatrix / QR unparenthesized format
+  // Strip leading FNC1 (\x1d) if present at index 0
+  const gs1Raw = withoutSymbology.replace(/^\x1d+/, '');
+  if (gs1Raw.startsWith('01') && /^\d{14}$/.test(gs1Raw.slice(2, 16)) && gs1Raw.length > 16) {
+    const gtin = gs1Raw.slice(2, 16);
+    const result: Gs1ParsedMedicineData = {
+      raw,
+      code: gtin,
+      gtin,
+      isGs1: true,
+    };
+
+    let rest = gs1Raw.slice(16);
+    // Split by GS1 Group Separator (\x1d) if present
+    const segments = rest.split('\x1d').filter(Boolean);
+
+    for (const seg of segments) {
+      let cursor = seg;
+      let safety = 0;
+      while (cursor.length >= 2 && safety < 10) {
+        safety++;
+        cursor = cursor.replace(/^[\x00-\x1F\x7F]+/, '');
+        if (cursor.startsWith('17') && /^\d{6}/.test(cursor.slice(2, 8))) {
+          const parsedExp = parseGs1DateYYMMDD(cursor.slice(2, 8));
+          if (parsedExp) {
+            result.expiryDate = parsedExp;
+            cursor = cursor.slice(8);
+            continue;
+          }
+        }
+        if (cursor.startsWith('11') && /^\d{6}/.test(cursor.slice(2, 8))) {
+          const parsedMfg = parseGs1DateYYMMDD(cursor.slice(2, 8));
+          if (parsedMfg) {
+            result.mfgDate = parsedMfg;
+            cursor = cursor.slice(8);
+            continue;
+          }
+        }
+        if (cursor.startsWith('10')) {
+          const body = cursor.slice(2);
+          // If no \x1d was used between Batch (10) and Expiry (17)/Mfg (11)/Serial (21),
+          // check if 17YYMMDD or 11YYMMDD or 21<12+ digits> follows
+          const embeddedDateMatch = body.match(/^([A-Za-z0-9\-/]{3,12}?)(17[2-3]\d[01]\d[0-3]\d|11[2-3]\d[01]\d[0-3]\d)(.*)$/);
+          if (embeddedDateMatch) {
+            result.batchNumber = embeddedDateMatch[1];
+            cursor = embeddedDateMatch[2] + embeddedDateMatch[3];
+            continue;
+          }
+          const embeddedSnMatch = body.match(/^([A-Za-z0-9\-/]{3,10}?)(21\d{12,20})$/);
+          if (embeddedSnMatch) {
+            result.batchNumber = embeddedSnMatch[1];
+            cursor = embeddedSnMatch[2];
+            continue;
+          }
+          if (!result.batchNumber) {
+            result.batchNumber = body.slice(0, 20);
+          }
+          break;
+        }
+        if (cursor.startsWith('21')) {
+          result.serialNumber = cursor.slice(2, 22);
+          break;
+        }
+        break;
+      }
+    }
+
+    return result;
+  }
+
+  // Case 3: Multi-line or labeled QR text (e.g. "GTIN:08964001422082 BATCH NO:6H121 EXP:06/2028 MRP RS:752.60")
+  const gtinLabelMatch = withoutSymbology.match(/GTIN\s*[:=-]?\s*(\d{12,14})/i);
+  if (gtinLabelMatch) {
+    const gtin = gtinLabelMatch[1];
+    const batchMatch = withoutSymbology.match(/BATCH(?:\s*NO)?\s*[:=-]?\s*([A-Za-z0-9\-]+)/i);
+    const expMatch = withoutSymbology.match(/EXP\s*[:=-]?\s*(\d{2})\/(\d{4})/i);
+    const mfgMatch = withoutSymbology.match(/MFG\s*[:=-]?\s*(\d{2})\/(\d{4})/i);
+    const mrpMatch = withoutSymbology.match(/MRP(?:\s*RS)?\s*[:=.-]?\s*(\d+(?:\.\d+)?)/i);
+
+    let expiryDate: string | undefined;
+    if (expMatch) {
+      const mm = parseInt(expMatch[1], 10);
+      const yyyy = parseInt(expMatch[2], 10);
+      const lastDay = new Date(yyyy, mm, 0).getDate();
+      expiryDate = `${yyyy}-${String(mm).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    }
+
+    let mfgDate: string | undefined;
+    if (mfgMatch) {
+      mfgDate = `${mfgMatch[2]}-${mfgMatch[1]}-01`;
+    }
+
+    return {
+      raw,
+      code: gtin,
+      gtin,
+      batchNumber: batchMatch?.[1],
+      expiryDate,
+      mfgDate,
+      mrp: mrpMatch ? parseFloat(mrpMatch[1]) : undefined,
+      isGs1: true,
+    };
+  }
+
+  // Standard 1D barcode or plain QR string
+  const cleaned = withoutSymbology.replace(/[\x00-\x1F\x7F]/g, '').trim();
+  return {
+    raw,
+    code: cleaned,
+    isGs1: false,
+  };
+}
+
+export function normalizeScannedMedicineCode(raw: string): string {
+  return parseGs1MedicineCode(raw).code;
 }
 
 export interface ScannerInputProps {
   value?: string;
   onChange?: (value: string) => void;
-  onScan?: (barcode: string) => void;
+  onScan?: (barcode: string, parsedData?: Gs1ParsedMedicineData) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   placeholder?: string;
   autoFocus?: boolean;
@@ -138,8 +295,8 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
     const handleScanSuccess = useCallback(
       (scannedText: string) => {
         if (hasScannedRef.current) return;
-        const normalized = normalizeScannedMedicineCode(scannedText);
-        if (!normalized) return;
+        const parsed = parseGs1MedicineCode(scannedText);
+        if (!parsed.code) return;
 
         hasScannedRef.current = true;
 
@@ -163,10 +320,9 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
           // Fallback if Web Audio fails
         }
 
-        setInternalValue(normalized);
-        onChangeRef.current?.(normalized);
-        onScanRef.current?.(normalized);
-        toast.success(`Scanned code: ${normalized}`);
+        setInternalValue(parsed.code);
+        onChangeRef.current?.(parsed.code);
+        onScanRef.current?.(parsed.code, parsed);
 
         stopCamera();
         setIsCameraOpen(false);
@@ -183,9 +339,9 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
 
       if (e.key === 'Enter') {
         e.preventDefault();
-        const normalized = normalizeScannedMedicineCode(internalValue);
-        if (normalized) {
-          onScan?.(normalized);
+        const parsed = parseGs1MedicineCode(internalValue);
+        if (parsed.code) {
+          onScan?.(parsed.code, parsed);
         }
       }
     };
@@ -289,7 +445,6 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
                 height: { ideal: 720 },
               };
 
-          // Start decoding directly from constraints (opens camera permission + HD stream in one step)
           const controls = await codeReaderRef.current.decodeFromConstraints(
             { video: videoConstraints, audio: false },
             videoRef.current,
@@ -315,7 +470,6 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
           }
 
           // Also run native hardware-accelerated BarcodeDetector in parallel if supported by browser
-          // (Reads small QR codes & glossy medicine box DataMatrix codes significantly faster)
           const WinWithDetector = window as unknown as {
             BarcodeDetector?: new (opts?: { formats: string[] }) => {
               detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>;
@@ -421,9 +575,9 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
         {/* Camera QR & Barcode Scanner Modal */}
         <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
           <DialogContent className="sm:max-w-md p-4 sm:p-6 overflow-hidden">
-            <DialogHeader>
+            <DialogHeader className="pr-8">
               <DialogTitle className="flex items-center gap-2 text-base font-semibold">
-                <Camera className="size-5 text-primary" />
+                <Camera className="size-5 text-primary shrink-0" />
                 <span>QR Code &amp; Barcode Scanner</span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">

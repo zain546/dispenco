@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
@@ -30,7 +30,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScannerInput } from '@/components/ui/scanner-input';
+import { ScannerInput, type Gs1ParsedMedicineData } from '@/components/ui/scanner-input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -140,6 +140,80 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
   const selectedCategory = watch('category');
   const selectedUnit = watch('unit') || 'Box';
   const isControlled = watch('isControlledSubstance');
+  const [scannedExistingProduct, setScannedExistingProduct] = useState<ProductData | null>(null);
+
+  const handleSmartBoxScan = useCallback(
+    async (scannedCode: string, parsedData?: Gs1ParsedMedicineData) => {
+      const cleanCode = scannedCode.trim();
+      if (!cleanCode) return;
+
+      setValue('barcode', cleanCode, { shouldValidate: true, shouldDirty: true });
+
+      const extractedFields: string[] = [`GTIN: ${cleanCode}`];
+      if (parsedData?.batchNumber) {
+        setValue('batchNumber', parsedData.batchNumber, { shouldValidate: true, shouldDirty: true });
+        extractedFields.push(`Batch: ${parsedData.batchNumber}`);
+      }
+      if (parsedData?.expiryDate) {
+        setValue('expiryDate', parsedData.expiryDate, { shouldValidate: true, shouldDirty: true });
+        extractedFields.push(`Exp: ${parsedData.expiryDate}`);
+      }
+      if (parsedData?.mfgDate) {
+        setValue('mfgDate', parsedData.mfgDate, { shouldValidate: true, shouldDirty: true });
+        extractedFields.push(`Mfg: ${parsedData.mfgDate}`);
+      }
+      if (parsedData?.mrp && parsedData.mrp > 0) {
+        setValue('sellPrice', parsedData.mrp, { shouldValidate: true, shouldDirty: true });
+        extractedFields.push(`MRP: ${parsedData.mrp}`);
+      }
+
+      toast.success(`Scanned Box (${extractedFields.join(' • ')})`);
+
+      // Check if this barcode already exists in catalog to auto-fill medicine details
+      if (!isEditing) {
+        try {
+          const res = await productsApi.lookupByBarcode(cleanCode);
+          if (res?.product) {
+            const p = res.product;
+            setScannedExistingProduct(p);
+            if (!watch('name')) setValue('name', p.name, { shouldValidate: true });
+            if (p.genericName && !watch('genericName')) setValue('genericName', p.genericName);
+            if (p.category) setValue('category', p.category);
+            if (p.unit) setValue('unit', p.unit);
+            if (p.latestCostPrice) setValue('costPrice', Number(p.latestCostPrice));
+            if (p.latestSellPrice && !parsedData?.mrp) setValue('sellPrice', Number(p.latestSellPrice));
+            const attrs = (p.attributes || {}) as Record<string, unknown>;
+            if (attrs.rackNumber) setValue('rackNumber', String(attrs.rackNumber));
+            if (attrs.packSize) setValue('packSize', Number(attrs.packSize));
+            if (attrs.manufacturer) setValue('manufacturer', String(attrs.manufacturer));
+            toast.info(`Found existing medicine "${p.name}" — details pre-filled!`);
+          } else {
+            setScannedExistingProduct(null);
+          }
+        } catch {
+          setScannedExistingProduct(null);
+        }
+      }
+    },
+    [isEditing, setValue, watch]
+  );
+
+  // Pre-fill from URL query parameters (e.g. navigated from POS "Add New Medicine from Scan")
+  useEffect(() => {
+    if (typeof window === 'undefined' || isEditing) return;
+    const params = new URLSearchParams(window.location.search);
+    const qBarcode = params.get('barcode');
+    const qBatch = params.get('batchNumber');
+    const qExpiry = params.get('expiryDate');
+    const qMfg = params.get('mfgDate');
+    const qName = params.get('name');
+
+    if (qBarcode) setValue('barcode', qBarcode, { shouldDirty: true });
+    if (qBatch) setValue('batchNumber', qBatch, { shouldDirty: true });
+    if (qExpiry) setValue('expiryDate', qExpiry, { shouldDirty: true });
+    if (qMfg) setValue('mfgDate', qMfg, { shouldDirty: true });
+    if (qName) setValue('name', qName, { shouldDirty: true });
+  }, [isEditing, setValue]);
 
   const preventNegativeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
@@ -276,6 +350,76 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
       )}
 
       <form onSubmit={onSubmit} className="space-y-4 sm:space-y-6">
+        {/* 1-Second Smart QR / 2D Barcode Box Scanner Banner */}
+        {!isEditing && (
+          <Card className="shadow-xs border-primary/30 bg-primary/5">
+            <CardContent className="p-3.5 sm:p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="space-y-0.5">
+                  <h2 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <QrCode className="size-4 text-primary shrink-0" />
+                    <span>Quick Scan Medicine Box (QR Code / 2D DataMatrix / Barcode)</span>
+                  </h2>
+                  <p className="text-micro text-muted-foreground">
+                    Scan any medicine box in 1 second to auto-fill GTIN Barcode, Batch Number, Mfg Date, and Expiry Date.
+                  </p>
+                </div>
+                {(watch('batchNumber') || watch('expiryDate')) && (
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {watch('batchNumber') && (
+                      <Badge variant="outline" className="font-mono text-micro bg-background">
+                        Batch: {watch('batchNumber')}
+                      </Badge>
+                    )}
+                    {watch('expiryDate') && (
+                      <Badge variant="outline" className="font-mono text-micro bg-background">
+                        Exp: {watch('expiryDate')}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <ScannerInput
+                id="quick-box-scanner"
+                placeholder="Click camera icon or scan medicine box QR / 2D barcode here..."
+                value={watch('barcode') || ''}
+                onChange={(val) => setValue('barcode', val, { shouldValidate: true, shouldDirty: true })}
+                onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
+                className="bg-background"
+              />
+
+              {scannedExistingProduct && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-lg bg-background border border-primary/30 text-xs">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">
+                      Already in catalog: {scannedExistingProduct.name}
+                    </p>
+                    <p className="text-micro text-muted-foreground">
+                      Current Stock: {scannedExistingProduct.totalStock ?? 0} • Want to add a new stock batch to this medicine instead?
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const params = new URLSearchParams();
+                      params.set('productId', scannedExistingProduct.id);
+                      if (watch('batchNumber')) params.set('batchNumber', String(watch('batchNumber')));
+                      if (watch('expiryDate')) params.set('expiryDate', String(watch('expiryDate')));
+                      if (watch('mfgDate')) params.set('mfgDate', String(watch('mfgDate')));
+                      router.push(`/inventory/receive?${params.toString()}`);
+                    }}
+                    className="h-8 text-xs font-semibold shrink-0"
+                  >
+                    Receive Stock Batch
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Core Medicine & Stock Information Card */}
         <Card className="shadow-xs">
           <CardHeader className="p-3.5 sm:p-6">
@@ -647,7 +791,7 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   placeholder="Enter Barcode or scan with camera/hardware scanner"
                   value={watch('barcode') || ''}
                   onChange={(val) => setValue('barcode', val, { shouldValidate: true, shouldDirty: true })}
-                  onScan={(scannedVal) => setValue('barcode', scannedVal, { shouldValidate: true, shouldDirty: true })}
+                  onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
                 />
               </div>
             </CardContent>
