@@ -355,7 +355,7 @@ export async function downloadThermalReceiptPdf(
 
     const items = sale.items || [];
     const itemRowsCount = items.length;
-    const pdfHeight = Math.max(160, 95 + itemRowsCount * 11);
+    const pdfHeight = Math.max(140, 85 + itemRowsCount * 11);
 
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -363,18 +363,21 @@ export async function downloadThermalReceiptPdf(
       format: [80, pdfHeight],
     });
 
-    const displayName = storeName || (sale as any).store?.name || 'Pharmacy Dispensary';
+    const displayName = storeName || (sale as any).store?.name || 'Pharmacy Store';
     const isVoided = sale.status === 'VOIDED';
+    const rawSale = sale as any;
+    const currency = rawSale.store?.currency || 'PKR';
 
     // Store Header
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(13);
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 0, 0);
     pdf.text(displayName, 40, 12, { align: 'center' });
 
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
+    pdf.setFontSize(8.5);
     let currentY = 17;
-    pdf.text(`Tax Receipt #: ${sale.receiptNumber}`, 40, currentY, { align: 'center' });
+    pdf.text(`Receipt #: ${sale.receiptNumber}`, 40, currentY, { align: 'center' });
     currentY += 4.5;
 
     if (isVoided) {
@@ -386,94 +389,113 @@ export async function downloadThermalReceiptPdf(
       currentY += 4.5;
     }
 
-    // Divider Line
+    // Dashed Divider Line
     pdf.setDrawColor(180, 180, 180);
-    pdf.setLineDashPattern([1, 1], 0);
-    pdf.line(5, currentY, 75, currentY);
-    currentY += 5;
+    pdf.setLineDashPattern([1.5, 1.5], 0);
+    pdf.line(6, currentY, 74, currentY);
+    currentY += 4.5;
 
     // Metadata
     pdf.setFontSize(8);
-    pdf.text(`Date & Time: ${formatDateTime(sale.createdAt)}`, 5, currentY);
+    pdf.text(`Date & Time: ${formatDateTime(sale.createdAt)}`, 6, currentY);
     currentY += 4;
-    const rawSale = sale as any;
-    pdf.text(`Cashier: ${rawSale.user?.name || rawSale.cashierName || 'Staff'}`, 5, currentY);
+    pdf.text(`Cashier: ${rawSale.user?.name || rawSale.cashierName || 'Pharmacy Staff'}`, 6, currentY);
     currentY += 4;
 
     const custName = rawSale.customer?.name || rawSale.customerName;
     if (custName) {
-      pdf.text(`Customer: ${custName}`, 5, currentY);
+      pdf.text(`Customer: ${custName}`, 6, currentY);
       currentY += 4;
     }
 
-    // Divider Line
-    pdf.line(5, currentY, 75, currentY);
-    currentY += 5;
+    // Dashed Divider Line
+    pdf.line(6, currentY, 74, currentY);
+    currentY += 4.5;
 
     // Table Header
     pdf.setFont('helvetica', 'bold');
-    pdf.text('MEDICINE ITEM', 5, currentY);
-    pdf.text('QTY x PRICE', 42, currentY);
-    pdf.text('TOTAL', 75, currentY, { align: 'right' });
+    pdf.setFontSize(8);
+    pdf.text('ITEM', 6, currentY);
+    pdf.text('QTY × PRICE', 48, currentY, { align: 'center' });
+    pdf.text('TOTAL', 74, currentY, { align: 'right' });
     currentY += 2;
-    pdf.line(5, currentY, 75, currentY);
-    currentY += 5;
+    pdf.line(6, currentY, 74, currentY);
+    currentY += 4.5;
 
     // Line Items
     pdf.setFont('helvetica', 'normal');
     items.forEach((item) => {
       const name = item.productName || 'Medicine';
-      const truncatedName = name.length > 18 ? name.slice(0, 17) + '...' : name;
-      pdf.text(truncatedName, 5, currentY);
-      pdf.text(`${item.quantity} x ${Number(item.unitPrice).toFixed(0)}`, 42, currentY);
-      pdf.text(formatCurrency(item.lineTotal), 75, currentY, { align: 'right' });
+      const truncatedName = name.length > 18 ? name.slice(0, 17) + '…' : name;
+      pdf.text(truncatedName, 6, currentY);
+
+      const unitLabel = item.unit ? ` ${item.unit}` : '';
+      const qtyStr = `${item.quantity}${unitLabel} × ${Number(item.unitPrice).toFixed(0)}`;
+      pdf.text(qtyStr, 48, currentY, { align: 'center' });
+
+      pdf.text(`${Number(item.lineTotal).toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
       currentY += 4;
 
       if (item.batchNumber) {
         pdf.setFontSize(6.5);
         pdf.setTextColor(100, 100, 100);
         const exp = item.expiryDate ? ` | Exp: ${item.expiryDate.slice(0, 7)}` : '';
-        pdf.text(`Batch: ${item.batchNumber}${exp}`, 5, currentY);
+        pdf.text(`Batch: ${item.batchNumber}${exp}`, 6, currentY);
         pdf.setFontSize(8);
         pdf.setTextColor(0, 0, 0);
-        currentY += 4;
+        currentY += 3.5;
       }
     });
 
-    currentY += 2;
-    pdf.line(5, currentY, 75, currentY);
-    currentY += 6;
+    currentY += 1;
+    pdf.line(6, currentY, 74, currentY);
+    currentY += 4.5;
 
-    // Grand Total
+    // Financials
+    const subtotal = Number((sale as any).subtotal || sale.totalAmount);
+    const discount = Number(sale.discountAmount || 0);
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.text('Subtotal:', 6, currentY);
+    pdf.text(`${subtotal.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+    currentY += 4;
+
+    if (discount > 0) {
+      pdf.text('Discount:', 6, currentY);
+      pdf.text(`-${discount.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+      currentY += 4;
+    }
+
+    // GRAND TOTAL
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.text('GRAND TOTAL:', 5, currentY);
-    pdf.text(formatCurrency(sale.totalAmount), 75, currentY, { align: 'right' });
-    currentY += 6.5;
+    pdf.setFontSize(10.5);
+    pdf.text('GRAND TOTAL:', 6, currentY);
+    pdf.text(`${Number(sale.totalAmount).toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+    currentY += 5.5;
 
     // Payment Details
-    pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
     const paymentStr = rawSale.paymentMethod || rawSale.payment?.method || 'CASH';
-    pdf.text(`Payment: ${paymentStr} (${isVoided ? 'VOIDED' : 'PAID'})`, 5, currentY);
-    currentY += 6;
+    pdf.text(`Payment Method: ${paymentStr} (${isVoided ? 'VOIDED' : 'PAID'})`, 6, currentY);
+    currentY += 5;
 
     // Footer
-    pdf.setLineDashPattern([1, 1], 0);
-    pdf.line(5, currentY, 75, currentY);
-    currentY += 5;
+    pdf.line(6, currentY, 74, currentY);
+    currentY += 4.5;
 
     pdf.setFont('helvetica', 'italic');
     pdf.setFontSize(7);
     const footerLines = pdf.splitTextToSize(
       (sale as any).store?.receiptFooter ||
-        'Thank you for your visit! Return/Exchange with receipt within 7 days.',
-      70,
+        'Thank you for choosing us! Please retain receipt for returns within 7 days.',
+      68,
     );
     pdf.text(footerLines, 40, currentY, { align: 'center' });
 
-    pdf.save(`Thermal-Receipt-${sale.receiptNumber}.pdf`);
-    toast.success('Thermal Receipt PDF downloaded successfully!');
+    pdf.save(`Receipt-${sale.receiptNumber}.pdf`);
+    toast.success('Thermal Receipt downloaded!');
   } catch (err) {
     console.error('Thermal PDF download error:', err);
     toast.error('Failed to generate thermal receipt PDF.');

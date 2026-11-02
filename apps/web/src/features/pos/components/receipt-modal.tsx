@@ -52,7 +52,7 @@ export function ReceiptModal({
   const handleDownload = async () => {
     setIsDownloadingPdf(true);
     try {
-      await downloadA4TaxInvoicePdf(sale, { storeName });
+      await downloadThermalReceiptPdf(sale, storeName);
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -164,14 +164,14 @@ Thank you for your visit!`;
               onClick={handleDownload}
               disabled={isDownloadingPdf}
               className="w-full h-10 px-2 text-xs font-semibold gap-1.5 cursor-pointer whitespace-nowrap overflow-hidden active:scale-98"
-              title="Download A4 Tax Invoice PDF"
+              title="Download Thermal Receipt PDF"
             >
               {isDownloadingPdf ? (
                 <Loader2 className="size-3.5 animate-spin shrink-0" />
               ) : (
                 <Download className="size-3.5 text-primary shrink-0" />
               )}
-              <span className="whitespace-nowrap">PDF</span>
+              <span className="whitespace-nowrap">Receipt</span>
             </Button>
             <Button
               type="button"

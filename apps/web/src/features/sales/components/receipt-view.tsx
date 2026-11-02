@@ -80,7 +80,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   const [isVoiding, setIsVoiding] = useState(false);
 
   // View mode: 'a4' for Formal Tax Invoice, 'thermal' for 80mm POS Slip
-  const [viewMode, setViewMode] = useState<'a4' | 'thermal'>('a4');
+  const [viewMode, setViewMode] = useState<'a4' | 'thermal'>('thermal');
 
   // Return modal state
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);

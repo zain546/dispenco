@@ -48,7 +48,7 @@ export function RecentSalesModal({
   const handleDownload = async (sale: SaleResponse) => {
     setDownloadingSaleId(sale.id);
     try {
-      await downloadA4TaxInvoicePdf(sale, { storeName });
+      await downloadThermalReceiptPdf(sale, storeName);
     } finally {
       setDownloadingSaleId(null);
     }
