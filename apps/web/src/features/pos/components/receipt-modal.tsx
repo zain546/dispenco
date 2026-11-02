@@ -14,7 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { SaleResponse, salesApi } from '@/features/sales/services/sales-api';
 import { formatCurrency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
-import { downloadThermalReceiptPdf, downloadA4TaxInvoicePdf } from '../utils/pos-receipt-pdf';
+import { downloadThermalReceiptPdf,
+  shareThermalReceiptOnWhatsApp, downloadA4TaxInvoicePdf } from '../utils/pos-receipt-pdf';
 import { toast } from 'sonner';
 
 export interface ReceiptModalProps {
@@ -58,39 +59,10 @@ export function ReceiptModal({
     }
   };
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
+    await shareThermalReceiptOnWhatsApp(sale, storeName);
     const rawPhone = sale.customer?.phone || '';
     const cleanPhone = rawPhone.replace(/\D/g, '');
-
-    const receiptUrl = typeof window !== 'undefined' ? `${window.location.origin}/pos/receipt/${sale.id}` : '';
-    const itemsList = (sale.items || [])
-      .map((it) => `• ${it.productName} (${it.quantity} ${it.unit}) - ${formatCurrency(it.lineTotal)}`)
-      .slice(0, 5)
-      .join('\n');
-    const extraItems = (sale.items?.length || 0) > 5 ? `\n...and ${(sale.items?.length || 0) - 5} more item(s)` : '';
-
-    const textMessage = `🧾 *Pharmacy Receipt: ${sale.receiptNumber}*
-🏪 *${storeName || 'Dispenco Pharmacy'}*
-👤 *Customer:* ${sale.customerName || 'Valued Customer'}
-💳 *Payment:* ${sale.paymentMethod}
-💰 *Total Paid:* ${formatCurrency(sale.totalAmount)}
-
-📦 *Purchased Items:*
-${itemsList}${extraItems}
-
-📄 *View / Download Invoice:*
-${receiptUrl}
-
-Thank you for your visit!`;
-
-    const encodedText = encodeURIComponent(textMessage);
-    const waUrl = cleanPhone
-      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`
-      : `https://api.whatsapp.com/send?text=${encodedText}`;
-
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
-    toast.success('Opening WhatsApp to share receipt...');
-
     if (cleanPhone) {
       salesApi.sendDigitalInvoice(sale.id, cleanPhone).catch(() => {});
     }

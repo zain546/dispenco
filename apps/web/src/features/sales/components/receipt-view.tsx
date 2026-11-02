@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import {
   downloadA4TaxInvoicePdf,
   downloadThermalReceiptPdf,
+  shareThermalReceiptOnWhatsApp,
 } from '@/features/sales/utils/invoice-pdf-generator';
 import { CreateReturnModal } from '@/features/sales/components/create-return-modal';
 import { ReturnSlipModal } from '@/features/sales/components/return-slip-modal';
@@ -180,39 +181,10 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
     setIsWhatsAppModalOpen(true);
   };
 
-  const handleDirectWhatsAppShare = () => {
-    const rawPhone = saleData?.customer?.phone || '';
-    const cleanPhone = rawPhone.replace(/\D/g, '');
-
-    const receiptUrl = typeof window !== 'undefined' ? window.location.href : '';
-    const itemsList = (saleData?.items || [])
-      .map((it: any) => `• ${it.productName} (${it.quantity} ${it.unit || 'Box'}) - ${formatCurrency(it.lineTotal)}`)
-      .slice(0, 5)
-      .join('\n');
-    const extra = (saleData?.items?.length || 0) > 5 ? `\n...and ${saleData!.items.length - 5} more item(s)` : '';
-
-    const textMessage = `🧾 *Pharmacy Tax Invoice: ${saleData?.receiptNumber}*
-🏪 *${saleData?.store?.name || 'Dispenco Pharmacy'}*
-👤 *Customer:* ${saleData?.customer?.name || 'Valued Customer'}
-💳 *Payment:* ${saleData?.payment?.method || 'CASH'} (PAID)
-💰 *Total Paid:* ${formatCurrency(saleData?.totalAmount || 0)}
-
-📦 *Medicine Items:*
-${itemsList}${extra}
-
-📄 *View / Download Official Invoice:*
-${receiptUrl}
-
-Thank you for choosing ${saleData?.store?.name || 'our pharmacy'}!`;
-
-    const encoded = encodeURIComponent(textMessage);
-    const waUrl = cleanPhone
-      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`
-      : `https://api.whatsapp.com/send?text=${encoded}`;
-
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
-    toast.success('Opening WhatsApp to share receipt...');
-
+  const handleDirectWhatsAppShare = async () => {
+    if (!saleData) return;
+    await shareThermalReceiptOnWhatsApp(saleData, saleData.store?.name);
+    const cleanPhone = (saleData.customer?.phone || '').replace(/\D/g, '');
     if (cleanPhone) {
       salesApi.sendDigitalInvoice(saleId, cleanPhone).catch(() => {});
     }

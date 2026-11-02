@@ -346,158 +346,248 @@ export async function downloadA4TaxInvoicePdf(
 /**
  * Enhanced 80mm High-Speed Thermal Receipt PDF Generator
  */
+export async function generateThermalReceiptPdf(
+  sale: SaleResponse | SaleDetailResponse,
+  storeName?: string,
+) {
+  const { jsPDF } = await import('jspdf');
+
+  const items = sale.items || [];
+  const itemRowsCount = items.length;
+  const pdfHeight = Math.max(140, 85 + itemRowsCount * 11);
+
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: [80, pdfHeight],
+  });
+
+  const displayName = storeName || (sale as any).store?.name || 'Pharmacy Store';
+  const isVoided = sale.status === 'VOIDED';
+  const rawSale = sale as any;
+  const currency = rawSale.store?.currency || 'PKR';
+
+  // Store Header
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(14);
+  pdf.setTextColor(0, 0, 0);
+  pdf.text(displayName, 40, 12, { align: 'center' });
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8.5);
+  let currentY = 17;
+  pdf.text(`Receipt #: ${sale.receiptNumber}`, 40, currentY, { align: 'center' });
+  currentY += 4.5;
+
+  if (isVoided) {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.setTextColor(220, 38, 38);
+    pdf.text('*** VOIDED TRANSACTION ***', 40, currentY, { align: 'center' });
+    pdf.setTextColor(0, 0, 0);
+    currentY += 4.5;
+  }
+
+  // Dashed Divider Line
+  pdf.setDrawColor(180, 180, 180);
+  pdf.setLineDashPattern([1.5, 1.5], 0);
+  pdf.line(6, currentY, 74, currentY);
+  currentY += 4.5;
+
+  // Metadata
+  pdf.setFontSize(8);
+  pdf.text(`Date & Time: ${formatDateTime(sale.createdAt)}`, 6, currentY);
+  currentY += 4;
+  pdf.text(`Cashier: ${rawSale.user?.name || rawSale.cashierName || 'Pharmacy Staff'}`, 6, currentY);
+  currentY += 4;
+
+  const custName = rawSale.customer?.name || rawSale.customerName;
+  if (custName) {
+    pdf.text(`Customer: ${custName}`, 6, currentY);
+    currentY += 4;
+  }
+
+  // Dashed Divider Line
+  pdf.line(6, currentY, 74, currentY);
+  currentY += 4.5;
+
+  // Table Header
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.text('ITEM', 6, currentY);
+  pdf.text('QTY × PRICE', 48, currentY, { align: 'center' });
+  pdf.text('TOTAL', 74, currentY, { align: 'right' });
+  currentY += 2;
+  pdf.line(6, currentY, 74, currentY);
+  currentY += 4.5;
+
+  // Line Items
+  pdf.setFont('helvetica', 'normal');
+  items.forEach((item) => {
+    const name = item.productName || 'Medicine';
+    const truncatedName = name.length > 18 ? name.slice(0, 17) + '…' : name;
+    pdf.text(truncatedName, 6, currentY);
+
+    const unitLabel = item.unit ? ` ${item.unit}` : '';
+    const qtyStr = `${item.quantity}${unitLabel} × ${Number(item.unitPrice).toFixed(0)}`;
+    pdf.text(qtyStr, 48, currentY, { align: 'center' });
+
+    pdf.text(`${Number(item.lineTotal).toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+    currentY += 4;
+
+    if (item.batchNumber) {
+      pdf.setFontSize(6.5);
+      pdf.setTextColor(100, 100, 100);
+      const exp = item.expiryDate ? ` | Exp: ${item.expiryDate.slice(0, 7)}` : '';
+      pdf.text(`Batch: ${item.batchNumber}${exp}`, 6, currentY);
+      pdf.setFontSize(8);
+      pdf.setTextColor(0, 0, 0);
+      currentY += 3.5;
+    }
+  });
+
+  currentY += 1;
+  pdf.line(6, currentY, 74, currentY);
+  currentY += 4.5;
+
+  // Financials
+  const subtotal = Number((sale as any).subtotal || sale.totalAmount);
+  const discount = Number(sale.discountAmount || 0);
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.text('Subtotal:', 6, currentY);
+  pdf.text(`${subtotal.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+  currentY += 4;
+
+  if (discount > 0) {
+    pdf.text('Discount:', 6, currentY);
+    pdf.text(`-${discount.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+    currentY += 4;
+  }
+
+  // GRAND TOTAL
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10.5);
+  pdf.text('GRAND TOTAL:', 6, currentY);
+  pdf.text(`${Number(sale.totalAmount).toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+  currentY += 5.5;
+
+  // Payment Details
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  const paymentStr = rawSale.paymentMethod || rawSale.payment?.method || 'CASH';
+  pdf.text(`Payment Method: ${paymentStr} (${isVoided ? 'VOIDED' : 'PAID'})`, 6, currentY);
+  currentY += 5;
+
+  // Footer
+  pdf.line(6, currentY, 74, currentY);
+  currentY += 4.5;
+
+  pdf.setFont('helvetica', 'italic');
+  pdf.setFontSize(7);
+  const footerLines = pdf.splitTextToSize(
+    (sale as any).store?.receiptFooter ||
+      'Thank you for choosing us! Please retain receipt for returns within 7 days.',
+    68,
+  );
+  pdf.text(footerLines, 40, currentY, { align: 'center' });
+
+  return pdf;
+}
+
 export async function downloadThermalReceiptPdf(
   sale: SaleResponse | SaleDetailResponse,
   storeName?: string,
 ) {
   try {
-    const { jsPDF } = await import('jspdf');
-
-    const items = sale.items || [];
-    const itemRowsCount = items.length;
-    const pdfHeight = Math.max(140, 85 + itemRowsCount * 11);
-
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [80, pdfHeight],
-    });
-
-    const displayName = storeName || (sale as any).store?.name || 'Pharmacy Store';
-    const isVoided = sale.status === 'VOIDED';
-    const rawSale = sale as any;
-    const currency = rawSale.store?.currency || 'PKR';
-
-    // Store Header
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(14);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(displayName, 40, 12, { align: 'center' });
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8.5);
-    let currentY = 17;
-    pdf.text(`Receipt #: ${sale.receiptNumber}`, 40, currentY, { align: 'center' });
-    currentY += 4.5;
-
-    if (isVoided) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(9);
-      pdf.setTextColor(220, 38, 38);
-      pdf.text('*** VOIDED TRANSACTION ***', 40, currentY, { align: 'center' });
-      pdf.setTextColor(0, 0, 0);
-      currentY += 4.5;
-    }
-
-    // Dashed Divider Line
-    pdf.setDrawColor(180, 180, 180);
-    pdf.setLineDashPattern([1.5, 1.5], 0);
-    pdf.line(6, currentY, 74, currentY);
-    currentY += 4.5;
-
-    // Metadata
-    pdf.setFontSize(8);
-    pdf.text(`Date & Time: ${formatDateTime(sale.createdAt)}`, 6, currentY);
-    currentY += 4;
-    pdf.text(`Cashier: ${rawSale.user?.name || rawSale.cashierName || 'Pharmacy Staff'}`, 6, currentY);
-    currentY += 4;
-
-    const custName = rawSale.customer?.name || rawSale.customerName;
-    if (custName) {
-      pdf.text(`Customer: ${custName}`, 6, currentY);
-      currentY += 4;
-    }
-
-    // Dashed Divider Line
-    pdf.line(6, currentY, 74, currentY);
-    currentY += 4.5;
-
-    // Table Header
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(8);
-    pdf.text('ITEM', 6, currentY);
-    pdf.text('QTY × PRICE', 48, currentY, { align: 'center' });
-    pdf.text('TOTAL', 74, currentY, { align: 'right' });
-    currentY += 2;
-    pdf.line(6, currentY, 74, currentY);
-    currentY += 4.5;
-
-    // Line Items
-    pdf.setFont('helvetica', 'normal');
-    items.forEach((item) => {
-      const name = item.productName || 'Medicine';
-      const truncatedName = name.length > 18 ? name.slice(0, 17) + '…' : name;
-      pdf.text(truncatedName, 6, currentY);
-
-      const unitLabel = item.unit ? ` ${item.unit}` : '';
-      const qtyStr = `${item.quantity}${unitLabel} × ${Number(item.unitPrice).toFixed(0)}`;
-      pdf.text(qtyStr, 48, currentY, { align: 'center' });
-
-      pdf.text(`${Number(item.lineTotal).toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
-      currentY += 4;
-
-      if (item.batchNumber) {
-        pdf.setFontSize(6.5);
-        pdf.setTextColor(100, 100, 100);
-        const exp = item.expiryDate ? ` | Exp: ${item.expiryDate.slice(0, 7)}` : '';
-        pdf.text(`Batch: ${item.batchNumber}${exp}`, 6, currentY);
-        pdf.setFontSize(8);
-        pdf.setTextColor(0, 0, 0);
-        currentY += 3.5;
-      }
-    });
-
-    currentY += 1;
-    pdf.line(6, currentY, 74, currentY);
-    currentY += 4.5;
-
-    // Financials
-    const subtotal = Number((sale as any).subtotal || sale.totalAmount);
-    const discount = Number(sale.discountAmount || 0);
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.text('Subtotal:', 6, currentY);
-    pdf.text(`${subtotal.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
-    currentY += 4;
-
-    if (discount > 0) {
-      pdf.text('Discount:', 6, currentY);
-      pdf.text(`-${discount.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
-      currentY += 4;
-    }
-
-    // GRAND TOTAL
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10.5);
-    pdf.text('GRAND TOTAL:', 6, currentY);
-    pdf.text(`${Number(sale.totalAmount).toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
-    currentY += 5.5;
-
-    // Payment Details
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    const paymentStr = rawSale.paymentMethod || rawSale.payment?.method || 'CASH';
-    pdf.text(`Payment Method: ${paymentStr} (${isVoided ? 'VOIDED' : 'PAID'})`, 6, currentY);
-    currentY += 5;
-
-    // Footer
-    pdf.line(6, currentY, 74, currentY);
-    currentY += 4.5;
-
-    pdf.setFont('helvetica', 'italic');
-    pdf.setFontSize(7);
-    const footerLines = pdf.splitTextToSize(
-      (sale as any).store?.receiptFooter ||
-        'Thank you for choosing us! Please retain receipt for returns within 7 days.',
-      68,
-    );
-    pdf.text(footerLines, 40, currentY, { align: 'center' });
-
+    const pdf = await generateThermalReceiptPdf(sale, storeName);
     pdf.save(`Receipt-${sale.receiptNumber}.pdf`);
-    toast.success('Thermal Receipt downloaded!');
+    toast.success('Thermal Receipt PDF downloaded successfully!');
   } catch (err) {
     console.error('Thermal PDF download error:', err);
     toast.error('Failed to generate thermal receipt PDF.');
+  }
+}
+
+/**
+ * Shares the 80mm Thermal Receipt PDF directly via WhatsApp with the PDF file attached on mobile (Web Share API),
+ * or auto-downloads the PDF file and opens WhatsApp Web with the receipt text and link on desktop.
+ */
+export async function shareThermalReceiptOnWhatsApp(
+  sale: SaleResponse | SaleDetailResponse,
+  storeName?: string,
+) {
+  try {
+    const rawPhone = sale.customer?.phone || '';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    const receiptUrl =
+      typeof window !== 'undefined' ? `${window.location.origin}/pos/receipt/${sale.id}` : '';
+
+    const itemsList = (sale.items || [])
+      .map(
+        (it) =>
+          `• ${it.productName} (${it.quantity} ${it.unit || ''}) - ${formatCurrency(it.lineTotal)}`,
+      )
+      .slice(0, 5)
+      .join('\n');
+    const extraItems =
+      (sale.items?.length || 0) > 5
+        ? `\n...and ${(sale.items?.length || 0) - 5} more item(s)`
+        : '';
+
+    const textMessage = `🧾 *Pharmacy Receipt: ${sale.receiptNumber}*
+🏪 *${storeName || (sale as any).store?.name || 'Pharmacy Store'}*
+👤 *Customer:* ${(sale as any).customerName || (sale as any).customer?.name || 'Valued Customer'}
+💳 *Payment:* ${(sale as any).paymentMethod || (sale as any).payment?.method || 'CASH'}
+💰 *Total Paid:* ${formatCurrency(sale.totalAmount)}
+
+📦 *Purchased Items:*
+${itemsList}${extraItems}
+
+📄 *View Receipt Online:*
+${receiptUrl}
+
+Thank you for your visit!`;
+
+    // 1. Generate the PDF instance
+    const pdf = await generateThermalReceiptPdf(sale, storeName);
+    const pdfBlob = pdf.output('blob');
+    const pdfFileName = `Receipt-${sale.receiptNumber}.pdf`;
+    const pdfFile = new File([pdfBlob], pdfFileName, {
+      type: 'application/pdf',
+    });
+
+    // 2. Check if device supports Web Share API with files (iOS Safari, Android Chrome)
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.canShare &&
+      navigator.canShare({ files: [pdfFile] })
+    ) {
+      await navigator.share({
+        files: [pdfFile],
+        title: `Receipt #${sale.receiptNumber}`,
+        text: textMessage,
+      });
+      toast.success('Sharing receipt PDF via WhatsApp...');
+      return;
+    }
+
+    // 3. Fallback for Desktop/Unsupported browsers:
+    // Download the PDF automatically so the user has the file immediately
+    pdf.save(pdfFileName);
+
+    // Open WhatsApp with prefilled message
+    const encodedText = encodeURIComponent(textMessage);
+    const waUrl = cleanPhone
+      ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`
+      : `https://api.whatsapp.com/send?text=${encodedText}`;
+
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
+    toast.success('Receipt PDF downloaded & WhatsApp opened!');
+  } catch (err: any) {
+    if (err?.name === 'AbortError') return; // User cancelled share sheet
+    console.error('WhatsApp share error:', err);
+    toast.error('Could not share PDF directly. Opening WhatsApp...');
   }
 }
