@@ -94,7 +94,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Intelligence & Management',
     items: [
-      { name: 'Analytics & Audits', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
+      { name: 'Sales & Analytics', href: '/reports', icon: BarChart3, permission: 'canViewReports' },
       { name: 'Chain Operations', href: '/chain', icon: Building2, permission: 'canManageSettings', requiresMultiStore: true },
       { name: 'Settings & Subscription', href: '/settings', icon: Settings, permission: 'canManageSettings' },
     ],

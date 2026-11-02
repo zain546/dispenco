@@ -3,7 +3,11 @@ import { apiClient } from '@/lib/api';
 export interface SalesOverTimeData {
   date: string;
   revenue: number;
+  cost?: number;
+  profit?: number;
+  marginPercent?: number;
   count: number;
+  itemsSold?: number;
 }
 
 export interface TopProductData {
@@ -12,6 +16,31 @@ export interface TopProductData {
   category: string;
   totalQuantity: number;
   totalRevenue: number;
+  totalCost?: number;
+  totalProfit?: number;
+  profitMargin?: number;
+}
+
+export interface SalesReportTransaction {
+  id: string;
+  receiptNumber: string;
+  createdAt: string;
+  customerName: string;
+  cashierName: string;
+  storeName: string;
+  paymentMethod: string;
+  itemsCount: number;
+  discountAmount: number;
+  totalAmount: number;
+  costAmount: number;
+  profitAmount: number;
+  profitMargin: number;
+}
+
+export interface PaymentBreakdown {
+  cash: { count: number; amount: number };
+  digital: { count: number; amount: number };
+  credit: { count: number; amount: number };
 }
 
 export interface SalesReportResponse {
@@ -19,9 +48,15 @@ export interface SalesReportResponse {
   data: {
     summary: {
       totalRevenue: number;
+      totalCost?: number;
+      totalProfit?: number;
+      profitMargin?: number;
+      totalDiscount?: number;
+      totalTax?: number;
       totalTransactions: number;
       averageOrderValue: number;
       totalItemsSold: number;
+      paymentBreakdown?: PaymentBreakdown;
       dateRange: {
         startDate: string;
         endDate: string;
@@ -30,6 +65,7 @@ export interface SalesReportResponse {
     salesOverTime: SalesOverTimeData[];
     topProductsByQuantity: TopProductData[];
     topProductsByRevenue: TopProductData[];
+    transactions?: SalesReportTransaction[];
   };
 }
 
@@ -46,6 +82,9 @@ export interface StorePerformanceBreakdown {
   address?: string | null;
   currency: string;
   totalRevenue: number;
+  totalCost?: number;
+  totalProfit?: number;
+  profitMargin?: number;
   totalTransactions: number;
   totalItemsSold: number;
   averageOrderValue: number;
@@ -60,6 +99,9 @@ export interface OrgOverviewResponse {
   data: {
     summary: {
       totalRevenue: number;
+      totalCost?: number;
+      totalProfit?: number;
+      profitMargin?: number;
       totalTransactions: number;
       totalItemsSold: number;
       averageOrderValue: number;

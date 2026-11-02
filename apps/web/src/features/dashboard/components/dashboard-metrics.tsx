@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   DollarSign,
+  TrendingUp,
   AlertTriangle,
   Clock,
   PackageCheck,
@@ -17,7 +18,13 @@ import { formatCurrency, formatNumber } from '@/lib/format';
 export function DashboardMetrics() {
   const { activeStoreId, isAllStores } = useStore();
   const [isLoading, setIsLoading] = useState(true);
-  const [todaySales, setTodaySales] = useState({ revenue: 0, count: 0 });
+  const [todaySales, setTodaySales] = useState({
+    revenue: 0,
+    profit: 0,
+    cost: 0,
+    margin: 0,
+    count: 0,
+  });
   const [metrics, setMetrics] = useState({
     totalProducts: 0,
     stockedCount: 0,
@@ -29,7 +36,8 @@ export function DashboardMetrics() {
     async function loadMetrics() {
       try {
         setIsLoading(true);
-        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         const [aggRes, salesRes] = await Promise.allSettled([
           productsApi.getInventoryAggregation(
@@ -55,8 +63,20 @@ export function DashboardMetrics() {
 
         if (salesRes.status === 'fulfilled' && salesRes.value?.success && salesRes.value.data?.summary) {
           const sum = salesRes.value.data.summary;
+          const rev = sum.totalRevenue || 0;
+          const cost = sum.totalCost || 0;
+          const profit = sum.totalProfit !== undefined ? sum.totalProfit : rev - cost;
+          const margin =
+            sum.profitMargin !== undefined
+              ? sum.profitMargin
+              : rev > 0
+                ? Number(((profit / rev) * 100).toFixed(1))
+                : 0;
           setTodaySales({
-            revenue: sum.totalRevenue || 0,
+            revenue: rev,
+            profit,
+            cost,
+            margin,
             count: sum.totalTransactions || 0,
           });
         }
@@ -71,7 +91,7 @@ export function DashboardMetrics() {
   }, [activeStoreId, isAllStores]);
 
   return (
-    <div className="flex items-stretch sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex items-stretch sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {/* Today's Sales */}
       <Link href="/reports" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
         <StatCard
@@ -80,6 +100,23 @@ export function DashboardMetrics() {
           caption={todaySales.count === 0 ? 'No completed sales today yet' : `${formatNumber(todaySales.count)} completed receipts`}
           icon={DollarSign}
           variant="success"
+          isLoading={isLoading}
+          className="group-hover:border-success/50 transition-colors h-full flex-1"
+        />
+      </Link>
+
+      {/* Today's Profit */}
+      <Link href="/reports" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
+        <StatCard
+          label="Today's Profit"
+          value={formatCurrency(todaySales.profit)}
+          caption={
+            todaySales.count === 0
+              ? 'Net earnings after batch cost'
+              : `${todaySales.margin.toFixed(1)}% margin • Cost: ${formatCurrency(todaySales.cost)}`
+          }
+          icon={TrendingUp}
+          variant={todaySales.profit >= 0 ? 'success' : 'destructive'}
           isLoading={isLoading}
           className="group-hover:border-success/50 transition-colors h-full flex-1"
         />
