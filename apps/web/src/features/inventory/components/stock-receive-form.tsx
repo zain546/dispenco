@@ -325,7 +325,7 @@ export function StockReceiveForm() {
               <div className="space-y-3">
                 <div className="relative">
                   <ScannerInput
-                    placeholder="Scan medicine box QR / 2D barcode or type medicine name..."
+                    placeholder="Scan box or search medicine name..."
                     value={productSearch}
                     onChange={(val) => setProductSearch(val)}
                     onScan={async (scannedBarcode, parsedData?: Gs1ParsedMedicineData) => {

@@ -219,6 +219,8 @@ export interface ScannerInputProps {
   id?: string;
   name?: string;
   showCameraToggle?: boolean;
+  buttonOnly?: boolean;
+  buttonLabel?: string;
 }
 
 export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps>(
@@ -228,13 +230,15 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
       onChange,
       onScan,
       onKeyDown: onKeyDownProp,
-      placeholder = 'Scan QR / barcode or type...',
+      placeholder = 'Scan or enter barcode...',
       autoFocus = false,
       disabled = false,
       className = '',
       id,
       name,
       showCameraToggle = true,
+      buttonOnly = false,
+      buttonLabel = 'Scan Box',
     },
     ref
   ) => {
@@ -540,36 +544,52 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
     }, [isCameraOpen]);
 
     return (
-      <div className="relative flex items-center w-full gap-1.5">
-        <div className="relative flex-1">
-          <Input
-            ref={inputRef}
-            id={id}
-            name={name}
-            type="text"
-            value={internalValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            autoFocus={autoFocus}
-            disabled={disabled}
-            className={`pr-9 font-mono text-sm tracking-wide focus-visible:ring-2 focus-visible:ring-primary ${className}`}
-          />
-          <QrCode className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none opacity-60" />
-        </div>
-
-        {showCameraToggle && (
+      <div className={buttonOnly ? 'inline-flex shrink-0' : 'relative flex items-center w-full gap-1.5'}>
+        {buttonOnly ? (
           <Button
             type="button"
-            variant="outline"
-            size="icon"
+            variant="default"
+            size="sm"
             onClick={() => setIsCameraOpen(true)}
             disabled={disabled}
-            title="Open QR & Barcode Camera Scanner"
-            className="h-11 w-11 shrink-0 border-primary/30 text-primary hover:bg-primary/5"
+            className={`h-9 px-3.5 gap-2 font-semibold text-xs rounded-lg shadow-2xs shrink-0 ${className}`}
           >
-            <Camera className="size-5" />
+            <Camera className="size-4 shrink-0" />
+            <span>{buttonLabel}</span>
           </Button>
+        ) : (
+          <>
+            <div className="relative flex-1 min-w-0">
+              <Input
+                ref={inputRef}
+                id={id}
+                name={name}
+                type="text"
+                value={internalValue}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                autoFocus={autoFocus}
+                disabled={disabled}
+                className={`pr-9 font-mono text-sm tracking-wide placeholder:font-sans placeholder:tracking-normal placeholder:text-xs sm:placeholder:text-sm focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+              />
+              <QrCode className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none opacity-60" />
+            </div>
+
+            {showCameraToggle && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setIsCameraOpen(true)}
+                disabled={disabled}
+                title="Open QR & Barcode Camera Scanner"
+                className="h-11 w-11 shrink-0 border-primary/30 text-primary hover:bg-primary/5"
+              >
+                <Camera className="size-5" />
+              </Button>
+            )}
+          </>
         )}
 
         {/* Camera QR & Barcode Scanner Modal */}
