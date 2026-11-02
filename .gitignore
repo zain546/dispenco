@@ -19,7 +19,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment variables
+# Environment variables & secrets
 .env
 .env.local
 .env.development.local
@@ -29,3 +29,7 @@ pnpm-debug.log*
 *.pem
 /doc
 /teacher-portal
+
+# Private live pharmacy stock data & seed script
+StockList02-11-2026.pdf
+apps/api/prisma/seed-live-stock.ts
