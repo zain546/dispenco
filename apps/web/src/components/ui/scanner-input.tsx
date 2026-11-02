@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +14,41 @@ import {
 } from '@/components/ui/dialog';
 import { QrCode, Camera, RefreshCw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+
+/**
+ * Normalizes raw scanned strings from medicine boxes:
+ * - Strips GS1 / symbology prefixes (e.g. \u001d, ]d2, ]Q3, ]C1)
+ * - If the code is a GS1 2D DataMatrix or GS1 QR code (used on DRAP/pharma packs
+ *   containing AI (01) GTIN + (17) Expiry + (10) Batch + (21) Serial), extracts the
+ *   14-digit GTIN so every box of the same medicine shares the same identifier.
+ */
+export function normalizeScannedMedicineCode(raw: string): string {
+  if (!raw) return '';
+  // Strip control characters (GS1 FNC1 = ASCII 29 / \x1d) and symbology identifiers
+  let cleaned = raw
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .replace(/^(\]d2|\]Q3|\]C1|\]e0)/i, '')
+    .trim();
+
+  // Check human-readable GS1 format: (01)08964001234567(17)...
+  const parenGs1Match = cleaned.match(/^\(01\)(\d{14})/);
+  if (parenGs1Match) {
+    return parenGs1Match[1];
+  }
+
+  // Check standard unparenthesized GS1 2D DataMatrix / QR format:
+  // Starts with '01' followed by 14-digit GTIN, then AI '17' (YYMMDD) or '10' (Batch) or '21' (Serial)
+  if (cleaned.length >= 22 && cleaned.startsWith('01')) {
+    const potentialGtin = cleaned.slice(2, 16);
+    const remainder = cleaned.slice(16);
+    if (/^\d{14}$/.test(potentialGtin) && /^(17\d{6}|10|21|11\d{6})/.test(remainder)) {
+      return potentialGtin;
+    }
+  }
+
+  // If it is a URL with a product code or query param, keep cleaned string
+  return cleaned;
+}
 
 export interface ScannerInputProps {
   value?: string;
@@ -35,7 +71,7 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
       onChange,
       onScan,
       onKeyDown: onKeyDownProp,
-      placeholder = 'Scan barcode or type...',
+      placeholder = 'Scan QR / barcode or type...',
       autoFocus = false,
       disabled = false,
       className = '',
@@ -57,6 +93,8 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
     const videoRef = useRef<HTMLVideoElement>(null);
     const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
     const controlsRef = useRef<{ stop: () => void } | null>(null);
+    const nativeDetectorIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const hasScannedRef = useRef<boolean>(false);
     const onScanRef = useRef(onScan);
     const onChangeRef = useRef(onChange);
 
@@ -77,6 +115,10 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
     };
 
     const stopCamera = useCallback(() => {
+      if (nativeDetectorIntervalRef.current) {
+        clearInterval(nativeDetectorIntervalRef.current);
+        nativeDetectorIntervalRef.current = null;
+      }
       if (controlsRef.current) {
         try {
           controlsRef.current.stop();
@@ -95,18 +137,23 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
 
     const handleScanSuccess = useCallback(
       (scannedText: string) => {
-        const trimmed = scannedText.trim();
-        if (!trimmed) return;
+        if (hasScannedRef.current) return;
+        const normalized = normalizeScannedMedicineCode(scannedText);
+        if (!normalized) return;
 
-        // Audio feedback using Web Audio API for native sound
+        hasScannedRef.current = true;
+
+        // Audio feedback using Web Audio API for native beep sound
         try {
-          const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const AudioCtx =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
           const audioCtx = new AudioCtx();
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz A5 note
-          gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
           osc.connect(gain);
           gain.connect(audioCtx.destination);
@@ -116,13 +163,16 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
           // Fallback if Web Audio fails
         }
 
-        setInternalValue(trimmed);
-        onChangeRef.current?.(trimmed);
-        onScanRef.current?.(trimmed);
-        toast.success(`Scanned: ${trimmed}`);
+        setInternalValue(normalized);
+        onChangeRef.current?.(normalized);
+        onScanRef.current?.(normalized);
+        toast.success(`Scanned code: ${normalized}`);
 
         stopCamera();
         setIsCameraOpen(false);
+        setTimeout(() => {
+          hasScannedRef.current = false;
+        }, 500);
       },
       [stopCamera]
     );
@@ -133,9 +183,9 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
 
       if (e.key === 'Enter') {
         e.preventDefault();
-        const trimmed = internalValue.trim();
-        if (trimmed) {
-          onScan?.(trimmed);
+        const normalized = normalizeScannedMedicineCode(internalValue);
+        if (normalized) {
+          onScan?.(normalized);
         }
       }
     };
@@ -162,6 +212,7 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
         if (e.key === 'Enter') {
           if (buffer.length >= 3 && timeDiff < 100) {
             e.preventDefault();
+            hasScannedRef.current = false;
             handleScanSuccess(buffer);
             buffer = '';
           }
@@ -178,10 +229,11 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
       return () => window.removeEventListener('keydown', handleGlobalKeyDown);
     }, [handleScanSuccess, inputRef]);
 
-    // Start Camera scanning stream
+    // Start Camera scanning stream (supports QR Code, GS1 2D DataMatrix, and 1D Barcodes)
     const startCamera = useCallback(
       async (overrideDeviceId?: string) => {
         stopCamera();
+        hasScannedRef.current = false;
         setCameraError(null);
         setIsScanning(true);
 
@@ -194,8 +246,8 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
 
           // Wait briefly for Dialog portal to mount the <video> element
           let attempts = 0;
-          while (!videoRef.current && attempts < 20) {
-            await new Promise((resolve) => setTimeout(resolve, 50));
+          while (!videoRef.current && attempts < 25) {
+            await new Promise((resolve) => setTimeout(resolve, 40));
             attempts++;
           }
 
@@ -203,39 +255,43 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
             throw new Error('Camera video element failed to initialize. Please try again.');
           }
 
-          // Request camera permission first so browser populates deviceIds and labels
-          const preStream = await navigator.mediaDevices.getUserMedia({
-            video: overrideDeviceId
-              ? { deviceId: { exact: overrideDeviceId } }
-              : { facingMode: { ideal: 'environment' } },
-            audio: false,
+          // Configure ZXing with TRY_HARDER + all 2D (QR, DataMatrix) & 1D formats
+          const hints = new Map();
+          hints.set(DecodeHintType.TRY_HARDER, true);
+          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+            BarcodeFormat.QR_CODE,
+            BarcodeFormat.DATA_MATRIX,
+            BarcodeFormat.AZTEC,
+            BarcodeFormat.PDF_417,
+            BarcodeFormat.EAN_13,
+            BarcodeFormat.EAN_8,
+            BarcodeFormat.CODE_128,
+            BarcodeFormat.CODE_39,
+            BarcodeFormat.CODE_93,
+            BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E,
+            BarcodeFormat.ITF,
+            BarcodeFormat.CODABAR,
+          ]);
+          codeReaderRef.current = new BrowserMultiFormatReader(hints, {
+            delayBetweenScanAttempts: 100,
           });
-          // Release temporary permission stream before ZXing attaches its own
-          preStream.getTracks().forEach((track) => track.stop());
 
-          const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices();
-          setAvailableDevices(videoInputDevices);
+          const videoConstraints: MediaTrackConstraints = overrideDeviceId
+            ? {
+                deviceId: { exact: overrideDeviceId },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              }
+            : {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              };
 
-          let deviceToUse = overrideDeviceId || selectedDeviceId;
-          if (!deviceToUse && videoInputDevices.length > 0) {
-            const backCamera = videoInputDevices.find(
-              (d) =>
-                d.label.toLowerCase().includes('back') ||
-                d.label.toLowerCase().includes('rear') ||
-                d.label.toLowerCase().includes('environment')
-            );
-            deviceToUse = (backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId) || '';
-            if (deviceToUse) {
-              setSelectedDeviceId(deviceToUse);
-            }
-          }
-
-          if (!codeReaderRef.current) {
-            codeReaderRef.current = new BrowserMultiFormatReader();
-          }
-
-          const controls = await codeReaderRef.current.decodeFromVideoDevice(
-            deviceToUse || undefined,
+          // Start decoding directly from constraints (opens camera permission + HD stream in one step)
+          const controls = await codeReaderRef.current.decodeFromConstraints(
+            { video: videoConstraints, audio: false },
             videoRef.current,
             (result) => {
               if (result) {
@@ -244,6 +300,61 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
             }
           );
           controlsRef.current = controls;
+
+          // Populate camera list now that permission is granted
+          const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices();
+          setAvailableDevices(videoInputDevices);
+          if (!overrideDeviceId && !selectedDeviceId && videoInputDevices.length > 0) {
+            const backCam = videoInputDevices.find(
+              (d) =>
+                d.label.toLowerCase().includes('back') ||
+                d.label.toLowerCase().includes('rear') ||
+                d.label.toLowerCase().includes('environment')
+            );
+            setSelectedDeviceId((backCam || videoInputDevices[0]).deviceId);
+          }
+
+          // Also run native hardware-accelerated BarcodeDetector in parallel if supported by browser
+          // (Reads small QR codes & glossy medicine box DataMatrix codes significantly faster)
+          const WinWithDetector = window as unknown as {
+            BarcodeDetector?: new (opts?: { formats: string[] }) => {
+              detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>;
+            };
+          };
+          if (typeof WinWithDetector.BarcodeDetector === 'function') {
+            try {
+              const nativeDetector = new WinWithDetector.BarcodeDetector({
+                formats: [
+                  'qr_code',
+                  'data_matrix',
+                  'aztec',
+                  'pdf417',
+                  'ean_13',
+                  'ean_8',
+                  'code_128',
+                  'code_39',
+                  'upc_a',
+                  'upc_e',
+                  'itf',
+                ],
+              });
+              nativeDetectorIntervalRef.current = setInterval(async () => {
+                if (!videoRef.current || videoRef.current.readyState < 2 || hasScannedRef.current) {
+                  return;
+                }
+                try {
+                  const barcodes = await nativeDetector.detect(videoRef.current);
+                  if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                    handleScanSuccess(barcodes[0].rawValue);
+                  }
+                } catch {
+                  // Ignore single-frame detection errors
+                }
+              }, 120);
+            } catch {
+              // Native BarcodeDetector init failed; ZXing continues running
+            }
+          }
         } catch (err: unknown) {
           console.error('Camera Scanner Error:', err);
           const rawMsg = err instanceof Error ? err.message : 'Unable to access camera';
@@ -252,7 +363,7 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
               'Camera permission was denied. Please allow camera access in your browser address bar and click Retry.'
             );
           } else if (rawMsg.toLowerCase().includes('notfound') || rawMsg.toLowerCase().includes('device not found')) {
-            setCameraError('No camera was detected on this device. You can still use any USB/Bluetooth barcode scanner.');
+            setCameraError('No camera was detected on this device. You can still use any USB/Bluetooth scanner.');
           } else {
             setCameraError(rawMsg);
           }
@@ -271,7 +382,6 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
       return () => {
         stopCamera();
       };
-      // Only trigger when modal opens/closes; camera switching calls startCamera(newId) directly
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isCameraOpen]);
 
@@ -301,47 +411,47 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
             size="icon"
             onClick={() => setIsCameraOpen(true)}
             disabled={disabled}
-            title="Open camera barcode scanner"
+            title="Open QR & Barcode Camera Scanner"
             className="h-11 w-11 shrink-0 border-primary/30 text-primary hover:bg-primary/5"
           >
             <Camera className="size-5" />
           </Button>
         )}
 
-        {/* Camera Barcode Scanner Modal */}
+        {/* Camera QR & Barcode Scanner Modal */}
         <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
           <DialogContent className="sm:max-w-md p-4 sm:p-6 overflow-hidden">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base font-semibold">
                 <Camera className="size-5 text-primary" />
-                <span>Camera Barcode Scanner</span>
+                <span>QR Code &amp; Barcode Scanner</span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Point your camera at a medicine barcode (EAN-13, Code 128, UPC, DataMatrix).
+                Point your camera at any medicine box QR code, 2D DataMatrix, or barcode.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="relative mt-2 flex flex-col items-center justify-center bg-black/90 rounded-xl overflow-hidden min-h-[260px] border border-border">
+            <div className="relative mt-2 flex flex-col items-center justify-center bg-black/90 rounded-xl overflow-hidden min-h-[280px] border border-border">
               <video
                 ref={videoRef}
-                className="w-full h-64 object-cover"
+                className="w-full h-72 object-cover"
                 autoPlay
                 playsInline
                 muted
               />
 
-              {/* Scanning Laser Animation Overlay */}
+              {/* Universal QR + 2D DataMatrix + Barcode Target Frame */}
               {isScanning && !cameraError && (
                 <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-                  <div className="w-3/4 h-36 border-2 border-primary/70 rounded-lg relative overflow-hidden shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary" />
-                    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary" />
-                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary" />
-                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary" />
+                  <div className="w-56 h-56 border-2 border-primary/70 rounded-xl relative overflow-hidden shadow-[0_0_20px_rgba(16,185,129,0.35)]">
+                    <div className="absolute top-0 left-0 w-5 h-5 border-t-3 border-l-3 border-primary rounded-tl-md" />
+                    <div className="absolute top-0 right-0 w-5 h-5 border-t-3 border-r-3 border-primary rounded-tr-md" />
+                    <div className="absolute bottom-0 left-0 w-5 h-5 border-b-3 border-l-3 border-primary rounded-bl-md" />
+                    <div className="absolute bottom-0 right-0 w-5 h-5 border-b-3 border-r-3 border-primary rounded-br-md" />
                     <div className="w-full h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse absolute top-1/2 -translate-y-1/2" />
                   </div>
-                  <p className="mt-3 text-micro font-medium text-white/80 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-xs">
-                    Scanning for barcode...
+                  <p className="mt-2.5 text-micro font-medium text-white/90 bg-black/60 px-3 py-1 rounded-full backdrop-blur-xs">
+                    Scanning QR Code / DataMatrix / Barcode...
                   </p>
                 </div>
               )}

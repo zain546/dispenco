@@ -137,6 +137,84 @@ export function POSTerminal() {
     packSize: '100',
   });
 
+  // Link Unregistered QR / Barcode to Existing Medicine Modal State
+  const [linkCodeModal, setLinkCodeModal] = useState<{
+    isOpen: boolean;
+    scannedCode: string;
+    query: string;
+    results: ProductData[];
+    isSearching: boolean;
+    isLinking: boolean;
+  }>({
+    isOpen: false,
+    scannedCode: '',
+    query: '',
+    results: [],
+    isSearching: false,
+    isLinking: false,
+  });
+
+  useEffect(() => {
+    if (!linkCodeModal.isOpen) return;
+    const term = linkCodeModal.query.trim();
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLinkCodeModal((prev) => ({ ...prev, isSearching: true }));
+      try {
+        const res = await productsApi.getProducts({
+          search: term || undefined,
+          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+          limit: 12,
+        });
+        if (!cancelled) {
+          setLinkCodeModal((prev) => ({
+            ...prev,
+            results: res?.data || [],
+            isSearching: false,
+          }));
+        }
+      } catch {
+        if (!cancelled) {
+          setLinkCodeModal((prev) => ({ ...prev, isSearching: false }));
+        }
+      }
+    }, 180);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [linkCodeModal.isOpen, linkCodeModal.query, activeStoreId, isAllStores]);
+
+  const handleLinkCodeToProduct = async (product: ProductData) => {
+    const code = linkCodeModal.scannedCode.trim();
+    if (!code) return;
+    setLinkCodeModal((prev) => ({ ...prev, isLinking: true }));
+    try {
+      const updatedRes = await productsApi.updateProduct(product.id, {
+        barcode: code,
+      });
+      const updatedProduct: ProductData = updatedRes?.data
+        ? { ...product, ...updatedRes.data, barcode: code }
+        : { ...product, barcode: code };
+
+      toast.success(`Linked QR/Barcode "${code}" to "${product.name}"!`);
+      setLinkCodeModal({
+        isOpen: false,
+        scannedCode: '',
+        query: '',
+        results: [],
+        isSearching: false,
+        isLinking: false,
+      });
+      addToCart(updatedProduct);
+      const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
+      posLocalDataService.syncCatalogToLocal(targetStore).catch(() => {});
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to link QR/barcode to medicine'));
+      setLinkCodeModal((prev) => ({ ...prev, isLinking: false }));
+    }
+  };
+
   const handleOpenPackSizeModal = (idx: number, name: string, currentSize: number) => {
     setPackSizeModal({
       isOpen: true,
@@ -578,13 +656,13 @@ export function POSTerminal() {
     }
   };
 
-  // Handle barcode scan with zero-latency local-first lookup
+  // Handle QR code, 2D DataMatrix, or 1D barcode scan with local-first lookup & 1-click linking
   const handleBarcodeScan = async (scannedCode: string) => {
     const code = scannedCode.trim();
     if (!code) return;
 
     try {
-      // 1. Check local IndexedDB first for instant (<1ms) offline barcode scan
+      // 1. Check local IndexedDB first for instant (<1ms) offline barcode/QR scan
       const localProduct = await posLocalDataService.getLocalProductByBarcode(code);
       if (localProduct) {
         addToCart(localProduct);
@@ -595,23 +673,55 @@ export function POSTerminal() {
 
       // 2. Fallback to online API lookup if online
       if (typeof navigator !== 'undefined' && navigator.onLine) {
-        const res = await productsApi.lookupByBarcode(
-          code,
-          !isAllStores && activeStoreId ? activeStoreId : undefined,
-        );
-        if (res?.product) {
-          addToCart(res.product);
-        } else {
-          toast.error(`No medicine found with barcode "${code}"`);
+        try {
+          const res = await productsApi.lookupByBarcode(
+            code,
+            !isAllStores && activeStoreId ? activeStoreId : undefined,
+          );
+          if (res?.product) {
+            addToCart(res.product);
+            setSearchQuery('');
+            focusSearchInput();
+            return;
+          }
+        } catch {
+          // Not found by exact barcode; check if QR text matches a medicine name or offer 1-click link
         }
+
+        // 3. If QR code contains medicine name/text, check catalog search
+        if (/[a-zA-Z]{3,}/.test(code) && !/^https?:/i.test(code)) {
+          try {
+            const searchRes = await productsApi.getProducts({
+              search: code,
+              storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+              limit: 5,
+            });
+            const matchedItems = searchRes?.data || [];
+            if (matchedItems.length === 1) {
+              addToCart(matchedItems[0]);
+              setSearchQuery('');
+              focusSearchInput();
+              return;
+            }
+          } catch {
+            // Ignore search error and open link modal
+          }
+        }
+
+        // 4. Unregistered QR / Barcode: Open 1-click Link QR/Barcode to Medicine modal
+        setLinkCodeModal({
+          isOpen: true,
+          scannedCode: code,
+          query: '',
+          results: topSellers.slice(0, 8),
+          isSearching: false,
+          isLinking: false,
+        });
       } else {
-        toast.error(`Barcode "${code}" not found in local offline cache`);
+        toast.error(`QR/Barcode "${code}" not found in local offline cache`);
       }
-    } catch {
-      toast.error(`Barcode "${code}" not registered in catalog`);
     } finally {
       setSearchQuery('');
-      focusSearchInput();
     }
   };
 
@@ -2094,6 +2204,74 @@ export function POSTerminal() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Unregistered QR Code / Barcode to Medicine Dialog */}
+      <Dialog
+        open={linkCodeModal.isOpen}
+        onOpenChange={(open) => setLinkCodeModal((prev) => ({ ...prev, isOpen: open }))}
+      >
+        <DialogContent className="sm:max-w-md p-5 rounded-2xl border-border shadow-2xl">
+          <DialogHeader className="space-y-1.5 text-left">
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Tag className="size-4 text-primary shrink-0" />
+              <span>Link Scanned QR / Barcode to Medicine</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Code <span className="font-mono font-bold text-foreground bg-muted px-1.5 py-0.5 rounded">{linkCodeModal.scannedCode}</span> is not linked to a medicine yet. Select a medicine below to save this QR/barcode permanently and add it to the cart:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Type medicine name (e.g. Panadol, Augmentin, Risek)..."
+                value={linkCodeModal.query}
+                onChange={(e) => setLinkCodeModal((prev) => ({ ...prev, query: e.target.value }))}
+                autoFocus
+                className="pl-9 h-10 text-xs sm:text-sm"
+              />
+              {linkCodeModal.isSearching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin" />
+              )}
+            </div>
+
+            <div className="max-h-60 overflow-y-auto divide-y divide-border/60 border border-border rounded-xl bg-muted/20">
+              {linkCodeModal.results.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  {linkCodeModal.query.trim()
+                    ? 'No matching medicines found. Try a different name.'
+                    : 'Type a medicine name above to search your inventory.'}
+                </div>
+              ) : (
+                linkCodeModal.results.map((prod) => (
+                  <div
+                    key={prod.id}
+                    className="p-2.5 flex items-center justify-between gap-2 hover:bg-primary/5 transition-colors"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{prod.name}</p>
+                      <p className="text-micro text-muted-foreground truncate">
+                        {prod.genericName || prod.category} • Stock: {prod.totalStock ?? 0} • {(prod.latestSellPrice ?? 0).toFixed(2)} PKR
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={linkCodeModal.isLinking}
+                      onClick={() => handleLinkCodeToProduct(prod)}
+                      className="h-8 px-3 text-xs font-semibold shrink-0"
+                    >
+                      Link & Add
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
