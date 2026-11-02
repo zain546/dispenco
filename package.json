@@ -20,6 +20,19 @@
     "turbo": "2.10.11",
     "typescript": "^5.7.3"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "core-js",
+      "msgpackr-extract",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
   "engines": {
     "node": ">=18.0.0"
   }
