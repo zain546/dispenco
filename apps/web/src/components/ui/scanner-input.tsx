@@ -50,288 +50,346 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
     const [cameraError, setCameraError] = useState<string | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const [availableDevices, setAvailableDevices] = useState<MediaDeviceInfo[]>([]);
-    const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(undefined);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
 
     const internalInputRef = useRef<HTMLInputElement>(null);
     const inputRef = (ref as React.RefObject<HTMLInputElement>) || internalInputRef;
     const videoRef = useRef<HTMLVideoElement>(null);
     const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
     const controlsRef = useRef<{ stop: () => void } | null>(null);
+    const onScanRef = useRef(onScan);
+    const onChangeRef = useRef(onChange);
 
-  // Sync internal value with controlled value prop
-  useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
+    useEffect(() => {
+      onScanRef.current = onScan;
+      onChangeRef.current = onChange;
+    }, [onScan, onChange]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVal = e.target.value;
-    setInternalValue(newVal);
-    onChange?.(newVal);
-  };
+    // Sync internal value with controlled value prop
+    useEffect(() => {
+      setInternalValue(value);
+    }, [value]);
 
-  const handleScanSuccess = useCallback(
-    (scannedText: string) => {
-      const trimmed = scannedText.trim();
-      if (!trimmed) return;
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVal = e.target.value;
+      setInternalValue(newVal);
+      onChange?.(newVal);
+    };
 
-      // Audio feedback using Web Audio API for native sound
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz A5 note
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-      } catch (err) {
-        // Fallback if Web Audio fails
+    const stopCamera = useCallback(() => {
+      if (controlsRef.current) {
+        try {
+          controlsRef.current.stop();
+        } catch {
+          // Ignore stop errors
+        }
+        controlsRef.current = null;
       }
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      setIsScanning(false);
+    }, []);
 
-      setInternalValue(trimmed);
-      onChange?.(trimmed);
-      onScan?.(trimmed);
-      toast.success(`Scanned: ${trimmed}`);
+    const handleScanSuccess = useCallback(
+      (scannedText: string) => {
+        const trimmed = scannedText.trim();
+        if (!trimmed) return;
 
-      // Stop camera if open
-      if (isCameraOpen) {
+        // Audio feedback using Web Audio API for native sound
+        try {
+          const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const audioCtx = new AudioCtx();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz A5 note
+          gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.15);
+        } catch {
+          // Fallback if Web Audio fails
+        }
+
+        setInternalValue(trimmed);
+        onChangeRef.current?.(trimmed);
+        onScanRef.current?.(trimmed);
+        toast.success(`Scanned: ${trimmed}`);
+
+        stopCamera();
         setIsCameraOpen(false);
-      }
-    },
-    [onChange, onScan, isCameraOpen]
-  );
+      },
+      [stopCamera]
+    );
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    onKeyDownProp?.(e);
-    if (e.defaultPrevented) return;
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const trimmed = internalValue.trim();
-      if (trimmed) {
-        onScan?.(trimmed);
-      }
-    }
-  };
-
-  // Hardware Scanner buffer detection for rapid keypresses
-  useEffect(() => {
-    let buffer = '';
-    let lastKeyTime = Date.now();
-
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ignore if focus is in a text area or another input not managed here
-      const activeEl = document.activeElement;
-      if (
-        activeEl &&
-        activeEl !== inputRef.current &&
-        (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')
-      ) {
-        return;
-      }
-
-      const currentTime = Date.now();
-      const timeDiff = currentTime - lastKeyTime;
-      lastKeyTime = currentTime;
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      onKeyDownProp?.(e);
+      if (e.defaultPrevented) return;
 
       if (e.key === 'Enter') {
-        if (buffer.length >= 3 && timeDiff < 100) {
-          e.preventDefault();
-          handleScanSuccess(buffer);
-          buffer = '';
-        }
-      } else if (e.key.length === 1) {
-        // Rapid typing (<50ms between keys) implies hardware barcode scanner
-        if (timeDiff > 100) {
-          buffer = e.key;
-        } else {
-          buffer += e.key;
+        e.preventDefault();
+        const trimmed = internalValue.trim();
+        if (trimmed) {
+          onScan?.(trimmed);
         }
       }
     };
 
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [handleScanSuccess]);
+    // Hardware Scanner buffer detection for rapid keypresses
+    useEffect(() => {
+      let buffer = '';
+      let lastKeyTime = Date.now();
 
-  // Start Camera scanning stream
-  const startCamera = useCallback(async () => {
-    setCameraError(null);
-    setIsScanning(true);
+      const handleGlobalKeyDown = (e: KeyboardEvent) => {
+        const activeEl = document.activeElement;
+        if (
+          activeEl &&
+          activeEl !== inputRef.current &&
+          (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')
+        ) {
+          return;
+        }
 
-    try {
-      if (!codeReaderRef.current) {
-        codeReaderRef.current = new BrowserMultiFormatReader();
-      }
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastKeyTime;
+        lastKeyTime = currentTime;
 
-      const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices();
-      setAvailableDevices(videoInputDevices);
+        if (e.key === 'Enter') {
+          if (buffer.length >= 3 && timeDiff < 100) {
+            e.preventDefault();
+            handleScanSuccess(buffer);
+            buffer = '';
+          }
+        } else if (e.key.length === 1) {
+          if (timeDiff > 100) {
+            buffer = e.key;
+          } else {
+            buffer += e.key;
+          }
+        }
+      };
 
-      // Default to back camera (environment) if available
-      let deviceToUse = selectedDeviceId;
-      if (!deviceToUse && videoInputDevices.length > 0) {
-        const backCamera = videoInputDevices.find(
-          (d) =>
-            d.label.toLowerCase().includes('back') ||
-            d.label.toLowerCase().includes('rear') ||
-            d.label.toLowerCase().includes('environment')
-        );
-        deviceToUse = backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId;
-        setSelectedDeviceId(deviceToUse);
-      }
+      window.addEventListener('keydown', handleGlobalKeyDown);
+      return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [handleScanSuccess, inputRef]);
 
-      if (videoRef.current && deviceToUse) {
-        const controls = await codeReaderRef.current.decodeFromVideoDevice(
-          deviceToUse,
-          videoRef.current,
-          (result, error) => {
-            if (result) {
-              handleScanSuccess(result.getText());
+    // Start Camera scanning stream
+    const startCamera = useCallback(
+      async (overrideDeviceId?: string) => {
+        stopCamera();
+        setCameraError(null);
+        setIsScanning(true);
+
+        try {
+          if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+            throw new Error(
+              'Camera API is not available in this browser or requires a secure HTTPS connection.'
+            );
+          }
+
+          // Wait briefly for Dialog portal to mount the <video> element
+          let attempts = 0;
+          while (!videoRef.current && attempts < 20) {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            attempts++;
+          }
+
+          if (!videoRef.current) {
+            throw new Error('Camera video element failed to initialize. Please try again.');
+          }
+
+          // Request camera permission first so browser populates deviceIds and labels
+          const preStream = await navigator.mediaDevices.getUserMedia({
+            video: overrideDeviceId
+              ? { deviceId: { exact: overrideDeviceId } }
+              : { facingMode: { ideal: 'environment' } },
+            audio: false,
+          });
+          // Release temporary permission stream before ZXing attaches its own
+          preStream.getTracks().forEach((track) => track.stop());
+
+          const videoInputDevices = await BrowserMultiFormatReader.listVideoInputDevices();
+          setAvailableDevices(videoInputDevices);
+
+          let deviceToUse = overrideDeviceId || selectedDeviceId;
+          if (!deviceToUse && videoInputDevices.length > 0) {
+            const backCamera = videoInputDevices.find(
+              (d) =>
+                d.label.toLowerCase().includes('back') ||
+                d.label.toLowerCase().includes('rear') ||
+                d.label.toLowerCase().includes('environment')
+            );
+            deviceToUse = (backCamera ? backCamera.deviceId : videoInputDevices[0].deviceId) || '';
+            if (deviceToUse) {
+              setSelectedDeviceId(deviceToUse);
             }
           }
-        );
-        controlsRef.current = controls;
+
+          if (!codeReaderRef.current) {
+            codeReaderRef.current = new BrowserMultiFormatReader();
+          }
+
+          const controls = await codeReaderRef.current.decodeFromVideoDevice(
+            deviceToUse || undefined,
+            videoRef.current,
+            (result) => {
+              if (result) {
+                handleScanSuccess(result.getText());
+              }
+            }
+          );
+          controlsRef.current = controls;
+        } catch (err: unknown) {
+          console.error('Camera Scanner Error:', err);
+          const rawMsg = err instanceof Error ? err.message : 'Unable to access camera';
+          if (rawMsg.toLowerCase().includes('permission') || rawMsg.toLowerCase().includes('notallowed')) {
+            setCameraError(
+              'Camera permission was denied. Please allow camera access in your browser address bar and click Retry.'
+            );
+          } else if (rawMsg.toLowerCase().includes('notfound') || rawMsg.toLowerCase().includes('device not found')) {
+            setCameraError('No camera was detected on this device. You can still use any USB/Bluetooth barcode scanner.');
+          } else {
+            setCameraError(rawMsg);
+          }
+          setIsScanning(false);
+        }
+      },
+      [selectedDeviceId, handleScanSuccess, stopCamera]
+    );
+
+    useEffect(() => {
+      if (isCameraOpen) {
+        startCamera(selectedDeviceId || undefined);
+      } else {
+        stopCamera();
       }
-    } catch (err: any) {
-      console.error('Camera Scanner Error:', err);
-      setCameraError(err.message || 'Unable to access camera');
-      setIsScanning(false);
-    }
-  }, [selectedDeviceId, handleScanSuccess]);
+      return () => {
+        stopCamera();
+      };
+      // Only trigger when modal opens/closes; camera switching calls startCamera(newId) directly
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCameraOpen]);
 
-  // Stop camera stream when modal closes
-  const stopCamera = useCallback(() => {
-    if (controlsRef.current) {
-      controlsRef.current.stop();
-      controlsRef.current = null;
-    }
-    setIsScanning(false);
-  }, []);
+    return (
+      <div className="relative flex items-center w-full gap-1.5">
+        <div className="relative flex-1">
+          <Input
+            ref={inputRef}
+            id={id}
+            name={name}
+            type="text"
+            value={internalValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            autoFocus={autoFocus}
+            disabled={disabled}
+            className={`pr-9 font-mono text-sm tracking-wide focus-visible:ring-2 focus-visible:ring-primary ${className}`}
+          />
+          <QrCode className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none opacity-60" />
+        </div>
 
-  useEffect(() => {
-    if (isCameraOpen) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => {
-      stopCamera();
-    };
-  }, [isCameraOpen, startCamera, stopCamera]);
+        {showCameraToggle && (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => setIsCameraOpen(true)}
+            disabled={disabled}
+            title="Open camera barcode scanner"
+            className="h-11 w-11 shrink-0 border-primary/30 text-primary hover:bg-primary/5"
+          >
+            <Camera className="size-5" />
+          </Button>
+        )}
 
-  return (
-    <div className="relative flex items-center w-full gap-1.5">
-      <div className="relative flex-1">
-        <Input
-          ref={inputRef}
-          id={id}
-          name={name}
-          type="text"
-          value={internalValue}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          autoFocus={autoFocus}
-          disabled={disabled}
-          className={`pr-9 font-mono text-sm tracking-wide focus-visible:ring-2 focus-visible:ring-primary ${className}`}
-        />
-        <QrCode className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none opacity-60" />
-      </div>
+        {/* Camera Barcode Scanner Modal */}
+        <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+          <DialogContent className="sm:max-w-md p-4 sm:p-6 overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+                <Camera className="size-5 text-primary" />
+                <span>Camera Barcode Scanner</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Point your camera at a medicine barcode (EAN-13, Code 128, UPC, DataMatrix).
+              </DialogDescription>
+            </DialogHeader>
 
-      {showCameraToggle && (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={() => setIsCameraOpen(true)}
-          disabled={disabled}
-          title="Open camera barcode scanner"
-          className="h-11 w-11 shrink-0 border-primary/30 text-primary hover:bg-primary/5"
-        >
-          <Camera className="size-5" />
-        </Button>
-      )}
+            <div className="relative mt-2 flex flex-col items-center justify-center bg-black/90 rounded-xl overflow-hidden min-h-[260px] border border-border">
+              <video
+                ref={videoRef}
+                className="w-full h-64 object-cover"
+                autoPlay
+                playsInline
+                muted
+              />
 
-      {/* Camera Barcode Scanner Modal */}
-      <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
-        <DialogContent className="sm:max-w-md p-4 sm:p-6 overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
-              <Camera className="size-5 text-primary" />
-              <span>Camera Barcode Scanner</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Point your camera at a medicine barcode (EAN-13, Code 128, UPC, DataMatrix).
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="relative mt-2 flex flex-col items-center justify-center bg-black/90 rounded-xl overflow-hidden min-h-[260px] border border-border">
-            <video
-              ref={videoRef}
-              className="w-full h-64 object-cover"
-              playsInline
-              muted
-            />
-
-            {/* Scanning Laser Animation Overlay */}
-            {isScanning && !cameraError && (
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-                <div className="w-3/4 h-36 border-2 border-primary/70 rounded-lg relative overflow-hidden shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary" />
-                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary" />
-                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary" />
-                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary" />
-                  <div className="w-full h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse absolute top-1/2 -translate-y-1/2" />
+              {/* Scanning Laser Animation Overlay */}
+              {isScanning && !cameraError && (
+                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                  <div className="w-3/4 h-36 border-2 border-primary/70 rounded-lg relative overflow-hidden shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary" />
+                    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary" />
+                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary" />
+                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary" />
+                    <div className="w-full h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] animate-pulse absolute top-1/2 -translate-y-1/2" />
+                  </div>
+                  <p className="mt-3 text-micro font-medium text-white/80 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-xs">
+                    Scanning for barcode...
+                  </p>
                 </div>
-                <p className="mt-3 text-micro font-medium text-white/80 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur-xs">
-                  Scanning for barcode...
-                </p>
-              </div>
-            )}
+              )}
 
-            {/* Camera Access Error State */}
-            {cameraError && (
-              <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center p-4 text-center">
-                <AlertCircle className="size-10 text-destructive mb-2" />
-                <p className="text-sm font-semibold text-foreground">Camera Access Failed</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">{cameraError}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-4 gap-1.5"
-                  onClick={startCamera}
-                >
-                  <RefreshCw className="size-3.5" />
-                  <span>Retry Camera</span>
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Camera Switcher Dropdown if multiple cameras exist */}
-          {availableDevices.length > 1 && (
-            <div className="mt-3 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Select Camera:</span>
-              <select
-                value={selectedDeviceId}
-                onChange={(e) => setSelectedDeviceId(e.target.value)}
-                className="bg-muted text-foreground text-xs rounded-md px-2 py-1 border border-border"
-              >
-                {availableDevices.map((device) => (
-                  <option key={device.deviceId} value={device.deviceId}>
-                    {device.label || `Camera ${device.deviceId.slice(0, 5)}...`}
-                  </option>
-                ))}
-              </select>
+              {/* Camera Access Error State */}
+              {cameraError && (
+                <div className="absolute inset-0 bg-background/95 flex flex-col items-center justify-center p-4 text-center">
+                  <AlertCircle className="size-10 text-destructive mb-2" />
+                  <p className="text-sm font-semibold text-foreground">Camera Access Failed</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-xs">{cameraError}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-4 gap-1.5"
+                    onClick={() => startCamera(selectedDeviceId || undefined)}
+                  >
+                    <RefreshCw className="size-3.5" />
+                    <span>Retry Camera</span>
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+
+            {/* Camera Switcher Dropdown if multiple cameras exist */}
+            {availableDevices.length > 1 && (
+              <div className="mt-3 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Select Camera:</span>
+                <select
+                  value={selectedDeviceId}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setSelectedDeviceId(newId);
+                    startCamera(newId);
+                  }}
+                  className="bg-muted text-foreground text-xs rounded-md px-2 py-1 border border-border"
+                >
+                  {availableDevices.map((device, idx) => (
+                    <option key={device.deviceId || idx} value={device.deviceId}>
+                      {device.label || `Camera ${idx + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
 );
 ScannerInput.displayName = 'ScannerInput';
