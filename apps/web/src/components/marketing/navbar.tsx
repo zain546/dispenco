@@ -65,21 +65,35 @@ export function Navbar() {
             <Moon className="size-4 dark:hidden" aria-hidden="true" />
           </Button>
           <div className="hidden items-center gap-2 lg:flex">
-            <Button asChild variant="ghost" size="sm" className="marketing-action">
-              <Link prefetch={false} href={user ? '/dashboard' : '/login'}>
-                {user ? 'Go to dashboard' : 'Log in'}
-                {user && <ArrowUpRight className="size-4" aria-hidden="true" />}
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              className="marketing-action marketing-action-primary h-10 px-4 shadow-none"
-            >
-              <Link prefetch={false} href={marketingConfig.trialHref}>
-                Start free trial
-              </Link>
-            </Button>
+            {user ? (
+              <Button
+                asChild
+                size="sm"
+                className="marketing-action marketing-action-primary h-10 px-4 shadow-none"
+              >
+                <Link prefetch={false} href="/dashboard">
+                  Go to dashboard
+                  <ArrowUpRight className="size-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="sm" className="marketing-action">
+                  <Link prefetch={false} href="/login">
+                    Log in
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  className="marketing-action marketing-action-primary h-10 px-4 shadow-none"
+                >
+                  <Link prefetch={false} href={marketingConfig.trialHref}>
+                    Start free trial
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
           <Sheet>
             <SheetTrigger asChild>
@@ -110,20 +124,32 @@ export function Navbar() {
                 ))}
               </nav>
               <div className="mt-auto flex flex-col gap-3 p-6">
-                <SheetClose asChild>
-                  <Button asChild variant="outline" className="marketing-action">
-                    <Link prefetch={false} href={user ? '/dashboard' : '/login'}>
-                      {user ? 'Go to dashboard' : 'Log in'}
-                    </Link>
-                  </Button>
-                </SheetClose>
-                <SheetClose asChild>
-                  <Button asChild className="marketing-action marketing-action-primary shadow-none">
-                    <Link prefetch={false} href={marketingConfig.trialHref}>
-                      Start free trial
-                    </Link>
-                  </Button>
-                </SheetClose>
+                {user ? (
+                  <SheetClose asChild>
+                    <Button asChild className="marketing-action marketing-action-primary shadow-none">
+                      <Link prefetch={false} href="/dashboard">
+                        Go to dashboard
+                      </Link>
+                    </Button>
+                  </SheetClose>
+                ) : (
+                  <>
+                    <SheetClose asChild>
+                      <Button asChild variant="outline" className="marketing-action">
+                        <Link prefetch={false} href="/login">
+                          Log in
+                        </Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button asChild className="marketing-action marketing-action-primary shadow-none">
+                        <Link prefetch={false} href={marketingConfig.trialHref}>
+                          Start free trial
+                        </Link>
+                      </Button>
+                    </SheetClose>
+                  </>
+                )}
               </div>
             </SheetContent>
           </Sheet>

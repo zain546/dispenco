@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 import { DispencoMark } from '@/components/brand/dispenco-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -66,6 +69,8 @@ export function CtaButtons({
   centered?: boolean;
   appearance?: 'default' | 'hero';
 }) {
+  const { user } = useAuth();
+
   return (
     <div className={cn('flex flex-col gap-3 sm:flex-row', centered && 'justify-center')}>
       <Button
@@ -76,8 +81,8 @@ export function CtaButtons({
           appearance === 'hero' && 'hero-cta-primary group',
         )}
       >
-        <Link href={marketingConfig.trialHref} prefetch={false}>
-          Start free trial
+        <Link href={user ? '/dashboard' : marketingConfig.trialHref} prefetch={false}>
+          {user ? 'Go to dashboard' : 'Start free trial'}
           <ArrowRight
             className={cn('marketing-arrow size-4', appearance === 'hero' && 'hero-cta-arrow')}
             aria-hidden="true"
