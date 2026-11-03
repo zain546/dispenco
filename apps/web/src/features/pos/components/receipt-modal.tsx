@@ -94,6 +94,10 @@ export function ReceiptModal({
               <span className="font-semibold text-foreground">{sale.customerName || 'Walk-in Customer'}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
+              <span>Doctor / Ref:</span>
+              <span className="font-semibold text-foreground">{sale.doctorName || 'Self'}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
               <span>Payment Method:</span>
               <Badge variant="outline" className="text-micro font-semibold uppercase">
                 {sale.paymentMethod}

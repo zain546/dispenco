@@ -381,6 +381,7 @@ export class ReportsService {
       customerName: string;
       cashierName: string;
       storeName: string;
+      doctorName?: string;
       paymentMethod: string;
       itemsCount: number;
       discountAmount: number;
@@ -512,6 +513,7 @@ export class ReportsService {
         customerName: s.customer?.name || 'Walk-in Customer',
         cashierName: s.user?.name || 'Pharmacy Staff',
         storeName: s.store?.name || 'Main Store',
+        doctorName: (s as any).doctorName || 'Self',
         paymentMethod: isFullyReturned ? `RETURNED (${primaryPaymentMethod})` : primaryPaymentMethod,
         itemsCount: saleUnits,
         discountAmount: Number(saleDisc.toFixed(2)),

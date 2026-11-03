@@ -16,6 +16,7 @@ export interface OfflineSaleItemPayload {
 export interface OfflineSalePayload {
   customerName?: string;
   customerPhone?: string;
+  doctorName?: string;
   paymentMethod: 'CASH' | 'DIGITAL' | 'CREDIT';
   overallDiscount?: number;
   overallDiscountType?: 'FLAT' | 'PERCENT';

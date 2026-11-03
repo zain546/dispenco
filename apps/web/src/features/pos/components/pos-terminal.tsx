@@ -34,6 +34,7 @@ import {
   Pill,
   Package,
   UserPlus,
+  Stethoscope,
   UserCheck,
   X,
   BookOpen,
@@ -107,6 +108,8 @@ export function POSTerminal() {
   const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [doctorName, setDoctorName] = useState('Self');
+  const [isSelfDoctor, setIsSelfDoctor] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
@@ -272,6 +275,11 @@ export function POSTerminal() {
         toast.info(`Loaded patient "${custName}" for POS billing.`);
       }
       if (custPhone) setCustomerPhone(custPhone);
+      const docName = params.get('doctorName') || params.get('dr');
+      if (docName) {
+        setDoctorName(docName);
+        setIsSelfDoctor(docName.toLowerCase() === 'self');
+      }
     }
   }, []);
 
@@ -881,6 +889,7 @@ export function POSTerminal() {
       customerId: selectedCustomer?.id || undefined,
       customerName: (selectedCustomer ? selectedCustomer.name : customerName.trim()) || undefined,
       customerPhone: (selectedCustomer ? (selectedCustomer.phone || undefined) : customerPhone.trim()) || undefined,
+      doctorName: (isSelfDoctor ? 'Self' : doctorName.trim()) || 'Self',
       overallDiscount: overallDiscount > 0 ? overallDiscount : undefined,
       overallDiscountType,
       paymentMethod,
@@ -906,6 +915,8 @@ export function POSTerminal() {
         setCustomerPhone('');
         setCashTendered('');
         setOverallDiscount(0);
+        setDoctorName('Self');
+        setIsSelfDoctor(true);
         checkPendingOfflineSales();
         toast.success(`Offline Sale Saved! Local Receipt #${sale.receiptNumber}`);
       } catch (err) {
@@ -930,6 +941,8 @@ export function POSTerminal() {
         setCustomerPhone('');
         setCashTendered('');
         setOverallDiscount(0);
+        setDoctorName('Self');
+        setIsSelfDoctor(true);
         toast.success(`Sale completed! Receipt #${res.sale.receiptNumber}`);
       }
     } catch (err: any) {
@@ -947,6 +960,8 @@ export function POSTerminal() {
           setCustomerPhone('');
           setCashTendered('');
           setOverallDiscount(0);
+          setDoctorName('Self');
+        setIsSelfDoctor(true);
           checkPendingOfflineSales();
           toast.warning(`Network disconnect. Sale saved locally to IndexedDB! #${sale.receiptNumber}`);
         } catch (saveErr) {
@@ -1817,6 +1832,77 @@ export function POSTerminal() {
                         className="h-8 text-xs bg-muted/20"
                       />
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Prescribing Doctor / Self OTC Section */}
+              <div className="space-y-1.5 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Stethoscope className="size-3.5 text-primary" />
+                    <span>Prescriber / Doctor</span>
+                  </Label>
+                  <div className="flex items-center gap-1 p-0.5 bg-muted/40 border border-border/60 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelfDoctor(true);
+                        setDoctorName('Self');
+                      }}
+                      className={`h-5.5 px-2 text-micro font-bold rounded-md transition-all cursor-pointer ${
+                        isSelfDoctor
+                          ? 'bg-primary text-primary-foreground shadow-2xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Self (OTC)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelfDoctor(false);
+                        if (doctorName === 'Self' || !doctorName) {
+                          setDoctorName('Dr. ');
+                        }
+                      }}
+                      className={`h-5.5 px-2 text-micro font-bold rounded-md transition-all cursor-pointer ${
+                        !isSelfDoctor
+                          ? 'bg-primary text-primary-foreground shadow-2xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Doctor
+                    </button>
+                  </div>
+                </div>
+
+                {isSelfDoctor ? (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/50 text-xs">
+                    <span className="text-muted-foreground">Sale Reference:</span>
+                    <Badge variant="outline" className="text-micro font-semibold text-primary border-primary/30 bg-primary/5">
+                      Self / Counter Sale
+                    </Badge>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      placeholder="Enter Dr. Name (e.g. Dr. Asif)"
+                      value={doctorName}
+                      onChange={(e) => setDoctorName(e.target.value)}
+                      className="h-8 text-xs pr-14"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelfDoctor(true);
+                        setDoctorName('Self');
+                      }}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-micro text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded bg-muted/50 cursor-pointer font-medium"
+                    >
+                      Self
+                    </button>
                   </div>
                 )}
               </div>

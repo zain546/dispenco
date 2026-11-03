@@ -97,7 +97,7 @@ export async function downloadA4TaxInvoicePdf(
 
     // 2-Column Info Cards: Customer / Billed To & Invoice Metadata
     const colWidth = 88;
-    const infoBoxHeight = 28;
+    const infoBoxHeight = 33;
 
     // Left Box: Billed To (Customer)
     pdf.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
@@ -153,13 +153,20 @@ export async function downloadA4TaxInvoicePdf(
     pdf.text(`Date & Time:`, rightBoxX + 4, currentY + 16.5);
     pdf.text(formatDateTime(sale.createdAt), rightBoxX + colWidth - 4, currentY + 16.5, { align: 'right' });
 
+        const docName = rawSale.doctorName || 'Self';
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Doctor / Ref:`, rightBoxX + 4, currentY + 22);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(docName.slice(0, 20), rightBoxX + colWidth - 4, currentY + 22, { align: 'right' });
+
     const paymentMode = rawSale.paymentMethod || rawSale.payment?.method || 'CASH';
-    pdf.text(`Payment Mode:`, rightBoxX + 4, currentY + 22);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Payment Mode:`, rightBoxX + 4, currentY + 27.5);
     pdf.setFont('helvetica', 'bold');
     pdf.text(
       `${paymentMode} (${isVoided ? 'VOIDED' : 'PAID'})`,
       rightBoxX + colWidth - 4,
-      currentY + 22,
+      currentY + 27.5,
       { align: 'right' },
     );
 
@@ -406,6 +413,9 @@ export async function generateThermalReceiptPdf(
     pdf.text(`Customer: ${custName}`, 6, currentY);
     currentY += 4;
   }
+  const doctorName = rawSale.doctorName || 'Self';
+  pdf.text(`Doctor: ${doctorName}`, 6, currentY);
+  currentY += 4;
 
   // Dashed Divider Line
   pdf.line(6, currentY, 74, currentY);

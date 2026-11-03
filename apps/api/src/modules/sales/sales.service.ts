@@ -229,6 +229,7 @@ export class SalesService {
           storeId: targetStoreId,
           userId,
           customerId,
+          doctorName: dto.doctorName?.trim() || 'Self',
           receiptNumber,
           totalAmount: new Prisma.Decimal(totalAmount),
           discountAmount: new Prisma.Decimal(runningDiscountTotal),
@@ -288,8 +289,9 @@ export class SalesService {
           taxAmount: Number(sale.taxAmount),
           subtotal: Number(runningSubtotal),
           status: sale.status,
-          createdAt: sale.createdAt.toISOString(),
+        createdAt: sale.createdAt.toISOString(),
           customerName: sale.customer?.name || null,
+          doctorName: sale.doctorName || 'Self',
           paymentMethod,
           itemsCount: sale.saleItems.length,
           items: sale.saleItems.map((si) => ({
@@ -365,6 +367,7 @@ export class SalesService {
         discountAmount: Number(sale.discountAmount),
         taxAmount: Number(sale.taxAmount),
         status: sale.status,
+        doctorName: sale.doctorName || 'Self',
         createdAt: sale.createdAt.toISOString(),
         customer: sale.customer
           ? {
@@ -463,6 +466,7 @@ export class SalesService {
       data: sales.map((s) => ({
         id: s.id,
         receiptNumber: s.receiptNumber,
+        doctorName: s.doctorName || 'Self',
         totalAmount: Number(s.totalAmount),
         status: s.status,
         createdAt: s.createdAt.toISOString(),

@@ -196,6 +196,7 @@ export const posLocalDataService = {
       status: 'COMPLETED',
       paymentMethod: payload.paymentMethod,
       customerName: payload.customerName || null,
+      doctorName: payload.doctorName || 'Self',
       customer: payload.customerName
         ? { id: 'local-cust', name: payload.customerName, phone: payload.customerPhone || null }
         : null,

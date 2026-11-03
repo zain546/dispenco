@@ -61,6 +61,10 @@ export class CreateSaleDto {
   @IsOptional()
   customerPhone?: string;
 
+  @IsString()
+  @IsOptional()
+  doctorName?: string;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CartItemDto)

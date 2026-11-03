@@ -15,6 +15,7 @@ export interface CreateSaleInput {
   customerId?: string;
   customerName?: string;
   customerPhone?: string;
+  doctorName?: string;
   items: CartItemInput[];
   overallDiscount?: number;
   overallDiscountType?: 'FLAT' | 'PERCENT';
@@ -62,6 +63,7 @@ export interface SaleDetailResponse {
   discountAmount: number;
   taxAmount: number;
   status: string;
+  doctorName?: string | null;
   createdAt: string;
   customer?: {
     id: string;
@@ -110,6 +112,7 @@ export interface SaleResponse {
     phone?: string | null;
   } | null;
   cashierName?: string;
+  doctorName?: string | null;
   paymentMethod: string;
   itemsCount: number;
   items?: SaleItemData[];

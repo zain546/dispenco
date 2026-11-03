@@ -263,6 +263,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
     payment,
     items = [],
     returns = [],
+    doctorName,
   } = saleData;
 
   const subtotal = items.reduce(
@@ -484,6 +485,9 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   <span className="text-muted-foreground">Date & Time:</span>
                   <span className="font-medium text-foreground text-right">{formatDateTime(createdAt)}</span>
 
+                  <span className="text-muted-foreground">Doctor / Ref:</span>
+                  <span className="font-semibold text-primary text-right">{doctorName || 'Self'}</span>
+
                   <span className="text-muted-foreground">Payment Mode:</span>
                   <span className="font-bold text-foreground text-right uppercase">
                     {payment?.method || 'CASH'} ({isVoided ? 'VOIDED' : 'PAID'})
@@ -692,6 +696,13 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   <User className="size-3" /> Cashier
                 </p>
                 <p className="font-medium text-foreground">{user?.name || 'Staff'}</p>
+              </div>
+
+              <div className="col-span-2 pt-1 border-t border-border/40 flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Doctor / Ref:</span>
+                <span className="font-semibold text-foreground">
+                  {doctorName || 'Self'}
+                </span>
               </div>
 
               {customer && (

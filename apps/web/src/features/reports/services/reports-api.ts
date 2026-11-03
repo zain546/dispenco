@@ -28,6 +28,7 @@ export interface SalesReportTransaction {
   customerName: string;
   cashierName: string;
   storeName: string;
+  doctorName?: string | null;
   paymentMethod: string;
   itemsCount: number;
   discountAmount: number;

@@ -129,7 +129,7 @@ export function RecentSalesModal({
                           <span className="text-xs text-muted-foreground">{formatDateTime(sale.createdAt)}</span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Customer: <strong className="text-foreground">{sale.customerName || 'Walk-in Customer'}</strong> • Cashier: <strong className="text-foreground">{sale.cashierName || 'Staff'}</strong>
+                          Customer: <strong className="text-foreground">{sale.customerName || 'Walk-in Customer'}</strong> • Dr: <strong className="text-foreground">{(sale as any).doctorName || 'Self'}</strong> • Cashier: <strong className="text-foreground">{sale.cashierName || 'Staff'}</strong>
                         </p>
                         <p className="text-xs text-muted-foreground truncate max-w-xl">
                           Items ({sale.itemsCount}): {sale.items?.map((i) => `${i.productName} (${i.quantity})`).join(', ')}
