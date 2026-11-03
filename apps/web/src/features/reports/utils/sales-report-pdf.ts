@@ -47,6 +47,14 @@ function fmtDateTimeShort(dateStr: string): string {
   });
 }
 
+function fmtCategory(cat?: string): string {
+  if (!cat) return 'General';
+  return cat
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
   doc: jsPDF;
   filename: string;
@@ -368,7 +376,121 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
   }
 
   // =========================================================================
-  // 6. SALES RECEIPTS LIST
+  // 6. TOP SELLING MEDICINES (ONLY WHEN MEDICINES WERE SOLD)
+  // =========================================================================
+  const soldMedicines = (reportData.topProductsByQuantity || []).filter(
+    (p) => Number(p.totalQuantity) > 0,
+  );
+
+  if (soldMedicines.length > 0) {
+    checkPageBreak(24);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor(15, 23, 42);
+    doc.text('Top Selling Medicines', margin, y);
+    y += 3;
+
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(margin, y, contentWidth, 6.5, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(71, 85, 105);
+    const mthY = y + 4.4;
+    doc.text('#', margin + 2.5, mthY);
+    doc.text('Medicine', margin + 9, mthY);
+    doc.text('Category', margin + 64, mthY);
+    doc.text('Qty Sold', margin + 109, mthY, { align: 'right' });
+    doc.text('Total Sales', margin + 130, mthY, { align: 'right' });
+    doc.text('Cost', margin + 153, mthY, { align: 'right' });
+    doc.text('Profit', pageWidth - margin - 3, mthY, { align: 'right' });
+    y += 6.5;
+
+    soldMedicines.forEach((med, idx) => {
+      checkPageBreak(6.2);
+      const rY = y + 4.3;
+      const mRev = Number(med.totalRevenue ?? 0);
+      const mCost = Number(med.totalCost ?? 0);
+      const mProfit = Number(med.totalProfit ?? mRev - mCost);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(String(idx + 1), margin + 2.5, rY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(15, 23, 42);
+      doc.text((med.productName || 'Unknown').slice(0, 27), margin + 9, rY);
+
+      doc.setTextColor(100, 116, 139);
+      doc.text(fmtCategory(med.category).slice(0, 16), margin + 64, rY);
+
+      doc.setTextColor(15, 23, 42);
+      doc.text(String(med.totalQuantity), margin + 109, rY, { align: 'right' });
+      doc.text(fmtMoney(mRev), margin + 130, rY, { align: 'right' });
+      doc.text(fmtMoney(mCost), margin + 153, rY, { align: 'right' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(
+        mProfit >= 0 ? 5 : 220,
+        mProfit >= 0 ? 150 : 38,
+        mProfit >= 0 ? 105 : 38,
+      );
+      doc.text(fmtMoney(mProfit), pageWidth - margin - 3, rY, { align: 'right' });
+
+      doc.setDrawColor(241, 245, 249);
+      doc.line(margin, y + 6, pageWidth - margin, y + 6);
+      y += 6;
+    });
+
+    // Summary Total row for medicines
+    checkPageBreak(7);
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(margin, y, contentWidth, 6.5, 'FD');
+    const mtfY = y + 4.4;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text('Total', margin + 9, mtfY);
+
+    const sumQty = soldMedicines.reduce(
+      (acc, m) => acc + Number(m.totalQuantity || 0),
+      0,
+    );
+    const sumRev = soldMedicines.reduce(
+      (acc, m) => acc + Number(m.totalRevenue || 0),
+      0,
+    );
+    const sumCost = soldMedicines.reduce(
+      (acc, m) => acc + Number(m.totalCost || 0),
+      0,
+    );
+    const sumProfit = soldMedicines.reduce(
+      (acc, m) =>
+        acc +
+        Number(
+          m.totalProfit ??
+            Number(m.totalRevenue || 0) - Number(m.totalCost || 0),
+        ),
+      0,
+    );
+
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(sumQty), margin + 109, mtfY, { align: 'right' });
+    doc.text(fmtMoney(sumRev), margin + 130, mtfY, { align: 'right' });
+    doc.text(fmtMoney(sumCost), margin + 153, mtfY, { align: 'right' });
+    doc.setTextColor(
+      sumProfit >= 0 ? 5 : 220,
+      sumProfit >= 0 ? 150 : 38,
+      sumProfit >= 0 ? 105 : 38,
+    );
+    doc.text(fmtMoney(sumProfit), pageWidth - margin - 3, mtfY, { align: 'right' });
+    y += 10;
+  }
+
+  // =========================================================================
+  // 7. SALES RECEIPTS LIST
   // =========================================================================
   const transactions = reportData.transactions || [];
   checkPageBreak(26);
@@ -526,6 +648,17 @@ export async function shareSalesReportOnWhatsApp(
     if (summary.paymentBreakdown.credit.count > 0) {
       lines.push(`Credit (Khata): ${fmtMoney(summary.paymentBreakdown.credit.amount)}`);
     }
+  }
+
+  const topMeds = (options.reportData.topProductsByQuantity || [])
+    .filter((p) => Number(p.totalQuantity) > 0)
+    .slice(0, 3);
+  if (topMeds.length > 0) {
+    lines.push(`--------------------------------`);
+    lines.push(`*Top Medicines Sold:*`);
+    topMeds.forEach((m, i) => {
+      lines.push(`${i + 1}. ${m.productName} (${m.totalQuantity} units)`);
+    });
   }
 
   const shareText = lines.join('\n');
