@@ -427,7 +427,7 @@ export function POSTerminal() {
         e.preventDefault();
         const selected = searchResults[selectedResultIndex] || searchResults[0];
         if (selected) {
-          addToCart(selected, 'BOX');
+          addToCart(selected, 'UNIT');
           setSearchQuery('');
           setSearchResults([]);
           setSelectedResultIndex(0);
@@ -542,8 +542,8 @@ export function POSTerminal() {
     }
   };
 
-  // Handle adding product to cart (supports full Box or Single Tablet/Sub-unit)
-  const addToCart = (product: ProductData, initialUnitType: 'BOX' | 'UNIT' = 'BOX') => {
+  // Handle adding product to cart (defaults to Single Tablet/Sub-unit per pharmacy counter standard)
+  const addToCart = (product: ProductData, initialUnitType: 'BOX' | 'UNIT' = 'UNIT') => {
     const packSize = getPackSize(product);
     const boxPrice = product.latestSellPrice ?? 0;
     const singleUnitPrice = getSingleUnitPrice(product);
@@ -1160,9 +1160,9 @@ export function POSTerminal() {
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-                          {/* Product Info Column */}
+                          {/* Product Info Column - Clicking medicine defaults to Tablet/Unit per pharmacy counter standard */}
                           <div
-                            onClick={() => addToCart(prod, 'BOX')}
+                            onClick={() => addToCart(prod, 'UNIT')}
                             className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
                           >
                             <div className={`size-8 sm:size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
@@ -1197,13 +1197,13 @@ export function POSTerminal() {
                           <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-border/30">
                             <Button
                               type="button"
-                              variant="outline"
+                              variant="default"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 addToCart(prod, 'UNIT');
                               }}
-                              className="h-8 text-xs font-semibold gap-1.5 flex-1 sm:flex-initial bg-success/10 hover:bg-success/20 text-success border-success/30 whitespace-nowrap"
+                              className="h-8 text-xs font-bold gap-1.5 flex-1 sm:flex-initial shadow-2xs whitespace-nowrap"
                               title={`Add 1 Tablet/Unit (${singlePrice.toFixed(2)} PKR)`}
                             >
                               <Pill className="size-3.5" />
@@ -1212,13 +1212,13 @@ export function POSTerminal() {
 
                             <Button
                               type="button"
-                              variant="default"
+                              variant="outline"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 addToCart(prod, 'BOX');
                               }}
-                              className="h-8 text-xs font-bold gap-1.5 flex-1 sm:flex-initial shadow-2xs whitespace-nowrap"
+                              className="h-8 text-xs font-semibold gap-1.5 flex-1 sm:flex-initial bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap"
                               title={`Add full ${prod.unit} (${boxPrice.toFixed(2)} PKR)`}
                             >
                               <Package className="size-3.5" />
