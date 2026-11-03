@@ -64,6 +64,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
 
   const summary = reportData.summary;
   const totalRevenue = Number(summary.totalRevenue ?? 0);
+  const totalReturns = Number(summary.totalReturns ?? 0);
   const totalCost = Number(summary.totalCost ?? 0);
   const totalProfit = Number(summary.totalProfit ?? totalRevenue - totalCost);
   const totalTransactions = Number(summary.totalTransactions ?? 0);
@@ -160,7 +161,12 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
     {
       label: 'Total Sales',
       value: fmtMoney(totalRevenue),
-      sub: `${totalTransactions} ${totalTransactions === 1 ? 'receipt' : 'receipts'}`,
+      sub:
+        totalReturns > 0
+          ? totalTransactions > 0
+            ? `${totalTransactions} receipts (${fmtMoney(totalReturns)} ret.)`
+            : `All returned (${fmtMoney(totalReturns)})`
+          : `${totalTransactions} ${totalTransactions === 1 ? 'receipt' : 'receipts'}`,
       isProfit: false,
     },
     {

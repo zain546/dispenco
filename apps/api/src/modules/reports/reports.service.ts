@@ -18,6 +18,9 @@ export class ReportsService {
     batch?: { costPrice: unknown; sellPrice: unknown } | null;
     product?: { attributes?: unknown } | null;
   }): number {
+    const qty = Number(item.quantity ?? 0);
+    if (qty <= 0) return 0;
+
     const batchCost = Number(item.batch?.costPrice ?? 0);
     const batchSell = Number(item.batch?.sellPrice ?? 0);
     const unitPrice = Number(item.unitPrice ?? 0);
@@ -37,7 +40,7 @@ export class ReportsService {
       effectiveUnitCost = batchCost / packSize;
     }
 
-    return Number((effectiveUnitCost * item.quantity).toFixed(2));
+    return Number((effectiveUnitCost * qty).toFixed(2));
   }
 
   private parseDateBoundary(dateStr: string | undefined, isEnd: boolean, defaultDaysAgo = 0): Date {
@@ -87,7 +90,7 @@ export class ReportsService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // 2. Fetch all completed sales within date range
+    // 2. Fetch all completed sales within date range with returns accounted for
     const sales = await this.prisma.sale.findMany({
       where: {
         tenantId,
@@ -98,8 +101,14 @@ export class ReportsService {
         },
       },
       include: {
+        returns: {
+          select: { refundAmount: true },
+        },
         saleItems: {
           include: {
+            returnItems: {
+              select: { quantity: true, refundAmount: true },
+            },
             batch: {
               select: { costPrice: true, sellPrice: true },
             },
@@ -124,22 +133,40 @@ export class ReportsService {
       },
     });
 
-    // 4. Overall Org Totals
+    // 4. Overall Org Totals (Net of returns)
     let totalRevenue = 0;
+    let grossRevenue = 0;
+    let totalReturns = 0;
     let totalCost = 0;
     let totalTax = 0;
     let totalItemsSold = 0;
-    const totalTransactions = sales.length;
+    let totalTransactions = 0;
 
     sales.forEach((s) => {
-      totalRevenue += Number(s.totalAmount);
+      const rawSaleRev = Number(s.totalAmount);
+      const saleReturns = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
+      const netSaleRev = Math.max(0, Number((rawSaleRev - saleReturns).toFixed(2)));
+      const isFullyReturned = saleReturns >= rawSaleRev && rawSaleRev > 0;
+
+      grossRevenue += rawSaleRev;
+      totalReturns += saleReturns;
+      totalRevenue += netSaleRev;
       totalTax += Number(s.taxAmount || 0);
+
+      if (!isFullyReturned) {
+        totalTransactions += 1;
+      }
+
       s.saleItems.forEach((si) => {
-        totalItemsSold += si.quantity;
-        totalCost += this.computeItemCost(si);
+        const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
+        const netQuantity = Math.max(0, si.quantity - itemReturns);
+        totalItemsSold += netQuantity;
+        totalCost += this.computeItemCost({ ...si, quantity: netQuantity });
       });
     });
 
+    totalRevenue = Number(totalRevenue.toFixed(2));
+    totalCost = Number(totalCost.toFixed(2));
     const totalProfit = Number((totalRevenue - totalTax - totalCost).toFixed(2));
     const profitMargin =
       totalRevenue > 0 ? Number(((totalProfit / totalRevenue) * 100).toFixed(1)) : 0;
@@ -156,13 +183,26 @@ export class ReportsService {
       let storeCost = 0;
       let storeTax = 0;
       let storeItemsSold = 0;
+      let storeTransactions = 0;
 
       storeSales.forEach((s) => {
-        storeRevenue += Number(s.totalAmount);
+        const rawRev = Number(s.totalAmount);
+        const sReturns = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
+        const netRev = Math.max(0, Number((rawRev - sReturns).toFixed(2)));
+        const isFullyRet = sReturns >= rawRev && rawRev > 0;
+
+        storeRevenue += netRev;
         storeTax += Number(s.taxAmount || 0);
+
+        if (!isFullyRet) {
+          storeTransactions += 1;
+        }
+
         s.saleItems.forEach((si) => {
-          storeItemsSold += si.quantity;
-          storeCost += this.computeItemCost(si);
+          const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
+          const netQty = Math.max(0, si.quantity - itemReturns);
+          storeItemsSold += netQty;
+          storeCost += this.computeItemCost({ ...si, quantity: netQty });
         });
       });
 
@@ -170,7 +210,6 @@ export class ReportsService {
       const storeProfitMargin =
         storeRevenue > 0 ? Number(((storeProfit / storeRevenue) * 100).toFixed(1)) : 0;
 
-      const storeTransactions = storeSales.length;
       const storeAov =
         storeTransactions > 0
           ? Number((storeRevenue / storeTransactions).toFixed(2))
@@ -204,8 +243,10 @@ export class ReportsService {
       success: true,
       data: {
         summary: {
-          totalRevenue: Number(totalRevenue.toFixed(2)),
-          totalCost: Number(totalCost.toFixed(2)),
+          totalRevenue,
+          grossRevenue: Number(grossRevenue.toFixed(2)),
+          totalReturns: Number(totalReturns.toFixed(2)),
+          totalCost,
           totalProfit,
           profitMargin,
           totalTransactions,
@@ -251,12 +292,18 @@ export class ReportsService {
       whereCondition.storeId = query.storeId;
     }
 
-    // 1. Fetch sales in date range with line items, batch cost info, product info & payment details
+    // 1. Fetch sales in date range with line items, returns, batch cost info, product info & payment details
     const sales = await this.prisma.sale.findMany({
       where: whereCondition,
       include: {
+        returns: {
+          select: { id: true, returnNumber: true, refundAmount: true, refundMethod: true, createdAt: true },
+        },
         saleItems: {
           include: {
+            returnItems: {
+              select: { id: true, quantity: true, refundAmount: true },
+            },
             product: {
               select: { id: true, name: true, category: true, unit: true, attributes: true },
             },
@@ -281,8 +328,10 @@ export class ReportsService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // 2. Compute Summary Metrics & Payment Breakdown
-    const totalTransactions = sales.length;
+    // 2. Compute Summary Metrics & Payment Breakdown (Net of returns)
+    let totalTransactions = 0;
+    let grossRevenue = 0;
+    let totalReturns = 0;
     let totalRevenue = 0;
     let totalCost = 0;
     let totalDiscount = 0;
@@ -342,71 +391,90 @@ export class ReportsService {
     }> = [];
 
     sales.forEach((s) => {
-      const saleRev = Number(s.totalAmount);
+      const rawSaleRev = Number(s.totalAmount);
+      const saleReturnsTotal = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
+      const netSaleRev = Math.max(0, Number((rawSaleRev - saleReturnsTotal).toFixed(2)));
+      const isFullyReturned = saleReturnsTotal >= rawSaleRev && rawSaleRev > 0;
+
       const saleDisc = Number(s.discountAmount || 0);
       const saleTax = Number(s.taxAmount || 0);
       let saleCost = 0;
       let saleUnits = 0;
 
       s.saleItems.forEach((item) => {
-        const itemCost = this.computeItemCost(item);
-        const itemRev = Number(item.unitPrice) * item.quantity - Number(item.discount || 0);
-        const itemProfit = Number((itemRev - itemCost).toFixed(2));
+        const itemReturns = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
+        const netQuantity = Math.max(0, item.quantity - itemReturns);
+        const itemRefund = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + Number(ri.refundAmount || 0), 0) : 0;
+        const rawItemRev = Number(item.unitPrice) * item.quantity - Number(item.discount || 0);
+        const netItemRev = Math.max(0, Number((rawItemRev - itemRefund).toFixed(2)));
+
+        const itemCost = this.computeItemCost({ ...item, quantity: netQuantity });
+        const itemProfit = Number((netItemRev - itemCost).toFixed(2));
 
         saleCost += itemCost;
-        saleUnits += item.quantity;
+        saleUnits += netQuantity;
 
-        // Update product stats
-        const pId = item.productId;
-        const pName = item.product?.name || 'Unknown Product';
-        const pCategory = item.product?.category || 'General';
+        // Update product stats only if net sold quantity > 0
+        if (netQuantity > 0 || netItemRev > 0) {
+          const pId = item.productId;
+          const pName = item.product?.name || 'Unknown Product';
+          const pCategory = item.product?.category || 'General';
 
-        const existingProd = productStatsMap.get(pId) || {
-          productId: pId,
-          productName: pName,
-          category: pCategory,
-          totalQuantity: 0,
-          totalRevenue: 0,
-          totalCost: 0,
-          totalProfit: 0,
-          profitMargin: 0,
-        };
+          const existingProd = productStatsMap.get(pId) || {
+            productId: pId,
+            productName: pName,
+            category: pCategory,
+            totalQuantity: 0,
+            totalRevenue: 0,
+            totalCost: 0,
+            totalProfit: 0,
+            profitMargin: 0,
+          };
 
-        existingProd.totalQuantity += item.quantity;
-        existingProd.totalRevenue = Number((existingProd.totalRevenue + itemRev).toFixed(2));
-        existingProd.totalCost = Number((existingProd.totalCost + itemCost).toFixed(2));
-        existingProd.totalProfit = Number((existingProd.totalProfit + itemProfit).toFixed(2));
-        existingProd.profitMargin =
-          existingProd.totalRevenue > 0
-            ? Number(((existingProd.totalProfit / existingProd.totalRevenue) * 100).toFixed(1))
-            : 0;
-        productStatsMap.set(pId, existingProd);
+          existingProd.totalQuantity += netQuantity;
+          existingProd.totalRevenue = Number((existingProd.totalRevenue + netItemRev).toFixed(2));
+          existingProd.totalCost = Number((existingProd.totalCost + itemCost).toFixed(2));
+          existingProd.totalProfit = Number((existingProd.totalProfit + itemProfit).toFixed(2));
+          existingProd.profitMargin =
+            existingProd.totalRevenue > 0
+              ? Number(((existingProd.totalProfit / existingProd.totalRevenue) * 100).toFixed(1))
+              : 0;
+          productStatsMap.set(pId, existingProd);
+        }
       });
 
       saleCost = Number(saleCost.toFixed(2));
-      const saleProfit = Number((saleRev - saleTax - saleCost).toFixed(2));
-      const saleMargin = saleRev > 0 ? Number(((saleProfit / saleRev) * 100).toFixed(1)) : 0;
+      const saleProfit = Number((netSaleRev - saleTax - saleCost).toFixed(2));
+      const saleMargin = netSaleRev > 0 ? Number(((saleProfit / netSaleRev) * 100).toFixed(1)) : 0;
 
-      totalRevenue += saleRev;
+      grossRevenue += rawSaleRev;
+      totalReturns += saleReturnsTotal;
+      totalRevenue += netSaleRev;
       totalCost += saleCost;
       totalDiscount += saleDisc;
       totalTax += saleTax;
       totalItemsSold += saleUnits;
 
-      // Payment method tracking
-      const primaryPaymentMethod = s.payments?.[0]?.method || 'CASH';
-      if (primaryPaymentMethod === 'DIGITAL') {
-        paymentBreakdown.digital.count += 1;
-        paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + saleRev).toFixed(2));
-      } else if (primaryPaymentMethod === 'CREDIT') {
-        paymentBreakdown.credit.count += 1;
-        paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + saleRev).toFixed(2));
-      } else {
-        paymentBreakdown.cash.count += 1;
-        paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + saleRev).toFixed(2));
+      if (!isFullyReturned) {
+        totalTransactions += 1;
       }
 
-      // Update Sales Over Time
+      // Payment method tracking (reconcile net cash/digital/credit)
+      const primaryPaymentMethod = s.payments?.[0]?.method || 'CASH';
+      if (!isFullyReturned) {
+        if (primaryPaymentMethod === 'DIGITAL') {
+          paymentBreakdown.digital.count += 1;
+          paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + netSaleRev).toFixed(2));
+        } else if (primaryPaymentMethod === 'CREDIT') {
+          paymentBreakdown.credit.count += 1;
+          paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + netSaleRev).toFixed(2));
+        } else {
+          paymentBreakdown.cash.count += 1;
+          paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + netSaleRev).toFixed(2));
+        }
+      }
+
+      // Update Sales Over Time (only days with positive activity)
       const dateKey = this.formatDateGroup(s.createdAt, query.groupBy);
       const existingDate = salesOverTimeMap.get(dateKey) || {
         date: dateKey,
@@ -417,14 +485,16 @@ export class ReportsService {
         count: 0,
         itemsSold: 0,
       };
-      existingDate.revenue = Number((existingDate.revenue + saleRev).toFixed(2));
+      existingDate.revenue = Number((existingDate.revenue + netSaleRev).toFixed(2));
       existingDate.cost = Number((existingDate.cost + saleCost).toFixed(2));
       existingDate.profit = Number((existingDate.profit + saleProfit).toFixed(2));
       existingDate.marginPercent =
         existingDate.revenue > 0
           ? Number(((existingDate.profit / existingDate.revenue) * 100).toFixed(1))
           : 0;
-      existingDate.count += 1;
+      if (!isFullyReturned) {
+        existingDate.count += 1;
+      }
       existingDate.itemsSold += saleUnits;
       salesOverTimeMap.set(dateKey, existingDate);
 
@@ -436,16 +506,18 @@ export class ReportsService {
         customerName: s.customer?.name || 'Walk-in Customer',
         cashierName: s.user?.name || 'Pharmacy Staff',
         storeName: s.store?.name || 'Main Store',
-        paymentMethod: primaryPaymentMethod,
+        paymentMethod: isFullyReturned ? `RETURNED (${primaryPaymentMethod})` : primaryPaymentMethod,
         itemsCount: saleUnits,
         discountAmount: Number(saleDisc.toFixed(2)),
-        totalAmount: Number(saleRev.toFixed(2)),
+        totalAmount: Number(netSaleRev.toFixed(2)),
         costAmount: saleCost,
         profitAmount: saleProfit,
         profitMargin: saleMargin,
       });
     });
 
+    totalRevenue = Number(totalRevenue.toFixed(2));
+    totalCost = Number(totalCost.toFixed(2));
     const totalProfit = Number((totalRevenue - totalTax - totalCost).toFixed(2));
     const profitMargin =
       totalRevenue > 0 ? Number(((totalProfit / totalRevenue) * 100).toFixed(1)) : 0;
@@ -467,8 +539,10 @@ export class ReportsService {
       success: true,
       data: {
         summary: {
-          totalRevenue: Number(totalRevenue.toFixed(2)),
-          totalCost: Number(totalCost.toFixed(2)),
+          totalRevenue,
+          grossRevenue: Number(grossRevenue.toFixed(2)),
+          totalReturns: Number(totalReturns.toFixed(2)),
+          totalCost,
           totalProfit,
           profitMargin,
           totalDiscount: Number(totalDiscount.toFixed(2)),

@@ -48,6 +48,8 @@ export interface SalesReportResponse {
   data: {
     summary: {
       totalRevenue: number;
+      grossRevenue?: number;
+      totalReturns?: number;
       totalCost?: number;
       totalProfit?: number;
       profitMargin?: number;
@@ -99,6 +101,8 @@ export interface OrgOverviewResponse {
   data: {
     summary: {
       totalRevenue: number;
+      grossRevenue?: number;
+      totalReturns?: number;
       totalCost?: number;
       totalProfit?: number;
       profitMargin?: number;
