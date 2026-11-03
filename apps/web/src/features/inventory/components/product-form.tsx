@@ -48,7 +48,6 @@ import {
 } from '../schemas/product-schema';
 import { productsApi, type ProductData, type BatchData } from '../services/products-api';
 import { formatCategory, formatDate, formatUnitPlural } from './product-list';
-import { FefoBatchBreakdown } from './fefo-batch-breakdown';
 import { getBatchExpiryDetails } from '../utils/batch-utils';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -57,6 +56,13 @@ interface ProductFormProps {
   isEditing?: boolean;
   initialBatchId?: string | null;
   initialBatchNumber?: string | null;
+}
+
+function normalizeUnit(unit?: string | null): string {
+  if (!unit) return 'Box';
+  const clean = unit.trim().toLowerCase();
+  if (clean === 'pack' || clean === 'packs') return 'Box';
+  return unit.trim();
 }
 
 export function ProductForm({
@@ -95,25 +101,7 @@ export function ProductForm({
     return batches[0] || null;
   }, [batches, activeBatchId, initialBatchNumber]);
 
-  const handleSelectBatch = (b: BatchData) => {
-    setActiveBatchId(b.id);
-    populateBatchValues(b);
-    toast.info(`Switched to batch #${b.batchNumber}`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
-  const handleRefreshBatches = async () => {
-    if (!initialData?.id) return;
-    try {
-      const res: any = await productsApi.getProductById(initialData.id);
-      const item = res?.data || (res?.id ? res : null);
-      if (item?.batches) {
-        setBatches(item.batches);
-      }
-    } catch (err) {
-      console.error('Failed to refresh batches:', err);
-    }
-  };
 
   const initialAttrs = (initialData?.attributes || {}) as Record<string, any>;
 
@@ -129,7 +117,7 @@ export function ProductForm({
       name: initialData?.name || '',
       genericName: initialData?.genericName || '',
       category: initialData?.category || 'TABLET_CAPSULE',
-      unit: initialData?.unit || 'Box',
+      unit: normalizeUnit(initialData?.unit),
       barcode: initialData?.barcode || '',
       taxCode: initialData?.taxCode || '',
       isControlledSubstance: Boolean(initialData?.isControlledSubstance),
@@ -193,7 +181,7 @@ export function ProductForm({
   }, [isEditing, activeBatch, populateBatchValues]);
 
   const selectedCategory = watch('category');
-  const selectedUnit = watch('unit') || 'Box';
+  const selectedUnit = normalizeUnit(watch('unit'));
   const isControlled = watch('isControlledSubstance');
   const [scannedExistingProduct, setScannedExistingProduct] = useState<ProductData | null>(null);
 
@@ -234,7 +222,7 @@ export function ProductForm({
             if (!watch('name')) setValue('name', p.name, { shouldValidate: true });
             if (p.genericName && !watch('genericName')) setValue('genericName', p.genericName);
             if (p.category) setValue('category', p.category);
-            if (p.unit) setValue('unit', p.unit);
+            if (p.unit) setValue('unit', normalizeUnit(p.unit));
             if (p.latestCostPrice) setValue('costPrice', Number(p.latestCostPrice));
             if (p.latestSellPrice && !parsedData?.mrp) setValue('sellPrice', Number(p.latestSellPrice));
             const attrs = (p.attributes || {}) as Record<string, unknown>;
@@ -414,11 +402,7 @@ export function ProductForm({
                 : 'Add Stock'}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {isEditing
-                ? activeBatch
-                  ? `Update #${activeBatch.batchNumber} stock quantities, prices, and medicine specifications.`
-                  : 'Update medicine catalog details and pricing.'
-                : 'Enter medicine details, initial stock, prices, and batch info.'}
+              Enter medicine details, stock, prices, and batch info.
             </p>
           </div>
         </div>
@@ -493,12 +477,10 @@ export function ProductForm({
           <CardHeader className="p-3.5 sm:p-5">
             <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
               <Sparkles className="size-4 text-primary shrink-0" />
-              <span>{isEditing ? 'Medicine Specifications' : 'Medicine & Stock Details'}</span>
+              <span>Medicine & Stock Details</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              {isEditing
-                ? 'Update product details and unit specifications.'
-                : 'Basic medicine info, initial stock, and pricing.'}
+              Basic medicine info, stock, and pricing.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-3.5 sm:p-5 pt-0 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
@@ -536,7 +518,7 @@ export function ProductForm({
               </Label>
               <Select
                 value={selectedUnit}
-                onValueChange={(val) => setValue('unit', val, { shouldValidate: true })}
+                onValueChange={(val) => setValue('unit', normalizeUnit(val), { shouldValidate: true })}
               >
                 <SelectTrigger id="unit" className="w-full">
                   <SelectValue placeholder="Select Unit" />
@@ -745,15 +727,7 @@ export function ProductForm({
           </CardContent>
         </Card>
 
-        {/* When Editing an existing product: Show Consolidated FEFO Batches & Expiry Breakdown */}
-        {isEditing && (
-          <FefoBatchBreakdown
-            productId={initialData?.id}
-            batches={batches}
-            selectedUnit={selectedUnit}
-            onEditBatch={handleSelectBatch}
-          />
-        )}
+        
 
         {/* Batch, Manufacturing & Vendor Invoice Details */}
         <Card className="shadow-xs">
@@ -771,40 +745,7 @@ export function ProductForm({
                 Batch number, dates, supplier, and shelf location.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-3.5 sm:p-5 pt-0 sm:pt-0">
-            {isEditing && batches.length > 1 && (
-              <div className="p-3 bg-muted/40 rounded-xl border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Boxes className="size-3.5 text-primary" />
-                    <span>Select Batch to Edit ({batches.length} batches):</span>
-                  </p>
-                  <p className="text-micro text-muted-foreground">
-                    Active: <strong className="text-foreground">#{activeBatch?.batchNumber}</strong>. Select to edit stock and prices.
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {batches.map((b) => {
-                    const isSelected = b.id === activeBatch?.id;
-                    return (
-                      <Button
-                        key={b.id}
-                        type="button"
-                        variant={isSelected ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => handleSelectBatch(b)}
-                        className={`h-7 px-2.5 text-xs font-mono font-bold cursor-pointer transition-all ${
-                          isSelected ? 'shadow-xs' : 'hover:bg-primary/10 hover:text-primary'
-                        }`}
-                      >
-                        #{b.batchNumber}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+            <CardContent className="p-3.5 sm:p-5 pt-0 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
               {/* Batch Number */}
               <div className="space-y-1.5 col-span-1">
                 <Label htmlFor="batchNumber" className="text-xs sm:text-sm">Batch No</Label>
@@ -894,8 +835,7 @@ export function ProductForm({
                   onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
                 />
               </div>
-            </div>
-          </CardContent>
+            </CardContent>
         </Card>
 
         {/* Dynamic Category Attributes Card */}
@@ -1126,7 +1066,7 @@ export function ProductForm({
             ) : (
               <>
                 <Save className="size-4" />
-                <span>{isEditing ? (activeBatch ? `Update (${activeBatch.batchNumber})` : 'Update Medicine') : 'Add Stock'}</span>
+                <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
               </>
             )}
           </Button>

@@ -105,7 +105,7 @@ async function main() {
       name: 'Augmentin 625mg',
       genericName: 'Amoxicillin + Clavulanic Acid',
       category: 'TABLET_CAPSULE',
-      unit: 'Pack',
+      unit: 'Box',
       barcode: '8901234567893',
       isControlledSubstance: true, // Controlled / Rx
       lowStockThreshold: 10,

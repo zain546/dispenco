@@ -11,7 +11,6 @@ export const PRODUCT_CATEGORIES = [
 
 export const PRODUCT_UNITS = [
   'Box',
-  'Pack',
   'Strip',
   'Bottle',
   'Vial',
