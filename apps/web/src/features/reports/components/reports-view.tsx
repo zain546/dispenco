@@ -537,7 +537,7 @@ export function ReportsView() {
             <StatCard
               title="Net Profit"
               value={formatCurrency(totalProfit)}
-              caption={`${profitMargin.toFixed(1)}% margin • Cost: ${formatCurrency(totalCost)}`}
+              caption={`${profitMargin.toFixed(1)}% margin • Purchasing Cost: ${formatCurrency(totalCost)}`}
               icon={TrendingUp}
               variant={totalProfit >= 0 ? 'success' : 'destructive'}
               isLoading={loading}
@@ -853,10 +853,10 @@ export function ReportsView() {
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border gap-2">
               <div>
                 <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <Trophy className="size-4 text-warning" /> Top Selling Medicines
+                  <Trophy className="size-4 text-warning" /> Medicines Sold
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Medicines sold in the selected period with sales amount, cost, and profit
+                  All medicines sold in the selected period with sales amount, purchasing cost, and profit
                 </CardDescription>
               </div>
 
@@ -899,7 +899,7 @@ export function ReportsView() {
                 <div className="p-8">
                   <EmptyState
                     icon={Trophy}
-                    title="No top products recorded"
+                    title="No medicines sold"
                     description="Sales data for the selected period will appear here once transactions are recorded."
                   />
                 </div>
@@ -913,7 +913,7 @@ export function ReportsView() {
                         <th className="py-3 px-4">Category</th>
                         <th className="py-3 px-4 text-right">Qty Sold</th>
                         <th className="py-3 px-4 text-right">Total Sales</th>
-                        <th className="py-3 px-4 text-right">Cost</th>
+                        <th className="py-3 px-4 text-right">Purchasing Cost</th>
                         <th className="py-3 px-4 text-right">Profit</th>
                       </tr>
                     </thead>

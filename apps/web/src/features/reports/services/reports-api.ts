@@ -67,6 +67,7 @@ export interface SalesReportResponse {
     salesOverTime: SalesOverTimeData[];
     topProductsByQuantity: TopProductData[];
     topProductsByRevenue: TopProductData[];
+    soldProducts?: TopProductData[];
     transactions?: SalesReportTransaction[];
   };
 }

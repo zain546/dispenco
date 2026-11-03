@@ -528,12 +528,10 @@ export class ReportsService {
     const allProductsStats = Array.from(productStatsMap.values());
 
     const topProductsByQuantity = [...allProductsStats]
-      .sort((a, b) => b.totalQuantity - a.totalQuantity)
-      .slice(0, 15);
+      .sort((a, b) => b.totalQuantity - a.totalQuantity);
 
     const topProductsByRevenue = [...allProductsStats]
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
-      .slice(0, 15);
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
     return {
       success: true,
@@ -559,7 +557,8 @@ export class ReportsService {
         salesOverTime,
         topProductsByQuantity,
         topProductsByRevenue,
-        transactions: transactions.reverse().slice(0, 200),
+        soldProducts: topProductsByQuantity,
+        transactions: transactions.reverse().slice(0, 500),
       },
     };
   }

@@ -178,7 +178,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
       isProfit: false,
     },
     {
-      label: 'Total Cost',
+      label: 'Purchasing Cost',
       value: fmtMoney(totalCost),
       sub: 'Purchase cost of items',
       isProfit: false,
@@ -279,7 +279,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
     doc.text('Receipts', margin + 68, bhY, { align: 'right' });
     doc.text('Items Sold', margin + 95, bhY, { align: 'right' });
     doc.text('Total Sales', margin + 128, bhY, { align: 'right' });
-    doc.text('Total Cost', margin + 156, bhY, { align: 'right' });
+    doc.text('Purchasing Cost', margin + 156, bhY, { align: 'right' });
     doc.text('Profit', pageWidth - margin - 3, bhY, { align: 'right' });
     y += 6.5;
 
@@ -339,7 +339,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
     doc.text('Receipts', margin + 55, thY, { align: 'right' });
     doc.text('Items Sold', margin + 82, thY, { align: 'right' });
     doc.text('Total Sales', margin + 118, thY, { align: 'right' });
-    doc.text('Total Cost', margin + 150, thY, { align: 'right' });
+    doc.text('Purchasing Cost', margin + 150, thY, { align: 'right' });
     doc.text('Profit', pageWidth - margin - 3, thY, { align: 'right' });
     y += 6.5;
 
@@ -376,18 +376,20 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
   }
 
   // =========================================================================
-  // 6. TOP SELLING MEDICINES (ONLY WHEN MEDICINES WERE SOLD)
+  // 6. MEDICINES SOLD (ALL MEDICINES SOLD IN THIS PERIOD)
   // =========================================================================
-  const soldMedicines = (reportData.topProductsByQuantity || []).filter(
-    (p) => Number(p.totalQuantity) > 0,
-  );
+  const soldMedicines = (
+    reportData.soldProducts ||
+    reportData.topProductsByQuantity ||
+    []
+  ).filter((p) => Number(p.totalQuantity) > 0);
 
   if (soldMedicines.length > 0) {
     checkPageBreak(24);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.5);
     doc.setTextColor(15, 23, 42);
-    doc.text('Top Selling Medicines', margin, y);
+    doc.text('Medicines Sold', margin, y);
     y += 3;
 
     doc.setFillColor(241, 245, 249);
@@ -402,7 +404,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
     doc.text('Category', margin + 64, mthY);
     doc.text('Qty Sold', margin + 109, mthY, { align: 'right' });
     doc.text('Total Sales', margin + 130, mthY, { align: 'right' });
-    doc.text('Cost', margin + 153, mthY, { align: 'right' });
+    doc.text('Purchasing Cost', margin + 156, mthY, { align: 'right' });
     doc.text('Profit', pageWidth - margin - 3, mthY, { align: 'right' });
     y += 6.5;
 
@@ -428,7 +430,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
       doc.setTextColor(15, 23, 42);
       doc.text(String(med.totalQuantity), margin + 109, rY, { align: 'right' });
       doc.text(fmtMoney(mRev), margin + 130, rY, { align: 'right' });
-      doc.text(fmtMoney(mCost), margin + 153, rY, { align: 'right' });
+      doc.text(fmtMoney(mCost), margin + 156, rY, { align: 'right' });
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(
@@ -479,7 +481,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
     doc.setFont('helvetica', 'bold');
     doc.text(String(sumQty), margin + 109, mtfY, { align: 'right' });
     doc.text(fmtMoney(sumRev), margin + 130, mtfY, { align: 'right' });
-    doc.text(fmtMoney(sumCost), margin + 153, mtfY, { align: 'right' });
+    doc.text(fmtMoney(sumCost), margin + 156, mtfY, { align: 'right' });
     doc.setTextColor(
       sumProfit >= 0 ? 5 : 220,
       sumProfit >= 0 ? 150 : 38,
@@ -512,7 +514,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
   doc.text('Customer', margin + 72, rthY);
   doc.text('Payment', margin + 104, rthY);
   doc.text('Sale Amount', margin + 136, rthY, { align: 'right' });
-  doc.text('Cost', margin + 158, rthY, { align: 'right' });
+  doc.text('Purchasing Cost', margin + 158, rthY, { align: 'right' });
   doc.text('Profit', pageWidth - margin - 3, rthY, { align: 'right' });
   y += 6.5;
 
@@ -634,7 +636,7 @@ export async function shareSalesReportOnWhatsApp(
     `Period: *${options.periodLabel}* (${dateRangeDisplay})`,
     `--------------------------------`,
     `Total Sales: *${fmtMoney(totalRevenue)}*`,
-    `Total Cost: ${fmtMoney(totalCost)}`,
+    `Purchasing Cost: ${fmtMoney(totalCost)}`,
     `*Total Profit: ${fmtMoney(totalProfit)}*`,
     `Receipts: ${summary.totalTransactions} (${summary.totalItemsSold} items sold)`,
   ];
@@ -650,14 +652,14 @@ export async function shareSalesReportOnWhatsApp(
     }
   }
 
-  const topMeds = (options.reportData.topProductsByQuantity || [])
+  const topMeds = (options.reportData.soldProducts || options.reportData.topProductsByQuantity || [])
     .filter((p) => Number(p.totalQuantity) > 0)
-    .slice(0, 3);
+    .slice(0, 5);
   if (topMeds.length > 0) {
     lines.push(`--------------------------------`);
-    lines.push(`*Top Medicines Sold:*`);
+    lines.push(`*Medicines Sold:*`);
     topMeds.forEach((m, i) => {
-      lines.push(`${i + 1}. ${m.productName} (${m.totalQuantity} units)`);
+      lines.push(`${i + 1}. ${m.productName} (${m.totalQuantity} sold)`);
     });
   }
 
