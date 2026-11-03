@@ -30,10 +30,10 @@ import {
   Edit3,
 } from 'lucide-react';
 import { extractIdFromSlugParam } from '@/features/inventory/utils/seo-utils';
-import { EditBatchModal } from '@/features/inventory/components/edit-batch-modal';
 
 export default function ProductBatchesPage() {
   const params = useParams();
+  const router = useRouter();
   const rawParam = params?.id as string;
   const productId = extractIdFromSlugParam(rawParam);
 
@@ -46,7 +46,6 @@ export default function ProductBatchesPage() {
     totalStock: number;
   } | null>(null);
   const [batches, setBatches] = useState<BatchData[]>([]);
-  const [editingBatch, setEditingBatch] = useState<BatchData | null>(null);
 
   const fetchBatches = () => {
     if (productId) {
@@ -220,7 +219,7 @@ export default function ProductBatchesPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => setEditingBatch(batch)}
+                                onClick={() => router.push(`/inventory/${productId}/edit?batchId=${batch.id}`)}
                                 className="size-6 text-muted-foreground hover:text-primary hover:bg-primary/10"
                                 title="Edit Batch Specifications"
                               >
@@ -303,13 +302,7 @@ export default function ProductBatchesPage() {
         </div>
       )}
 
-      <EditBatchModal
-        batch={editingBatch}
-        unit={productInfo?.unit}
-        open={!!editingBatch}
-        onOpenChange={(isOpen) => !isOpen && setEditingBatch(null)}
-        onBatchUpdated={fetchBatches}
-      />
+      
     </div>
   );
 }

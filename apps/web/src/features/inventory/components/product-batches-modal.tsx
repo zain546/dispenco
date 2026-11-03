@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,6 @@ import {
 } from '../services/products-api';
 import { formatCategory, formatDate, getMedicineIconConfig, formatUnitPlural } from './product-list';
 import { formatCurrency } from '@/lib/format';
-import { EditBatchModal } from './edit-batch-modal';
 
 interface ProductBatchesModalProps {
   productId: string | null;
@@ -42,6 +42,7 @@ export function ProductBatchesModal({
   onOpenChange,
   storeId,
 }: ProductBatchesModalProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [productInfo, setProductInfo] = useState<{
     id: string;
@@ -51,7 +52,6 @@ export function ProductBatchesModal({
     totalStock: number;
   } | null>(null);
   const [batches, setBatches] = useState<BatchData[]>([]);
-  const [editingBatch, setEditingBatch] = useState<BatchData | null>(null);
 
   const fetchBatches = () => {
     if (!productId) return;
@@ -267,8 +267,11 @@ export function ProductBatchesModal({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setEditingBatch(batch)}
-                          className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 self-end sm:self-auto"
+                          onClick={() => {
+                            onOpenChange(false);
+                            router.push(`/inventory/${productId}/edit?batchId=${batch.id}`);
+                          }}
+                          className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 self-end sm:self-auto cursor-pointer"
                         >
                           <Edit3 className="size-3" />
                           <span>Edit</span>
@@ -344,18 +347,7 @@ export function ProductBatchesModal({
           </div>
         )}
 
-        {/* Nested Edit Batch Modal */}
-        <EditBatchModal
-          batch={editingBatch}
-          unit={productInfo?.unit}
-          open={!!editingBatch}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) setEditingBatch(null);
-          }}
-          onBatchUpdated={() => {
-            fetchBatches();
-          }}
-        />
+        
       </DialogContent>
     </Dialog>
   );

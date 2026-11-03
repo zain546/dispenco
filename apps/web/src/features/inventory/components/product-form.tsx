@@ -48,7 +48,6 @@ import {
 } from '../schemas/product-schema';
 import { productsApi, type ProductData, type BatchData } from '../services/products-api';
 import { formatCategory, formatDate, formatUnitPlural } from './product-list';
-import { EditBatchModal } from './edit-batch-modal';
 import { FefoBatchBreakdown } from './fefo-batch-breakdown';
 import { getBatchExpiryDetails } from '../utils/batch-utils';
 import { getErrorMessage } from '@/lib/errors';
@@ -56,17 +55,52 @@ import { getErrorMessage } from '@/lib/errors';
 interface ProductFormProps {
   initialData?: ProductData;
   isEditing?: boolean;
+  initialBatchId?: string | null;
+  initialBatchNumber?: string | null;
 }
 
-export function ProductForm({ initialData, isEditing = false }: ProductFormProps) {
+export function ProductForm({
+  initialData,
+  isEditing = false,
+  initialBatchId = null,
+  initialBatchNumber = null,
+}: ProductFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Batch state for existing products
   const [batches, setBatches] = useState<BatchData[]>(initialData?.batches || []);
-  const [editingBatch, setEditingBatch] = useState<BatchData | null>(null);
-  const [editBatchModalOpen, setEditBatchModalOpen] = useState(false);
+  const [activeBatchId, setActiveBatchId] = useState<string | null>(initialBatchId);
+
+  const formatIsoDate = (dString?: string | null) => {
+    if (!dString) return '';
+    try {
+      return new Date(dString).toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
+  const activeBatch = React.useMemo(() => {
+    if (!batches || batches.length === 0) return null;
+    if (activeBatchId) {
+      const found = batches.find((b) => b.id === activeBatchId || b.batchNumber === activeBatchId);
+      if (found) return found;
+    }
+    if (initialBatchNumber) {
+      const found = batches.find((b) => b.batchNumber === initialBatchNumber);
+      if (found) return found;
+    }
+    return batches[0] || null;
+  }, [batches, activeBatchId, initialBatchNumber]);
+
+  const handleSelectBatch = (b: BatchData) => {
+    setActiveBatchId(b.id);
+    populateBatchValues(b);
+    toast.info(`Switched to batch #${b.batchNumber}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleRefreshBatches = async () => {
     if (!initialData?.id) return;
@@ -79,11 +113,6 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
     } catch (err) {
       console.error('Failed to refresh batches:', err);
     }
-  };
-
-  const handleEditBatchClick = (batch: BatchData) => {
-    setEditingBatch(batch);
-    setEditBatchModalOpen(true);
   };
 
   const initialAttrs = (initialData?.attributes || {}) as Record<string, any>;
@@ -135,6 +164,33 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
       description: initialAttrs.description || '',
     },
   });
+
+  const populateBatchValues = useCallback(
+    (batch: BatchData | null) => {
+      if (!batch) return;
+      setValue('batchNumber', batch.batchNumber || '', { shouldDirty: false });
+      setValue('initialStockQuantity', batch.quantityRemaining ?? 0, { shouldDirty: false });
+      if (batch.costPrice !== undefined && batch.costPrice !== null) {
+        setValue('costPrice', Number(batch.costPrice), { shouldDirty: false });
+      }
+      if (batch.sellPrice !== undefined && batch.sellPrice !== null) {
+        setValue('sellPrice', Number(batch.sellPrice), { shouldDirty: false });
+      }
+      setValue('expiryDate', formatIsoDate(batch.expiryDate), { shouldDirty: false });
+      setValue('mfgDate', formatIsoDate(batch.mfgDate), { shouldDirty: false });
+      if (batch.rackNumber) setValue('rackNumber', batch.rackNumber, { shouldDirty: false });
+      if (batch.vendorName) setValue('vendorName', batch.vendorName, { shouldDirty: false });
+      if (batch.purchaseInvoiceNumber) setValue('purchaseInvoiceNumber', batch.purchaseInvoiceNumber, { shouldDirty: false });
+      if (batch.purchaseInvoiceDate) setValue('purchaseInvoiceDate', formatIsoDate(batch.purchaseInvoiceDate), { shouldDirty: false });
+    },
+    [setValue]
+  );
+
+  useEffect(() => {
+    if (isEditing && activeBatch) {
+      populateBatchValues(activeBatch);
+    }
+  }, [isEditing, activeBatch, populateBatchValues]);
 
   const selectedCategory = watch('category');
   const selectedUnit = watch('unit') || 'Box';
@@ -276,7 +332,27 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
           lowStockThreshold: Number(values.lowStockThreshold),
           attributes,
         });
-        toast.success('Medicine product updated successfully!');
+
+        if (activeBatch?.id) {
+          await productsApi.updateBatch(activeBatch.id, {
+            batchNumber: values.batchNumber?.trim() || activeBatch.batchNumber,
+            expiryDate: values.expiryDate || activeBatch.expiryDate,
+            mfgDate: values.mfgDate || undefined,
+            quantityRemaining: values.initialStockQuantity !== undefined ? Number(values.initialStockQuantity) : undefined,
+            costPrice: values.costPrice !== undefined ? Number(values.costPrice) : undefined,
+            sellPrice: values.sellPrice !== undefined ? Number(values.sellPrice) : undefined,
+            rackNumber: values.rackNumber?.trim() || undefined,
+            vendorName: values.vendorName?.trim() || undefined,
+            purchaseInvoiceNumber: values.purchaseInvoiceNumber?.trim() || undefined,
+            purchaseInvoiceDate: values.purchaseInvoiceDate || undefined,
+          });
+        }
+
+        toast.success(
+          activeBatch
+            ? `Updated ${values.name} and Batch #${values.batchNumber || activeBatch.batchNumber}!`
+            : 'Medicine product updated successfully!'
+        );
       } else {
         await productsApi.createProduct({
           name: values.name,
@@ -331,11 +407,17 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl font-bold tracking-normal text-foreground truncate">
-              {isEditing ? 'Edit Medicine' : 'Add Stock'}
+              {isEditing
+                ? activeBatch
+                  ? `Edit (${activeBatch.batchNumber})`
+                  : 'Edit Medicine'
+                : 'Add Stock'}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isEditing
-                ? 'Update medicine catalog details and pricing.'
+                ? activeBatch
+                  ? `Update #${activeBatch.batchNumber} stock quantities, prices, and medicine specifications.`
+                  : 'Update medicine catalog details and pricing.'
                 : 'Enter medicine details, initial stock, prices, and batch info.'}
             </p>
           </div>
@@ -497,9 +579,8 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
               )}
             </div>
 
-            {/* Only show initial stock & price fields when creating a NEW product */}
-            {!isEditing && (
-              <>
+            {/* Stock & Pricing Fields */}
+            <>
                 {/* Initial Stock Quantity */}
                 <div className="space-y-1.5 col-span-1">
                   <Label htmlFor="initialStockQuantity" className="text-xs sm:text-sm flex items-center gap-1.5">
@@ -661,7 +742,6 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   </div>
                 )}
               </>
-            )}
           </CardContent>
         </Card>
 
@@ -671,13 +751,12 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             productId={initialData?.id}
             batches={batches}
             selectedUnit={selectedUnit}
-            onEditBatch={handleEditBatchClick}
+            onEditBatch={handleSelectBatch}
           />
         )}
 
-        {/* Optional Batch, Manufacturing & Vendor Invoice Details (Only shown when creating a NEW product) */}
-        {!isEditing && (
-          <Card className="shadow-xs">
+        {/* Batch, Manufacturing & Vendor Invoice Details */}
+        <Card className="shadow-xs">
             <CardHeader className="p-3.5 sm:p-5">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-sm sm:text-base font-semibold flex items-center gap-2">
@@ -692,7 +771,40 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                 Batch number, dates, supplier, and shelf location.
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-3.5 sm:p-5 pt-0 sm:pt-0 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+            <CardContent className="p-3.5 sm:p-5 pt-0 sm:pt-0">
+            {isEditing && batches.length > 1 && (
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Boxes className="size-3.5 text-primary" />
+                    <span>Select Batch to Edit ({batches.length} batches):</span>
+                  </p>
+                  <p className="text-micro text-muted-foreground">
+                    Active: <strong className="text-foreground">#{activeBatch?.batchNumber}</strong>. Select to edit stock and prices.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {batches.map((b) => {
+                    const isSelected = b.id === activeBatch?.id;
+                    return (
+                      <Button
+                        key={b.id}
+                        type="button"
+                        variant={isSelected ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleSelectBatch(b)}
+                        className={`h-7 px-2.5 text-xs font-mono font-bold cursor-pointer transition-all ${
+                          isSelected ? 'shadow-xs' : 'hover:bg-primary/10 hover:text-primary'
+                        }`}
+                      >
+                        #{b.batchNumber}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
               {/* Batch Number */}
               <div className="space-y-1.5 col-span-1">
                 <Label htmlFor="batchNumber" className="text-xs sm:text-sm">Batch No</Label>
@@ -782,9 +894,9 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
                   onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
                 />
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Dynamic Category Attributes Card */}
         <Card className="shadow-xs">
@@ -1014,23 +1126,13 @@ export function ProductForm({ initialData, isEditing = false }: ProductFormProps
             ) : (
               <>
                 <Save className="size-4" />
-                <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
+                <span>{isEditing ? (activeBatch ? `Update (${activeBatch.batchNumber})` : 'Update Medicine') : 'Add Stock'}</span>
               </>
             )}
           </Button>
         </div>
       </form>
 
-      {/* Interactive Batch Edit Modal for existing products */}
-      {isEditing && (
-        <EditBatchModal
-          batch={editingBatch}
-          unit={selectedUnit}
-          open={editBatchModalOpen}
-          onOpenChange={setEditBatchModalOpen}
-          onBatchUpdated={handleRefreshBatches}
-        />
-      )}
-    </div>
+      </div>
   );
 }

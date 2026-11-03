@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { ProductForm } from '@/features/inventory/components/product-form';
 import { productsApi, type ProductData } from '@/features/inventory/services/products-api';
 import { Button } from '@/components/ui/button';
-
 import { extractIdFromSlugParam } from '@/features/inventory/utils/seo-utils';
 
-export default function EditProductPage() {
+function EditProductContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const rawParam = params?.id as string;
   const productId = extractIdFromSlugParam(rawParam);
+
+  const initialBatchId = searchParams?.get('batchId') || null;
+  const initialBatchNumber = searchParams?.get('batchNumber') || null;
 
   const [product, setProduct] = useState<ProductData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,5 +73,27 @@ export default function EditProductPage() {
     );
   }
 
-  return <ProductForm initialData={product} isEditing={true} />;
+  return (
+    <ProductForm
+      initialData={product}
+      isEditing={true}
+      initialBatchId={initialBatchId}
+      initialBatchNumber={initialBatchNumber}
+    />
+  );
+}
+
+export default function EditProductPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+          <Loader2 className="size-8 text-primary animate-spin" />
+          <p className="text-sm font-medium">Loading...</p>
+        </div>
+      }
+    >
+      <EditProductContent />
+    </Suspense>
+  );
 }
