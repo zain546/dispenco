@@ -54,7 +54,7 @@ This is the recommended setup for scalability and low maintenance.
    DATABASE_URL="postgresql://user:password@host:5432/dbname?schema=public"
    JWT_SECRET="<generate-64-char-random-string>"
    REFRESH_TOKEN_SECRET="<generate-64-char-random-string>"
-   JWT_EXPIRATION="15m"
+   JWT_EXPIRATION="1d"
    REFRESH_TOKEN_EXPIRATION="7d"
    CLIENT_URL="https://your-frontend-domain.com"
    CORS_ORIGIN="https://your-frontend-domain.com"

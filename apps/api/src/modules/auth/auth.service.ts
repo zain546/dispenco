@@ -263,6 +263,7 @@ export class AuthService {
       return {
         success: true,
         accessToken,
+        refreshToken: newRefreshToken,
       };
     } catch (error) {
       if (error instanceof UnauthorizedException || (error instanceof Error && ['JsonWebTokenError', 'TokenExpiredError', 'NotBeforeError'].includes(error.name))) {
@@ -315,7 +316,7 @@ export class AuthService {
    * Generate short-lived Access Token (15 minutes) and long-lived Refresh Token (30 days / 1 month)
    */
   private generateTokens(payload: JwtPayload) {
-    const accessToken = this.jwtService.sign({ ...payload, tokenUse: 'access' }, { expiresIn: '15m', algorithm: 'HS256' });
+    const accessToken = this.jwtService.sign({ ...payload, tokenUse: 'access' }, { expiresIn: '1d', algorithm: 'HS256' });
     const refreshToken = this.jwtService.sign({ ...payload, tokenUse: 'refresh' }, { secret: this.configService.getOrThrow<string>('REFRESH_TOKEN_SECRET'), expiresIn: '30d', algorithm: 'HS256' });
     return { accessToken, refreshToken };
   }
@@ -329,7 +330,7 @@ export class AuthService {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 15 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
     // 30-Day (1 Month) Refresh Token HTTP-Only Cookie

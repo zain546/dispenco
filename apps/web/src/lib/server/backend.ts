@@ -30,7 +30,7 @@ export function writeSession(response: NextResponse, tokens: SessionTokens | nul
   if (!tokens || tokens.access)
     response.cookies.set(ACCESS_COOKIE, tokens?.access || '', {
       ...options,
-      maxAge: tokens ? 900 : 0,
+      maxAge: tokens ? 86400 : 0,
     });
   if (!tokens || tokens.refresh)
     response.cookies.set(REFRESH_COOKIE, tokens?.refresh || '', {
@@ -58,7 +58,10 @@ export async function refreshSession(refresh: string): Promise<SessionTokens | n
   if (!response.ok) throw new Error('Session service unavailable');
   const data = await response.json();
   if (typeof data.accessToken !== 'string') throw new Error('Invalid session response');
-  return responseTokens(response, data.accessToken);
+  const tokens = responseTokens(response, data.accessToken);
+  const nextRefresh =
+    (typeof data.refreshToken === 'string' && data.refreshToken) || tokens.refresh || refresh;
+  return { access: data.accessToken, refresh: nextRefresh };
 }
 
 export async function verifiedSession(tokens: SessionTokens) {

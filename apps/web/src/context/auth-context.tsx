@@ -71,6 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSessionError(false);
       if (response.status === 401) {
         applyUser(null);
+        if (
+          typeof window !== 'undefined' &&
+          !window.location.pathname.startsWith('/login') &&
+          !window.location.pathname.startsWith('/signup')
+        ) {
+          router.replace('/login');
+        }
         return;
       }
       if (!response.ok) throw new Error('Session unavailable');
@@ -88,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     }
-  }, [applyUser]);
+  }, [applyUser, router]);
 
   useEffect(() => {
     // Remove legacy identity data; only the API establishes identity and permissions.
@@ -106,12 +113,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storage = (event: StorageEvent) => {
       if (event.key === SESSION_SIGNAL) void refreshSession();
     };
+
+    // Periodic silent keep-alive check every 15 minutes to guarantee uninterrupted session
+    const keepAlive = setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshSession();
+    }, 15 * 60 * 1000);
+
     window.addEventListener('dispenco:session-expired', recheck);
     window.addEventListener('focus', recheck);
     window.addEventListener('storage', storage);
     document.addEventListener('visibilitychange', recheck);
     return () => {
       invalidateSessionRequest();
+      clearInterval(keepAlive);
       window.removeEventListener('dispenco:session-expired', recheck);
       window.removeEventListener('focus', recheck);
       window.removeEventListener('storage', storage);

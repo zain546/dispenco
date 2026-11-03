@@ -29,7 +29,7 @@ let app, base, jwt, user;
 const permission = (name) => ({ permission: { name } });
 const role = (name, permissions, tenantId = 'tenant-1') => ({ role: { name, tenantId, rolePermissions: permissions.map(permission) } });
 const payload = (extra = {}) => ({ sub: 'user-1', email: 'test@example.invalid', tenantId: 'tenant-1', tokenVersion: user.tokenVersion, role: 'Owner', permissions: ['settings:manage'], tokenUse: 'access', ...extra });
-const token = (extra = {}, options = {}) => jwt.sign(payload(extra), { expiresIn: '15m', ...options });
+const token = (extra = {}, options = {}) => jwt.sign(payload(extra), { expiresIn: '1d', ...options });
 const send = (path, bearer, method = 'GET', body) => fetch(`${base}/${path}`, { method, headers: { ...(bearer && { Authorization: `Bearer ${bearer}` }), 'Content-Type': 'application/json' }, ...(body && { body: JSON.stringify(body) }) });
 before(async () => {
   user = { id: 'user-1', name: 'Test User', email: 'test@example.invalid', tenantId: 'tenant-1', tokenVersion: 1, isActive: true, passwordHash: await bcrypt.hash('test-password-only', 4), tenant: { stores: [{ id: 'store-1', name: 'Main Branch' }] }, userRoles: [role('Staff', ['inventory:read'])] };
