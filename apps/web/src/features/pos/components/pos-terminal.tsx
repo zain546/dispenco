@@ -896,6 +896,7 @@ export function POSTerminal() {
       items: cart.map((item) => ({
         productId: item.product.id,
         quantity: item.quantity,
+        unitType: item.unitType,
         unitPrice: item.unitPrice,
         discount: item.discount > 0 ? item.discount : undefined,
         discountType: item.discountType,

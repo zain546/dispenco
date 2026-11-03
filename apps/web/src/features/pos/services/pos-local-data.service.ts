@@ -176,7 +176,11 @@ export const posLocalDataService = {
         for (const item of payload.items) {
           const prod = await posDb.localProducts.get(item.productId);
           if (prod) {
-            const newStock = Math.max(0, prod.totalStock - item.quantity);
+            const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
+            const deduct = item.unitType === 'UNIT'
+              ? Math.max(1, Math.ceil(item.quantity / packSize))
+              : item.quantity;
+            const newStock = Math.max(0, prod.totalStock - deduct);
             await posDb.localProducts.update(item.productId, { totalStock: newStock });
           }
         }

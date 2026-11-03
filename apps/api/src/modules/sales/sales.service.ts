@@ -151,6 +151,8 @@ export class SalesService {
           tx,
         );
 
+        let remainingItemQuantity = item.quantity;
+
         // Deduct from selected FEFO batches
         for (const alloc of fefoResult.allocations) {
           // Decrement batch quantityRemaining
@@ -166,7 +168,14 @@ export class SalesService {
           // Determine item price (provided unitPrice or batch sell price converted for unit)
           const defaultBasePrice = isSingleUnit && packSize > 1 ? alloc.sellPrice / packSize : alloc.sellPrice;
           const unitPrice = item.unitPrice !== undefined ? item.unitPrice : defaultBasePrice;
-          const itemSubtotal = unitPrice * item.quantity;
+
+          const isLastAllocation = alloc === fefoResult.allocations[fefoResult.allocations.length - 1];
+          const allocQuantity = isSingleUnit
+            ? (isLastAllocation ? remainingItemQuantity : Math.min(remainingItemQuantity, alloc.quantityToDeduct * packSize))
+            : (isLastAllocation ? remainingItemQuantity : alloc.quantityToDeduct);
+          remainingItemQuantity = Math.max(0, remainingItemQuantity - allocQuantity);
+
+          const itemSubtotal = unitPrice * allocQuantity;
 
           // Item-level discount calculation
           let itemDiscount = 0;
@@ -175,7 +184,7 @@ export class SalesService {
               itemDiscount = (itemSubtotal * item.discount) / 100;
             } else {
               // Flat discount split proportionally across allocations
-              itemDiscount = Math.min(itemSubtotal, (item.discount / item.quantity) * alloc.quantityToDeduct);
+              itemDiscount = Math.min(itemSubtotal, (item.discount / item.quantity) * allocQuantity);
             }
           }
 
@@ -193,7 +202,7 @@ export class SalesService {
           preparedSaleItems.push({
             productId: item.productId,
             batchId: alloc.batchId,
-            quantity: item.quantity,
+            quantity: allocQuantity,
             unitPrice: new Prisma.Decimal(unitPrice),
             discount: new Prisma.Decimal(itemDiscount),
             discountType: item.discountType || DiscountType.FLAT,
