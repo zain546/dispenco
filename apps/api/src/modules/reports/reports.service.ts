@@ -401,12 +401,18 @@ export class ReportsService {
       let saleCost = 0;
       let saleUnits = 0;
 
+      // Subtotal of raw line items to apportion invoice-level discount
+      const saleSubtotal = s.saleItems.reduce((acc, item) => {
+        return acc + Math.max(0, Number(item.unitPrice) * item.quantity - Number(item.discount || 0));
+      }, 0);
+
       s.saleItems.forEach((item) => {
         const itemReturns = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         const netQuantity = Math.max(0, item.quantity - itemReturns);
         const itemRefund = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + Number(ri.refundAmount || 0), 0) : 0;
         const rawItemRev = Number(item.unitPrice) * item.quantity - Number(item.discount || 0);
-        const netItemRev = Math.max(0, Number((rawItemRev - itemRefund).toFixed(2)));
+        const itemDiscShare = saleSubtotal > 0 ? (rawItemRev / saleSubtotal) * saleDisc : 0;
+        const netItemRev = Math.max(0, Number((rawItemRev - itemDiscShare - itemRefund).toFixed(2)));
 
         const itemCost = this.computeItemCost({ ...item, quantity: netQuantity });
         const itemProfit = Number((netItemRev - itemCost).toFixed(2));
