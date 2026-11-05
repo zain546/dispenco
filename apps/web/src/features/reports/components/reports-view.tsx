@@ -961,19 +961,19 @@ export function ReportsView() {
             <CardHeader className="p-3.5 sm:p-6 flex flex-col gap-3.5 sm:gap-4 pb-4 border-b border-border">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 {/* Segmented Switcher */}
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 sm:gap-1.5 p-1 bg-muted/40 border border-border/70 rounded-xl w-full sm:w-fit">
+                <div className="flex sm:inline-flex items-center gap-1 p-1 bg-muted/40 border border-border/70 rounded-xl w-full sm:w-auto">
                   <Button
                     variant={bottomSectionTab === 'receipts' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setBottomSectionTab('receipts')}
-                    className={`h-8 text-xs sm:text-sm px-2 sm:px-4 font-semibold rounded-lg cursor-pointer gap-1.5 sm:gap-2 justify-center w-full min-w-0 ${
+                    className={`flex-1 sm:flex-initial h-8 text-xs sm:text-sm px-2.5 sm:px-3.5 font-semibold rounded-lg cursor-pointer gap-1.5 sm:gap-2 justify-center whitespace-nowrap ${
                       bottomSectionTab === 'receipts'
                         ? 'bg-primary text-primary-foreground shadow-xs'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <Receipt className="size-3.5 sm:size-4 shrink-0" />
-                    <span className="truncate">Sales Receipts</span>
+                    <span>Sales Receipts</span>
                     {transactions.length > 0 && (
                       <span
                         className={`text-micro px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
@@ -991,14 +991,14 @@ export function ReportsView() {
                     variant={bottomSectionTab === 'medicines' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setBottomSectionTab('medicines')}
-                    className={`h-8 text-xs sm:text-sm px-2 sm:px-4 font-semibold rounded-lg cursor-pointer gap-1.5 sm:gap-2 justify-center w-full min-w-0 ${
+                    className={`flex-1 sm:flex-initial h-8 text-xs sm:text-sm px-2.5 sm:px-3.5 font-semibold rounded-lg cursor-pointer gap-1.5 sm:gap-2 justify-center whitespace-nowrap ${
                       bottomSectionTab === 'medicines'
                         ? 'bg-primary text-primary-foreground shadow-xs'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <Trophy className="size-3.5 sm:size-4 shrink-0 text-warning" />
-                    <span className="truncate">Medicines Sold</span>
+                    <span>Medicines Sold</span>
                     {topProducts.length > 0 && (
                       <span
                         className={`text-micro px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
@@ -1042,12 +1042,12 @@ export function ReportsView() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-full sm:w-fit">
+                  <div className="flex sm:inline-flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-full sm:w-auto">
                     <Button
                       variant={activeTab === 'revenue' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setActiveTab('revenue')}
-                      className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
+                      className={`flex-1 sm:flex-initial h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer justify-center whitespace-nowrap ${
                         activeTab === 'revenue'
                           ? 'bg-primary text-primary-foreground shadow-xs'
                           : 'text-muted-foreground hover:text-foreground'
@@ -1059,7 +1059,7 @@ export function ReportsView() {
                       variant={activeTab === 'quantity' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setActiveTab('quantity')}
-                      className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
+                      className={`flex-1 sm:flex-initial h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer justify-center whitespace-nowrap ${
                         activeTab === 'quantity'
                           ? 'bg-primary text-primary-foreground shadow-xs'
                           : 'text-muted-foreground hover:text-foreground'
