@@ -77,14 +77,14 @@ function getReceiptPaymentBadge(method: string) {
   const m = (method || '').toUpperCase();
   if (m.includes('RETURNED')) {
     return (
-      <Badge variant="destructive" className="text-micro font-medium gap-1">
+      <Badge variant="destructive" className="text-micro font-medium gap-1 whitespace-nowrap">
         Returned
       </Badge>
     );
   }
   if (m === 'DIGITAL') {
     return (
-      <Badge variant="outline" className="text-micro font-medium gap-1 border-primary/30 text-primary bg-primary/5">
+      <Badge variant="outline" className="text-micro font-medium gap-1 border-primary/30 text-primary bg-primary/5 whitespace-nowrap">
         <Smartphone className="size-2.5" />
         Digital
       </Badge>
@@ -92,14 +92,14 @@ function getReceiptPaymentBadge(method: string) {
   }
   if (m === 'CREDIT') {
     return (
-      <Badge variant="outline" className="text-micro font-medium gap-1 border-warning/30 text-warning bg-warning/5">
+      <Badge variant="outline" className="text-micro font-medium gap-1 border-warning/30 text-warning bg-warning/5 whitespace-nowrap">
         <CreditCard className="size-2.5" />
         Khata
       </Badge>
     );
   }
   return (
-    <Badge variant="secondary" className="text-micro font-medium gap-1">
+    <Badge variant="secondary" className="text-micro font-medium gap-1 whitespace-nowrap">
       <Banknote className="size-2.5 text-muted-foreground" />
       Cash
     </Badge>
@@ -958,25 +958,25 @@ export function ReportsView() {
 
           {/* Bottom Section: Dual Tab Card for Sales Receipts and Medicines Sold */}
           <Card id="sales-receipts-section" className="border-border/60 shadow-2xs">
-            <CardHeader className="flex flex-col gap-4 pb-4 border-b border-border">
+            <CardHeader className="p-3.5 sm:p-6 flex flex-col gap-3.5 sm:gap-4 pb-4 border-b border-border">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 {/* Segmented Switcher */}
-                <div className="flex items-center gap-1.5 p-1 bg-muted/40 border border-border/70 rounded-xl w-fit">
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 sm:gap-1.5 p-1 bg-muted/40 border border-border/70 rounded-xl w-full sm:w-fit">
                   <Button
                     variant={bottomSectionTab === 'receipts' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setBottomSectionTab('receipts')}
-                    className={`h-8 text-xs sm:text-sm px-3 sm:px-4 font-semibold rounded-lg cursor-pointer gap-2 ${
+                    className={`h-8 text-xs sm:text-sm px-2 sm:px-4 font-semibold rounded-lg cursor-pointer gap-1.5 sm:gap-2 justify-center w-full min-w-0 ${
                       bottomSectionTab === 'receipts'
                         ? 'bg-primary text-primary-foreground shadow-xs'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <Receipt className="size-4 shrink-0" />
-                    <span>Sales Receipts</span>
+                    <Receipt className="size-3.5 sm:size-4 shrink-0" />
+                    <span className="truncate">Sales Receipts</span>
                     {transactions.length > 0 && (
                       <span
-                        className={`text-micro px-1.5 py-0.5 rounded-full font-bold ${
+                        className={`text-micro px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                           bottomSectionTab === 'receipts'
                             ? 'bg-primary-foreground/20 text-primary-foreground'
                             : 'bg-muted text-muted-foreground'
@@ -991,17 +991,17 @@ export function ReportsView() {
                     variant={bottomSectionTab === 'medicines' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setBottomSectionTab('medicines')}
-                    className={`h-8 text-xs sm:text-sm px-3 sm:px-4 font-semibold rounded-lg cursor-pointer gap-2 ${
+                    className={`h-8 text-xs sm:text-sm px-2 sm:px-4 font-semibold rounded-lg cursor-pointer gap-1.5 sm:gap-2 justify-center w-full min-w-0 ${
                       bottomSectionTab === 'medicines'
                         ? 'bg-primary text-primary-foreground shadow-xs'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <Trophy className="size-4 shrink-0 text-warning" />
-                    <span>Medicines Sold</span>
+                    <Trophy className="size-3.5 sm:size-4 shrink-0 text-warning" />
+                    <span className="truncate">Medicines Sold</span>
                     {topProducts.length > 0 && (
                       <span
-                        className={`text-micro px-1.5 py-0.5 rounded-full font-bold ${
+                        className={`text-micro px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
                           bottomSectionTab === 'medicines'
                             ? 'bg-primary-foreground/20 text-primary-foreground'
                             : 'bg-muted text-muted-foreground'
@@ -1042,7 +1042,7 @@ export function ReportsView() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-fit">
+                  <div className="grid grid-cols-2 sm:flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-full sm:w-fit">
                     <Button
                       variant={activeTab === 'revenue' ? 'default' : 'ghost'}
                       size="sm"
@@ -1123,17 +1123,17 @@ export function ReportsView() {
                 ) : (
                   <>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-xs text-left border-collapse min-w-[760px]">
+                      <table className="w-full text-xs text-left border-collapse min-w-[820px]">
                         <thead>
                           <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
-                            <th className="py-3 px-4">Receipt #</th>
-                            <th className="py-3 px-4">Date &amp; Time</th>
-                            <th className="py-3 px-4">Customer</th>
-                            <th className="py-3 px-4">Doctor / Prescriber</th>
-                            <th className="py-3 px-4">Method</th>
-                            <th className="py-3 px-4 text-center">Items</th>
-                            <th className="py-3 px-4 text-right">Amount</th>
-                            <th className="py-3 px-4 text-right">Action</th>
+                            <th className="py-3 px-4 whitespace-nowrap min-w-[130px]">Receipt #</th>
+                            <th className="py-3 px-4 whitespace-nowrap min-w-[140px]">Date &amp; Time</th>
+                            <th className="py-3 px-4 whitespace-nowrap min-w-[130px]">Customer</th>
+                            <th className="py-3 px-4 whitespace-nowrap min-w-[140px]">Doctor / Prescriber</th>
+                            <th className="py-3 px-4 whitespace-nowrap min-w-[100px]">Method</th>
+                            <th className="py-3 px-4 text-center whitespace-nowrap min-w-[90px]">Items</th>
+                            <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Amount</th>
+                            <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/60">
@@ -1177,17 +1177,17 @@ export function ReportsView() {
                                 {getReceiptPaymentBadge(tx.paymentMethod)}
                               </td>
 
-                              <td className="py-3 px-4 text-center tabular-nums text-muted-foreground font-medium">
-                                <span className="px-2 py-0.5 rounded-md bg-muted/60 text-micro">
+                              <td className="py-3 px-4 text-center tabular-nums text-muted-foreground font-medium whitespace-nowrap">
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-muted/60 text-micro font-medium whitespace-nowrap">
                                   {tx.itemsCount} {tx.itemsCount === 1 ? 'item' : 'items'}
                                 </span>
                               </td>
 
-                              <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs">
+                              <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs whitespace-nowrap">
                                 {formatCurrency(tx.totalAmount)}
                               </td>
 
-                              <td className="py-3 px-4 text-right">
+                              <td className="py-3 px-4 text-right whitespace-nowrap">
                                 <div className="flex items-center justify-end gap-1.5">
                                   <Button
                                     variant="outline"
