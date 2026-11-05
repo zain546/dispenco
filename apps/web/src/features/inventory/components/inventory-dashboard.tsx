@@ -22,6 +22,9 @@ import {
   Star,
   Sparkles,
   X,
+  FileDown,
+  ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,11 +46,23 @@ import { ImportProductsModal } from './import-products-modal';
 import { ExpiryRiskView } from './expiry-risk-view';
 import { getProductSeoUrl } from '../utils/seo-utils';
 import { useStore } from '@/context/store-context';
+import { useAuth } from '@/context/auth-context';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { generateInventoryStockPdfDoc } from '../utils/inventory-report-pdf';
 
 export type InventoryTab = 'in-stock' | 'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiry-risk' | 'expiring-soon' | 'low-stock';
 
 export function InventoryDashboard() {
-  const { activeStoreId, isAllStores } = useStore();
+  const { activeStore, activeStoreId, isAllStores } = useStore();
+  const { user } = useAuth();
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState<InventoryTab>(!isAllStores ? 'in-stock' : 'full-catalog');
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -156,6 +171,64 @@ export function InventoryDashboard() {
     fetchAggregation();
   }, [fetchAggregation]);
 
+
+  const handleExportStockPdf = async (scope: 'all' | 'in-stock' | 'low-stock' | 'expiring' = 'all') => {
+    try {
+      setIsExportingPdf(true);
+      toast.loading('Compiling stock audit report PDF...', { id: 'stock-pdf-export' });
+
+      let exportProducts = data.products;
+      let exportSummary = data.summary;
+
+      // When downloading 'all', fetch complete store catalog regardless of UI tab/search
+      if (scope === 'all') {
+        const fullRes = await productsApi.getInventoryAggregation({
+          storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+        });
+        exportProducts = fullRes.products;
+        exportSummary = fullRes.summary;
+      } else if (scope === 'in-stock') {
+        const inStockRes = await productsApi.getInventoryAggregation({
+          storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+          inStockOnly: true,
+        });
+        exportProducts = inStockRes.products;
+        exportSummary = inStockRes.summary;
+      } else if (scope === 'low-stock') {
+        const lowStockRes = await productsApi.getInventoryAggregation({
+          storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+          lowStockOnly: true,
+        });
+        exportProducts = lowStockRes.products;
+        exportSummary = lowStockRes.summary;
+      } else if (scope === 'expiring') {
+        const expRes = await productsApi.getInventoryAggregation({
+          storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+          expiringSoonOnly: true,
+        });
+        exportProducts = expRes.products;
+        exportSummary = expRes.summary;
+      }
+
+      const { doc, filename } = generateInventoryStockPdfDoc({
+        storeName: isAllStores ? 'All Pharmacy Branches' : (activeStore?.name || 'Dispenco Pharmacy'),
+        storeAddress: isAllStores ? 'Consolidated Organization-Wide Inventory' : activeStore?.address,
+        reportScope: scope,
+        generatedBy: user?.name || 'Pharmacy Staff',
+        summary: exportSummary,
+        products: exportProducts,
+      });
+
+      doc.save(filename);
+      toast.success('Stock report PDF downloaded successfully!', { id: 'stock-pdf-export' });
+    } catch (err: unknown) {
+      console.error('Failed to export stock PDF:', err);
+      toast.error('Failed to generate stock report PDF', { id: 'stock-pdf-export' });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleInspectBatches = (productId: string, productName: string) => {
     setSelectedProductForModal({ id: productId, name: productName });
     setBatchModalOpen(true);
@@ -169,47 +242,128 @@ export function InventoryDashboard() {
         description="FEFO-compliant inventory monitoring, stock alerts, and procurement management"
         icon={Boxes}
         actions={
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+            {/* Primary Action: Receive Stock */}
             <Button
               asChild
               size="sm"
-              className="h-9 px-3.5 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-center cursor-pointer"
+              className="h-9 px-3.5 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-center cursor-pointer flex-1 sm:flex-initial"
             >
               <Link href="/inventory/receive">
                 <Boxes className="size-4 shrink-0" />
                 <span>Receive Stock</span>
               </Link>
             </Button>
+
+            {/* Catalog Action: Add Product */}
             <Button
               asChild
               variant="outline"
               size="sm"
-              className="h-9 px-3.5 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer"
+              className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer flex-1 sm:flex-initial"
             >
               <Link href="/inventory/new">
-                <Plus className="size-4 text-primary shrink-0" />
+                <Plus className="size-3.5 text-primary shrink-0" />
                 <span>Add Product</span>
               </Link>
             </Button>
+
+            {/* Export PDF with Dropdown Options */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isExportingPdf}
+                  className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer"
+                  title="Export inventory stock report in PDF"
+                >
+                  {isExportingPdf ? (
+                    <Loader2 className="size-3.5 animate-spin text-primary shrink-0" />
+                  ) : (
+                    <FileDown className="size-3.5 text-primary shrink-0" />
+                  )}
+                  <span>Export PDF</span>
+                  <ChevronDown className="size-3 text-muted-foreground shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="text-xs font-bold text-muted-foreground">
+                  Stock PDF Reports
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleExportStockPdf('all')}
+                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                >
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <FileText className="size-3.5 text-primary shrink-0" />
+                    <span>Entire Stock Report (All Items)</span>
+                  </div>
+                  <span className="text-micro text-muted-foreground">
+                    Complete catalog with all active batches and stock levels
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExportStockPdf('in-stock')}
+                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                >
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Boxes className="size-3.5 text-emerald-500 shrink-0" />
+                    <span>In-Stock Items Only</span>
+                  </div>
+                  <span className="text-micro text-muted-foreground">
+                    Medicines currently holding active non-zero stock
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExportStockPdf('low-stock')}
+                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                >
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+                    <span>Low Stock / Reorder Sheet</span>
+                  </div>
+                  <span className="text-micro text-muted-foreground">
+                    Depleted items needing purchase reorders
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExportStockPdf('expiring')}
+                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                >
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Clock className="size-3.5 text-rose-500 shrink-0" />
+                    <span>Expiring Soon (&lt; 180 Days)</span>
+                  </div>
+                  <span className="text-micro text-muted-foreground">
+                    Batches requiring supplier return or markdown
+                  </span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Import CSV */}
             <Button
               variant="outline"
               size="sm"
               onClick={() => setImportModalOpen(true)}
               className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer"
             >
-              <FileSpreadsheet className="size-4 text-emerald-400 shrink-0" />
+              <FileSpreadsheet className="size-3.5 text-emerald-400 shrink-0" />
               <span>Import CSV</span>
             </Button>
+
+            {/* Refresh Icon Button */}
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => fetchAggregation()}
               disabled={isLoading}
-              className="h-9 px-3 gap-1.5 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer"
+              className="size-9 bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs shrink-0 cursor-pointer"
               title="Refresh inventory data"
             >
-              <RefreshCw className={`size-3.5 text-muted-foreground shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <RefreshCw className={`size-3.5 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         }
