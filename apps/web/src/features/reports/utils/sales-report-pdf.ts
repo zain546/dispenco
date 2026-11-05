@@ -529,13 +529,14 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
   doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
   const rthY = y + 4.4;
-  doc.text('Receipt #', margin + 3, rthY);
-  doc.text('Date & Time', margin + 33, rthY);
-  doc.text('Customer', margin + 64, rthY);
-  doc.text('Payment', margin + 92, rthY);
-  doc.text('Sale Amount', margin + 123, rthY, { align: 'right' });
-  doc.text('Purchasing Cost', margin + 153, rthY, { align: 'right' });
-  doc.text('Profit', pageWidth - margin - 3, rthY, { align: 'right' });
+  doc.text('Receipt #', margin + 2.5, rthY);
+  doc.text('Date & Time', margin + 29, rthY);
+  doc.text('Customer', margin + 55, rthY);
+  doc.text('Doctor', margin + 78, rthY);
+  doc.text('Payment', margin + 101, rthY);
+  doc.text('Sale Amount', margin + 138, rthY, { align: 'right' });
+  doc.text('Purchasing Cost', margin + 164, rthY, { align: 'right' });
+  doc.text('Profit', pageWidth - margin - 2.5, rthY, { align: 'right' });
   y += 6.5;
 
   if (transactions.length === 0) {
@@ -551,16 +552,17 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(15, 23, 42);
-      doc.text(tx.receiptNumber.slice(0, 16), margin + 3, rY);
+      doc.text(tx.receiptNumber.slice(0, 16), margin + 2.5, rY);
 
       doc.setTextColor(71, 85, 105);
-      doc.text(fmtDateTimeShort(tx.createdAt), margin + 33, rY);
-      doc.text((tx.customerName || 'Walk-in').slice(0, 16), margin + 64, rY);
-      doc.text(tx.paymentMethod || 'CASH', margin + 92, rY);
+      doc.text(fmtDateTimeShort(tx.createdAt), margin + 29, rY);
+      doc.text((tx.customerName || 'Walk-in').slice(0, 14), margin + 55, rY);
+      doc.text((tx.doctorName || 'Self').slice(0, 14), margin + 78, rY);
+      doc.text(tx.paymentMethod || 'CASH', margin + 101, rY);
 
       doc.setTextColor(15, 23, 42);
-      doc.text(fmtMoney(tx.totalAmount), margin + 123, rY, { align: 'right' });
-      doc.text(fmtMoney(tx.costAmount), margin + 153, rY, { align: 'right' });
+      doc.text(fmtMoney(tx.totalAmount), margin + 138, rY, { align: 'right' });
+      doc.text(fmtMoney(tx.costAmount), margin + 164, rY, { align: 'right' });
 
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(
@@ -568,7 +570,7 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
         tx.profitAmount >= 0 ? 150 : 38,
         tx.profitAmount >= 0 ? 105 : 38,
       );
-      doc.text(fmtMoney(tx.profitAmount), pageWidth - margin - 3, rY, {
+      doc.text(fmtMoney(tx.profitAmount), pageWidth - margin - 2.5, rY, {
         align: 'right',
       });
 
@@ -586,15 +588,15 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.8);
     doc.setTextColor(15, 23, 42);
-    doc.text('Total', margin + 3, tfY);
-    doc.text(fmtMoney(totalRevenue), margin + 123, tfY, { align: 'right' });
-    doc.text(fmtMoney(totalCost), margin + 153, tfY, { align: 'right' });
+    doc.text('Total', margin + 2.5, tfY);
+    doc.text(fmtMoney(totalRevenue), margin + 138, tfY, { align: 'right' });
+    doc.text(fmtMoney(totalCost), margin + 164, tfY, { align: 'right' });
     doc.setTextColor(
       totalProfit >= 0 ? 5 : 220,
       totalProfit >= 0 ? 150 : 38,
       totalProfit >= 0 ? 105 : 38,
     );
-    doc.text(fmtMoney(totalProfit), pageWidth - margin - 3, tfY, { align: 'right' });
+    doc.text(fmtMoney(totalProfit), pageWidth - margin - 2.5, tfY, { align: 'right' });
     y += 10;
   }
 
