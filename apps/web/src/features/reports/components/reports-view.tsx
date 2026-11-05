@@ -147,6 +147,9 @@ export function ReportsView() {
   const [receiptSearch, setReceiptSearch] = useState('');
   const [receiptPage, setReceiptPage] = useState(1);
   const receiptsPerPage = 15;
+  const [medicineSearch, setMedicineSearch] = useState('');
+  const [medicinePage, setMedicinePage] = useState(1);
+  const medicinesPerPage = 15;
   const [downloadingSaleId, setDownloadingSaleId] = useState<string | null>(null);
 
   const handleDownloadReceipt = async (saleId: string) => {
@@ -391,6 +394,23 @@ export function ReportsView() {
     activeTab === 'revenue'
       ? reportData?.topProductsByRevenue || []
       : reportData?.topProductsByQuantity || [];
+
+  const filteredMedicines = useMemo(() => {
+    if (!topProducts.length) return [];
+    if (!medicineSearch.trim()) return topProducts;
+    const q = medicineSearch.toLowerCase().trim();
+    return topProducts.filter(
+      (item) =>
+        (item.productName && item.productName.toLowerCase().includes(q)) ||
+        (item.category && item.category.toLowerCase().replace(/_/g, ' ').includes(q))
+    );
+  }, [topProducts, medicineSearch]);
+
+  const totalMedicinePages = Math.max(1, Math.ceil(filteredMedicines.length / medicinesPerPage));
+  const paginatedMedicines = filteredMedicines.slice(
+    (medicinePage - 1) * medicinesPerPage,
+    medicinePage * medicinesPerPage
+  );
 
   const headerInfo = {
     charts: {
@@ -1054,31 +1074,63 @@ export function ReportsView() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex sm:inline-flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-full sm:w-auto">
-                    <Button
-                      variant={activeTab === 'revenue' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setActiveTab('revenue')}
-                      className={`flex-1 sm:flex-initial h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer justify-center whitespace-nowrap ${
-                        activeTab === 'revenue'
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      By Revenue
-                    </Button>
-                    <Button
-                      variant={activeTab === 'quantity' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setActiveTab('quantity')}
-                      className={`flex-1 sm:flex-initial h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer justify-center whitespace-nowrap ${
-                        activeTab === 'quantity'
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      By Quantity Sold
-                    </Button>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                    <div className="relative w-full sm:w-60">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search medicine, category..."
+                        value={medicineSearch}
+                        onChange={(e) => {
+                          setMedicineSearch(e.target.value);
+                          setMedicinePage(1);
+                        }}
+                        className="h-8 pl-8 pr-7 text-xs bg-muted/20 border-border/70 rounded-lg placeholder:text-muted-foreground"
+                      />
+                      {medicineSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMedicineSearch('');
+                            setMedicinePage(1);
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex sm:inline-flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-full sm:w-auto">
+                      <Button
+                        variant={activeTab === 'revenue' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => {
+                          setActiveTab('revenue');
+                          setMedicinePage(1);
+                        }}
+                        className={`flex-1 sm:flex-initial h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer justify-center whitespace-nowrap ${
+                          activeTab === 'revenue'
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        By Revenue
+                      </Button>
+                      <Button
+                        variant={activeTab === 'quantity' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => {
+                          setActiveTab('quantity');
+                          setMedicinePage(1);
+                        }}
+                        className={`flex-1 sm:flex-initial h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer justify-center whitespace-nowrap ${
+                          activeTab === 'quantity'
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        By Quantity Sold
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1091,7 +1143,7 @@ export function ReportsView() {
                   </span>
                 ) : (
                   <span>
-                    All medicines sold in the selected period with sales amount, purchasing cost, and profit.
+                    Showing {filteredMedicines.length} medicine{filteredMedicines.length === 1 ? '' : 's'} sold in the selected period with sales amount, purchasing cost, and profit.
                   </span>
                 )}
               </div>
@@ -1280,82 +1332,147 @@ export function ReportsView() {
                     description="Sales data for the selected period will appear here once transactions are recorded."
                   />
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left border-collapse min-w-[680px]">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
-                        <th className="py-3 px-4 w-12 text-center">#</th>
-                        <th className="py-3 px-4">Medicine</th>
-                        <th className="py-3 px-4">Category</th>
-                        <th className="py-3 px-4 text-right">Qty Sold</th>
-                        <th className="py-3 px-4 text-right">Total Sales</th>
-                        <th className="py-3 px-4 text-right">Purchasing Cost</th>
-                        <th className="py-3 px-4 text-right">Profit</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60">
-                      {topProducts.map((item, index) => {
-                        const itemCost = item.totalCost ?? 0;
-                        const itemProfit =
-                          item.totalProfit !== undefined
-                            ? item.totalProfit
-                            : item.totalRevenue - itemCost;
-
-                        return (
-                          <tr key={item.productId} className="hover:bg-muted/20 transition-colors">
-                            <td className="py-3 px-4 text-center font-bold">
-                              {index === 0 ? (
-                                <Badge
-                                  variant="warning"
-                                  className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro"
-                                >
-                                  1
-                                </Badge>
-                              ) : index === 1 ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro"
-                                >
-                                  2
-                                </Badge>
-                              ) : index === 2 ? (
-                                <Badge
-                                  variant="outline"
-                                  className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro"
-                                >
-                                  3
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">{index + 1}</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 font-semibold text-foreground">
-                              {item.productName}
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant="outline" className="text-micro font-normal capitalize">
-                                {(item.category || 'General').replace(/_/g, ' ').toLowerCase()}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-right font-medium text-foreground tabular-nums">
-                              {formatNumber(item.totalQuantity)}
-                            </td>
-                            <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums">
-                              {formatCurrency(item.totalRevenue)}
-                            </td>
-                            <td className="py-3 px-4 text-right text-muted-foreground tabular-nums">
-                              {formatCurrency(itemCost)}
-                            </td>
-                            <td className="py-3 px-4 text-right font-bold text-emerald-500 tabular-nums">
-                              {formatCurrency(itemProfit)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              ) : filteredMedicines.length === 0 ? (
+                <div className="p-8">
+                  <EmptyState
+                    icon={Trophy}
+                    title="No medicines found"
+                    description={
+                      medicineSearch
+                        ? `No medicines matched "${medicineSearch}". Try clearing your search.`
+                        : 'No medicines sold in the selected period.'
+                    }
+                    action={
+                      medicineSearch ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setMedicineSearch('');
+                            setMedicinePage(1);
+                          }}
+                          className="mt-2 text-xs h-8 cursor-pointer"
+                        >
+                          Clear Search
+                        </Button>
+                      ) : undefined
+                    }
+                  />
                 </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse min-w-[720px]">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
+                          <th className="py-3 px-4 w-12 text-center whitespace-nowrap">#</th>
+                          <th className="py-3 px-4 whitespace-nowrap min-w-[160px]">Medicine</th>
+                          <th className="py-3 px-4 whitespace-nowrap min-w-[120px]">Category</th>
+                          <th className="py-3 px-4 text-right whitespace-nowrap min-w-[90px]">Qty Sold</th>
+                          <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Total Sales</th>
+                          <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Purchasing Cost</th>
+                          <th className="py-3 px-4 text-right whitespace-nowrap min-w-[100px]">Profit</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {paginatedMedicines.map((item, index) => {
+                          const rank = (medicinePage - 1) * medicinesPerPage + index + 1;
+                          const itemCost = item.totalCost ?? 0;
+                          const itemProfit =
+                            item.totalProfit !== undefined
+                              ? item.totalProfit
+                              : item.totalRevenue - itemCost;
+
+                          return (
+                            <tr key={item.productId} className="hover:bg-muted/20 transition-colors">
+                              <td className="py-3 px-4 text-center font-bold whitespace-nowrap">
+                                {rank === 1 ? (
+                                  <Badge
+                                    variant="warning"
+                                    className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro"
+                                  >
+                                    1
+                                  </Badge>
+                                ) : rank === 2 ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro"
+                                  >
+                                    2
+                                  </Badge>
+                                ) : rank === 3 ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="size-6 p-0 rounded-full inline-flex items-center justify-center font-extrabold text-micro"
+                                  >
+                                    3
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">{rank}</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 font-semibold text-foreground whitespace-nowrap">
+                                {item.productName}
+                              </td>
+                              <td className="py-3 px-4 whitespace-nowrap">
+                                <Badge variant="outline" className="text-micro font-normal capitalize whitespace-nowrap">
+                                  {(item.category || 'General').replace(/_/g, ' ').toLowerCase()}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4 text-right font-medium text-foreground tabular-nums whitespace-nowrap">
+                                {formatNumber(item.totalQuantity)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums whitespace-nowrap">
+                                {formatCurrency(item.totalRevenue)}
+                              </td>
+                              <td className="py-3 px-4 text-right text-muted-foreground tabular-nums whitespace-nowrap">
+                                {formatCurrency(itemCost)}
+                              </td>
+                              <td className="py-3 px-4 text-right font-bold text-emerald-500 tabular-nums whitespace-nowrap">
+                                {formatCurrency(itemProfit)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Bar for Medicines */}
+                  {totalMedicinePages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-border/60 bg-muted/10 text-xs text-muted-foreground">
+                      <div>
+                        Showing {(medicinePage - 1) * medicinesPerPage + 1} to{' '}
+                        {Math.min(medicinePage * medicinesPerPage, filteredMedicines.length)} of {filteredMedicines.length} medicines
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMedicinePage((p) => Math.max(1, p - 1))}
+                          disabled={medicinePage <= 1}
+                          className="h-7 px-2 text-xs cursor-pointer"
+                        >
+                          <ChevronLeft className="size-3.5" />
+                          <span>Prev</span>
+                        </Button>
+                        <span className="px-2 font-medium text-foreground">
+                          {medicinePage} / {totalMedicinePages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setMedicinePage((p) => Math.min(totalMedicinePages, p + 1))}
+                          disabled={medicinePage >= totalMedicinePages}
+                          className="h-7 px-2 text-xs cursor-pointer"
+                        >
+                          <span>Next</span>
+                          <ChevronRight className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
