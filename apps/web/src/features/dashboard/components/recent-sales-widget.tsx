@@ -13,14 +13,18 @@ import {
   Smartphone,
   ExternalLink,
   ChevronRight,
+  FileDown,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
+import { downloadThermalReceiptPdf } from '@/features/sales/utils/invoice-pdf-generator';
 import { useStore } from '@/context/store-context';
 import { formatCurrency } from '@/lib/format';
+import { toast } from 'sonner';
 
 function formatRelativeTime(dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime();
@@ -63,6 +67,27 @@ export function RecentSalesWidget() {
   const [sales, setSales] = useState<SaleResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [downloadingSaleId, setDownloadingSaleId] = useState<string | null>(null);
+
+  const handleDownloadReceipt = async (saleId: string) => {
+    try {
+      setDownloadingSaleId(saleId);
+      toast.loading('Fetching receipt details...', { id: `dash-download-${saleId}` });
+      const res = await salesApi.getSaleById(saleId);
+      if (res?.success && res.sale) {
+        toast.loading('Generating receipt PDF...', { id: `dash-download-${saleId}` });
+        await downloadThermalReceiptPdf(res.sale, res.sale.store?.name);
+        toast.success(`Receipt #${res.sale.receiptNumber} downloaded!`, { id: `dash-download-${saleId}` });
+      } else {
+        toast.error('Could not load receipt data', { id: `dash-download-${saleId}` });
+      }
+    } catch (err) {
+      console.error('Failed to download receipt:', err);
+      toast.error('Failed to download receipt PDF', { id: `dash-download-${saleId}` });
+    } finally {
+      setDownloadingSaleId(null);
+    }
+  };
 
   const fetchSales = useCallback(async (isRefresh = false) => {
     if (isRefresh) setIsRefreshing(true);
@@ -110,13 +135,13 @@ export function RecentSalesWidget() {
             size="icon"
             onClick={() => fetchSales(true)}
             disabled={isRefreshing || isLoading}
-            className="size-8 text-muted-foreground hover:text-foreground rounded-lg"
+            className="size-8 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer"
             title="Refresh recent sales feed"
           >
             <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
           </Button>
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs px-2.5 font-medium gap-1 shadow-2xs">
-            <Link href="/reports">
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs px-2.5 font-medium gap-1 shadow-2xs cursor-pointer">
+            <Link href="/reports?tab=receipts#sales-receipts-section">
               <span>View All</span>
               <ArrowRight className="size-3 text-muted-foreground" />
             </Link>
@@ -163,16 +188,18 @@ export function RecentSalesWidget() {
                 const compactReceipt = s.receiptNumber?.replace(/^REC-\d{8}-/, '#') || s.receiptNumber;
 
                 return (
-                  <Link
+                  <div
                     key={s.id}
-                    href={`/pos/receipt/${s.id}`}
-                    className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 active:bg-muted/50 transition-colors group"
+                    className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
                   >
-                    <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-primary/20">
+                    <Link
+                      href={`/pos/receipt/${s.id}`}
+                      className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-primary/20"
+                    >
                       {s.customerName ? s.customerName.charAt(0).toUpperCase() : <Receipt className="size-4" />}
-                    </div>
+                    </Link>
 
-                    <div className="min-w-0 flex-1 space-y-0.5">
+                    <Link href={`/pos/receipt/${s.id}`} className="min-w-0 flex-1 space-y-0.5">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-xs text-foreground truncate max-w-[130px]">
                           {s.customerName || 'Walk-in'}
@@ -182,15 +209,39 @@ export function RecentSalesWidget() {
                       <p className="text-micro text-muted-foreground truncate font-mono">
                         {compactReceipt} • {formatRelativeTime(s.createdAt)}
                       </p>
-                    </div>
+                    </Link>
 
                     <div className="text-right shrink-0 flex items-center gap-1.5">
                       <span className="text-xs font-bold text-foreground tabular-nums">
                         {formatCurrency(s.totalAmount)}
                       </span>
-                      <ChevronRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownloadReceipt(s.id)}
+                        disabled={downloadingSaleId === s.id}
+                        className="size-7 text-muted-foreground hover:text-primary rounded-md cursor-pointer"
+                        title="Download receipt PDF"
+                      >
+                        {downloadingSaleId === s.id ? (
+                          <Loader2 className="size-3 animate-spin text-primary" />
+                        ) : (
+                          <FileDown className="size-3" />
+                        )}
+                      </Button>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-muted-foreground hover:text-foreground rounded-md"
+                        title="View receipt"
+                      >
+                        <Link href={`/pos/receipt/${s.id}`}>
+                          <ChevronRight className="size-3.5" />
+                        </Link>
+                      </Button>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
@@ -205,7 +256,7 @@ export function RecentSalesWidget() {
                     <th className="py-2.5 px-3">Method</th>
                     <th className="py-2.5 px-3">Time</th>
                     <th className="py-2.5 px-4 text-right">Amount</th>
-                    <th className="py-2.5 px-3 text-right">Action</th>
+                    <th className="py-2.5 px-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -242,18 +293,34 @@ export function RecentSalesWidget() {
                         {formatCurrency(s.totalAmount)}
                       </td>
 
-                      <td className="py-2.5 px-3 text-right">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="size-6 text-muted-foreground hover:text-primary"
-                          title="View receipt"
-                        >
-                          <Link href={`/pos/receipt/${s.id}`}>
-                            <ExternalLink className="size-3" />
-                          </Link>
-                        </Button>
+                      <td className="py-2.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDownloadReceipt(s.id)}
+                            disabled={downloadingSaleId === s.id}
+                            className="size-7 text-muted-foreground hover:text-primary rounded-md cursor-pointer"
+                            title="Download receipt PDF"
+                          >
+                            {downloadingSaleId === s.id ? (
+                              <Loader2 className="size-3.5 animate-spin text-primary" />
+                            ) : (
+                              <FileDown className="size-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="icon"
+                            className="size-7 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
+                            title="View receipt"
+                          >
+                            <Link href={`/pos/receipt/${s.id}`}>
+                              <ExternalLink className="size-3.5" />
+                            </Link>
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

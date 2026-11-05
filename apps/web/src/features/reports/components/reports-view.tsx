@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import {
   reportsApi,
   SalesReportResponse,
@@ -21,7 +22,9 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatCurrency, formatNumber, formatDateTime } from '@/lib/format';
+import { salesApi } from '@/features/sales/services/sales-api';
+import { downloadThermalReceiptPdf } from '@/features/sales/utils/invoice-pdf-generator';
 import { getErrorMessage } from '@/lib/errors';
 import { toast } from 'sonner';
 import {
@@ -41,6 +44,17 @@ import {
   AlertOctagon,
   FileDown,
   Wallet,
+  Receipt,
+  Search,
+  Loader2,
+  Smartphone,
+  CreditCard,
+  Banknote,
+  User,
+  Stethoscope,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { AnalyticsCopilotView } from './analytics-copilot-view';
 import { AuditComplianceView } from './audit-compliance-view';
@@ -57,6 +71,40 @@ import {
   Bar,
   Legend,
 } from 'recharts';
+
+
+function getReceiptPaymentBadge(method: string) {
+  const m = (method || '').toUpperCase();
+  if (m.includes('RETURNED')) {
+    return (
+      <Badge variant="destructive" className="text-micro font-medium gap-1">
+        Returned
+      </Badge>
+    );
+  }
+  if (m === 'DIGITAL') {
+    return (
+      <Badge variant="outline" className="text-micro font-medium gap-1 border-primary/30 text-primary bg-primary/5">
+        <Smartphone className="size-2.5" />
+        Digital
+      </Badge>
+    );
+  }
+  if (m === 'CREDIT') {
+    return (
+      <Badge variant="outline" className="text-micro font-medium gap-1 border-warning/30 text-warning bg-warning/5">
+        <CreditCard className="size-2.5" />
+        Khata
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" className="text-micro font-medium gap-1">
+      <Banknote className="size-2.5 text-muted-foreground" />
+      Cash
+    </Badge>
+  );
+}
 
 type PresetRange = 'today' | '7d' | '30d' | 'month' | 'custom';
 
@@ -86,6 +134,32 @@ export function ReportsView() {
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
   const [currentView, setCurrentView] = useState<'charts' | 'copilot' | 'audit' | 'integrity'>('charts');
+  const [bottomSectionTab, setBottomSectionTab] = useState<'receipts' | 'medicines'>('medicines');
+  const [receiptSearch, setReceiptSearch] = useState('');
+  const [receiptPage, setReceiptPage] = useState(1);
+  const receiptsPerPage = 15;
+  const [downloadingSaleId, setDownloadingSaleId] = useState<string | null>(null);
+
+  const handleDownloadReceipt = async (saleId: string) => {
+    try {
+      setDownloadingSaleId(saleId);
+      toast.loading('Fetching receipt details...', { id: `report-download-${saleId}` });
+      const res = await salesApi.getSaleById(saleId);
+      if (res?.success && res.sale) {
+        toast.loading('Generating receipt PDF...', { id: `report-download-${saleId}` });
+        await downloadThermalReceiptPdf(res.sale, res.sale.store?.name);
+        toast.success(`Receipt #${res.sale.receiptNumber} downloaded!`, { id: `report-download-${saleId}` });
+      } else {
+        toast.error('Could not load receipt data', { id: `report-download-${saleId}` });
+      }
+    } catch (err) {
+      console.error('Failed to download receipt:', err);
+      toast.error('Failed to download receipt PDF', { id: `report-download-${saleId}` });
+    } finally {
+      setDownloadingSaleId(null);
+    }
+  };
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -97,6 +171,17 @@ export function ReportsView() {
         setCurrentView('audit');
       } else if (tabParam === 'integrity' || tabParam === 'anomalies' || tabParam === 'shrinkage') {
         setCurrentView('integrity');
+      } else if (tabParam === 'receipts' || tabParam === 'sales') {
+        setCurrentView('charts');
+        setBottomSectionTab('receipts');
+        setTimeout(() => {
+          const el = document.getElementById('sales-receipts-section');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 350);
+      } else if (window.location.hash.includes('sales-receipts')) {
+        setBottomSectionTab('receipts');
       }
     }
   }, []);
@@ -261,6 +346,29 @@ export function ReportsView() {
         : 0;
 
   const salesOverTime = reportData?.salesOverTime || [];
+  
+  const transactions = reportData?.transactions || [];
+
+  const filteredTransactions = useMemo(() => {
+    if (!transactions.length) return [];
+    if (!receiptSearch.trim()) return transactions;
+    const q = receiptSearch.toLowerCase().trim();
+    return transactions.filter(
+      (tx) =>
+        (tx.receiptNumber && tx.receiptNumber.toLowerCase().includes(q)) ||
+        (tx.customerName && tx.customerName.toLowerCase().includes(q)) ||
+        (tx.doctorName && tx.doctorName.toLowerCase().includes(q)) ||
+        (tx.cashierName && tx.cashierName.toLowerCase().includes(q)) ||
+        (tx.paymentMethod && tx.paymentMethod.toLowerCase().includes(q))
+    );
+  }, [transactions, receiptSearch]);
+
+  const totalReceiptPages = Math.max(1, Math.ceil(filteredTransactions.length / receiptsPerPage));
+  const paginatedTransactions = filteredTransactions.slice(
+    (receiptPage - 1) * receiptsPerPage,
+    receiptPage * receiptsPerPage
+  );
+
   const topProducts =
     activeTab === 'revenue'
       ? reportData?.topProductsByRevenue || []
@@ -848,43 +956,132 @@ export function ReportsView() {
             </CardContent>
           </Card>
 
-          {/* Top Selling Products Table */}
-          <Card className="border-border/60 shadow-2xs">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border gap-2">
-              <div>
-                <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <Trophy className="size-4 text-warning" /> Medicines Sold
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  All medicines sold in the selected period with sales amount, purchasing cost, and profit
-                </CardDescription>
+          {/* Bottom Section: Dual Tab Card for Sales Receipts and Medicines Sold */}
+          <Card id="sales-receipts-section" className="border-border/60 shadow-2xs">
+            <CardHeader className="flex flex-col gap-4 pb-4 border-b border-border">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* Segmented Switcher */}
+                <div className="flex items-center gap-1.5 p-1 bg-muted/40 border border-border/70 rounded-xl w-fit">
+                  <Button
+                    variant={bottomSectionTab === 'receipts' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setBottomSectionTab('receipts')}
+                    className={`h-8 text-xs sm:text-sm px-3 sm:px-4 font-semibold rounded-lg cursor-pointer gap-2 ${
+                      bottomSectionTab === 'receipts'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Receipt className="size-4 shrink-0" />
+                    <span>Sales Receipts</span>
+                    {transactions.length > 0 && (
+                      <span
+                        className={`text-micro px-1.5 py-0.5 rounded-full font-bold ${
+                          bottomSectionTab === 'receipts'
+                            ? 'bg-primary-foreground/20 text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {transactions.length}
+                      </span>
+                    )}
+                  </Button>
+
+                  <Button
+                    variant={bottomSectionTab === 'medicines' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setBottomSectionTab('medicines')}
+                    className={`h-8 text-xs sm:text-sm px-3 sm:px-4 font-semibold rounded-lg cursor-pointer gap-2 ${
+                      bottomSectionTab === 'medicines'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Trophy className="size-4 shrink-0 text-warning" />
+                    <span>Medicines Sold</span>
+                    {topProducts.length > 0 && (
+                      <span
+                        className={`text-micro px-1.5 py-0.5 rounded-full font-bold ${
+                          bottomSectionTab === 'medicines'
+                            ? 'bg-primary-foreground/20 text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {topProducts.length}
+                      </span>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Contextual actions */}
+                {bottomSectionTab === 'receipts' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="relative w-full sm:w-64">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search receipt #, customer, doctor..."
+                        value={receiptSearch}
+                        onChange={(e) => {
+                          setReceiptSearch(e.target.value);
+                          setReceiptPage(1);
+                        }}
+                        className="h-8 pl-8 pr-7 text-xs bg-muted/20 border-border/70 rounded-lg placeholder:text-muted-foreground"
+                      />
+                      {receiptSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReceiptSearch('');
+                            setReceiptPage(1);
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs leading-none cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-fit">
+                    <Button
+                      variant={activeTab === 'revenue' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setActiveTab('revenue')}
+                      className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
+                        activeTab === 'revenue'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      By Revenue
+                    </Button>
+                    <Button
+                      variant={activeTab === 'quantity' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setActiveTab('quantity')}
+                      className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
+                        activeTab === 'quantity'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      By Quantity Sold
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-fit">
-                <Button
-                  variant={activeTab === 'revenue' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setActiveTab('revenue')}
-                  className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
-                    activeTab === 'revenue'
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  By Revenue
-                </Button>
-                <Button
-                  variant={activeTab === 'quantity' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setActiveTab('quantity')}
-                  className={`h-7 text-xs px-2.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
-                    activeTab === 'quantity'
-                      ? 'bg-primary text-primary-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  By Quantity Sold
-                </Button>
+              {/* Sub-description */}
+              <div className="text-xs text-muted-foreground">
+                {bottomSectionTab === 'receipts' ? (
+                  <span>
+                    Showing {filteredTransactions.length} receipt{filteredTransactions.length === 1 ? '' : 's'} recorded in the selected period.
+                  </span>
+                ) : (
+                  <span>
+                    All medicines sold in the selected period with sales amount, purchasing cost, and profit.
+                  </span>
+                )}
               </div>
             </CardHeader>
 
@@ -895,6 +1092,174 @@ export function ReportsView() {
                   <Skeleton className="h-10 w-full" />
                   <Skeleton className="h-10 w-full" />
                 </div>
+              ) : bottomSectionTab === 'receipts' ? (
+                filteredTransactions.length === 0 ? (
+                  <div className="p-8">
+                    <EmptyState
+                      icon={Receipt}
+                      title="No receipts found"
+                      description={
+                        receiptSearch
+                          ? `No receipts matched "${receiptSearch}". Try clearing your search.`
+                          : 'No sales transactions were recorded for the selected period.'
+                      }
+                      action={
+                        receiptSearch ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setReceiptSearch('');
+                              setReceiptPage(1);
+                            }}
+                            className="mt-2 text-xs h-8 cursor-pointer"
+                          >
+                            Clear Search
+                          </Button>
+                        ) : undefined
+                      }
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left border-collapse min-w-[760px]">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
+                            <th className="py-3 px-4">Receipt #</th>
+                            <th className="py-3 px-4">Date &amp; Time</th>
+                            <th className="py-3 px-4">Customer</th>
+                            <th className="py-3 px-4">Doctor / Prescriber</th>
+                            <th className="py-3 px-4">Method</th>
+                            <th className="py-3 px-4 text-center">Items</th>
+                            <th className="py-3 px-4 text-right">Amount</th>
+                            <th className="py-3 px-4 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {paginatedTransactions.map((tx) => (
+                            <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="py-3 px-4 font-mono font-semibold text-foreground whitespace-nowrap">
+                                <Link
+                                  href={`/pos/receipt/${tx.id}`}
+                                  target="_blank"
+                                  className="hover:text-primary transition-colors hover:underline inline-flex items-center gap-1.5"
+                                  title="View printable receipt"
+                                >
+                                  <Receipt className="size-3.5 text-primary" />
+                                  <span>{tx.receiptNumber}</span>
+                                </Link>
+                              </td>
+
+                              <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
+                                {formatDateTime(tx.createdAt)}
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                  <User className="size-3.5 text-muted-foreground shrink-0" />
+                                  <span className="truncate max-w-[150px]">
+                                    {tx.customerName || 'Walk-in'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Stethoscope className="size-3.5 text-muted-foreground/70 shrink-0" />
+                                  <span className="truncate max-w-[130px] font-medium text-foreground/90">
+                                    {tx.doctorName || 'Self'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                {getReceiptPaymentBadge(tx.paymentMethod)}
+                              </td>
+
+                              <td className="py-3 px-4 text-center tabular-nums text-muted-foreground font-medium">
+                                <span className="px-2 py-0.5 rounded-md bg-muted/60 text-micro">
+                                  {tx.itemsCount} {tx.itemsCount === 1 ? 'item' : 'items'}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs">
+                                {formatCurrency(tx.totalAmount)}
+                              </td>
+
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDownloadReceipt(tx.id)}
+                                    disabled={downloadingSaleId === tx.id}
+                                    className="h-7 px-2.5 text-xs font-semibold gap-1 text-foreground border-border/70 hover:bg-muted/60 cursor-pointer shadow-2xs"
+                                    title="Download receipt PDF"
+                                  >
+                                    {downloadingSaleId === tx.id ? (
+                                      <Loader2 className="size-3.5 animate-spin text-primary" />
+                                    ) : (
+                                      <FileDown className="size-3.5 text-primary" />
+                                    )}
+                                    <span className="hidden sm:inline">Receipt</span>
+                                  </Button>
+
+                                  <Button
+                                    asChild
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
+                                    title="View receipt"
+                                  >
+                                    <Link href={`/pos/receipt/${tx.id}`} target="_blank">
+                                      <ExternalLink className="size-3.5" />
+                                    </Link>
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Bar */}
+                    {totalReceiptPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-3 border-t border-border/60 bg-muted/10 text-xs text-muted-foreground">
+                        <div>
+                          Showing {(receiptPage - 1) * receiptsPerPage + 1} to{' '}
+                          {Math.min(receiptPage * receiptsPerPage, filteredTransactions.length)} of {filteredTransactions.length} receipts
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setReceiptPage((p) => Math.max(1, p - 1))}
+                            disabled={receiptPage <= 1}
+                            className="h-7 px-2 text-xs cursor-pointer"
+                          >
+                            <ChevronLeft className="size-3.5" />
+                            <span>Prev</span>
+                          </Button>
+                          <span className="px-2 font-medium text-foreground">
+                            {receiptPage} / {totalReceiptPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setReceiptPage((p) => Math.min(totalReceiptPages, p + 1))}
+                            disabled={receiptPage >= totalReceiptPages}
+                            className="h-7 px-2 text-xs cursor-pointer"
+                          >
+                            <span>Next</span>
+                            <ChevronRight className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
               ) : topProducts.length === 0 ? (
                 <div className="p-8">
                   <EmptyState
@@ -924,12 +1289,6 @@ export function ReportsView() {
                           item.totalProfit !== undefined
                             ? item.totalProfit
                             : item.totalRevenue - itemCost;
-                        const itemMargin =
-                          item.profitMargin !== undefined
-                            ? item.profitMargin
-                            : item.totalRevenue > 0
-                              ? Number(((itemProfit / item.totalRevenue) * 100).toFixed(1))
-                              : 0;
 
                         return (
                           <tr key={item.productId} className="hover:bg-muted/20 transition-colors">
