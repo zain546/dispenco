@@ -241,13 +241,25 @@ export function InventoryDashboard() {
         title="Inventory & Exception Hub"
         description="FEFO-compliant inventory monitoring, stock alerts, and procurement management"
         icon={Boxes}
+        headerRight={
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fetchAggregation()}
+            disabled={isLoading}
+            className="size-8 sm:hidden bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs shrink-0 cursor-pointer"
+            title="Refresh inventory data"
+          >
+            <RefreshCw className={`size-3.5 text-muted-foreground ${isLoading ? 'animate-spin text-primary' : ''}`} />
+          </Button>
+        }
         actions={
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
-            {/* Primary Action: Receive Stock */}
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+            {/* 1. Primary Action: Receive Stock */}
             <Button
               asChild
               size="sm"
-              className="h-9 px-3.5 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-center cursor-pointer flex-1 sm:flex-initial"
+              className="h-9 px-3.5 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-center cursor-pointer whitespace-nowrap"
             >
               <Link href="/inventory/receive">
                 <Boxes className="size-4 shrink-0" />
@@ -255,12 +267,12 @@ export function InventoryDashboard() {
               </Link>
             </Button>
 
-            {/* Catalog Action: Add Product */}
+            {/* 2. Catalog Action: Add Product */}
             <Button
               asChild
               variant="outline"
               size="sm"
-              className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer flex-1 sm:flex-initial"
+              className="h-9 px-3.5 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
             >
               <Link href="/inventory/new">
                 <Plus className="size-3.5 text-primary shrink-0" />
@@ -268,14 +280,25 @@ export function InventoryDashboard() {
               </Link>
             </Button>
 
-            {/* Export PDF with Dropdown Options */}
+            {/* 3. Data Intake: Import CSV */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportModalOpen(true)}
+              className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
+            >
+              <FileSpreadsheet className="size-3.5 text-muted-foreground shrink-0" />
+              <span>Import CSV</span>
+            </Button>
+
+            {/* 4. Document Export: Export PDF with Dropdown Options */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={isExportingPdf}
-                  className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer"
+                  className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
                   title="Export inventory stock report in PDF"
                 >
                   {isExportingPdf ? (
@@ -343,24 +366,13 @@ export function InventoryDashboard() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Import CSV */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setImportModalOpen(true)}
-              className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer"
-            >
-              <FileSpreadsheet className="size-3.5 text-emerald-400 shrink-0" />
-              <span>Import CSV</span>
-            </Button>
-
-            {/* Refresh Icon Button */}
+            {/* 5. Desktop Refresh Button on the right side */}
             <Button
               variant="outline"
               size="icon"
               onClick={() => fetchAggregation()}
               disabled={isLoading}
-              className="size-9 bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs shrink-0 cursor-pointer"
+              className="size-9 hidden sm:inline-flex bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs shrink-0 cursor-pointer"
               title="Refresh inventory data"
             >
               <RefreshCw className={`size-3.5 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />

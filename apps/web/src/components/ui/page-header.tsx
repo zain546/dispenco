@@ -7,6 +7,8 @@ export interface PageHeaderProps {
   description?: string;
   icon?: LucideIcon;
   badge?: React.ReactNode;
+  leftBadge?: React.ReactNode;
+  headerRight?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 }
@@ -16,6 +18,8 @@ export function PageHeader({
   description,
   icon: Icon,
   badge,
+  leftBadge,
+  headerRight,
   actions,
   className,
 }: PageHeaderProps) {
@@ -26,17 +30,25 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="space-y-1 min-w-0">
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {Icon && (
-            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <Icon className="size-4.5" />
+      <div className="space-y-1 min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+            {Icon && (
+              <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Icon className="size-4.5" />
+              </div>
+            )}
+            {leftBadge}
+            <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-foreground">
+              {title}
+            </h1>
+            {badge}
+          </div>
+          {headerRight && (
+            <div className="shrink-0 flex items-center gap-2">
+              {headerRight}
             </div>
           )}
-          <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-foreground">
-            {title}
-          </h1>
-          {badge}
         </div>
         {description && (
           <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
