@@ -66,6 +66,7 @@ import { RecentSalesModal } from './recent-sales-modal';
 import { formatCurrency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
+import { useAuth } from '@/context/auth-context';
 import { toast } from 'sonner';
 
 export interface CartItem {
@@ -91,6 +92,7 @@ const getSingleUnitPrice = (product: ProductData): number => {
 
 export function POSTerminal() {
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
+  const { user: currentUser } = useAuth();
 
   // Cart & Search State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -908,7 +910,12 @@ export function POSTerminal() {
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       try {
         const { sale } = await posLocalDataService.recordLocalSale(payload, totals);
-        setCompletedSale(sale);
+        const enrichedSale: SaleResponse = {
+          ...sale,
+          cashierName: currentUser?.name || 'Staff',
+          user: currentUser ? { id: currentUser.id, name: currentUser.name, email: currentUser.email } : undefined,
+        };
+        setCompletedSale(enrichedSale);
         setIsReceiptOpen(true);
         setCart([]);
         setSelectedCustomer(null);
@@ -934,7 +941,12 @@ export function POSTerminal() {
       const res = await salesApi.createSale(payload);
 
       if (res?.sale) {
-        setCompletedSale(res.sale);
+        const enrichedSale: SaleResponse = {
+          ...res.sale,
+          cashierName: res.sale.cashierName || res.sale.user?.name || currentUser?.name || 'Staff',
+          user: res.sale.user || (currentUser ? { id: currentUser.id, name: currentUser.name, email: currentUser.email } : undefined),
+        };
+        setCompletedSale(enrichedSale);
         setIsReceiptOpen(true);
         setCart([]);
         setSelectedCustomer(null);
@@ -953,7 +965,12 @@ export function POSTerminal() {
       if (isNetworkError) {
         try {
           const { sale } = await posLocalDataService.recordLocalSale(payload, totals);
-          setCompletedSale(sale);
+          const enrichedSale: SaleResponse = {
+            ...sale,
+            cashierName: currentUser?.name || 'Staff',
+            user: currentUser ? { id: currentUser.id, name: currentUser.name, email: currentUser.email } : undefined,
+          };
+          setCompletedSale(enrichedSale);
           setIsReceiptOpen(true);
           setCart([]);
           setSelectedCustomer(null);

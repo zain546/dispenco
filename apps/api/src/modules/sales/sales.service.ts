@@ -303,6 +303,8 @@ export class SalesService {
           doctorName: sale.doctorName || 'Self',
           paymentMethod,
           itemsCount: sale.saleItems.length,
+          cashierName: sale.user?.name || 'Staff',
+          user: sale.user ? { id: sale.user.id, name: sale.user.name, email: sale.user.email } : undefined,
           items: sale.saleItems.map((si) => ({
             id: si.id,
             productId: si.productId,
@@ -388,6 +390,7 @@ export class SalesService {
             }
           : null,
         user: sale.user,
+        cashierName: sale.user?.name || 'Staff',
         store: {
           id: sale.store.id,
           name: sale.store.name,

@@ -112,6 +112,11 @@ export interface SaleResponse {
     phone?: string | null;
   } | null;
   cashierName?: string;
+  user?: {
+    id?: string;
+    name: string;
+    email?: string;
+  } | null;
   doctorName?: string | null;
   paymentMethod: string;
   itemsCount: number;

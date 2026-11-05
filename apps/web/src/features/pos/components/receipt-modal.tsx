@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SaleResponse, salesApi } from '@/features/sales/services/sales-api';
 import { formatCurrency } from '@/lib/format';
+import { useAuth } from '@/context/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { downloadThermalReceiptPdf,
   shareThermalReceiptOnWhatsApp, downloadA4TaxInvoicePdf } from '../utils/pos-receipt-pdf';
@@ -46,21 +47,34 @@ export function ReceiptModal({
   storeName,
   onNextSale,
 }: ReceiptModalProps) {
+  const { user: currentUser } = useAuth();
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   if (!sale) return null;
 
+  const effectiveSale: SaleResponse = {
+    ...sale,
+    cashierName:
+      (sale.cashierName && sale.cashierName !== 'Pharmacy Staff' && sale.cashierName !== 'Staff'
+        ? sale.cashierName
+        : null) ||
+      sale.user?.name ||
+      currentUser?.name ||
+      'Staff',
+    user: sale.user || (currentUser ? { id: currentUser.id, name: currentUser.name, email: currentUser.email } : undefined),
+  };
+
   const handleDownload = async () => {
     setIsDownloadingPdf(true);
     try {
-      await downloadThermalReceiptPdf(sale, storeName);
+      await downloadThermalReceiptPdf(effectiveSale, storeName);
     } finally {
       setIsDownloadingPdf(false);
     }
   };
 
   const handleSendWhatsApp = async () => {
-    await shareThermalReceiptOnWhatsApp(sale, storeName);
+    await shareThermalReceiptOnWhatsApp(effectiveSale, storeName);
     const rawPhone = sale.customer?.phone || '';
     const cleanPhone = rawPhone.replace(/\D/g, '');
     if (cleanPhone) {
@@ -87,7 +101,13 @@ export function ReceiptModal({
           <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 space-y-2">
             <div className="flex justify-between text-muted-foreground">
               <span>Receipt #:</span>
-              <span className="font-mono font-bold text-foreground">{sale.receiptNumber}</span>
+              <span className="font-mono font-bold text-foreground">{effectiveSale.receiptNumber}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Cashier:</span>
+              <span className="font-semibold text-foreground">
+                {effectiveSale.user?.name || effectiveSale.cashierName || currentUser?.name || 'Staff'}
+              </span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Customer:</span>

@@ -405,7 +405,13 @@ export async function generateThermalReceiptPdf(
   pdf.setFontSize(8);
   pdf.text(`Date & Time: ${formatDateTime(sale.createdAt)}`, 6, currentY);
   currentY += 4;
-  pdf.text(`Cashier: ${rawSale.user?.name || rawSale.cashierName || 'Pharmacy Staff'}`, 6, currentY);
+  const cashierDisplay =
+    (rawSale.user?.name && rawSale.user.name !== 'Pharmacy Staff' ? rawSale.user.name : null) ||
+    (rawSale.cashierName && rawSale.cashierName !== 'Pharmacy Staff' ? rawSale.cashierName : null) ||
+    rawSale.user?.name ||
+    rawSale.cashierName ||
+    'Staff';
+  pdf.text(`Cashier: ${cashierDisplay}`, 6, currentY);
   currentY += 4;
 
   const custName = rawSale.customer?.name || rawSale.customerName;
