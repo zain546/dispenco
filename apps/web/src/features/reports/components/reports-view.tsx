@@ -106,7 +106,16 @@ function getReceiptPaymentBadge(method: string) {
   );
 }
 
-type PresetRange = 'today' | '7d' | '30d' | 'month' | 'custom';
+type PresetRange = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom';
+
+const PRESET_OPTIONS: Array<{ key: PresetRange; label: string; desktopOnly?: boolean }> = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday', desktopOnly: true },
+  { key: '7d', label: '7 Days' },
+  { key: '30d', label: '30 Days' },
+  { key: 'month', label: 'Month' },
+  { key: 'custom', label: 'Custom' },
+];
 
 function WhatsAppIcon({ className = 'size-3.5 shrink-0' }: { className?: string }) {
   return (
@@ -195,6 +204,13 @@ export function ReportsView() {
 
     if (selectedPreset === 'today') {
       start.setHours(0, 0, 0, 0);
+    } else if (selectedPreset === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      return {
+        startStr: toLocalDateStr(yesterday),
+        endStr: toLocalDateStr(yesterday),
+      };
     } else if (selectedPreset === '7d') {
       start.setDate(end.getDate() - 7);
     } else if (selectedPreset === '30d') {
@@ -214,6 +230,8 @@ export function ReportsView() {
     switch (p) {
       case 'today':
         return 'Today';
+      case 'yesterday':
+        return 'Yesterday';
       case '7d':
         return 'Last 7 Days';
       case '30d':
@@ -554,27 +572,21 @@ export function ReportsView() {
                   <Calendar className="size-3.5 text-primary" /> Date Range
                 </span>
                 <div className="grid grid-cols-5 sm:flex items-center gap-1 p-1 bg-muted/30 border border-border/60 rounded-xl w-full sm:w-auto">
-                  {(['today', '7d', '30d', 'month', 'custom'] as PresetRange[]).map((p) => (
+                  {PRESET_OPTIONS.map((item) => (
                     <Button
-                      key={p}
-                      variant={preset === p ? 'default' : 'ghost'}
+                      key={item.key}
+                      variant={preset === item.key ? 'default' : 'ghost'}
                       size="sm"
-                      onClick={() => setPreset(p)}
-                      className={`h-7 text-[11px] sm:text-xs px-1.5 sm:px-3 font-semibold rounded-lg cursor-pointer ${
-                        preset === p
+                      onClick={() => setPreset(item.key)}
+                      className={`h-7 text-[11px] sm:text-xs px-1.5 sm:px-3 font-semibold rounded-lg cursor-pointer whitespace-nowrap ${
+                        item.desktopOnly ? 'hidden sm:inline-flex' : ''
+                      } ${
+                        preset === item.key
                           ? 'bg-primary text-primary-foreground shadow-xs'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {p === 'today'
-                        ? 'Today'
-                        : p === '7d'
-                        ? '7 Days'
-                        : p === '30d'
-                        ? '30 Days'
-                        : p === 'month'
-                        ? 'Month'
-                        : 'Custom'}
+                      {item.label}
                     </Button>
                   ))}
                 </div>
