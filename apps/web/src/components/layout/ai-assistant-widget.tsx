@@ -39,6 +39,50 @@ const STARTER_PROMPTS = [
 
 const STORAGE_KEY = 'dispenco_ai_widget_messages_v1';
 
+
+function formatTimeAgo(timestamp: number): string {
+  const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
+function FormattedMessageText({ text }: { text: string }) {
+  const lines = text.split('\n');
+
+  return (
+    <div className="space-y-1 text-xs leading-relaxed text-foreground">
+      {lines.map((line, idx) => {
+        if (!line.trim()) {
+          return <div key={idx} className="h-1" />;
+        }
+
+        // Parse bold segments (**...**)
+        const parts = line.split(/(\*\*.*?\*\*)/g);
+
+        return (
+          <p key={idx} className="leading-relaxed">
+            {parts.map((part, pIdx) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                  <strong key={pIdx} className="font-semibold text-foreground">
+                    {part.slice(2, -2)}
+                  </strong>
+                );
+              }
+              return part;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export function AiAssistantWidget() {
   const { activeStoreId, isAllStores } = useStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -278,111 +322,38 @@ export function AiAssistantWidget() {
                     }`}
                   >
                     {msg.sender === 'user' ? (
-                      <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-primary text-primary-foreground px-3.5 py-2.5 text-xs shadow-2xs leading-relaxed font-medium">
-                        {msg.text}
+                      <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-primary text-primary-foreground px-3.5 py-2 text-xs shadow-2xs leading-relaxed font-medium">
+                        <p>{msg.text}</p>
+                        <span className="block text-[10px] text-primary-foreground/75 text-right mt-0.5 font-normal">
+                          {formatTimeAgo(msg.timestamp)}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-start gap-2 max-w-[95%]">
                         <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                           <Bot className="size-4" />
                         </div>
-                        <div className="flex-1 space-y-2.5 rounded-2xl rounded-tl-xs bg-muted/40 border border-border/80 p-3.5 text-xs shadow-2xs">
-                          {/* Executive Takeaway Callout */}
-                          {msg.result?.executiveTakeaway && (
-                            <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-2 text-foreground">
-                              <Lightbulb className="size-3.5 text-primary shrink-0 mt-0.5" />
-                              <span className="font-semibold text-micro leading-snug">
-                                {msg.result.executiveTakeaway}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Markdown Narrative */}
-                          <div
-                            className="text-foreground leading-relaxed prose dark:prose-invert max-w-none text-xs"
-                            dangerouslySetInnerHTML={{
-                              __html: msg.text.replace(
-                                /\*\*(.*?)\*\*/g,
-                                '<strong class="font-bold text-primary">$1</strong>'
-                              ),
-                            }}
-                          />
-
-                          {/* Action Items */}
-                          {msg.result?.actionItems && msg.result.actionItems.length > 0 && (
-                            <div className="space-y-1.5 pt-1 border-t border-border/60">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                                <CheckCircle2 className="size-3 text-primary" />
-                                <span>Action Recommendations:</span>
-                              </span>
-                              <div className="space-y-1">
-                                {msg.result.actionItems.map((act, i) => (
-                                  <div
-                                    key={i}
-                                    className="p-1.5 rounded-lg bg-card border border-border/60 text-micro text-foreground leading-tight flex items-start gap-1.5"
-                                  >
-                                    <span className="font-bold text-primary">{i + 1}.</span>
-                                    <span>{act}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Metric Cards Quick Grid */}
-                          {msg.result?.summaryMetrics && msg.result.summaryMetrics.length > 0 && (
-                            <div className="grid grid-cols-2 gap-1.5 pt-1">
-                              {msg.result.summaryMetrics.slice(0, 4).map((m, i) => (
-                                <div
-                                  key={i}
-                                  className="p-2 rounded-lg bg-card border border-border/60 text-left"
-                                >
-                                  <span className="text-[10px] text-muted-foreground block truncate">
-                                    {m.label}
-                                  </span>
-                                  <strong className="text-xs font-bold text-foreground block truncate mt-0.5">
-                                    {m.value}
-                                  </strong>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Follow-up Prompts */}
-                          {msg.result?.suggestedFollowUps && msg.result.suggestedFollowUps.length > 0 && (
-                            <div className="pt-1 space-y-1">
-                              <span className="text-[10px] text-muted-foreground block font-medium">
-                                Follow-up:
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {msg.result.suggestedFollowUps.slice(0, 2).map((fu, idx) => (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => handleSend(fu)}
-                                    className="px-2 py-1 rounded-md text-[10px] font-medium bg-card border border-border/70 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-foreground text-left cursor-pointer transition-colors"
-                                  >
-                                    {fu}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                        <div className="flex-1 rounded-2xl rounded-tl-xs bg-muted/40 border border-border/80 p-3 text-xs shadow-2xs space-y-1">
+                          <FormattedMessageText text={msg.text} />
+                          <span className="block text-[10px] text-muted-foreground/70 text-left mt-1 font-normal">
+                            {formatTimeAgo(msg.timestamp)}
+                          </span>
                         </div>
                       </div>
                     )}
                   </div>
                 ))}
 
-                {/* Live Synthesizing State */}
+                {/* Animated typing dots matching reference screenshot */}
                 {loading && (
-                  <div className="flex items-start gap-2">
-                    <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="size-4 animate-pulse" />
+                  <div className="flex items-center gap-2">
+                    <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+                      <Bot className="size-4" />
                     </div>
-                    <div className="p-3 rounded-2xl rounded-tl-xs bg-muted/40 border border-border/80 text-xs text-muted-foreground flex items-center gap-2">
-                      <Loader2 className="size-3.5 animate-spin text-primary" />
-                      <span>Interrogating database &amp; compiling analytics...</span>
+                    <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-xs bg-muted/50 border border-border/70 flex items-center gap-1.5 shadow-2xs">
+                      <span className="size-1.5 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.3s]" />
+                      <span className="size-1.5 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.15s]" />
+                      <span className="size-1.5 rounded-full bg-foreground/60 animate-bounce" />
                     </div>
                   </div>
                 )}
