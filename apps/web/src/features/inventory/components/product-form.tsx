@@ -269,13 +269,10 @@ export function ProductForm({
   const sellPriceVal = Math.max(0, Number(watch('sellPrice')) || 0);
   const stockQtyVal = Math.max(0, Number(watch('initialStockQuantity')) || 0);
 
-  const onSubmit = handleSubmit(async (values) => {
-    setIsLoading(true);
-    if (!isEditing && values.initialStockQuantity && Number(values.initialStockQuantity) > 0 && !values.expiryDate) {
-      toast.error('Please select an expiry date for the initial stock batch');
-      setIsLoading(false);
-      return;
-    }
+  const onSubmit = handleSubmit(
+    async (values) => {
+      setError(null);
+      setIsLoading(true);
 
     // Build attributes payload based on category
     const attributes: Record<string, any> = {};
@@ -376,6 +373,12 @@ export function ProductForm({
       toast.error(msg);
     } finally {
       setIsLoading(false);
+    }
+  },
+  (formErrors) => {
+    const firstError = Object.values(formErrors)[0]?.message;
+    if (firstError) {
+      toast.error(String(firstError));
     }
   });
 
@@ -581,6 +584,9 @@ export function ProductForm({
                       },
                     })}
                   />
+                  {errors.initialStockQuantity && (
+                    <p className="text-xs text-destructive">{errors.initialStockQuantity.message}</p>
+                  )}
                   <p className="text-micro text-muted-foreground">
                     Quantity measured in full <strong>{formatUnitPlural(selectedUnit)}</strong>.
                   </p>
@@ -604,6 +610,9 @@ export function ProductForm({
                       },
                     })}
                   />
+                  {errors.packSize && (
+                    <p className="text-xs text-destructive">{errors.packSize.message}</p>
+                  )}
                   <p className="text-micro text-muted-foreground">
                     Sub-units per {selectedUnit}.
                   </p>
@@ -614,12 +623,16 @@ export function ProductForm({
                   <Label htmlFor="expiryDate" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <Calendar className="size-3.5 text-primary shrink-0" />
                     <span>Expiry Date</span>
+                    {stockQtyVal > 0 && <span className="text-destructive font-bold text-xs" title="Required when stock > 0">*</span>}
                   </Label>
                   <Input
                     id="expiryDate"
                     type="date"
                     {...register('expiryDate')}
                   />
+                  {errors.expiryDate && (
+                    <p className="text-xs text-destructive">{errors.expiryDate.message}</p>
+                  )}
                 </div>
 
                 {/* Purchase / Cost Price */}
@@ -627,6 +640,7 @@ export function ProductForm({
                   <Label htmlFor="costPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <DollarSign className="size-3.5 text-muted-foreground shrink-0" />
                     <span>Purchase Price ({selectedUnit})</span>
+                    {stockQtyVal > 0 && <span className="text-destructive font-bold text-xs" title="Required when stock > 0">*</span>}
                   </Label>
                   <Input
                     id="costPrice"
@@ -641,6 +655,9 @@ export function ProductForm({
                       },
                     })}
                   />
+                  {errors.costPrice && (
+                    <p className="text-xs text-destructive">{errors.costPrice.message}</p>
+                  )}
                 </div>
 
                 {/* Retail Price / MRP */}
@@ -648,6 +665,7 @@ export function ProductForm({
                   <Label htmlFor="sellPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <DollarSign className="size-3.5 text-primary shrink-0" />
                     <span>Retail Price (MRP)</span>
+                    {stockQtyVal > 0 && <span className="text-destructive font-bold text-xs" title="Required when stock > 0">*</span>}
                   </Label>
                   <Input
                     id="sellPrice"
@@ -662,6 +680,9 @@ export function ProductForm({
                       },
                     })}
                   />
+                  {errors.sellPrice && (
+                    <p className="text-xs text-destructive">{errors.sellPrice.message}</p>
+                  )}
                 </div>
 
                 {/* Retail POS Unit Conversion Breakdown Preview */}

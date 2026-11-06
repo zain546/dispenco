@@ -79,6 +79,31 @@ export const productFormSchema = z.object({
   ),
   brand: z.string().optional(),
   description: z.string().optional(),
+}).superRefine((data, ctx) => {
+  const hasStock = data.initialStockQuantity !== undefined && data.initialStockQuantity > 0;
+  if (hasStock) {
+    if (!data.expiryDate || !data.expiryDate.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['expiryDate'],
+        message: 'Expiry date is required when adding stock',
+      });
+    }
+    if (data.costPrice === undefined || data.costPrice === null || isNaN(data.costPrice)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['costPrice'],
+        message: 'Purchase price is required when adding stock',
+      });
+    }
+    if (data.sellPrice === undefined || data.sellPrice === null || isNaN(data.sellPrice)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['sellPrice'],
+        message: 'Retail price (MRP) is required when adding stock',
+      });
+    }
+  }
 });
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;

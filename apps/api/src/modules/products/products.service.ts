@@ -74,14 +74,19 @@ export class ProductsService {
         },
       });
 
-      // 2. If initial stock & batch info are provided, create the initial Batch
-      if (
-        dto.initialStockQuantity !== undefined &&
-        dto.initialStockQuantity > 0 &&
-        dto.costPrice !== undefined &&
-        dto.sellPrice !== undefined &&
-        dto.expiryDate
-      ) {
+      // 2. If initial stock is specified, validate required batch fields and create the initial Batch
+      if (dto.initialStockQuantity !== undefined && dto.initialStockQuantity > 0) {
+        if (
+          dto.costPrice === undefined ||
+          dto.costPrice === null ||
+          dto.sellPrice === undefined ||
+          dto.sellPrice === null ||
+          !dto.expiryDate
+        ) {
+          throw new BadRequestException(
+            'Purchase price (costPrice), retail price (sellPrice), and expiry date are required when initial stock is specified.'
+          );
+        }
         // Find or fallback to primary store for tenant
         let store: { id: string; name: string } | null = null;
         if (dto.storeId) {
