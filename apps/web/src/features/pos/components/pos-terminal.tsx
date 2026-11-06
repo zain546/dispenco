@@ -389,11 +389,15 @@ export function POSTerminal() {
     }, 50);
   };
 
-  const clearSearch = () => {
+  const clearSearch = (shouldFocus = false) => {
     setSearchQuery('');
     setSearchResults([]);
     setSelectedResultIndex(0);
-    focusSearchInput();
+    if (shouldFocus === true) {
+      focusSearchInput();
+    } else {
+      searchInputRef.current?.blur();
+    }
   };
 
   const [topSellers, setTopSellers] = useState<ProductData[]>([]);
@@ -431,7 +435,7 @@ export function POSTerminal() {
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      clearSearch();
+      clearSearch(false);
       return;
     }
 
@@ -447,7 +451,7 @@ export function POSTerminal() {
         const selected = searchResults[selectedResultIndex] || searchResults[0];
         if (selected) {
           addToCart(selected, 'UNIT');
-          clearSearch();
+          clearSearch(true);
         }
       }
     }
@@ -478,7 +482,7 @@ export function POSTerminal() {
       } else if (e.key === 'Escape') {
         if (searchResults.length > 0 || searchQuery) {
           e.preventDefault();
-          clearSearch();
+          clearSearch(false);
         }
       }
     };
@@ -923,7 +927,7 @@ export function POSTerminal() {
     setCustomerPhone('');
     setCashTendered('');
     setOverallDiscount(0);
-    clearSearch();
+    clearSearch(false);
     toast.info('Cart cleared');
   };
 
@@ -1299,7 +1303,7 @@ export function POSTerminal() {
                     </span>
                     <button
                       type="button"
-                      onClick={clearSearch}
+                      onClick={() => clearSearch(false)}
                       className="hover:text-foreground flex items-center gap-1 cursor-pointer font-semibold text-xs px-2 py-0.5 rounded hover:bg-muted"
                     >
                       <span>Done</span>
