@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import React from 'react';
 import { QueryProvider } from '@/lib/query-provider';
 import { AuthProvider } from '@/context/auth-context';
@@ -19,9 +19,21 @@ const inter = localFont({
   adjustFontFallback: 'Arial',
 });
 
+// Icons, favicon and share images come from the file conventions in this folder
+// (favicon.ico, icon.svg, icon1.png, apple-icon.png, opengraph-image.png, manifest.ts).
 export const metadata: Metadata = {
+  metadataBase: new URL('https://dispenco.com'),
   title: 'Dispenco — Modern Pharmacy Management',
   description: 'Modern inventory and business management for pharmacies and medical stores.',
+  applicationName: 'Dispenco',
+  appleWebApp: { title: 'Dispenco', capable: true, statusBarStyle: 'default' },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#007595' },
+    { media: '(prefers-color-scheme: dark)', color: '#005f78' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

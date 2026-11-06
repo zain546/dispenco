@@ -28,7 +28,41 @@ export const metadata: Metadata = {
     title,
     description,
   },
-  twitter: { card: 'summary', title, description },
+  twitter: { card: 'summary_large_image', title, description },
+};
+
+// Organization + WebSite tell Google which logo and site name to show in Search.
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': `${marketingConfig.url}/#organization`,
+  name: 'Dispenco',
+  url: marketingConfig.url,
+  logo: {
+    '@type': 'ImageObject',
+    url: `${marketingConfig.url}/brand/dispenco-logo.png`,
+    width: 512,
+    height: 512,
+  },
+  image: `${marketingConfig.url}/brand/dispenco-logo.png`,
+  email: marketingConfig.email,
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    telephone: marketingConfig.whatsappNumber,
+    email: marketingConfig.email,
+    areaServed: 'PK',
+    availableLanguage: ['en', 'ur'],
+  },
+};
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': `${marketingConfig.url}/#website`,
+  name: 'Dispenco',
+  url: marketingConfig.url,
+  publisher: { '@id': `${marketingConfig.url}/#organization` },
 };
 
 const softwareSchema = {
@@ -38,6 +72,8 @@ const softwareSchema = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   url: marketingConfig.url,
+  image: `${marketingConfig.url}/brand/dispenco-logo.png`,
+  publisher: { '@id': `${marketingConfig.url}/#organization` },
   description,
   inLanguage: 'en',
   featureList: [
@@ -57,7 +93,10 @@ export default function MarketingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(softwareSchema).replace(/</g, '\\u003c'),
+          __html: JSON.stringify([organizationSchema, websiteSchema, softwareSchema]).replace(
+            /</g,
+            '\\u003c',
+          ),
         }}
       />
       <Hero />
