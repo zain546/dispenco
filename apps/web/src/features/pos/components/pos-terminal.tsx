@@ -58,7 +58,7 @@ import { productsApi, ProductData } from '@/features/inventory/services/products
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
 import { CustomerModal } from '@/features/customers/components/customer-modal';
-import { getMedicineIconConfig } from '@/features/inventory/components/product-list';
+import { getMedicineIconConfig, formatUnitPlural } from '@/features/inventory/components/product-list';
 import { posLocalDataService } from '../services/pos-local-data.service';
 import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
@@ -389,6 +389,13 @@ export function POSTerminal() {
     }, 50);
   };
 
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSelectedResultIndex(0);
+    focusSearchInput();
+  };
+
   const [topSellers, setTopSellers] = useState<ProductData[]>([]);
 
   // Load top seller products for quick-add speed dial bar
@@ -422,6 +429,12 @@ export function POSTerminal() {
 
   // Search input keyboard navigation (ArrowUp, ArrowDown, Enter, Esc)
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      clearSearch();
+      return;
+    }
+
     if (searchResults.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -434,15 +447,8 @@ export function POSTerminal() {
         const selected = searchResults[selectedResultIndex] || searchResults[0];
         if (selected) {
           addToCart(selected, 'UNIT');
-          setSearchQuery('');
-          setSearchResults([]);
-          setSelectedResultIndex(0);
-          focusSearchInput();
+          clearSearch();
         }
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        setSearchResults([]);
-        setSelectedResultIndex(0);
       }
     }
   };
@@ -470,16 +476,16 @@ export function POSTerminal() {
           handleCheckout();
         }
       } else if (e.key === 'Escape') {
-        if (searchResults.length > 0) {
-          setSearchResults([]);
-          setSelectedResultIndex(0);
+        if (searchResults.length > 0 || searchQuery) {
+          e.preventDefault();
+          clearSearch();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, isSubmitting, isReceiptOpen, searchResults, paymentMethod]);
+  }, [cart, isSubmitting, isReceiptOpen, searchResults, searchQuery, paymentMethod]);
 
   // Live product search effect with instantaneous local-first read (<5ms)
   useEffect(() => {
@@ -917,8 +923,8 @@ export function POSTerminal() {
     setCustomerPhone('');
     setCashTendered('');
     setOverallDiscount(0);
+    clearSearch();
     toast.info('Cart cleared');
-    focusSearchInput();
   };
 
   // Calculations
@@ -1293,7 +1299,7 @@ export function POSTerminal() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setSearchResults([])}
+                      onClick={clearSearch}
                       className="hover:text-foreground flex items-center gap-1 cursor-pointer font-semibold text-xs px-2 py-0.5 rounded hover:bg-muted"
                     >
                       <span>Done</span>
@@ -1356,7 +1362,7 @@ export function POSTerminal() {
                                     {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit
                                   </span>
                                 ) : (
-                                  <span>Stock: {stock} {prod.unit}s</span>
+                                  <span>Stock: {formatUnitPlural(prod.unit, stock)}</span>
                                 )}
                               </div>
                             </div>
