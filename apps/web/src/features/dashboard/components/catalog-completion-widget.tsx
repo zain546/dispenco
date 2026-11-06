@@ -2,26 +2,39 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { productsApi } from '@/features/inventory/services/products-api';
 import { formatNumber } from '@/lib/format';
-import { Sparkles, ArrowRight, PackagePlus, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Boxes, ArrowRight, X } from 'lucide-react';
+
+const DISMISS_STORAGE_KEY = 'dispenco_dismiss_catalog_readiness_widget';
 
 export function CatalogCompletionWidget() {
   const [loading, setLoading] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
   const [stats, setStats] = useState<{
     totalCatalogItems: number;
     stockedCount: number;
     unstockedCount: number;
-    priorityUnstockedCount: number;
     completionPercentage: number;
   } | null>(null);
 
   useEffect(() => {
+    // Check if previously dismissed by the user
+    try {
+      if (localStorage.getItem(DISMISS_STORAGE_KEY) === 'true') {
+        setDismissed(true);
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // ignore localStorage errors in private browsing
+    }
+
     async function loadStats() {
       try {
         setLoading(true);
@@ -31,7 +44,6 @@ export function CatalogCompletionWidget() {
             totalCatalogItems: data.summary.totalCatalogItems || 0,
             stockedCount: data.summary.stockedCount || 0,
             unstockedCount: data.summary.unstockedCount || 0,
-            priorityUnstockedCount: data.summary.priorityUnstockedCount || 0,
             completionPercentage: data.summary.completionPercentage || 0,
           });
         }
@@ -44,106 +56,87 @@ export function CatalogCompletionWidget() {
     loadStats();
   }, []);
 
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(DISMISS_STORAGE_KEY, 'true');
+    } catch {
+      // ignore
+    }
+  };
+
+  if (dismissed) return null;
+
   if (loading) {
     return (
       <Card className="border-border/60 shadow-2xs">
-        <CardHeader className="pb-2">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-72 mt-1" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-10 w-full" />
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-12" />
+          </div>
+          <Skeleton className="h-2 w-full" />
+          <Skeleton className="h-8 w-full" />
         </CardContent>
       </Card>
     );
   }
 
-  // Auto-hide when store catalog is 100% stocked to eliminate dashboard clutter
+  // Auto-hide when store catalog is 100% stocked or empty
   if (!stats || stats.totalCatalogItems === 0 || stats.unstockedCount === 0) {
     return null;
   }
 
-  const isFullyStocked = false;
-
   return (
-    <Card className={`border-border/60 shadow-2xs overflow-hidden ${isFullyStocked ? 'border-success/30' : 'border-warning/30'}`}>
-      <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className={`size-4 ${isFullyStocked ? 'text-success' : 'text-warning'}`} />
-            <CardTitle className="text-base font-semibold text-foreground">
-              Inventory Onboarding & Catalog Readiness
-            </CardTitle>
-            <Badge variant={isFullyStocked ? 'success' : 'warning'} className="text-xs font-semibold">
-              {stats.completionPercentage}% Stocked
-            </Badge>
+    <Card className="border-border/70 shadow-2xs overflow-hidden">
+      <CardHeader className="p-3.5 sm:p-4 pb-3 flex flex-row items-center justify-between gap-2 border-b border-border/40">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Boxes className="size-4" />
           </div>
-          <CardDescription className="text-xs text-muted-foreground mt-0.5">
-            {isFullyStocked
-              ? 'Great job! All products in your store catalog have active stock batches.'
-              : `${formatNumber(stats.unstockedCount)} of ${formatNumber(stats.totalCatalogItems)} catalog medicines are pending stock batch intake.`}
-          </CardDescription>
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-semibold text-foreground leading-none truncate">
+              Catalog Readiness
+            </CardTitle>
+            <p className="text-micro text-muted-foreground mt-1 truncate">
+              {formatNumber(stats.stockedCount)} of {formatNumber(stats.totalCatalogItems)} medicines active
+            </p>
+          </div>
         </div>
 
-        {stats.unstockedCount > 0 && (
-          <div className="flex items-center gap-2 shrink-0">
-            {stats.priorityUnstockedCount > 0 && (
-              <Button asChild variant="default" size="sm" className="h-8 text-xs font-medium gap-1.5">
-                <Link href="/inventory?tab=unstocked&priorityOnly=true">
-                  <Zap className="size-3.5" />
-                  Stock {formatNumber(stats.priorityUnstockedCount)} Priority Items First
-                </Link>
-              </Button>
-            )}
-            <Button asChild variant="outline" size="sm" className="h-8 text-xs font-medium gap-1.5">
-              <Link href="/inventory?tab=unstocked">
-                <PackagePlus className="size-3.5 text-primary" />
-                Complete Catalog ({formatNumber(stats.unstockedCount)})
-              </Link>
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge variant="outline" className="text-micro font-semibold tabular-nums text-foreground">
+            {stats.completionPercentage}%
+          </Badge>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted transition-colors cursor-pointer"
+            title="Dismiss widget"
+            aria-label="Dismiss widget"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
       </CardHeader>
 
-      <CardContent className="pt-4 pb-4 space-y-3">
-        {/* Progress Bar */}
+      <CardContent className="p-3.5 sm:p-4 space-y-3">
+        {/* Sleek Progress Bar */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs font-medium">
-            <span className="text-muted-foreground flex items-center gap-1.5">
-              {isFullyStocked ? (
-                <>
-                  <CheckCircle2 className="size-3.5 text-success" /> Catalog Readiness Score
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="size-3.5 text-warning" /> Store Readiness Progress ({formatNumber(stats.stockedCount)} / {formatNumber(stats.totalCatalogItems)} Products Live)
-                </>
-              )}
-            </span>
-            <span className="font-bold text-foreground tabular-nums">{stats.completionPercentage}%</span>
+          <Progress value={stats.completionPercentage} className="h-1.5" />
+          <div className="flex items-center justify-between text-micro text-muted-foreground">
+            <span>{formatNumber(stats.unstockedCount)} pending stock intake</span>
+            <span className="font-medium text-foreground">{stats.completionPercentage}% stocked</span>
           </div>
-          <Progress value={stats.completionPercentage} className="h-2" />
         </div>
 
-        {!isFullyStocked && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-muted/40 p-3 rounded-lg border border-border/50">
-            <div className="space-y-0.5">
-              <p className="font-semibold text-foreground">
-                ⚡ Pro-tip: Prioritize fast-moving items first
-              </p>
-              <p className="text-muted-foreground text-micro">
-                You can receive stock shipments for individual unstocked products or create purchase orders to populate remaining inventory.
-              </p>
-            </div>
-            <Link
-              href="/inventory?tab=unstocked"
-              className="text-primary hover:underline font-semibold flex items-center gap-1 text-xs shrink-0"
-            >
-              Start guided setup <ArrowRight className="size-3.5" />
-            </Link>
-          </div>
-        )}
+        {/* Clean full-width action button */}
+        <Button asChild variant="outline" size="sm" className="w-full h-8 text-xs font-medium justify-between group">
+          <Link href="/inventory?tab=unstocked">
+            <span>Receive Missing Stock ({formatNumber(stats.unstockedCount)})</span>
+            <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );
