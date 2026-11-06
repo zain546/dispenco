@@ -118,6 +118,7 @@ export function POSTerminal() {
   const [overallDiscountType, setOverallDiscountType] = useState<'FLAT' | 'PERCENT'>('FLAT');
   const customerSearchRef = useRef<HTMLDivElement>(null);
   const cashInputRef = useRef<HTMLInputElement>(null);
+  const productSearchContainerRef = useRef<HTMLDivElement>(null);
 
   // Checkout State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -323,6 +324,9 @@ export function POSTerminal() {
     function handleClickOutside(event: MouseEvent) {
       if (customerSearchRef.current && !customerSearchRef.current.contains(event.target as Node)) {
         setIsCustomerDropdownOpen(false);
+      }
+      if (productSearchContainerRef.current && !productSearchContainerRef.current.contains(event.target as Node)) {
+        setSearchResults([]);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -599,6 +603,123 @@ export function POSTerminal() {
       { duration: 1500 }
     );
     focusSearchInput();
+  };
+
+  // Dropdown live quantity increment / decrement handlers
+  const handleDropdownIncrement = (product: ProductData, unitType: 'BOX' | 'UNIT') => {
+    const packSize = getPackSize(product);
+    const boxPrice = product.latestSellPrice ?? 0;
+    const singleUnitPrice = getSingleUnitPrice(product);
+    const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
+    const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
+
+    setCart((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => item.product.id === product.id && item.unitType === unitType
+      );
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        const currentQty = updated[existingIndex].quantity;
+        const availableStock = product.totalStock ?? 999;
+        const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
+
+        if (currentQty + 1 > maxStockAllowed) {
+          toast.warning(
+            `Max stock reached for ${product.name} (${maxStockAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s)`
+          );
+          return prev;
+        }
+
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: currentQty + 1,
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            product,
+            quantity: 1,
+            unitType,
+            unitPrice: defaultPrice,
+            discount: 0,
+            discountType: 'FLAT',
+            taxRatePercent: defaultTaxRate,
+          },
+        ];
+      }
+    });
+  };
+
+  const handleDropdownDecrement = (product: ProductData, unitType: 'BOX' | 'UNIT') => {
+    setCart((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => item.product.id === product.id && item.unitType === unitType
+      );
+      if (existingIndex === -1) return prev;
+
+      const currentQty = prev[existingIndex].quantity;
+      if (currentQty <= 1) {
+        return prev.filter((_, idx) => idx !== existingIndex);
+      }
+
+      const updated = [...prev];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity: currentQty - 1,
+      };
+      return updated;
+    });
+  };
+
+  const handleDropdownSetQuantity = (product: ProductData, unitType: 'BOX' | 'UNIT', newQty: number) => {
+    if (isNaN(newQty) || newQty <= 0) {
+      setCart((prev) => prev.filter((item) => !(item.product.id === product.id && item.unitType === unitType)));
+      return;
+    }
+
+    const packSize = getPackSize(product);
+    const boxPrice = product.latestSellPrice ?? 0;
+    const singleUnitPrice = getSingleUnitPrice(product);
+    const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
+    const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
+    const availableStock = product.totalStock ?? 999;
+    const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
+    const clampedQty = Math.min(newQty, maxStockAllowed);
+
+    if (newQty > maxStockAllowed) {
+      toast.warning(
+        `Max available stock is ${maxStockAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s`
+      );
+    }
+
+    setCart((prev) => {
+      const existingIndex = prev.findIndex(
+        (item) => item.product.id === product.id && item.unitType === unitType
+      );
+      if (existingIndex > -1) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: clampedQty,
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            product,
+            quantity: clampedQty,
+            unitType,
+            unitPrice: defaultPrice,
+            discount: 0,
+            discountType: 'FLAT',
+            taxRatePercent: defaultTaxRate,
+          },
+        ];
+      }
+    });
   };
 
   // Toggle cart line item unit type (Box vs Single Unit)
@@ -1105,8 +1226,8 @@ export function POSTerminal() {
         <div className="lg:col-span-7 xl:col-span-8 space-y-4">
           {/* Live Search & Barcode Scanner Header */}
           <Card className="shadow-2xs border-border/80 bg-card overflow-visible">
-            <CardContent className="p-2.5 sm:p-4 space-y-3">
-              <div className="space-y-1">
+            <CardContent ref={productSearchContainerRef} className="p-2.5 sm:p-4 space-y-3">
+              <div className="space-y-1 relative">
                 <Label htmlFor="pos-search" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground px-0.5">
                   <Search className="size-3.5 text-primary" />
                   <span>Scan Medicine Barcode or Search Catalog</span>
@@ -1115,6 +1236,7 @@ export function POSTerminal() {
                   <ScannerInput
                     ref={searchInputRef}
                     id="pos-search"
+                    name="pos_barcode_search_field"
                     placeholder="Scan barcode or type medicine name / generic formula..."
                     value={searchQuery}
                     onChange={(val) => setSearchQuery(val)}
@@ -1160,7 +1282,24 @@ export function POSTerminal() {
 
               {/* Search Results Dropdown List */}
               {searchResults.length > 0 && (
-                <div className="border border-border rounded-xl bg-card shadow-xl divide-y divide-border/60 max-h-80 overflow-y-auto">
+                <div
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="border border-border rounded-xl bg-card shadow-xl divide-y divide-border/60 max-h-80 overflow-y-auto"
+                >
+                  <div className="px-3 py-1.5 bg-muted/40 border-b border-border/60 flex items-center justify-between text-xs text-muted-foreground font-medium">
+                    <span className="font-semibold text-foreground">
+                      Search Results ({searchResults.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchResults([])}
+                      className="hover:text-foreground flex items-center gap-1 cursor-pointer font-semibold text-xs px-2 py-0.5 rounded hover:bg-muted"
+                    >
+                      <span>Done</span>
+                      <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border/80 text-[10px]">Esc</kbd>
+                    </button>
+                  </div>
                   {searchResults.map((prod, idx) => {
                     const itemConfig = getMedicineIconConfig(prod.category, prod.name, prod.unit);
                     const ItemIcon = itemConfig.Icon;
@@ -1170,6 +1309,12 @@ export function POSTerminal() {
                     const singlePrice = getSingleUnitPrice(prod);
                     const isPriority = Boolean((prod.attributes as Record<string, unknown>)?.isPriority);
 
+                    const unitItem = cart.find((item) => item.product.id === prod.id && item.unitType === 'UNIT');
+                    const boxItem = cart.find((item) => item.product.id === prod.id && item.unitType === 'BOX');
+                    const unitQty = unitItem ? unitItem.quantity : 0;
+                    const boxQty = boxItem ? boxItem.quantity : 0;
+                    const inCartTotal = unitQty + boxQty;
+
                     return (
                       <div
                         key={prod.id}
@@ -1178,10 +1323,11 @@ export function POSTerminal() {
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-                          {/* Product Info Column - Clicking medicine defaults to Tablet/Unit per pharmacy counter standard */}
+                          {/* Product Info Column - Clicking row adds/increments default unit */}
                           <div
-                            onClick={() => addToCart(prod, 'UNIT')}
+                            onClick={() => handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX')}
                             className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                            title="Click to add to cart"
                           >
                             <div className={`size-8 sm:size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
                               <ItemIcon className="size-4" />
@@ -1198,6 +1344,11 @@ export function POSTerminal() {
                                 <Badge variant="outline" className="text-micro px-1.5 py-0 font-medium shrink-0">
                                   {prod.category}
                                 </Badge>
+                                {inCartTotal > 0 && (
+                                  <Badge className="bg-success/15 text-success border-success/30 text-micro px-1.5 py-0 font-bold shrink-0">
+                                    ✓ In Cart: {unitQty > 0 && `${unitQty} ${packSize > 1 ? 'Unit' : prod.unit}${unitQty > 1 ? 's' : ''}`}{unitQty > 0 && boxQty > 0 && ' + '}{boxQty > 0 && `${boxQty} Box${boxQty > 1 ? 'es' : ''}`}
+                                  </Badge>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 text-micro text-muted-foreground flex-wrap">
                                 {packSize > 1 ? (
@@ -1211,38 +1362,174 @@ export function POSTerminal() {
                             </div>
                           </div>
 
-                          {/* Quick Add Action Buttons */}
-                          <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-border/30">
-                            <Button
-                              type="button"
-                              variant="default"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                addToCart(prod, 'UNIT');
-                              }}
-                              className="h-8 text-xs font-bold gap-1.5 flex-1 sm:flex-initial shadow-2xs whitespace-nowrap"
-                              title={`Add 1 Tablet/Unit (${singlePrice.toFixed(2)} PKR)`}
-                            >
-                              <Pill className="size-3.5" />
-                              <span>+1 Unit ({singlePrice.toFixed(0)} PKR)</span>
-                            </Button>
+                          {/* Quick Add / Stepper Actions Column - single horizontal line on all screens */}
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 shrink-0 flex-nowrap"
+                          >
+                            {/* Tablet/Unit Control (if packSize > 1) */}
+                            {packSize > 1 && (
+                              unitQty > 0 ? (
+                                /* Compact Active Stepper when in cart */
+                                <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDropdownDecrement(prod, 'UNIT')}
+                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                    title="Decrease unit quantity (-1)"
+                                  >
+                                    <Minus className="size-3" />
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={unitQty}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      handleDropdownSetQuantity(prod, 'UNIT', isNaN(val) ? 1 : val);
+                                    }}
+                                    className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
+                                    title="Type unit quantity"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                    title="Increase unit quantity (+1)"
+                                  >
+                                    <Plus className="size-3" />
+                                  </Button>
+                                  <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
+                                    Unit
+                                  </span>
+                                </div>
+                              ) : (
+                                /* Clean Add Button (Single + icon only) */
+                                <Button
+                                  type="button"
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                  className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                  title={`Add 1 Unit (${singlePrice.toFixed(0)} PKR)`}
+                                >
+                                  <Plus className="size-3.5" />
+                                  <span>Unit ({singlePrice.toFixed(0)} PKR)</span>
+                                </Button>
+                              )
+                            )}
 
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                addToCart(prod, 'BOX');
-                              }}
-                              className="h-8 text-xs font-semibold gap-1.5 flex-1 sm:flex-initial bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap"
-                              title={`Add full ${prod.unit} (${boxPrice.toFixed(2)} PKR)`}
-                            >
-                              <Package className="size-3.5" />
-                              <span>+ Box ({boxPrice.toFixed(0)} PKR)</span>
-                            </Button>
-                          </div>
+                            {/* Box / Main Unit Control */}
+                            {packSize > 1 ? (
+                              boxQty > 0 ? (
+                                /* Compact Active Box Stepper when in cart */
+                                <div className="flex items-center rounded-lg border border-border/80 bg-muted/60 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                    className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
+                                    title="Decrease box quantity (-1)"
+                                  >
+                                    <Minus className="size-3" />
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={boxQty}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
+                                    }}
+                                    className="h-7.5 w-9 text-center font-bold text-xs text-foreground bg-card border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
+                                    title="Type box quantity"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                    className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
+                                    title="Increase box quantity (+1)"
+                                  >
+                                    <Plus className="size-3" />
+                                  </Button>
+                                  <span className="text-[10px] font-semibold text-muted-foreground px-1.5 whitespace-nowrap">
+                                    Box
+                                  </span>
+                                </div>
+                              ) : (
+                                /* Clean Box Add Button (Single + icon only) */
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                  className="h-7.5 px-2.5 text-xs font-semibold gap-1 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap shrink-0 cursor-pointer"
+                                  title={`Add full Box (${boxPrice.toFixed(0)} PKR)`}
+                                >
+                                  <Plus className="size-3.5" />
+                                  <span>Box ({boxPrice.toFixed(0)} PKR)</span>
+                                </Button>
+                              )
+                            ) : (
+                              /* Single-Unit Item (Syrups, Injections, Drops, etc.) */
+                              boxQty > 0 ? (
+                                <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                    title={`Decrease ${prod.unit} quantity (-1)`}
+                                  >
+                                    <Minus className="size-3" />
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={boxQty}
+                                    onChange={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
+                                    }}
+                                    className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
+                                    title={`Type ${prod.unit} quantity`}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                    title={`Increase ${prod.unit} quantity (+1)`}
+                                  >
+                                    <Plus className="size-3" />
+                                  </Button>
+                                  <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
+                                    {prod.unit}
+                                  </span>
+                                </div>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                  className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                  title={`Add 1 ${prod.unit} (${boxPrice.toFixed(0)} PKR)`}
+                                >
+                                  <Plus className="size-3.5" />
+                                  <span>{prod.unit} ({boxPrice.toFixed(0)} PKR)</span>
+                                </Button>
+                              )
+                            )}                          </div>
                         </div>
                       </div>
                     );

@@ -571,6 +571,10 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
                 placeholder={placeholder}
                 autoFocus={autoFocus}
                 disabled={disabled}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 className={`pr-9 font-mono text-sm tracking-wide placeholder:font-sans placeholder:tracking-normal placeholder:text-xs sm:placeholder:text-sm focus-visible:ring-2 focus-visible:ring-primary ${className}`}
               />
               <QrCode className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none opacity-60" />
