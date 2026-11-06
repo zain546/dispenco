@@ -393,28 +393,28 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       `}</style>
 
       {/* Main Container */}
-      <div className="max-w-4xl mx-auto space-y-4 print:hidden">
+      <div className="max-w-4xl mx-auto space-y-3 print:hidden">
         {/* Tier 1: Context Header & Navigation Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border border-border/80 rounded-xl px-4 py-3 shadow-2xs">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card border border-border/80 rounded-xl px-4 py-2.5 shadow-2xs">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={() => router.push('/pos')}
-              className="gap-2 h-9 text-xs font-semibold cursor-pointer shadow-2xs hover:bg-muted"
+              className="gap-1.5 h-8.5 text-xs font-semibold cursor-pointer shadow-2xs hover:bg-muted"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-3.5" />
               <span>Back to POS</span>
               <kbd className="hidden sm:inline-flex items-center text-micro bg-muted border border-border px-1 py-0.5 rounded text-muted-foreground font-mono">
                 Esc
               </kbd>
             </Button>
 
-            <div className="h-5 w-px bg-border/80 hidden sm:block" />
+            <div className="h-4 w-px bg-border/80 hidden sm:block" />
 
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground font-medium hidden sm:inline">Receipt:</span>
-              <span className="font-mono font-bold text-xs text-foreground bg-muted/60 px-2 py-1 rounded border border-border/60">
+              <span className="font-mono font-bold text-xs text-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/60">
                 #{receiptNumber}
               </span>
               <Badge
@@ -465,13 +465,13 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           </div>
         </div>
 
-        {/* Tier 2: The Print Hub & Dispatch Command Bar */}
-        <div className="bg-card border border-border/80 rounded-xl p-3.5 shadow-2xs space-y-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            {/* Left: Document Format Selector & Paper View Toggle */}
-            <div className="flex items-center gap-2.5 flex-wrap">
+        {/* Tier 2: The Print Hub & Dispatch Command Bar - Clean 1-Line Aligned */}
+        <div className="bg-card border border-border/80 rounded-xl px-4 py-2.5 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Left: Format Switcher & Paper Mode Toggle (Strictly 1 Line) */}
+            <div className="flex items-center gap-2 flex-nowrap shrink-0">
               {/* Segmented Switcher */}
-              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-2xs">
+              <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5 shadow-2xs">
                 <button
                   type="button"
                   onClick={() => setViewMode('thermal')}
@@ -482,7 +482,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   }`}
                 >
                   <Receipt className="size-3.5" />
-                  <span>Thermal Slip (80mm)</span>
+                  <span>Thermal (80mm)</span>
                 </button>
                 <button
                   type="button"
@@ -494,45 +494,47 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   }`}
                 >
                   <FileSpreadsheet className="size-3.5" />
-                  <span>A4 Tax Invoice</span>
+                  <span>A4 Invoice</span>
                 </button>
               </div>
 
-              {/* Thermal Paper View Toggle (White realistic paper preview) */}
+              {/* Thermal Paper View Toggle (White paper preview) */}
               {viewMode === 'thermal' && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setPaperView(!paperView)}
                   title="Toggle White Paper Receipt Preview vs Theme Dark"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border/80 hover:bg-muted transition-colors cursor-pointer text-muted-foreground hover:text-foreground"
+                  className="gap-1.5 h-8.5 px-2.5 text-xs font-medium cursor-pointer shadow-2xs hover:bg-muted text-muted-foreground hover:text-foreground"
                 >
                   {paperView ? (
                     <>
                       <Sun className="size-3.5 text-amber-500" />
-                      <span className="hidden sm:inline">Paper Slip</span>
+                      <span>Paper Slip</span>
                     </>
                   ) : (
                     <>
                       <Moon className="size-3.5" />
-                      <span className="hidden sm:inline">Dark View</span>
+                      <span>Dark View</span>
                     </>
                   )}
-                </button>
+                </Button>
               )}
             </div>
 
-            {/* Right: Print Actions & Help */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Right: Print Actions & Help (Strictly 1 Line Aligned) */}
+            <div className="flex items-center gap-2 justify-end flex-wrap sm:flex-nowrap shrink-0">
               {/* Printer Hardware Setup Guide */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5 text-xs h-9 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                    className="gap-1 text-xs h-8.5 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
                   >
-                    <HelpCircle className="size-4 text-primary" />
-                    <span className="hidden sm:inline">Printer Tips</span>
+                    <HelpCircle className="size-3.5 text-primary" />
+                    <span>Printer Tips</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-4 text-xs space-y-2.5 shadow-xl border-border" align="end">
@@ -546,7 +548,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   <ul className="space-y-1.5 text-micro">
                     <li className="flex items-start gap-1.5">
                       <span className="font-bold text-primary">1. Destination:</span>
-                      <span className="text-foreground">Choose your Thermal Printer (e.g. POS-80, Xprinter, Epson).</span>
+                      <span className="text-foreground">Choose your Thermal Printer (e.g. POS-80, Xprinter, Epson, CBM-1000).</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="font-bold text-primary">2. Paper Size:</span>
@@ -573,10 +575,10 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleDirectWhatsAppShare}
-                className="gap-1.5 text-xs h-9 font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/40 bg-[#25D366]/5 hover:bg-[#25D366]/15 cursor-pointer shadow-2xs"
+                className="gap-1.5 text-xs h-8.5 px-3 font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/40 bg-[#25D366]/5 hover:bg-[#25D366]/15 cursor-pointer shadow-2xs"
               >
-                <WhatsAppIcon className="size-4 shrink-0 text-[#25D366]" />
-                <span className="hidden sm:inline">WhatsApp</span>
+                <WhatsAppIcon className="size-3.5 shrink-0 text-[#25D366]" />
+                <span>WhatsApp</span>
               </Button>
 
               {/* Download PDF Button */}
@@ -585,12 +587,12 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 size="sm"
                 onClick={viewMode === 'a4' ? handleDownloadA4 : handleDownloadThermal}
                 disabled={isDownloading}
-                className="gap-1.5 text-xs h-9 font-semibold cursor-pointer shadow-2xs hover:bg-muted"
+                className="gap-1.5 text-xs h-8.5 px-3 font-semibold cursor-pointer shadow-2xs hover:bg-muted"
               >
                 {isDownloading ? (
-                  <Loader2 className="size-4 animate-spin text-primary" />
+                  <Loader2 className="size-3.5 animate-spin text-primary" />
                 ) : (
-                  <Download className="size-4 text-primary" />
+                  <Download className="size-3.5 text-primary" />
                 )}
                 <span>PDF</span>
               </Button>
@@ -600,11 +602,11 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 variant="default"
                 size="sm"
                 onClick={handlePrint}
-                className="gap-2 text-xs h-9 font-bold shadow-sm cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground px-4"
+                className="gap-1.5 text-xs h-8.5 px-3.5 font-bold shadow-xs cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                <Printer className="size-4" />
+                <Printer className="size-3.5" />
                 <span>Print {viewMode === 'a4' ? 'Invoice' : 'Slip'}</span>
-                <kbd className="hidden lg:inline-flex items-center text-micro bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-mono">
+                <kbd className="hidden sm:inline-flex items-center text-micro bg-primary-foreground/20 px-1 py-0.5 rounded text-primary-foreground font-mono">
                   Ctrl+P
                 </kbd>
               </Button>
