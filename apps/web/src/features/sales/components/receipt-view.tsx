@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { salesApi, SaleDetailResponse, ReturnRecord } from '../services/sales-api';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   Printer,
   ArrowLeft,
   CheckCircle2,
@@ -45,7 +50,10 @@ import {
   Receipt,
   FileSpreadsheet,
   Send,
-  MessageSquare,
+  HelpCircle,
+  SlidersHorizontal,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -60,6 +68,52 @@ function WhatsAppIcon({ className = 'size-3.5' }: { className?: string }) {
     >
       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.414-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.82 11.82 0 00-3.48-8.413z" />
     </svg>
+  );
+}
+
+/**
+ * Realistic vector barcode representation matching the receipt number
+ */
+function ReceiptBarcode({ value }: { value: string }) {
+  const bars = useMemo(() => {
+    const pattern: number[] = [2, 1, 1, 3, 1, 2]; // start guard
+    for (let i = 0; i < value.length; i++) {
+      const code = value.charCodeAt(i);
+      pattern.push((code % 3) + 1, ((code >> 1) % 2) + 1, ((code >> 2) % 3) + 1, 1);
+    }
+    pattern.push(3, 1, 2, 1, 1, 2); // stop guard
+    return pattern;
+  }, [value]);
+
+  return (
+    <div className="flex flex-col items-center justify-center pt-2">
+      <svg className="h-9 w-44 max-w-full" viewBox="0 0 160 36" preserveAspectRatio="none">
+        {(() => {
+          let x = 4;
+          const totalUnits = bars.reduce((a, b) => a + b, 0);
+          const scale = 152 / totalUnits;
+          return bars.map((w, idx) => {
+            const barWidth = Math.max(0.9, w * scale * 0.95);
+            const currentX = x;
+            x += w * scale;
+            if (idx % 2 === 0) {
+              return (
+                <rect
+                  key={idx}
+                  x={currentX}
+                  y="0"
+                  width={barWidth}
+                  height="36"
+                  fill="currentColor"
+                />
+              );
+            }
+            return null;
+          });
+        })()}
+      </svg>
+      <p className="font-mono text-micro tracking-widest text-muted-foreground pt-1">{value}</p>
+    </div>
   );
 }
 
@@ -82,6 +136,9 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
   // View mode: 'a4' for Formal Tax Invoice, 'thermal' for 80mm POS Slip
   const [viewMode, setViewMode] = useState<'a4' | 'thermal'>('thermal');
+
+  // Preview paper style: true for realistic white thermal paper, false for app dark theme
+  const [paperView, setPaperView] = useState(true);
 
   // Return modal state
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -140,6 +197,20 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       return () => clearTimeout(timer);
     }
   }, [loading, saleData, autoPrint]);
+
+  // Keyboard shortcut: Ctrl+P / Cmd+P to print, Esc to go back
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handlePrint();
+      } else if (e.key === 'Escape' && !isVoidModalOpen && !isWhatsAppModalOpen && !isReturnModalOpen) {
+        router.push('/pos');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVoidModalOpen, isWhatsAppModalOpen, isReturnModalOpen]);
 
   const handlePrint = () => {
     window.print();
@@ -212,8 +283,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-4 space-y-4">
-        <Skeleton className="h-9 w-36" />
+      <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4">
+        <Skeleton className="h-10 w-44 rounded-lg" />
         <Card className="p-8 space-y-4 border-border/80">
           <Skeleton className="h-10 w-2/3 mx-auto" />
           <Skeleton className="h-4 w-1/3 mx-auto" />
@@ -277,60 +348,103 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
   );
 
   return (
-    <div className="min-h-screen bg-muted/20 py-6 px-3 sm:px-6">
-      {/* Top Toolbar (Hidden on Print) */}
-      <div className="max-w-4xl mx-auto mb-6 space-y-3 print:hidden">
-        {/* Row 1: Navigation, Format Switcher & Administration */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-border/60">
-          <div className="flex items-center gap-2 flex-wrap">
+    <div className="min-h-screen bg-muted/15 py-5 px-3 sm:px-6 print:p-0 print:bg-white print:m-0">
+      {/* Dynamic Print Engine CSS */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: ${viewMode === 'thermal' ? '80mm auto' : 'A4 portrait'};
+            margin: ${viewMode === 'thermal' ? '0mm' : '8mm'};
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-hidden, header, nav, aside {
+            display: none !important;
+          }
+          #printable-thermal-receipt {
+            width: 76mm !important;
+            max-width: 76mm !important;
+            margin: 0 auto !important;
+            padding: 2mm 3mm !important;
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-size: 11px !important;
+          }
+          #printable-a4-invoice {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+        }
+      `}</style>
+
+      {/* Main Container */}
+      <div className="max-w-4xl mx-auto space-y-4 print:hidden">
+        {/* Tier 1: Context Header & Navigation Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card border border-border/80 rounded-xl px-4 py-3 shadow-2xs">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
               onClick={() => router.push('/pos')}
-              className="gap-1.5 text-xs h-8.5 font-semibold cursor-pointer shadow-2xs hover:bg-muted"
+              className="gap-2 h-9 text-xs font-semibold cursor-pointer shadow-2xs hover:bg-muted"
             >
-              <ArrowLeft className="size-3.5" />
-              <span>POS Counter</span>
+              <ArrowLeft className="size-4" />
+              <span>Back to POS</span>
+              <kbd className="hidden sm:inline-flex items-center text-micro bg-muted border border-border px-1 py-0.5 rounded text-muted-foreground font-mono">
+                Esc
+              </kbd>
             </Button>
 
-            {/* Document Format Switcher */}
-            <div className="flex items-center rounded-lg border border-border/80 bg-background p-0.5 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setViewMode('a4')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                  viewMode === 'a4'
-                    ? 'bg-primary text-primary-foreground shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+            <div className="h-5 w-px bg-border/80 hidden sm:block" />
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">Receipt:</span>
+              <span className="font-mono font-bold text-xs text-foreground bg-muted/60 px-2 py-1 rounded border border-border/60">
+                #{receiptNumber}
+              </span>
+              <Badge
+                variant={isVoided ? 'destructive' : 'default'}
+                className="text-micro font-bold uppercase tracking-wider px-2 py-0.5"
               >
-                <FileSpreadsheet className="size-3.5" />
-                <span>A4 Tax Invoice</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('thermal')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                  viewMode === 'thermal'
-                    ? 'bg-primary text-primary-foreground shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Receipt className="size-3.5" />
-                <span>Thermal Slip (80mm)</span>
-              </button>
+                {isVoided ? 'VOIDED' : 'PAID'}
+              </Badge>
             </div>
           </div>
 
-          {/* Admin Actions: Return & Void */}
-          <div className="flex items-center gap-2 self-end sm:self-auto">
+          {/* Secondary Actions (Share, Returns, Void) */}
+          <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyLink}
+              className="gap-1.5 text-xs h-8.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+              <span>{copied ? 'Copied' : 'Share Link'}</span>
+            </Button>
+
             {!isVoided && (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setIsReturnModalOpen(true)}
-                className="gap-1.5 text-xs h-8 font-medium hover:bg-muted cursor-pointer shadow-2xs"
+                className="gap-1.5 text-xs h-8.5 font-medium hover:bg-muted cursor-pointer shadow-2xs"
               >
                 <RotateCcw className="size-3.5 text-primary" />
                 <span>Process Return</span>
@@ -339,10 +453,10 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
             {!isVoided && canVoidSales && (
               <Button
-                variant="destructive"
+                variant="outline"
                 size="sm"
                 onClick={() => setIsVoidModalOpen(true)}
-                className="gap-1.5 text-xs h-8 font-medium cursor-pointer shadow-2xs"
+                className="gap-1.5 text-xs h-8.5 font-medium text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer shadow-2xs"
               >
                 <Ban className="size-3.5" />
                 <span>Void</span>
@@ -351,480 +465,684 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           </div>
         </div>
 
-        {/* Row 2: Customer Delivery & Output Bar */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Primary Print */}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handlePrint}
-              className="gap-1.5 text-xs h-8.5 font-bold shadow-xs cursor-pointer bg-primary hover:bg-primary/95 text-primary-foreground"
-            >
-              <Printer className="size-3.5" />
-              <span>Print {viewMode === 'a4' ? 'Invoice' : 'Slip'}</span>
-            </Button>
+        {/* Tier 2: The Print Hub & Dispatch Command Bar */}
+        <div className="bg-card border border-border/80 rounded-xl p-3.5 shadow-2xs space-y-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Left: Document Format Selector & Paper View Toggle */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {/* Segmented Switcher */}
+              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-1 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('thermal')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                    viewMode === 'thermal'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Receipt className="size-3.5" />
+                  <span>Thermal Slip (80mm)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('a4')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                    viewMode === 'a4'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FileSpreadsheet className="size-3.5" />
+                  <span>A4 Tax Invoice</span>
+                </button>
+              </div>
 
-            {/* Download PDF */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={viewMode === 'a4' ? handleDownloadA4 : handleDownloadThermal}
-              disabled={isDownloading}
-              className="gap-1.5 text-xs h-8.5 font-semibold cursor-pointer shadow-2xs"
-            >
-              {isDownloading ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Download className="size-3.5 text-primary" />
+              {/* Thermal Paper View Toggle (White realistic paper preview) */}
+              {viewMode === 'thermal' && (
+                <button
+                  type="button"
+                  onClick={() => setPaperView(!paperView)}
+                  title="Toggle White Paper Receipt Preview vs Theme Dark"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-border/80 hover:bg-muted transition-colors cursor-pointer text-muted-foreground hover:text-foreground"
+                >
+                  {paperView ? (
+                    <>
+                      <Sun className="size-3.5 text-amber-500" />
+                      <span className="hidden sm:inline">Paper Slip</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="size-3.5" />
+                      <span className="hidden sm:inline">Dark View</span>
+                    </>
+                  )}
+                </button>
               )}
-              <span>Download PDF</span>
-            </Button>
+            </div>
 
-            {/* Send WhatsApp (Branded with official WhatsApp icon & 1-click dispatch) */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDirectWhatsAppShare}
-              className="gap-1.5 text-xs h-8.5 font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/30 bg-[#25D366]/5 hover:bg-[#25D366]/15 dark:hover:bg-[#25D366]/20 cursor-pointer shadow-2xs"
-            >
-              <WhatsAppIcon className="size-3.5 shrink-0" />
-              <span>Send WhatsApp</span>
-            </Button>
+            {/* Right: Print Actions & Help */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Printer Hardware Setup Guide */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs h-9 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <HelpCircle className="size-4 text-primary" />
+                    <span className="hidden sm:inline">Printer Tips</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4 text-xs space-y-2.5 shadow-xl border-border" align="end">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-border">
+                    <SlidersHorizontal className="size-4 text-primary" />
+                    <h4 className="font-bold text-foreground">Thermal Printer Connection Tips</h4>
+                  </div>
+                  <p className="text-muted-foreground text-micro leading-relaxed">
+                    When connecting your USB / Network 80mm receipt printer, configure your browser print dialog once:
+                  </p>
+                  <ul className="space-y-1.5 text-micro">
+                    <li className="flex items-start gap-1.5">
+                      <span className="font-bold text-primary">1. Destination:</span>
+                      <span className="text-foreground">Choose your Thermal Printer (e.g. POS-80, Xprinter, Epson).</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="font-bold text-primary">2. Paper Size:</span>
+                      <span className="text-foreground">Set to <strong>80mm Roll</strong> or <strong>80mm × 297mm</strong>.</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="font-bold text-primary">3. Margins:</span>
+                      <span className="text-foreground">Set to <strong>None</strong> (prevents extra paper feeds).</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="font-bold text-primary">4. Headers & Footers:</span>
+                      <span className="text-foreground"><strong>Uncheck</strong> (removes unwanted URL & date text).</span>
+                    </li>
+                  </ul>
+                  <div className="pt-1.5 border-t border-border flex justify-between items-center text-micro font-medium text-muted-foreground">
+                    <span>Shortcut: <kbd className="font-mono bg-muted px-1 py-0.5 rounded border">Ctrl + P</kbd></span>
+                    <span className="text-success font-semibold">✓ Auto-Optimized</span>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* WhatsApp Receipt Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDirectWhatsAppShare}
+                className="gap-1.5 text-xs h-9 font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/40 bg-[#25D366]/5 hover:bg-[#25D366]/15 cursor-pointer shadow-2xs"
+              >
+                <WhatsAppIcon className="size-4 shrink-0 text-[#25D366]" />
+                <span className="hidden sm:inline">WhatsApp</span>
+              </Button>
+
+              {/* Download PDF Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={viewMode === 'a4' ? handleDownloadA4 : handleDownloadThermal}
+                disabled={isDownloading}
+                className="gap-1.5 text-xs h-9 font-semibold cursor-pointer shadow-2xs hover:bg-muted"
+              >
+                {isDownloading ? (
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                ) : (
+                  <Download className="size-4 text-primary" />
+                )}
+                <span>PDF</span>
+              </Button>
+
+              {/* Primary Print Receipt Button */}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handlePrint}
+                className="gap-2 text-xs h-9 font-bold shadow-sm cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground px-4"
+              >
+                <Printer className="size-4" />
+                <span>Print {viewMode === 'a4' ? 'Invoice' : 'Slip'}</span>
+                <kbd className="hidden lg:inline-flex items-center text-micro bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-mono">
+                  Ctrl+P
+                </kbd>
+              </Button>
+            </div>
           </div>
-
-          {/* Share Link */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCopyLink}
-            className="gap-1.5 text-xs h-8.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer ml-auto"
-          >
-            {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
-            <span>{copied ? 'Link Copied' : 'Share Link'}</span>
-          </Button>
         </div>
       </div>
 
-      {/* Render Format 1: A4 Tax Invoice (Formal & Branded) */}
-      {viewMode === 'a4' ? (
-        <div className="max-w-4xl mx-auto bg-card border border-border/80 shadow-lg rounded-xl overflow-hidden text-foreground font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full">
-          {/* Top Decorative Brand Ribbon */}
-          <div className="h-1.5 bg-linear-to-r from-primary via-primary/80 to-primary/50 w-full" />
+      {/* Tier 3: Visual Receipt / Invoice Previews */}
+      <div className="mt-4">
+        {viewMode === 'a4' ? (
+          /* Render Format 1: A4 Formal Tax Invoice */
+          <div
+            id="printable-a4-invoice"
+            className="max-w-4xl mx-auto bg-card border border-border/80 shadow-md rounded-xl overflow-hidden text-foreground font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full"
+          >
+            {/* Top Brand Ribbon */}
+            <div className="h-1.5 bg-linear-to-r from-primary via-primary/80 to-primary/50 w-full" />
 
-          <div className="p-6 sm:p-10 space-y-6">
-            {/* Header: Store Identity & Document Title */}
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-border/70">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <div className="size-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-base">
-                    <Building2 className="size-5" />
+            <div className="p-6 sm:p-10 space-y-6">
+              {/* Header: Store Identity & Document Title */}
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-border/70">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-base shadow-2xs">
+                      <Building2 className="size-5" />
+                    </div>
+                    <div>
+                      <h1 className="text-xl font-bold tracking-tight text-foreground">
+                        {store?.name || 'Pharmacy Dispensary'}
+                      </h1>
+                      <p className="text-xs text-muted-foreground">{store?.tenantName || 'Dispenco Healthcare'}</p>
+                    </div>
                   </div>
+                  {store?.address && (
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-sm pt-1">
+                      {store.address}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 text-micro text-muted-foreground font-medium pt-0.5">
+                    <span>Licence: <strong className="text-foreground">DSL-PH-09281-R</strong></span>
+                    <span>•</span>
+                    <span>NTN: <strong className="text-foreground">8291044-7</strong></span>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right space-y-1 shrink-0">
+                  <Badge
+                    variant={isVoided ? 'destructive' : 'secondary'}
+                    className="text-xs font-bold tracking-wider uppercase px-2.5 py-0.5"
+                  >
+                    {isVoided ? 'VOIDED INVOICE' : 'TAX INVOICE / CASH MEMO'}
+                  </Badge>
+                  <p className="font-mono font-bold text-base text-primary">#{receiptNumber}</p>
+                  <p className="text-micro text-muted-foreground">Original for Recipient</p>
+                </div>
+              </div>
+
+              {/* 2-Column Info Grid: Customer (Billed To) & Invoice Metadata */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Customer Box */}
+                <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-1.5">
+                  <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground block">
+                    Billed To (Customer)
+                  </span>
+                  <p className="font-bold text-sm text-foreground">
+                    {customer?.name || 'Walk-in Retail Customer'}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Phone: <span className="text-foreground font-medium">{customer?.phone || 'N/A'}</span>
+                  </p>
+                  {customer?.address && (
+                    <p className="text-muted-foreground text-xs truncate">
+                      Address: <span className="text-foreground font-medium">{customer.address}</span>
+                    </p>
+                  )}
+                  {customer?.creditBalance !== undefined && customer.creditBalance > 0 && (
+                    <p className="text-warning font-semibold text-micro pt-0.5">
+                      Khata Credit Balance: {formatCurrency(customer.creditBalance)}
+                    </p>
+                  )}
+                </div>
+
+                {/* Invoice Meta Box */}
+                <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-1.5">
+                  <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground block">
+                    Invoice Details
+                  </span>
+                  <div className="grid grid-cols-2 gap-y-1 text-xs">
+                    <span className="text-muted-foreground">Date & Time:</span>
+                    <span className="font-medium text-foreground text-right">{formatDateTime(createdAt)}</span>
+
+                    <span className="text-muted-foreground">Doctor / Ref:</span>
+                    <span className="font-semibold text-primary text-right">{doctorName || 'Self'}</span>
+
+                    <span className="text-muted-foreground">Payment Mode:</span>
+                    <span className="font-bold text-foreground text-right uppercase">
+                      {payment?.method || 'CASH'} ({isVoided ? 'VOIDED' : 'PAID'})
+                    </span>
+
+                    <span className="text-muted-foreground">Cashier:</span>
+                    <span className="font-medium text-foreground text-right">{user?.name || 'Staff'}</span>
+
+                    <span className="text-muted-foreground">Store:</span>
+                    <span className="font-medium text-foreground text-right">{store?.name}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Returns Banner if any items were returned */}
+              {totalReturnedUnits > 0 && (
+                <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-warning font-semibold">
+                    <RotateCcw className="size-4 shrink-0" />
+                    <span>
+                      Notice: {totalReturnedUnits} unit(s) from this invoice were returned under Return Memo(s).
+                    </span>
+                  </div>
+                  {returns.length > 0 && (
+                    <span className="text-micro text-muted-foreground font-mono">
+                      Ref: {returns.map((r) => r.returnNumber).join(', ')}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Medicine Line Items Table */}
+              <div className="overflow-x-auto custom-scrollbar border border-border/80 rounded-xl shadow-2xs">
+                <table className="w-full text-xs min-w-[620px]">
+                  <thead className="bg-muted/70 text-foreground font-bold border-b border-border/80">
+                    <tr>
+                      <th className="py-2.5 px-3 text-left w-10 text-muted-foreground font-bold">#</th>
+                      <th className="py-2.5 px-3 text-left font-bold">Medicine Description</th>
+                      <th className="py-2.5 px-3 text-left font-bold">Batch No</th>
+                      <th className="py-2.5 px-3 text-left font-bold">Exp</th>
+                      <th className="py-2.5 px-2 text-center w-14 font-bold">Qty</th>
+                      <th className="py-2.5 px-3 text-right font-bold">Price</th>
+                      <th className="py-2.5 px-3 text-right font-bold">Disc</th>
+                      <th className="py-2.5 px-3 text-right font-bold">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {items.map((item, index) => {
+                      const isReturned = (item.returnedQuantity || 0) > 0;
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`hover:bg-muted/20 transition-colors ${
+                            index % 2 === 1 ? 'bg-muted/10' : ''
+                          }`}
+                        >
+                          <td className="py-2.5 px-3 text-muted-foreground font-medium">{index + 1}</td>
+                          <td className="py-2.5 px-3">
+                            <p className="font-semibold text-foreground">{item.productName}</p>
+                            {item.genericName && (
+                              <p className="text-micro text-muted-foreground italic">
+                                {item.genericName}
+                              </p>
+                            )}
+                            {isReturned && (
+                              <p className="text-micro text-warning font-semibold">
+                                Returned: {item.returnedQuantity} units
+                              </p>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
+                            {item.batchNumber || '-'}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
+                            {item.expiryDate ? item.expiryDate.slice(0, 7) : '-'}
+                          </td>
+                          <td className="py-2.5 px-2 text-center font-bold tabular-nums">
+                            {item.quantity} {item.unit || ''}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
+                            {formatCurrency(item.unitPrice)}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-success">
+                            {item.discount > 0 ? `-${formatCurrency(item.discount)}` : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-foreground">
+                            {formatCurrency(item.lineTotal)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Bottom Section: Terms & Signature (Left) and Financial Matrix (Right) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                {/* Left Side: Regulatory Terms & Official Stamp */}
+                <div className="space-y-3 text-xs">
                   <div>
-                    <h1 className="text-xl font-bold tracking-tight text-foreground">
-                      {store?.name || 'Pharmacy Dispensary'}
-                    </h1>
-                    <p className="text-xs text-muted-foreground">{store?.tenantName || 'Dispenco Healthcare'}</p>
+                    <h4 className="font-semibold text-foreground text-xs mb-1">
+                      Pharmacy Regulations & Return Policy:
+                    </h4>
+                    <ul className="text-muted-foreground text-micro space-y-1 list-disc pl-4 leading-relaxed">
+                      <li>Refrigerated / cold-chain medicines (2°C-8°C) are non-returnable once sold.</li>
+                      <li>Unopened medicines in intact blister packs can be exchanged within 7 days with this invoice.</li>
+                      <li>Automated computer-generated tax invoice. Valid without physical seal.</li>
+                      <li>Regulated by the Drug Regulatory Authority under the Drugs Act 1976.</li>
+                    </ul>
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="border border-border/70 rounded-lg p-3 w-48 h-20 flex flex-col justify-between bg-muted/10">
+                      <span className="text-micro text-muted-foreground block">
+                        Authorised Pharmacist Stamp
+                      </span>
+                      <span className="text-micro font-semibold text-foreground">
+                        {store?.name || 'Dispenco Pharmacy'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                {store?.address && (
-                  <p className="text-xs text-muted-foreground leading-relaxed max-w-sm">
-                    {store.address}
-                  </p>
-                )}
-                <div className="flex items-center gap-3 text-micro text-muted-foreground font-medium pt-0.5">
-                  <span>Licence: <strong className="text-foreground">DSL-PH-09281-R</strong></span>
-                  <span>•</span>
-                  <span>NTN: <strong className="text-foreground">8291044-7</strong></span>
+
+                {/* Right Side: Totals Matrix */}
+                <div className="space-y-2 text-xs">
+                  <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-2">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Gross Subtotal:</span>
+                      <span className="tabular-nums font-semibold text-foreground">
+                        {formatCurrency(subtotal)}
+                      </span>
+                    </div>
+
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-success font-semibold">
+                        <span>Total Discount Allowed:</span>
+                        <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+
+                    {taxAmount > 0 && (
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Sales Tax (GST):</span>
+                        <span className="tabular-nums font-medium text-foreground">
+                          +{formatCurrency(taxAmount)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-border/80 flex justify-between items-center text-sm font-bold text-foreground">
+                      <span>NET PAYABLE:</span>
+                      <span className="text-primary font-mono text-base tabular-nums">
+                        {formatCurrency(totalAmount)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="text-left sm:text-right space-y-1 shrink-0">
-                <Badge
-                  variant={isVoided ? 'destructive' : 'secondary'}
-                  className="text-xs font-bold tracking-wider uppercase px-2.5 py-0.5"
+              {/* Footer */}
+              <div className="pt-4 border-t border-border/60 text-center text-micro text-muted-foreground space-y-0.5">
+                <p>{store?.receiptFooter || 'Thank you for choosing us! We wish you good health.'}</p>
+                <p>Powered by Dispenco Pharmacy Management Suite</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Render Format 2: 80mm High-Speed Thermal POS Receipt (Realistic Paper or Dark Theme) */
+          <div className="flex justify-center">
+            <div
+              id="printable-thermal-receipt"
+              className={`w-full max-w-[420px] transition-all duration-200 rounded-xl shadow-lg border ${
+                paperView
+                  ? 'bg-white text-zinc-900 border-zinc-200 shadow-xl'
+                  : 'bg-card text-foreground border-border/80'
+              }`}
+            >
+              {/* Paper Top Decorative Perforated Edge */}
+              <div
+                className={`h-2 border-b border-dashed ${
+                  paperView ? 'border-zinc-300' : 'border-border/80'
+                }`}
+              />
+
+              <div className="p-5 sm:p-6 space-y-4">
+                {/* Header & Store Identity */}
+                <div
+                  className={`text-center space-y-1.5 pb-4 border-b border-dashed ${
+                    paperView ? 'border-zinc-300' : 'border-border/80'
+                  }`}
                 >
-                  {isVoided ? 'VOIDED INVOICE' : 'TAX INVOICE / CASH MEMO'}
-                </Badge>
-                <p className="font-mono font-bold text-base text-primary">#{receiptNumber}</p>
-                <p className="text-micro text-muted-foreground">Original for Recipient</p>
-              </div>
-            </div>
+                  <div
+                    className={`flex items-center justify-center gap-2 font-bold text-lg sm:text-xl tracking-tight ${
+                      paperView ? 'text-zinc-900' : 'text-primary'
+                    }`}
+                  >
+                    <Building2 className="size-5 shrink-0" />
+                    <span>{store?.name || 'Pharmacy Store'}</span>
+                  </div>
 
-            {/* 2-Column Info Grid: Customer (Billed To) & Invoice Metadata */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              {/* Customer Box */}
-              <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-1.5">
-                <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Billed To (Customer)
-                </span>
-                <p className="font-bold text-sm text-foreground">
-                  {customer?.name || 'Walk-in Retail Customer'}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  Phone: <span className="text-foreground font-medium">{customer?.phone || 'N/A'}</span>
-                </p>
-                {customer?.address && (
-                  <p className="text-muted-foreground text-xs truncate">
-                    Address: <span className="text-foreground font-medium">{customer.address}</span>
-                  </p>
-                )}
-                {customer?.creditBalance !== undefined && customer.creditBalance > 0 && (
-                  <p className="text-warning font-semibold text-micro pt-0.5">
-                    Khata Credit Balance: {formatCurrency(customer.creditBalance)}
-                  </p>
-                )}
-              </div>
+                  {store?.address && (
+                    <p
+                      className={`text-xs leading-snug px-2 ${
+                        paperView ? 'text-zinc-600' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {store.address}
+                    </p>
+                  )}
 
-              {/* Invoice Meta Box */}
-              <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-1.5">
-                <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground block">
-                  Invoice Meta
-                </span>
-                <div className="grid grid-cols-2 gap-y-1 text-xs">
-                  <span className="text-muted-foreground">Date & Time:</span>
-                  <span className="font-medium text-foreground text-right">{formatDateTime(createdAt)}</span>
-
-                  <span className="text-muted-foreground">Doctor / Ref:</span>
-                  <span className="font-semibold text-primary text-right">{doctorName || 'Self'}</span>
-
-                  <span className="text-muted-foreground">Payment Mode:</span>
-                  <span className="font-bold text-foreground text-right uppercase">
-                    {payment?.method || 'CASH'} ({isVoided ? 'VOIDED' : 'PAID'})
-                  </span>
-
-                  <span className="text-muted-foreground">Dispenser / Cashier:</span>
-                  <span className="font-medium text-foreground text-right">{user?.name || 'Staff'}</span>
-
-                  <span className="text-muted-foreground">Counter Branch:</span>
-                  <span className="font-medium text-foreground text-right">{store?.name}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Returns Banner if any items were returned */}
-            {totalReturnedUnits > 0 && (
-              <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-warning font-semibold">
-                  <RotateCcw className="size-4 shrink-0" />
-                  <span>
-                    Notice: {totalReturnedUnits} unit(s) from this invoice were returned under Return Memo(s).
-                  </span>
-                </div>
-                {returns.length > 0 && (
-                  <span className="text-micro text-muted-foreground font-mono">
-                    Ref: {returns.map((r) => r.returnNumber).join(', ')}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Medicine Line Items Table */}
-            <div className="overflow-x-auto custom-scrollbar border border-border/80 rounded-xl shadow-2xs">
-              <table className="w-full text-xs min-w-[620px]">
-                <thead className="bg-muted/70 text-foreground font-bold border-b border-border/80">
-                  <tr>
-                    <th className="py-2.5 px-3 text-left w-10 text-muted-foreground font-bold">#</th>
-                    <th className="py-2.5 px-3 text-left font-bold">Medicine Description</th>
-                    <th className="py-2.5 px-3 text-left font-bold">Batch No</th>
-                    <th className="py-2.5 px-3 text-left font-bold">Exp</th>
-                    <th className="py-2.5 px-2 text-center w-14 font-bold">Qty</th>
-                    <th className="py-2.5 px-3 text-right font-bold">Price</th>
-                    <th className="py-2.5 px-3 text-right font-bold">Disc</th>
-                    <th className="py-2.5 px-3 text-right font-bold">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {items.map((item, index) => {
-                    const isReturned = (item.returnedQuantity || 0) > 0;
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`hover:bg-muted/20 transition-colors ${
-                          index % 2 === 1 ? 'bg-muted/10' : ''
-                        }`}
-                      >
-                        <td className="py-2.5 px-3 text-muted-foreground font-medium">{index + 1}</td>
-                        <td className="py-2.5 px-3">
-                          <p className="font-semibold text-foreground">{item.productName}</p>
-                          {item.genericName && (
-                            <p className="text-micro text-muted-foreground italic">
-                              {item.genericName}
-                            </p>
-                          )}
-                          {isReturned && (
-                            <p className="text-micro text-warning font-semibold">
-                              Returned: {item.returnedQuantity} units
-                            </p>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
-                          {item.batchNumber || '-'}
-                        </td>
-                        <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
-                          {item.expiryDate ? item.expiryDate.slice(0, 7) : '-'}
-                        </td>
-                        <td className="py-2.5 px-2 text-center font-bold tabular-nums">
-                          {item.quantity} {item.unit || ''}
-                        </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
-                          {formatCurrency(item.unitPrice)}
-                        </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums text-success">
-                          {item.discount > 0 ? `-${formatCurrency(item.discount)}` : '-'}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-bold tabular-nums text-foreground">
-                          {formatCurrency(item.lineTotal)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Section: Terms & Signature (Left) and Financial Matrix (Right) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-              {/* Left Side: Regulatory Terms & Official Stamp */}
-              <div className="space-y-3 text-xs">
-                <div>
-                  <h4 className="font-semibold text-foreground text-xs mb-1">
-                    Pharmacy Regulations & Return Policy:
-                  </h4>
-                  <ul className="text-muted-foreground text-micro space-y-1 list-disc pl-4 leading-relaxed">
-                    <li>Refrigerated / cold-chain medicines (2°C-8°C) are non-returnable once sold.</li>
-                    <li>Unopened medicines in intact blister packs can be exchanged within 7 days with this invoice.</li>
-                    <li>Automated computer-generated tax invoice. Valid without physical seal.</li>
-                    <li>Regulated by the Drug Regulatory Authority under the Drugs Act 1976.</li>
-                  </ul>
-                </div>
-
-                <div className="pt-2">
-                  <div className="border border-border/70 rounded-lg p-3 w-48 h-20 flex flex-col justify-between bg-muted/10">
-                    <span className="text-micro text-muted-foreground block">
-                      Authorised Pharmacist Stamp
-                    </span>
-                    <span className="text-micro font-semibold text-foreground">
-                      Dispenco Healthcare PK
-                    </span>
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    <p
+                      className={`text-micro font-mono ${
+                        paperView ? 'text-zinc-600' : 'text-muted-foreground'
+                      }`}
+                    >
+                      Receipt #: <strong className={paperView ? 'text-zinc-900' : 'text-foreground'}>{receiptNumber}</strong>
+                    </p>
+                    {isVoided && (
+                      <Badge variant="destructive" className="text-micro font-black uppercase tracking-wider">
+                        VOIDED
+                      </Badge>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* Right Side: Totals Matrix */}
-              <div className="space-y-2 text-xs">
-                <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-2">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Gross Subtotal:</span>
-                    <span className="tabular-nums font-semibold text-foreground">
-                      {formatCurrency(subtotal)}
+                {/* Metadata Grid */}
+                <div
+                  className={`grid grid-cols-2 gap-2 text-xs py-1 border-b border-dashed ${
+                    paperView ? 'border-zinc-300' : 'border-border/80'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <p
+                      className={`text-micro flex items-center gap-1 ${
+                        paperView ? 'text-zinc-500' : 'text-muted-foreground'
+                      }`}
+                    >
+                      <Calendar className="size-3" /> Date & Time
+                    </p>
+                    <p className={`font-semibold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                      {formatDateTime(createdAt)}
+                    </p>
+                  </div>
+
+                  <div className="space-y-0.5 text-right">
+                    <p
+                      className={`text-micro flex items-center justify-end gap-1 ${
+                        paperView ? 'text-zinc-500' : 'text-muted-foreground'
+                      }`}
+                    >
+                      <User className="size-3" /> Cashier
+                    </p>
+                    <p className={`font-semibold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                      {user?.name || 'Staff'}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`col-span-2 pt-1.5 border-t flex justify-between items-center text-xs ${
+                      paperView ? 'border-zinc-200' : 'border-border/40'
+                    }`}
+                  >
+                    <span className={paperView ? 'text-zinc-500' : 'text-muted-foreground'}>Doctor / Ref:</span>
+                    <span className={`font-bold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                      {doctorName || 'Self'}
                     </span>
+                  </div>
+
+                  {customer && (
+                    <div
+                      className={`col-span-2 pt-1 border-t flex justify-between items-center text-xs ${
+                        paperView ? 'border-zinc-200' : 'border-border/40'
+                      }`}
+                    >
+                      <span className={paperView ? 'text-zinc-500' : 'text-muted-foreground'}>Customer:</span>
+                      <span className={`font-bold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                        {customer.name} {customer.phone ? `(${customer.phone})` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Line Items Table */}
+                <div className="space-y-2">
+                  <div
+                    className={`flex items-center justify-between text-overline font-bold uppercase tracking-wider pb-1 border-b ${
+                      paperView ? 'text-zinc-600 border-zinc-300' : 'text-muted-foreground border-border/60'
+                    }`}
+                  >
+                    <span>ITEM</span>
+                    <span className="text-right">TOTAL</span>
+                  </div>
+
+                  <div
+                    className={`divide-y text-xs space-y-2 ${
+                      paperView ? 'divide-zinc-200' : 'divide-border/40'
+                    }`}
+                  >
+                    {items.map((item, idx) => {
+                      return (
+                        <div key={item.id || idx} className="pt-2 first:pt-0 space-y-0.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`font-bold leading-snug ${paperView ? 'text-zinc-900' : 'text-foreground'}`}>
+                              {item.productName}
+                            </p>
+                            <p className={`font-mono font-bold shrink-0 tabular-nums ${paperView ? 'text-zinc-900' : 'text-foreground'}`}>
+                              {formatCurrency(item.lineTotal)}
+                            </p>
+                          </div>
+
+                          <div
+                            className={`flex items-center justify-between text-micro ${
+                              paperView ? 'text-zinc-600' : 'text-muted-foreground'
+                            }`}
+                          >
+                            <span>
+                              {item.quantity} {item.unit || 'pc'} × {formatCurrency(item.unitPrice)}
+                            </span>
+                            {item.batchNumber && (
+                              <span className="font-mono text-micro">BN: {item.batchNumber}</span>
+                            )}
+                          </div>
+
+                          {item.discount > 0 && (
+                            <p className="text-micro text-emerald-600 font-semibold text-right tabular-nums">
+                              Discount: -{formatCurrency(item.discount)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Totals & Calculations */}
+                <div
+                  className={`space-y-1.5 pt-3 border-t border-dashed text-xs ${
+                    paperView ? 'border-zinc-300' : 'border-border/80'
+                  }`}
+                >
+                  <div className={`flex justify-between ${paperView ? 'text-zinc-600' : 'text-muted-foreground'}`}>
+                    <span>Subtotal:</span>
+                    <span className="tabular-nums font-mono font-semibold">{formatCurrency(subtotal)}</span>
                   </div>
 
                   {discountAmount > 0 && (
-                    <div className="flex justify-between text-success font-semibold">
-                      <span>Total Discount Allowed:</span>
-                      <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
+                    <div className="flex justify-between text-emerald-600 font-semibold">
+                      <span>Discount:</span>
+                      <span className="tabular-nums font-mono">-{formatCurrency(discountAmount)}</span>
                     </div>
                   )}
 
                   {taxAmount > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Sales Tax (GST):</span>
-                      <span className="tabular-nums font-medium text-foreground">
-                        +{formatCurrency(taxAmount)}
-                      </span>
+                    <div className={`flex justify-between ${paperView ? 'text-zinc-600' : 'text-muted-foreground'}`}>
+                      <span>Tax (GST):</span>
+                      <span className="tabular-nums font-mono font-semibold">+{formatCurrency(taxAmount)}</span>
                     </div>
                   )}
 
-                  <div className="pt-2 border-t border-border/80 flex justify-between items-center text-sm font-bold text-foreground">
-                    <span>NET PAYABLE:</span>
-                    <span className="text-primary font-mono text-base tabular-nums">
+                  <div
+                    className={`flex justify-between items-baseline text-sm font-black pt-2 border-t ${
+                      paperView ? 'border-zinc-400 text-zinc-950' : 'border-border/80 text-foreground'
+                    }`}
+                  >
+                    <span>GRAND TOTAL</span>
+                    <span
+                      className={`text-base font-mono tracking-tight ${
+                        paperView ? 'text-zinc-950 font-black' : 'text-primary'
+                      }`}
+                    >
                       {formatCurrency(totalAmount)}
                     </span>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Footer */}
-            <div className="pt-4 border-t border-border/60 text-center text-micro text-muted-foreground space-y-0.5">
-              <p>{store?.receiptFooter || 'Thank you for choosing us! We wish you good health.'}</p>
-              <p>Powered by Dispenco Pharmacy Management Suite</p>
+                {/* Payment Badge Box */}
+                <div
+                  className={`p-2.5 rounded-lg border text-xs space-y-1 ${
+                    paperView
+                      ? 'bg-zinc-50 border-zinc-200'
+                      : 'bg-muted/40 border-border/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={paperView ? 'text-zinc-600' : 'text-muted-foreground'}>Payment Method:</span>
+                    <Badge
+                      variant="outline"
+                      className={`font-mono font-bold uppercase text-micro px-2 py-0.5 ${
+                        paperView ? 'border-zinc-300 text-zinc-900 bg-white' : ''
+                      }`}
+                    >
+                      {payment?.method || 'CASH'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between font-semibold">
+                    <span className={paperView ? 'text-zinc-600' : 'text-muted-foreground'}>Payment Status:</span>
+                    <span
+                      className={
+                        isVoided
+                          ? 'text-destructive font-bold'
+                          : 'text-emerald-600 font-bold flex items-center gap-1'
+                      }
+                    >
+                      {isVoided ? (
+                        'VOIDED'
+                      ) : (
+                        <>
+                          <CheckCircle2 className="size-3" /> Paid
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Footer Note & Barcode */}
+                <div
+                  className={`text-center pt-3 space-y-2 border-t border-dashed text-micro ${
+                    paperView ? 'border-zinc-300 text-zinc-600' : 'border-border/80 text-muted-foreground'
+                  }`}
+                >
+                  <p className="leading-snug italic font-medium">
+                    {store?.receiptFooter ||
+                      'Thank you for choosing us! Retain receipt for returns/exchanges within 7 days.'}
+                  </p>
+
+                  {/* Clean Vector Barcode */}
+                  <div className={paperView ? 'text-zinc-900' : 'text-foreground'}>
+                    <ReceiptBarcode value={receiptNumber} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Paper Bottom Perforated Edge */}
+              <div
+                className={`h-2 border-t border-dashed ${
+                  paperView ? 'border-zinc-300' : 'border-border/80'
+                }`}
+              />
             </div>
           </div>
-        </div>
-      ) : (
-        /* Render Format 2: 80mm High-Speed Thermal POS Receipt */
-        <Card
-          id="thermal-receipt-card"
-          className="max-w-md mx-auto bg-card shadow-lg border-border/80 text-foreground font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full"
-        >
-          <CardContent className="p-5 sm:p-6 space-y-4 print:p-0 print:text-black">
-            {/* Header & Store Information */}
-            <div className="text-center space-y-1 pb-4 border-b border-dashed border-border/80">
-              <div className="flex items-center justify-center gap-1.5 text-primary font-bold text-lg tracking-tight">
-                <Building2 className="size-5" />
-                <span>{store?.name || 'Pharmacy Store'}</span>
-              </div>
-              {store?.address && (
-                <p className="text-xs text-muted-foreground leading-snug">{store.address}</p>
-              )}
-              <div className="flex items-center justify-center gap-2 pt-0.5">
-                <p className="text-micro text-muted-foreground font-mono">
-                  Receipt #: <span className="font-bold text-foreground">{receiptNumber}</span>
-                </p>
-                {isVoided && (
-                  <Badge variant="destructive" className="text-micro font-extrabold uppercase tracking-wider">
-                    VOIDED
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Meta Info */}
-            <div className="grid grid-cols-2 gap-2 text-xs py-1 border-b border-dashed border-border/80">
-              <div className="space-y-0.5">
-                <p className="text-micro text-muted-foreground flex items-center gap-1">
-                  <Calendar className="size-3" /> Date & Time
-                </p>
-                <p className="font-medium text-foreground">{formatDateTime(createdAt)}</p>
-              </div>
-
-              <div className="space-y-0.5 text-right">
-                <p className="text-micro text-muted-foreground flex items-center justify-end gap-1">
-                  <User className="size-3" /> Cashier
-                </p>
-                <p className="font-medium text-foreground">{user?.name || 'Staff'}</p>
-              </div>
-
-              <div className="col-span-2 pt-1 border-t border-border/40 flex justify-between items-center text-xs">
-                <span className="text-muted-foreground">Doctor / Ref:</span>
-                <span className="font-semibold text-foreground">
-                  {doctorName || 'Self'}
-                </span>
-              </div>
-
-              {customer && (
-                <div className="col-span-2 pt-1 border-t border-border/40 flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Customer:</span>
-                  <span className="font-semibold text-foreground">
-                    {customer.name} {customer.phone ? `(${customer.phone})` : ''}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Line Items */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-overline font-bold uppercase tracking-wider text-muted-foreground border-b border-border/60 pb-1">
-                <span>Medicine Item</span>
-                <span>Amount</span>
-              </div>
-
-              <div className="divide-y divide-border/40 text-xs space-y-2">
-                {items.map((item, idx) => {
-                  return (
-                    <div key={item.id || idx} className="pt-2 first:pt-0 space-y-0.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-foreground leading-snug">{item.productName}</p>
-                        <p className="font-bold text-foreground shrink-0 tabular-nums">
-                          {formatCurrency(item.lineTotal)}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between text-micro text-muted-foreground">
-                        <span>
-                          {item.quantity} {item.unit || 'pc'} × {formatCurrency(item.unitPrice)}
-                        </span>
-                        {item.batchNumber && (
-                          <span className="font-mono text-micro">Batch: {item.batchNumber}</span>
-                        )}
-                      </div>
-
-                      {item.discount > 0 && (
-                        <p className="text-micro text-success font-medium text-right tabular-nums">
-                          Discount: -{formatCurrency(item.discount)}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Financial Totals */}
-            <div className="space-y-1.5 pt-3 border-t border-dashed border-border/80 text-xs">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
-                <span className="tabular-nums">{formatCurrency(subtotal)}</span>
-              </div>
-
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-success font-medium">
-                  <span>Order Discount</span>
-                  <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
-                </div>
-              )}
-
-              {taxAmount > 0 && (
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Tax (GST)</span>
-                  <span className="tabular-nums">+{formatCurrency(taxAmount)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-sm font-extrabold text-foreground pt-2 border-t border-border/80">
-                <span>GRAND TOTAL</span>
-                <span className="text-primary tabular-nums">{formatCurrency(totalAmount)}</span>
-              </div>
-            </div>
-
-            {/* Payment Details */}
-            <div className="p-2.5 rounded-lg bg-muted/40 border border-border/60 text-xs space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Payment Method:</span>
-                <Badge variant="outline" className="font-bold uppercase text-micro px-2 py-0.5">
-                  {payment?.method || 'CASH'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between font-medium">
-                <span className="text-muted-foreground">Payment Status:</span>
-                <span
-                  className={
-                    isVoided
-                      ? 'text-destructive font-bold'
-                      : 'text-success font-bold flex items-center gap-1'
-                  }
-                >
-                  {isVoided ? (
-                    'VOIDED'
-                  ) : (
-                    <>
-                      <CheckCircle2 className="size-3" /> Paid
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="text-center pt-3 space-y-2 border-t border-dashed border-border/80 text-micro text-muted-foreground">
-              <p className="leading-snug italic">
-                {store?.receiptFooter ||
-                  'Thank you for choosing us! Retain receipt for returns/exchanges within 7 days.'}
-              </p>
-
-              <div className="pt-2 flex flex-col items-center justify-center space-y-1">
-                <div className="font-mono text-xs tracking-widest bg-muted/60 px-3 py-1 rounded border border-border/60">
-                  |||| | ||||| ||| |||| || ||| |
-                </div>
-                <p className="text-micro font-mono text-muted-foreground">{receiptNumber}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        )}
+      </div>
 
       {/* Return Flow Modal for This Sale */}
       <CreateReturnModal
