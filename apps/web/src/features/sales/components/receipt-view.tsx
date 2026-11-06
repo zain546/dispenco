@@ -395,8 +395,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
       {/* Main Container */}
       <div className="max-w-4xl mx-auto space-y-3 print:hidden">
         {/* Tier 1: Context Header & Navigation Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card border border-border/80 rounded-xl px-4 py-2.5 shadow-2xs">
-          <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-card border border-border/80 rounded-xl px-3.5 py-2.5 shadow-2xs">
+          <div className="flex items-center justify-between sm:justify-start gap-2.5 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
@@ -412,8 +412,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
             <div className="h-4 w-px bg-border/80 hidden sm:block" />
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium hidden sm:inline">Receipt:</span>
+            <div className="flex items-center gap-1.5">
               <span className="font-mono font-bold text-xs text-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/60">
                 #{receiptNumber}
               </span>
@@ -427,48 +426,182 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
           </div>
 
           {/* Secondary Actions (Share, Returns, Void) */}
-          <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-1.5 border-t border-border/40 sm:border-t-0 sm:pt-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleCopyLink}
-              className="gap-1.5 text-xs h-8.5 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+              className="gap-1 text-xs h-8 px-2 font-medium text-muted-foreground hover:text-foreground cursor-pointer"
             >
               {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
-              <span>{copied ? 'Copied' : 'Share Link'}</span>
+              <span>{copied ? 'Copied' : 'Share'}</span>
             </Button>
 
-            {!isVoided && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsReturnModalOpen(true)}
-                className="gap-1.5 text-xs h-8.5 font-medium hover:bg-muted cursor-pointer shadow-2xs"
-              >
-                <RotateCcw className="size-3.5 text-primary" />
-                <span>Process Return</span>
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {!isVoided && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsReturnModalOpen(true)}
+                  className="gap-1 text-xs h-8 px-2.5 font-medium hover:bg-muted cursor-pointer shadow-2xs"
+                >
+                  <RotateCcw className="size-3.5 text-primary" />
+                  <span>Return</span>
+                </Button>
+              )}
 
-            {!isVoided && canVoidSales && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsVoidModalOpen(true)}
-                className="gap-1.5 text-xs h-8.5 font-medium text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer shadow-2xs"
-              >
-                <Ban className="size-3.5" />
-                <span>Void</span>
-              </Button>
-            )}
+              {!isVoided && canVoidSales && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsVoidModalOpen(true)}
+                  className="gap-1 text-xs h-8 px-2.5 font-medium text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer shadow-2xs"
+                >
+                  <Ban className="size-3.5" />
+                  <span>Void</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Tier 2: The Print Hub & Dispatch Command Bar - Clean 1-Line Aligned */}
-        <div className="bg-card border border-border/80 rounded-xl px-4 py-2.5 shadow-2xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Left: Format Switcher & Paper Mode Toggle (Strictly 1 Line) */}
+        {/* Tier 2: The Print Hub & Dispatch Command Bar */}
+        <div className="bg-card border border-border/80 rounded-xl p-3 sm:px-4 sm:py-2.5 shadow-2xs">
+          {/* Mobile Layout (< sm): Structured 3-row thumb-friendly stack */}
+          <div className="flex flex-col gap-2.5 sm:hidden">
+            {/* Mobile Row 1: Full-width Segmented Format Switcher */}
+            <div className="grid grid-cols-2 rounded-lg border border-border bg-muted/50 p-1 shadow-2xs w-full">
+              <button
+                type="button"
+                onClick={() => setViewMode('thermal')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                  viewMode === 'thermal'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Receipt className="size-3.5" />
+                <span>80mm Thermal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('a4')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                  viewMode === 'a4'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FileSpreadsheet className="size-3.5" />
+                <span>A4 Invoice</span>
+              </button>
+            </div>
+
+            {/* Mobile Row 2: Secondary Utilities (Paper View, Tips, WhatsApp, PDF) */}
+            <div className="grid grid-cols-4 gap-1.5 w-full">
+              {viewMode === 'thermal' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPaperView(!paperView)}
+                  title="Toggle White Paper vs Dark View"
+                  className="h-8.5 px-1 text-micro font-medium gap-1 cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground w-full justify-center"
+                >
+                  {paperView ? (
+                    <>
+                      <Sun className="size-3.5 text-amber-500" />
+                      <span>Paper</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="size-3.5" />
+                      <span>Dark</span>
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <div />
+              )}
+
+              {/* Printer Hardware Setup Guide */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8.5 px-1 text-micro font-medium gap-1 text-muted-foreground hover:text-foreground cursor-pointer w-full justify-center"
+                  >
+                    <HelpCircle className="size-3.5 text-primary" />
+                    <span>Tips</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-3.5 text-xs space-y-2 shadow-xl border-border" align="center">
+                  <div className="flex items-center gap-2 pb-1 border-b border-border">
+                    <SlidersHorizontal className="size-3.5 text-primary" />
+                    <h4 className="font-bold text-foreground">Printer Settings</h4>
+                  </div>
+                  <ul className="space-y-1.5 text-micro text-muted-foreground">
+                    <li className="flex items-start gap-1">
+                      <span className="font-bold text-foreground">1. Paper:</span>
+                      <span>80mm Roll (or 3-inch)</span>
+                    </li>
+                    <li className="flex items-start gap-1">
+                      <span className="font-bold text-foreground">2. Margins:</span>
+                      <span>Set to <strong>None</strong></span>
+                    </li>
+                    <li className="flex items-start gap-1">
+                      <span className="font-bold text-foreground">3. Headers/Footers:</span>
+                      <span><strong>Uncheck</strong></span>
+                    </li>
+                  </ul>
+                </PopoverContent>
+              </Popover>
+
+              {/* WhatsApp Receipt Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDirectWhatsAppShare}
+                className="h-8.5 px-1 text-micro font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/40 bg-[#25D366]/5 hover:bg-[#25D366]/15 cursor-pointer w-full justify-center gap-1"
+              >
+                <WhatsAppIcon className="size-3.5 shrink-0 text-[#25D366]" />
+                <span>Share</span>
+              </Button>
+
+              {/* Download PDF Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={viewMode === 'a4' ? handleDownloadA4 : handleDownloadThermal}
+                disabled={isDownloading}
+                className="h-8.5 px-1 text-micro font-semibold cursor-pointer hover:bg-muted w-full justify-center gap-1"
+              >
+                {isDownloading ? (
+                  <Loader2 className="size-3.5 animate-spin text-primary" />
+                ) : (
+                  <Download className="size-3.5 text-primary" />
+                )}
+                <span>PDF</span>
+              </Button>
+            </div>
+
+            {/* Mobile Row 3: Full-Width Primary Print Button */}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handlePrint}
+              className="w-full h-10 text-xs font-bold gap-2 shadow-xs cursor-pointer bg-primary hover:bg-primary/95 text-primary-foreground justify-center"
+            >
+              <Printer className="size-4" />
+              <span>Print {viewMode === 'a4' ? 'Tax Invoice' : 'Thermal Slip'}</span>
+            </Button>
+          </div>
+
+          {/* Desktop & Tablet Layout (sm: and up): Clean 1-Line Strict Alignment */}
+          <div className="hidden sm:flex sm:items-center justify-between gap-3">
+            {/* Left: Format Switcher & Paper Mode Toggle */}
             <div className="flex items-center gap-2 flex-nowrap shrink-0">
               {/* Segmented Switcher */}
               <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5 shadow-2xs">
@@ -523,8 +656,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               )}
             </div>
 
-            {/* Right: Print Actions & Help (Strictly 1 Line Aligned) */}
-            <div className="flex items-center gap-2 justify-end flex-wrap sm:flex-nowrap shrink-0">
+            {/* Right: Print Actions & Help */}
+            <div className="flex items-center gap-2 justify-end flex-nowrap shrink-0">
               {/* Printer Hardware Setup Guide */}
               <Popover>
                 <PopoverTrigger asChild>
