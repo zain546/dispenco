@@ -24,6 +24,7 @@ import {
   Layers,
   Plus,
   Info,
+  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -179,6 +180,15 @@ export function ProductForm({
       populateBatchValues(activeBatch);
     }
   }, [isEditing, activeBatch, populateBatchValues]);
+
+  // Auto-dismiss stale server error alert as soon as the user edits any field
+  useEffect(() => {
+    if (!error) return;
+    const subscription = watch(() => {
+      setError(null);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, error]);
 
   const selectedCategory = watch('category');
   const selectedUnit = normalizeUnit(watch('unit'));
@@ -393,6 +403,7 @@ export function ProductForm({
     }
   },
   (formErrors) => {
+    setError(null);
     const firstError = Object.values(formErrors)[0]?.message;
     if (firstError) {
       toast.error(String(firstError));
@@ -429,9 +440,21 @@ export function ProductForm({
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            <AlertDescription className="text-xs sm:text-sm break-words">{error}</AlertDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setError(null)}
+            className="size-6 -mr-1.5 -mt-1 text-destructive hover:bg-destructive/15 shrink-0"
+            title="Dismiss error"
+          >
+            <X className="size-3.5" />
+          </Button>
         </Alert>
       )}
 
