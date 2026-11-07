@@ -12,6 +12,7 @@ import {
   Loader2,
   Lightbulb,
   CheckCircle2,
+  ChevronLeft,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { reportsApi, CopilotQueryResult } from '@/features/reports/services/reports-api';
@@ -200,22 +201,36 @@ export function AiAssistantWidget() {
 
   return (
     <>
-      {/* Floating Action Button (FAB) at Bottom-Right */}
+      {/* Right-Edge Docked Slide-Out Tab (Never overlaps table buttons; slides out on hover/click) */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? 'Close AI Assistant' : 'Open AI Assistant (Ctrl+K)'}
         title={isOpen ? 'Close Assistant' : 'Dispenco AI Assistant (Ctrl+K)'}
-        className={`fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 size-13 sm:size-14 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg active:scale-95 ${
+        className={`group fixed right-0 bottom-6 sm:bottom-8 z-50 h-11 rounded-l-2xl border border-r-0 border-primary-foreground/15 bg-primary hover:bg-primary/95 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 pl-2.5 pr-3.5 transition-all duration-300 ease-out cursor-pointer print:hidden ${
           isOpen
-            ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/25 ring-4 ring-primary/20 rotate-90'
-            : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30 hover:scale-105 ring-4 ring-primary/20'
+            ? 'translate-x-0 ring-2 ring-primary/30'
+            : 'translate-x-[calc(100%-38px)] hover:translate-x-0 focus-visible:translate-x-0 opacity-85 hover:opacity-100'
         }`}
       >
         {isOpen ? (
-          <X className="size-6 transition-transform" />
+          <>
+            <X className="size-4.5 shrink-0 transition-transform" />
+            <span className="text-xs font-bold tracking-tight whitespace-nowrap">Close AI</span>
+          </>
         ) : (
-          <Bot className="size-6 transition-transform" />
+          <>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <ChevronLeft className="size-3.5 opacity-80 group-hover:opacity-0 group-hover:-translate-x-1 transition-all duration-200 -ml-1" />
+              <Bot className="size-4.5 shrink-0" />
+            </div>
+            <span className="text-xs font-bold tracking-tight whitespace-nowrap pl-0.5">
+              AI Copilot
+            </span>
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-primary-foreground/15 text-primary-foreground text-[10px] font-mono font-semibold whitespace-nowrap">
+              Ctrl+K
+            </kbd>
+          </>
         )}
       </button>
 
@@ -224,7 +239,7 @@ export function AiAssistantWidget() {
         <div
           role="dialog"
           aria-labelledby="ai-assistant-title"
-          className="fixed bottom-20 sm:bottom-23 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[430px] max-w-[430px] h-[580px] max-h-[calc(100vh-110px)] bg-card border border-border/90 rounded-3xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
+          className="fixed bottom-20 sm:bottom-22 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[430px] max-w-[430px] h-[580px] max-h-[calc(100vh-110px)] bg-card border border-border/90 rounded-3xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 print:hidden"
         >
           {/* Header */}
           <div className="p-3.5 sm:p-4 border-b border-border/70 bg-muted/20 flex items-center justify-between gap-3 shrink-0">
