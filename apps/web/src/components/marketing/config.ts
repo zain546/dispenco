@@ -1,11 +1,11 @@
 import { STARTER_PLAN } from '@dispenco/types';
 
 /** Shared public destinations and commercial content. */
-const whatsappNumber = '+923424912546';
+const whatsappNumber = '+923186942546';
 
 export const marketingConfig = {
   url: 'https://dispenco.com',
-  email: 'zainali546official@gmail.com',
+  email: 'dispenco@gmail.com',
   whatsappNumber,
   whatsappHref: `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`,
   contactHref: '/contact',
