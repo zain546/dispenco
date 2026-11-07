@@ -143,7 +143,7 @@ export function ReportsView() {
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
   const [chartType, setChartType] = useState<'area' | 'bar'>('area');
   const [currentView, setCurrentView] = useState<'charts' | 'copilot' | 'audit' | 'integrity'>('charts');
-  const [bottomSectionTab, setBottomSectionTab] = useState<'receipts' | 'medicines'>('medicines');
+  const [bottomSectionTab, setBottomSectionTab] = useState<'receipts' | 'medicines'>('receipts');
   const [receiptSearch, setReceiptSearch] = useState('');
   const [receiptPage, setReceiptPage] = useState(1);
   const receiptsPerPage = 15;
@@ -1051,7 +1051,7 @@ export function ReportsView() {
                     <div className="relative w-full sm:w-64">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
                       <Input
-                        placeholder="Search receipt #, customer, doctor..."
+                        placeholder="Search receipt #, customer, cashier, doctor..."
                         value={receiptSearch}
                         onChange={(e) => {
                           setReceiptSearch(e.target.value);
@@ -1187,15 +1187,17 @@ export function ReportsView() {
                 ) : (
                   <>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-xs text-left border-collapse min-w-[820px]">
+                      <table className="w-full text-xs text-left border-collapse min-w-[980px]">
                         <thead>
                           <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
                             <th className="py-3 px-4 whitespace-nowrap min-w-[130px]">Receipt #</th>
                             <th className="py-3 px-4 whitespace-nowrap min-w-[140px]">Date &amp; Time</th>
                             <th className="py-3 px-4 whitespace-nowrap min-w-[130px]">Customer</th>
+                            <th className="py-3 px-4 whitespace-nowrap min-w-[130px]">Cashier</th>
                             <th className="py-3 px-4 whitespace-nowrap min-w-[140px]">Doctor / Prescriber</th>
                             <th className="py-3 px-4 whitespace-nowrap min-w-[100px]">Method</th>
-                            <th className="py-3 px-4 text-center whitespace-nowrap min-w-[90px]">Items</th>
+                            <th className="py-3 px-4 text-center whitespace-nowrap min-w-[85px]">Items</th>
+                            <th className="py-3 px-4 text-right whitespace-nowrap min-w-[100px]">Discount</th>
                             <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Amount</th>
                             <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Action</th>
                           </tr>
@@ -1219,16 +1221,25 @@ export function ReportsView() {
                                 {formatDateTime(tx.createdAt)}
                               </td>
 
-                              <td className="py-3 px-4">
+                              <td className="py-3 px-4 whitespace-nowrap">
                                 <div className="flex items-center gap-1.5 font-medium text-foreground">
                                   <User className="size-3.5 text-muted-foreground shrink-0" />
-                                  <span className="truncate max-w-[150px]">
+                                  <span className="truncate max-w-[140px]">
                                     {tx.customerName || 'Walk-in'}
                                   </span>
                                 </div>
                               </td>
 
-                              <td className="py-3 px-4">
+                              <td className="py-3 px-4 whitespace-nowrap">
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <User className="size-3.5 text-primary/70 shrink-0" />
+                                  <span className="truncate max-w-[130px] font-medium text-foreground">
+                                    {tx.cashierName || 'Staff'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 whitespace-nowrap">
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
                                   <Stethoscope className="size-3.5 text-muted-foreground/70 shrink-0" />
                                   <span className="truncate max-w-[130px] font-medium text-foreground/90">
@@ -1237,7 +1248,7 @@ export function ReportsView() {
                                 </div>
                               </td>
 
-                              <td className="py-3 px-4">
+                              <td className="py-3 px-4 whitespace-nowrap">
                                 {getReceiptPaymentBadge(tx.paymentMethod)}
                               </td>
 
@@ -1245,6 +1256,16 @@ export function ReportsView() {
                                 <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-muted/60 text-micro font-medium whitespace-nowrap">
                                   {tx.itemsCount} {tx.itemsCount === 1 ? 'item' : 'items'}
                                 </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-right tabular-nums whitespace-nowrap">
+                                {tx.discountAmount && tx.discountAmount > 0 ? (
+                                  <span className="font-semibold text-success">
+                                    -{formatCurrency(tx.discountAmount)}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground/60">—</span>
+                                )}
                               </td>
 
                               <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs whitespace-nowrap">
