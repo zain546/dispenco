@@ -52,8 +52,6 @@ import {
   Send,
   HelpCircle,
   SlidersHorizontal,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -112,7 +110,7 @@ function ReceiptBarcode({ value }: { value: string }) {
           });
         })()}
       </svg>
-      <p className="font-mono text-micro tracking-widest text-muted-foreground pt-1">{value}</p>
+      <p className="font-mono text-micro tracking-widest text-zinc-500 pt-1">{value}</p>
     </div>
   );
 }
@@ -136,9 +134,6 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
   // View mode: 'a4' for Formal Tax Invoice, 'thermal' for 80mm POS Slip
   const [viewMode, setViewMode] = useState<'a4' | 'thermal'>('thermal');
-
-  // Preview paper style: true for realistic white thermal paper, false for app dark theme
-  const [paperView, setPaperView] = useState(true);
 
   // Return modal state
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -418,7 +413,9 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               </span>
               <Badge
                 variant={isVoided ? 'destructive' : 'default'}
-                className="text-micro font-bold uppercase tracking-wider px-2 py-0.5"
+                className={`text-micro font-bold uppercase tracking-wider px-2 py-0.5 ${
+                  isVoided ? '' : 'text-white'
+                }`}
               >
                 {isVoided ? 'VOIDED' : 'PAID'}
               </Badge>
@@ -498,43 +495,18 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               </button>
             </div>
 
-            {/* Mobile Row 2: Secondary Utilities (Paper View, Tips, WhatsApp, PDF) */}
-            <div className="grid grid-cols-4 gap-1.5 w-full">
-              {viewMode === 'thermal' ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPaperView(!paperView)}
-                  title="Toggle White Paper vs Dark View"
-                  className="h-8.5 px-1 text-micro font-medium gap-1 cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground w-full justify-center"
-                >
-                  {paperView ? (
-                    <>
-                      <Sun className="size-3.5 text-amber-500" />
-                      <span>Paper</span>
-                    </>
-                  ) : (
-                    <>
-                      <Moon className="size-3.5" />
-                      <span>Dark</span>
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <div />
-              )}
-
+            {/* Mobile Row 2: Secondary Utilities (Tips, WhatsApp, PDF) */}
+            <div className="grid grid-cols-3 gap-2 w-full">
               {/* Printer Hardware Setup Guide */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8.5 px-1 text-micro font-medium gap-1 text-muted-foreground hover:text-foreground cursor-pointer w-full justify-center"
+                    className="h-8.5 px-2 text-micro font-medium gap-1 text-muted-foreground hover:text-foreground cursor-pointer w-full justify-center"
                   >
                     <HelpCircle className="size-3.5 text-primary" />
-                    <span>Tips</span>
+                    <span>Printer Tips</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-72 p-3.5 text-xs space-y-2.5 shadow-xl border-border" align="center">
@@ -570,10 +542,10 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleDirectWhatsAppShare}
-                className="h-8.5 px-1 text-micro font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/40 bg-[#25D366]/5 hover:bg-[#25D366]/15 cursor-pointer w-full justify-center gap-1"
+                className="h-8.5 px-2 text-micro font-semibold text-[#25D366] hover:text-[#25D366] border-[#25D366]/40 bg-[#25D366]/5 hover:bg-[#25D366]/15 cursor-pointer w-full justify-center gap-1"
               >
                 <WhatsAppIcon className="size-3.5 shrink-0 text-[#25D366]" />
-                <span>Share</span>
+                <span>WhatsApp</span>
               </Button>
 
               {/* Download PDF Button */}
@@ -582,7 +554,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 size="sm"
                 onClick={viewMode === 'a4' ? handleDownloadA4 : handleDownloadThermal}
                 disabled={isDownloading}
-                className="h-8.5 px-1 text-micro font-semibold cursor-pointer hover:bg-muted w-full justify-center gap-1"
+                className="h-8.5 px-2 text-micro font-semibold cursor-pointer hover:bg-muted w-full justify-center gap-1"
               >
                 {isDownloading ? (
                   <Loader2 className="size-3.5 animate-spin text-primary" />
@@ -607,9 +579,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
           {/* Desktop & Tablet Layout (sm: and up): Clean 1-Line Strict Alignment */}
           <div className="hidden sm:flex sm:items-center justify-between gap-3">
-            {/* Left: Format Switcher & Paper Mode Toggle */}
+            {/* Left: Format Switcher */}
             <div className="flex items-center gap-2 flex-nowrap shrink-0">
-              {/* Segmented Switcher */}
               <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5 shadow-2xs">
                 <button
                   type="button"
@@ -636,30 +607,6 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   <span>A4 Invoice</span>
                 </button>
               </div>
-
-              {/* Thermal Paper View Toggle (White paper preview) */}
-              {viewMode === 'thermal' && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPaperView(!paperView)}
-                  title="Toggle White Paper Receipt Preview vs Theme Dark"
-                  className="gap-1.5 h-8.5 px-2.5 text-xs font-medium cursor-pointer shadow-2xs hover:bg-muted text-muted-foreground hover:text-foreground"
-                >
-                  {paperView ? (
-                    <>
-                      <Sun className="size-3.5 text-amber-500" />
-                      <span>Paper Slip</span>
-                    </>
-                  ) : (
-                    <>
-                      <Moon className="size-3.5" />
-                      <span>Dark View</span>
-                    </>
-                  )}
-                </Button>
-              )}
             </div>
 
             {/* Right: Print Actions & Help */}
@@ -762,118 +709,120 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
         </div>
       </div>
 
-      {/* Tier 3: Visual Receipt / Invoice Previews */}
+      {/* Tier 3: Visual Receipt / Invoice Previews (Always Real White Print Paper) */}
       <div className="mt-4">
         {viewMode === 'a4' ? (
-          /* Render Format 1: A4 Formal Tax Invoice */
+          /* Render Format 1: A4 Formal Tax Invoice (Realistic White A4 Sheet) */
           <div
             id="printable-a4-invoice"
-            className="max-w-4xl mx-auto bg-card border border-border/80 shadow-md rounded-xl overflow-hidden text-foreground font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full"
+            className="max-w-4xl mx-auto bg-white border border-zinc-200 shadow-xl rounded-xl overflow-hidden text-zinc-900 font-sans print:shadow-none print:border-none print:m-0 print:p-0 print:w-full"
           >
             {/* Top Brand Ribbon */}
             <div className="h-1.5 bg-linear-to-r from-primary via-primary/80 to-primary/50 w-full" />
 
             <div className="p-6 sm:p-10 space-y-6">
               {/* Header: Store Identity & Document Title */}
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-border/70">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6 border-b border-zinc-200">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2.5">
                     <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-base shadow-2xs">
                       <Building2 className="size-5" />
                     </div>
                     <div>
-                      <h1 className="text-xl font-bold tracking-tight text-foreground">
+                      <h1 className="text-xl font-bold tracking-tight text-zinc-900">
                         {store?.name || 'Pharmacy Dispensary'}
                       </h1>
-                      <p className="text-xs text-muted-foreground">{store?.tenantName || 'Dispenco Healthcare'}</p>
+                      <p className="text-xs text-zinc-500">{store?.tenantName || 'Dispenco Healthcare'}</p>
                     </div>
                   </div>
                   {store?.address && (
-                    <p className="text-xs text-muted-foreground leading-relaxed max-w-sm pt-1">
+                    <p className="text-xs text-zinc-600 leading-relaxed max-w-sm pt-1">
                       {store.address}
                     </p>
                   )}
-                  <div className="flex items-center gap-3 text-micro text-muted-foreground font-medium pt-0.5">
-                    <span>Licence: <strong className="text-foreground">DSL-PH-09281-R</strong></span>
+                  <div className="flex items-center gap-3 text-micro text-zinc-500 font-medium pt-0.5">
+                    <span>Licence: <strong className="text-zinc-900">DSL-PH-09281-R</strong></span>
                     <span>•</span>
-                    <span>NTN: <strong className="text-foreground">8291044-7</strong></span>
+                    <span>NTN: <strong className="text-zinc-900">8291044-7</strong></span>
                   </div>
                 </div>
 
                 <div className="text-left sm:text-right space-y-1 shrink-0">
                   <Badge
-                    variant={isVoided ? 'destructive' : 'secondary'}
-                    className="text-xs font-bold tracking-wider uppercase px-2.5 py-0.5"
+                    variant={isVoided ? 'destructive' : 'outline'}
+                    className={`text-xs font-bold tracking-wider uppercase px-2.5 py-0.5 ${
+                      isVoided ? '' : 'bg-zinc-100 text-zinc-900 border-zinc-300'
+                    }`}
                   >
                     {isVoided ? 'VOIDED INVOICE' : 'TAX INVOICE / CASH MEMO'}
                   </Badge>
-                  <p className="font-mono font-bold text-base text-primary">#{receiptNumber}</p>
-                  <p className="text-micro text-muted-foreground">Original for Recipient</p>
+                  <p className="font-mono font-bold text-base text-zinc-900">#{receiptNumber}</p>
+                  <p className="text-micro text-zinc-500">Original for Recipient</p>
                 </div>
               </div>
 
               {/* 2-Column Info Grid: Customer (Billed To) & Invoice Metadata */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {/* Customer Box */}
-                <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-1.5">
-                  <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground block">
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-1.5">
+                  <span className="text-micro font-semibold uppercase tracking-wider text-zinc-500 block">
                     Billed To (Customer)
                   </span>
-                  <p className="font-bold text-sm text-foreground">
+                  <p className="font-bold text-sm text-zinc-900">
                     {customer?.name || 'Walk-in Retail Customer'}
                   </p>
-                  <p className="text-muted-foreground text-xs">
-                    Phone: <span className="text-foreground font-medium">{customer?.phone || 'N/A'}</span>
+                  <p className="text-zinc-600 text-xs">
+                    Phone: <span className="text-zinc-900 font-medium">{customer?.phone || 'N/A'}</span>
                   </p>
                   {customer?.address && (
-                    <p className="text-muted-foreground text-xs truncate">
-                      Address: <span className="text-foreground font-medium">{customer.address}</span>
+                    <p className="text-zinc-600 text-xs truncate">
+                      Address: <span className="text-zinc-900 font-medium">{customer.address}</span>
                     </p>
                   )}
                   {customer?.creditBalance !== undefined && customer.creditBalance > 0 && (
-                    <p className="text-warning font-semibold text-micro pt-0.5">
+                    <p className="text-amber-600 font-semibold text-micro pt-0.5">
                       Khata Credit Balance: {formatCurrency(customer.creditBalance)}
                     </p>
                   )}
                 </div>
 
                 {/* Invoice Meta Box */}
-                <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-1.5">
-                  <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground block">
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-1.5">
+                  <span className="text-micro font-semibold uppercase tracking-wider text-zinc-500 block">
                     Invoice Details
                   </span>
                   <div className="grid grid-cols-2 gap-y-1 text-xs">
-                    <span className="text-muted-foreground">Date & Time:</span>
-                    <span className="font-medium text-foreground text-right">{formatDateTime(createdAt)}</span>
+                    <span className="text-zinc-600">Date & Time:</span>
+                    <span className="font-medium text-zinc-900 text-right">{formatDateTime(createdAt)}</span>
 
-                    <span className="text-muted-foreground">Doctor / Ref:</span>
-                    <span className="font-semibold text-primary text-right">{doctorName || 'Self'}</span>
+                    <span className="text-zinc-600">Doctor / Ref:</span>
+                    <span className="font-semibold text-zinc-900 text-right">{doctorName || 'Self'}</span>
 
-                    <span className="text-muted-foreground">Payment Mode:</span>
-                    <span className="font-bold text-foreground text-right uppercase">
+                    <span className="text-zinc-600">Payment Mode:</span>
+                    <span className="font-bold text-zinc-900 text-right uppercase">
                       {payment?.method || 'CASH'} ({isVoided ? 'VOIDED' : 'PAID'})
                     </span>
 
-                    <span className="text-muted-foreground">Cashier:</span>
-                    <span className="font-medium text-foreground text-right">{user?.name || 'Staff'}</span>
+                    <span className="text-zinc-600">Cashier:</span>
+                    <span className="font-medium text-zinc-900 text-right">{user?.name || 'Staff'}</span>
 
-                    <span className="text-muted-foreground">Store:</span>
-                    <span className="font-medium text-foreground text-right">{store?.name}</span>
+                    <span className="text-zinc-600">Store:</span>
+                    <span className="font-medium text-zinc-900 text-right">{store?.name}</span>
                   </div>
                 </div>
               </div>
 
               {/* Returns Banner if any items were returned */}
               {totalReturnedUnits > 0 && (
-                <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-warning font-semibold">
+                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-amber-700 font-semibold">
                     <RotateCcw className="size-4 shrink-0" />
                     <span>
                       Notice: {totalReturnedUnits} unit(s) from this invoice were returned under Return Memo(s).
                     </span>
                   </div>
                   {returns.length > 0 && (
-                    <span className="text-micro text-muted-foreground font-mono">
+                    <span className="text-micro text-zinc-600 font-mono">
                       Ref: {returns.map((r) => r.returnNumber).join(', ')}
                     </span>
                   )}
@@ -881,11 +830,11 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               )}
 
               {/* Medicine Line Items Table */}
-              <div className="overflow-x-auto custom-scrollbar border border-border/80 rounded-xl shadow-2xs">
+              <div className="overflow-x-auto custom-scrollbar border border-zinc-200 rounded-xl shadow-2xs">
                 <table className="w-full text-xs min-w-[620px]">
-                  <thead className="bg-muted/70 text-foreground font-bold border-b border-border/80">
+                  <thead className="bg-zinc-100 text-zinc-900 font-bold border-b border-zinc-200">
                     <tr>
-                      <th className="py-2.5 px-3 text-left w-10 text-muted-foreground font-bold">#</th>
+                      <th className="py-2.5 px-3 text-left w-10 text-zinc-500 font-bold">#</th>
                       <th className="py-2.5 px-3 text-left font-bold">Medicine Description</th>
                       <th className="py-2.5 px-3 text-left font-bold">Batch No</th>
                       <th className="py-2.5 px-3 text-left font-bold">Exp</th>
@@ -895,46 +844,46 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                       <th className="py-2.5 px-3 text-right font-bold">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-zinc-200">
                     {items.map((item, index) => {
                       const isReturned = (item.returnedQuantity || 0) > 0;
                       return (
                         <tr
                           key={item.id}
-                          className={`hover:bg-muted/20 transition-colors ${
-                            index % 2 === 1 ? 'bg-muted/10' : ''
+                          className={`hover:bg-zinc-50 transition-colors ${
+                            index % 2 === 1 ? 'bg-zinc-50/60' : ''
                           }`}
                         >
-                          <td className="py-2.5 px-3 text-muted-foreground font-medium">{index + 1}</td>
+                          <td className="py-2.5 px-3 text-zinc-500 font-medium">{index + 1}</td>
                           <td className="py-2.5 px-3">
-                            <p className="font-semibold text-foreground">{item.productName}</p>
+                            <p className="font-semibold text-zinc-900">{item.productName}</p>
                             {item.genericName && (
-                              <p className="text-micro text-muted-foreground italic">
+                              <p className="text-micro text-zinc-500 italic">
                                 {item.genericName}
                               </p>
                             )}
                             {isReturned && (
-                              <p className="text-micro text-warning font-semibold">
+                              <p className="text-micro text-amber-600 font-semibold">
                                 Returned: {item.returnedQuantity} units
                               </p>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
+                          <td className="py-2.5 px-3 font-mono text-micro text-zinc-600">
                             {item.batchNumber || '-'}
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
+                          <td className="py-2.5 px-3 font-mono text-micro text-zinc-600">
                             {item.expiryDate ? item.expiryDate.slice(0, 7) : '-'}
                           </td>
-                          <td className="py-2.5 px-2 text-center font-bold tabular-nums">
+                          <td className="py-2.5 px-2 text-center font-bold tabular-nums text-zinc-900">
                             {item.quantity} {item.unit || ''}
                           </td>
-                          <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
+                          <td className="py-2.5 px-3 text-right tabular-nums text-zinc-600">
                             {formatCurrency(item.unitPrice)}
                           </td>
-                          <td className="py-2.5 px-3 text-right tabular-nums text-success">
+                          <td className="py-2.5 px-3 text-right tabular-nums text-emerald-600">
                             {item.discount > 0 ? `-${formatCurrency(item.discount)}` : '-'}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-foreground">
+                          <td className="py-2.5 px-3 text-right font-bold tabular-nums text-zinc-900">
                             {formatCurrency(item.lineTotal)}
                           </td>
                         </tr>
@@ -949,10 +898,10 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 {/* Left Side: Regulatory Terms & Official Stamp */}
                 <div className="space-y-3 text-xs">
                   <div>
-                    <h4 className="font-semibold text-foreground text-xs mb-1">
+                    <h4 className="font-semibold text-zinc-900 text-xs mb-1">
                       Pharmacy Regulations & Return Policy:
                     </h4>
-                    <ul className="text-muted-foreground text-micro space-y-1 list-disc pl-4 leading-relaxed">
+                    <ul className="text-zinc-600 text-micro space-y-1 list-disc pl-4 leading-relaxed">
                       <li>Refrigerated / cold-chain medicines (2°C-8°C) are non-returnable once sold.</li>
                       <li>Unopened medicines in intact blister packs can be exchanged within 7 days with this invoice.</li>
                       <li>Automated computer-generated tax invoice. Valid without physical seal.</li>
@@ -961,11 +910,11 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   </div>
 
                   <div className="pt-2">
-                    <div className="border border-border/70 rounded-lg p-3 w-48 h-20 flex flex-col justify-between bg-muted/10">
-                      <span className="text-micro text-muted-foreground block">
+                    <div className="border border-zinc-300 rounded-lg p-3 w-48 h-20 flex flex-col justify-between bg-zinc-50">
+                      <span className="text-micro text-zinc-500 block">
                         Authorised Pharmacist Stamp
                       </span>
-                      <span className="text-micro font-semibold text-foreground">
+                      <span className="text-micro font-semibold text-zinc-900">
                         {store?.name || 'Dispenco Pharmacy'}
                       </span>
                     </div>
@@ -974,33 +923,33 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
                 {/* Right Side: Totals Matrix */}
                 <div className="space-y-2 text-xs">
-                  <div className="p-4 rounded-xl bg-muted/30 border border-border/70 space-y-2">
-                    <div className="flex justify-between text-muted-foreground">
+                  <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-2">
+                    <div className="flex justify-between text-zinc-600">
                       <span>Gross Subtotal:</span>
-                      <span className="tabular-nums font-semibold text-foreground">
+                      <span className="tabular-nums font-semibold text-zinc-900">
                         {formatCurrency(subtotal)}
                       </span>
                     </div>
 
                     {discountAmount > 0 && (
-                      <div className="flex justify-between text-success font-semibold">
+                      <div className="flex justify-between text-emerald-600 font-semibold">
                         <span>Total Discount Allowed:</span>
                         <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
                       </div>
                     )}
 
                     {taxAmount > 0 && (
-                      <div className="flex justify-between text-muted-foreground">
+                      <div className="flex justify-between text-zinc-600">
                         <span>Sales Tax (GST):</span>
-                        <span className="tabular-nums font-medium text-foreground">
+                        <span className="tabular-nums font-medium text-zinc-900">
                           +{formatCurrency(taxAmount)}
                         </span>
                       </div>
                     )}
 
-                    <div className="pt-2 border-t border-border/80 flex justify-between items-center text-sm font-bold text-foreground">
+                    <div className="pt-2 border-t border-zinc-300 flex justify-between items-center text-sm font-black text-zinc-950">
                       <span>NET PAYABLE:</span>
-                      <span className="text-primary font-mono text-base tabular-nums">
+                      <span className="text-zinc-950 font-mono text-base tabular-nums">
                         {formatCurrency(totalAmount)}
                       </span>
                     </div>
@@ -1009,63 +958,39 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
               </div>
 
               {/* Footer */}
-              <div className="pt-4 border-t border-border/60 text-center text-micro text-muted-foreground space-y-0.5">
+              <div className="pt-4 border-t border-zinc-200 text-center text-micro text-zinc-500 space-y-0.5">
                 <p>{store?.receiptFooter || 'Thank you for choosing us! We wish you good health.'}</p>
                 <p>Powered by Dispenco Pharmacy Management Suite</p>
               </div>
             </div>
           </div>
         ) : (
-          /* Render Format 2: 80mm High-Speed Thermal POS Receipt (Realistic Paper or Dark Theme) */
+          /* Render Format 2: 80mm High-Speed Thermal POS Receipt (Realistic White Thermal Paper) */
           <div className="flex justify-center">
             <div
               id="printable-thermal-receipt"
-              className={`w-full max-w-[420px] transition-all duration-200 rounded-xl shadow-lg border ${
-                paperView
-                  ? 'bg-white text-zinc-900 border-zinc-200 shadow-xl'
-                  : 'bg-card text-foreground border-border/80'
-              }`}
+              className="w-full max-w-[420px] rounded-xl bg-white text-zinc-900 border border-zinc-200 shadow-xl"
             >
               {/* Paper Top Decorative Perforated Edge */}
-              <div
-                className={`h-2 border-b border-dashed ${
-                  paperView ? 'border-zinc-300' : 'border-border/80'
-                }`}
-              />
+              <div className="h-2 border-b border-dashed border-zinc-300" />
 
               <div className="p-5 sm:p-6 space-y-4">
                 {/* Header & Store Identity */}
-                <div
-                  className={`text-center space-y-1.5 pb-4 border-b border-dashed ${
-                    paperView ? 'border-zinc-300' : 'border-border/80'
-                  }`}
-                >
-                  <div
-                    className={`flex items-center justify-center gap-2 font-bold text-lg sm:text-xl tracking-tight ${
-                      paperView ? 'text-zinc-900' : 'text-primary'
-                    }`}
-                  >
+                <div className="text-center space-y-1.5 pb-4 border-b border-dashed border-zinc-300">
+                  <div className="flex items-center justify-center gap-2 font-bold text-lg sm:text-xl tracking-tight text-zinc-900">
                     <Building2 className="size-5 shrink-0" />
                     <span>{store?.name || 'Pharmacy Store'}</span>
                   </div>
 
                   {store?.address && (
-                    <p
-                      className={`text-xs leading-snug px-2 ${
-                        paperView ? 'text-zinc-600' : 'text-muted-foreground'
-                      }`}
-                    >
+                    <p className="text-xs leading-snug px-2 text-zinc-600">
                       {store.address}
                     </p>
                   )}
 
                   <div className="flex items-center justify-center gap-2 pt-1">
-                    <p
-                      className={`text-micro font-mono ${
-                        paperView ? 'text-zinc-600' : 'text-muted-foreground'
-                      }`}
-                    >
-                      Receipt #: <strong className={paperView ? 'text-zinc-900' : 'text-foreground'}>{receiptNumber}</strong>
+                    <p className="text-micro font-mono text-zinc-600">
+                      Receipt #: <strong className="text-zinc-900">{receiptNumber}</strong>
                     </p>
                     {isVoided && (
                       <Badge variant="destructive" className="text-micro font-black uppercase tracking-wider">
@@ -1076,56 +1001,36 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 </div>
 
                 {/* Metadata Grid */}
-                <div
-                  className={`grid grid-cols-2 gap-2 text-xs py-1 border-b border-dashed ${
-                    paperView ? 'border-zinc-300' : 'border-border/80'
-                  }`}
-                >
+                <div className="grid grid-cols-2 gap-2 text-xs py-1 border-b border-dashed border-zinc-300">
                   <div className="space-y-0.5">
-                    <p
-                      className={`text-micro flex items-center gap-1 ${
-                        paperView ? 'text-zinc-500' : 'text-muted-foreground'
-                      }`}
-                    >
+                    <p className="text-micro flex items-center gap-1 text-zinc-500">
                       <Calendar className="size-3" /> Date & Time
                     </p>
-                    <p className={`font-semibold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                    <p className="font-semibold text-zinc-800">
                       {formatDateTime(createdAt)}
                     </p>
                   </div>
 
                   <div className="space-y-0.5 text-right">
-                    <p
-                      className={`text-micro flex items-center justify-end gap-1 ${
-                        paperView ? 'text-zinc-500' : 'text-muted-foreground'
-                      }`}
-                    >
+                    <p className="text-micro flex items-center justify-end gap-1 text-zinc-500">
                       <User className="size-3" /> Cashier
                     </p>
-                    <p className={`font-semibold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                    <p className="font-semibold text-zinc-800">
                       {user?.name || 'Staff'}
                     </p>
                   </div>
 
-                  <div
-                    className={`col-span-2 pt-1.5 border-t flex justify-between items-center text-xs ${
-                      paperView ? 'border-zinc-200' : 'border-border/40'
-                    }`}
-                  >
-                    <span className={paperView ? 'text-zinc-500' : 'text-muted-foreground'}>Doctor / Ref:</span>
-                    <span className={`font-bold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                  <div className="col-span-2 pt-1.5 border-t border-zinc-200 flex justify-between items-center text-xs">
+                    <span className="text-zinc-500">Doctor / Ref:</span>
+                    <span className="font-bold text-zinc-800">
                       {doctorName || 'Self'}
                     </span>
                   </div>
 
                   {customer && (
-                    <div
-                      className={`col-span-2 pt-1 border-t flex justify-between items-center text-xs ${
-                        paperView ? 'border-zinc-200' : 'border-border/40'
-                      }`}
-                    >
-                      <span className={paperView ? 'text-zinc-500' : 'text-muted-foreground'}>Customer:</span>
-                      <span className={`font-bold ${paperView ? 'text-zinc-800' : 'text-foreground'}`}>
+                    <div className="col-span-2 pt-1 border-t border-zinc-200 flex justify-between items-center text-xs">
+                      <span className="text-zinc-500">Customer:</span>
+                      <span className="font-bold text-zinc-800">
                         {customer.name} {customer.phone ? `(${customer.phone})` : ''}
                       </span>
                     </div>
@@ -1134,37 +1039,25 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
                 {/* Line Items Table */}
                 <div className="space-y-2">
-                  <div
-                    className={`flex items-center justify-between text-overline font-bold uppercase tracking-wider pb-1 border-b ${
-                      paperView ? 'text-zinc-600 border-zinc-300' : 'text-muted-foreground border-border/60'
-                    }`}
-                  >
+                  <div className="flex items-center justify-between text-overline font-bold uppercase tracking-wider pb-1 border-b text-zinc-600 border-zinc-300">
                     <span>ITEM</span>
                     <span className="text-right">TOTAL</span>
                   </div>
 
-                  <div
-                    className={`divide-y text-xs space-y-2 ${
-                      paperView ? 'divide-zinc-200' : 'divide-border/40'
-                    }`}
-                  >
+                  <div className="divide-y divide-zinc-200 text-xs space-y-2">
                     {items.map((item, idx) => {
                       return (
                         <div key={item.id || idx} className="pt-2 first:pt-0 space-y-0.5">
                           <div className="flex items-start justify-between gap-2">
-                            <p className={`font-bold leading-snug ${paperView ? 'text-zinc-900' : 'text-foreground'}`}>
+                            <p className="font-bold leading-snug text-zinc-900">
                               {item.productName}
                             </p>
-                            <p className={`font-mono font-bold shrink-0 tabular-nums ${paperView ? 'text-zinc-900' : 'text-foreground'}`}>
+                            <p className="font-mono font-bold shrink-0 tabular-nums text-zinc-900">
                               {formatCurrency(item.lineTotal)}
                             </p>
                           </div>
 
-                          <div
-                            className={`flex items-center justify-between text-micro ${
-                              paperView ? 'text-zinc-600' : 'text-muted-foreground'
-                            }`}
-                          >
+                          <div className="flex items-center justify-between text-micro text-zinc-600">
                             <span>
                               {item.quantity} {item.unit || 'pc'} × {formatCurrency(item.unitPrice)}
                             </span>
@@ -1185,12 +1078,8 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 </div>
 
                 {/* Totals & Calculations */}
-                <div
-                  className={`space-y-1.5 pt-3 border-t border-dashed text-xs ${
-                    paperView ? 'border-zinc-300' : 'border-border/80'
-                  }`}
-                >
-                  <div className={`flex justify-between ${paperView ? 'text-zinc-600' : 'text-muted-foreground'}`}>
+                <div className="space-y-1.5 pt-3 border-t border-dashed border-zinc-300 text-xs">
+                  <div className="flex justify-between text-zinc-600">
                     <span>Subtotal:</span>
                     <span className="tabular-nums font-mono font-semibold">{formatCurrency(subtotal)}</span>
                   </div>
@@ -1203,49 +1092,33 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                   )}
 
                   {taxAmount > 0 && (
-                    <div className={`flex justify-between ${paperView ? 'text-zinc-600' : 'text-muted-foreground'}`}>
+                    <div className="flex justify-between text-zinc-600">
                       <span>Tax (GST):</span>
                       <span className="tabular-nums font-mono font-semibold">+{formatCurrency(taxAmount)}</span>
                     </div>
                   )}
 
-                  <div
-                    className={`flex justify-between items-baseline text-sm font-black pt-2 border-t ${
-                      paperView ? 'border-zinc-400 text-zinc-950' : 'border-border/80 text-foreground'
-                    }`}
-                  >
+                  <div className="flex justify-between items-baseline text-sm font-black pt-2 border-t border-zinc-400 text-zinc-950">
                     <span>GRAND TOTAL</span>
-                    <span
-                      className={`text-base font-mono tracking-tight ${
-                        paperView ? 'text-zinc-950 font-black' : 'text-primary'
-                      }`}
-                    >
+                    <span className="text-base font-mono tracking-tight text-zinc-950 font-black">
                       {formatCurrency(totalAmount)}
                     </span>
                   </div>
                 </div>
 
                 {/* Payment Badge Box */}
-                <div
-                  className={`p-2.5 rounded-lg border text-xs space-y-1 ${
-                    paperView
-                      ? 'bg-zinc-50 border-zinc-200'
-                      : 'bg-muted/40 border-border/60'
-                  }`}
-                >
+                <div className="p-2.5 rounded-lg border bg-zinc-50 border-zinc-200 text-xs space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className={paperView ? 'text-zinc-600' : 'text-muted-foreground'}>Payment Method:</span>
+                    <span className="text-zinc-600">Payment Method:</span>
                     <Badge
                       variant="outline"
-                      className={`font-mono font-bold uppercase text-micro px-2 py-0.5 ${
-                        paperView ? 'border-zinc-300 text-zinc-900 bg-white' : ''
-                      }`}
+                      className="font-mono font-bold uppercase text-micro px-2 py-0.5 border-zinc-300 text-zinc-900 bg-white"
                     >
                       {payment?.method || 'CASH'}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between font-semibold">
-                    <span className={paperView ? 'text-zinc-600' : 'text-muted-foreground'}>Payment Status:</span>
+                    <span className="text-zinc-600">Payment Status:</span>
                     <span
                       className={
                         isVoided
@@ -1265,29 +1138,21 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 </div>
 
                 {/* Footer Note & Barcode */}
-                <div
-                  className={`text-center pt-3 space-y-2 border-t border-dashed text-micro ${
-                    paperView ? 'border-zinc-300 text-zinc-600' : 'border-border/80 text-muted-foreground'
-                  }`}
-                >
+                <div className="text-center pt-3 space-y-2 border-t border-dashed border-zinc-300 text-zinc-600 text-micro">
                   <p className="leading-snug italic font-medium">
                     {store?.receiptFooter ||
                       'Thank you for choosing us! Retain receipt for returns/exchanges within 7 days.'}
                   </p>
 
                   {/* Clean Vector Barcode */}
-                  <div className={paperView ? 'text-zinc-900' : 'text-foreground'}>
+                  <div className="text-zinc-900">
                     <ReceiptBarcode value={receiptNumber} />
                   </div>
                 </div>
               </div>
 
               {/* Paper Bottom Perforated Edge */}
-              <div
-                className={`h-2 border-t border-dashed ${
-                  paperView ? 'border-zinc-300' : 'border-border/80'
-                }`}
-              />
+              <div className="h-2 border-t border-dashed border-zinc-300" />
             </div>
           </div>
         )}
