@@ -732,7 +732,7 @@ export function ProductForm({
                       <div className="sm:px-3 last:pr-0 space-y-0.5">
                         <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
                         <p className="text-xs sm:text-sm font-bold text-success">
-                          {costPriceVal > 0 ? (((sellPriceVal - costPriceVal) / costPriceVal) * 100).toFixed(1) : '0.0'}%
+                          {sellPriceVal > 0 ? (((sellPriceVal - costPriceVal) / sellPriceVal) * 100).toFixed(1) : '0.0'}%
                         </p>
                       </div>
                     </div>
