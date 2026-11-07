@@ -268,6 +268,23 @@ export function ProductForm({
   const costPriceVal = Math.max(0, Number(watch('costPrice')) || 0);
   const sellPriceVal = Math.max(0, Number(watch('sellPrice')) || 0);
   const stockQtyVal = Math.max(0, Number(watch('initialStockQuantity')) || 0);
+  const dosageFormVal = watch('dosageForm');
+
+  const subUnitLabel = packSizeVal > 1
+    ? selectedCategory === 'TABLET_CAPSULE'
+      ? dosageFormVal?.toLowerCase().includes('cap')
+        ? 'Capsule'
+        : dosageFormVal?.toLowerCase().includes('tab')
+          ? 'Tablet'
+          : selectedUnit.toLowerCase() === 'strip'
+            ? 'Tablet'
+            : 'Unit'
+      : selectedCategory === 'INJECTION_INFUSION' && selectedUnit.toLowerCase() === 'box'
+        ? 'Vial'
+        : selectedCategory === 'SYRUP_LIQUID' && selectedUnit.toLowerCase() === 'box'
+          ? 'Bottle'
+          : 'Unit'
+    : selectedUnit;
 
   const onSubmit = handleSubmit(
     async (values) => {
@@ -701,7 +718,7 @@ export function ProductForm({
                       </div>
                       {packSizeVal > 1 && (
                         <Badge variant="outline" className="border-success/30 text-success bg-success/10 text-micro font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
-                          {packSizeVal} Units / {selectedUnit}
+                          {packSizeVal} {formatUnitPlural(subUnitLabel)} / {selectedUnit}
                         </Badge>
                       )}
                     </div>
@@ -709,23 +726,32 @@ export function ProductForm({
                     {/* Metrics Ribbon */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-border/60 pt-0.5">
                       <div className="sm:px-3 first:pl-0 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Cost / Tablet</span>
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
+                          Cost / {subUnitLabel}
+                        </span>
                         <p className="text-xs sm:text-sm font-bold text-foreground">
                           PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
                         </p>
                       </div>
 
                       <div className="sm:px-3 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Retail / Tablet</span>
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
+                          Retail / {subUnitLabel}
+                        </span>
                         <p className="text-xs sm:text-sm font-extrabold text-success">
                           PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
                         </p>
                       </div>
 
                       <div className="sm:px-3 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Total Loose Stock</span>
+                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
+                          {packSizeVal > 1 ? 'Total Loose Stock' : 'Total Stock'}
+                        </span>
                         <p className="text-xs sm:text-sm font-bold text-foreground">
-                          {(stockQtyVal * packSizeVal).toLocaleString()} <span className="text-micro font-normal text-muted-foreground">Units</span>
+                          {(stockQtyVal * packSizeVal).toLocaleString()}{' '}
+                          <span className="text-micro font-normal text-muted-foreground">
+                            {formatUnitPlural(subUnitLabel)}
+                          </span>
                         </p>
                       </div>
 
@@ -740,7 +766,11 @@ export function ProductForm({
                     {/* Micro-copy Note */}
                     <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-micro text-muted-foreground leading-tight">
                       <Info className="size-3.5 text-success shrink-0" />
-                      <span>Supports full {selectedUnit} and loose sub-unit POS sales.</span>
+                      <span>
+                        {packSizeVal > 1
+                          ? `Supports full ${selectedUnit} and loose ${formatUnitPlural(subUnitLabel).toLowerCase()} POS sales.`
+                          : `Supports POS sales in full ${formatUnitPlural(selectedUnit)}.`}
+                      </span>
                     </div>
                   </div>
                 )}
