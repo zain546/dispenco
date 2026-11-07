@@ -537,23 +537,29 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                     <span>Tips</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 p-3.5 text-xs space-y-2 shadow-xl border-border" align="center">
-                  <div className="flex items-center gap-2 pb-1 border-b border-border">
-                    <SlidersHorizontal className="size-3.5 text-primary" />
+                <PopoverContent className="w-72 p-3.5 text-xs space-y-2.5 shadow-xl border-border" align="center">
+                  <div className="flex items-center gap-2 pb-1.5 border-b border-border">
+                    <SlidersHorizontal className="size-3.5 text-primary shrink-0" />
                     <h4 className="font-bold text-foreground">Printer Settings</h4>
                   </div>
-                  <ul className="space-y-1.5 text-micro text-muted-foreground">
-                    <li className="flex items-start gap-1">
-                      <span className="font-bold text-foreground">1. Paper:</span>
-                      <span>80mm Roll (or 3-inch)</span>
+                  <ul className="space-y-2 text-micro leading-relaxed">
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-primary shrink-0 w-3.5">1.</span>
+                      <p className="text-muted-foreground">
+                        <span className="font-bold text-foreground">Paper:</span> 80mm Roll (or 3-inch)
+                      </p>
                     </li>
-                    <li className="flex items-start gap-1">
-                      <span className="font-bold text-foreground">2. Margins:</span>
-                      <span>Set to <strong>None</strong></span>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-primary shrink-0 w-3.5">2.</span>
+                      <p className="text-muted-foreground">
+                        <span className="font-bold text-foreground">Margins:</span> Set to <strong className="text-foreground">None</strong>
+                      </p>
                     </li>
-                    <li className="flex items-start gap-1">
-                      <span className="font-bold text-foreground">3. Headers/Footers:</span>
-                      <span><strong>Uncheck</strong></span>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-primary shrink-0 w-3.5">3.</span>
+                      <p className="text-muted-foreground">
+                        <span className="font-bold text-foreground">Headers & Footers:</span> <strong className="text-foreground">Uncheck</strong>
+                      </p>
                     </li>
                   </ul>
                 </PopoverContent>
@@ -672,28 +678,36 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-4 text-xs space-y-2.5 shadow-xl border-border" align="end">
                   <div className="flex items-center gap-2 pb-1.5 border-b border-border">
-                    <SlidersHorizontal className="size-4 text-primary" />
+                    <SlidersHorizontal className="size-4 text-primary shrink-0" />
                     <h4 className="font-bold text-foreground">Thermal Printer Connection Tips</h4>
                   </div>
                   <p className="text-muted-foreground text-micro leading-relaxed">
                     When connecting your USB / Network 80mm receipt printer, configure your browser print dialog once:
                   </p>
-                  <ul className="space-y-1.5 text-micro">
-                    <li className="flex items-start gap-1.5">
-                      <span className="font-bold text-primary">1. Destination:</span>
-                      <span className="text-foreground">Choose your Thermal Printer (e.g. POS-80, Xprinter, Epson, CBM-1000).</span>
+                  <ul className="space-y-2 text-micro leading-relaxed">
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-primary shrink-0 w-3.5">1.</span>
+                      <p className="text-foreground">
+                        <span className="font-bold text-primary">Destination:</span> Choose your Thermal Printer (e.g. POS-80, Xprinter, Epson, CBM-1000).
+                      </p>
                     </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="font-bold text-primary">2. Paper Size:</span>
-                      <span className="text-foreground">Set to <strong>80mm Roll</strong> or <strong>80mm × 297mm</strong>.</span>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-primary shrink-0 w-3.5">2.</span>
+                      <p className="text-foreground">
+                        <span className="font-bold text-primary">Paper Size:</span> Set to <strong>80mm Roll</strong> or <strong>80mm × 297mm</strong>.
+                      </p>
                     </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="font-bold text-primary">3. Margins:</span>
-                      <span className="text-foreground">Set to <strong>None</strong> (prevents extra paper feeds).</span>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-primary shrink-0 w-3.5">3.</span>
+                      <p className="text-foreground">
+                        <span className="font-bold text-primary">Margins:</span> Set to <strong>None</strong> (prevents extra paper feeds).
+                      </p>
                     </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="font-bold text-primary">4. Headers & Footers:</span>
-                      <span className="text-foreground"><strong>Uncheck</strong> (removes unwanted URL & date text).</span>
+                    <li className="flex items-start gap-2">
+                      <span className="font-bold text-primary shrink-0 w-3.5">4.</span>
+                      <p className="text-foreground">
+                        <span className="font-bold text-primary">Headers & Footers:</span> <strong>Uncheck</strong> (removes unwanted URL & date text).
+                      </p>
                     </li>
                   </ul>
                   <div className="pt-1.5 border-t border-border flex justify-between items-center text-micro font-medium text-muted-foreground">
