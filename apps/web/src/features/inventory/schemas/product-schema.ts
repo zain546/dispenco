@@ -22,6 +22,7 @@ export const PRODUCT_UNITS = [
 ] as const;
 
 export const productFormSchema = z.object({
+  isEditing: z.boolean().optional(),
   name: z.string().min(2, 'Product name must be at least 2 characters'),
   genericName: z.string().optional(),
   category: z.string().min(1, 'Please select a category'),
@@ -102,6 +103,24 @@ export const productFormSchema = z.object({
         path: ['sellPrice'],
         message: 'Retail price (MRP) is required when adding stock',
       });
+    }
+  }
+
+  // Ensure expiryDate is not in the past for new stock / new intake
+  if (data.expiryDate && data.expiryDate.trim()) {
+    const parts = data.expiryDate.split('-').map(Number);
+    if (parts.length === 3 && !parts.some(isNaN)) {
+      const expDate = new Date(parts[0], parts[1] - 1, parts[2]);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (!data.isEditing && expDate < today) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['expiryDate'],
+          message: 'Expiry date cannot be in the past',
+        });
+      }
     }
   }
 });

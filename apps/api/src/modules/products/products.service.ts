@@ -87,6 +87,19 @@ export class ProductsService {
             'Purchase price (costPrice), retail price (sellPrice), and expiry date are required when initial stock is specified.'
           );
         }
+
+        const parsedExpiry = new Date(dto.expiryDate);
+        if (isNaN(parsedExpiry.getTime())) {
+          throw new BadRequestException('Invalid expiry date format');
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parsedExpiry < today) {
+          throw new BadRequestException(
+            'Expiry date cannot be in the past for new stock intake'
+          );
+        }
         // Find or fallback to primary store for tenant
         let store: { id: string; name: string } | null = null;
         if (dto.storeId) {

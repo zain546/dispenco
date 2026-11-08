@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
@@ -115,6 +115,7 @@ export function ProductForm({
   } = useForm({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
+      isEditing: Boolean(isEditing),
       name: initialData?.name || '',
       genericName: initialData?.genericName || '',
       category: initialData?.category || 'TABLET_CAPSULE',
@@ -279,6 +280,45 @@ export function ProductForm({
   const sellPriceVal = Math.max(0, Number(watch('sellPrice')) || 0);
   const stockQtyVal = Math.max(0, Number(watch('initialStockQuantity')) || 0);
   const dosageFormVal = watch('dosageForm');
+  const expiryDateVal = watch('expiryDate');
+
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const expiryWarning = useMemo(() => {
+    if (!expiryDateVal || !expiryDateVal.trim()) return null;
+    const parts = expiryDateVal.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    const expDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const diffTime = expDate.getTime() - now.getTime();
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (days < 0) {
+      return {
+        type: 'expired' as const,
+        days: Math.abs(days),
+        message: `This lot expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago.`,
+      };
+    }
+    if (days === 0) {
+      return {
+        type: 'near' as const,
+        days: 0,
+        message: 'Expires today! Immediate dispensing priority required.',
+      };
+    }
+    if (days <= 30) {
+      return {
+        type: 'near' as const,
+        days,
+        message: `Expires in ${days} day${days === 1 ? '' : 's'} (short expiry). Priority FEFO dispensing will apply.`,
+      };
+    }
+    return null;
+  }, [expiryDateVal]);
 
   const subUnitLabel = packSizeVal > 1
     ? selectedCategory === 'TABLET_CAPSULE'
@@ -668,11 +708,24 @@ export function ProductForm({
                   <Input
                     id="expiryDate"
                     type="date"
+                    min={!isEditing ? todayString : undefined}
                     {...register('expiryDate')}
                   />
-                  {errors.expiryDate && (
-                    <p className="text-xs text-destructive">{errors.expiryDate.message}</p>
-                  )}
+                  {errors.expiryDate ? (
+                    <p className="text-xs text-destructive font-medium">{errors.expiryDate.message}</p>
+                  ) : expiryWarning ? (
+                    expiryWarning.type === 'expired' ? (
+                      <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-micro text-destructive flex items-center gap-1.5 animate-in fade-in">
+                        <ShieldAlert className="size-3.5 shrink-0" />
+                        <span><strong>Expired Lot:</strong> {expiryWarning.message}</span>
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-micro text-amber-700 dark:text-amber-400 flex items-center gap-1.5 animate-in fade-in">
+                        <AlertCircle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <span><strong>Short Expiry Notice:</strong> {expiryWarning.message}</span>
+                      </div>
+                    )
+                  ) : null}
                 </div>
 
                 {/* Purchase / Cost Price */}
