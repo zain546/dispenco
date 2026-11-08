@@ -25,6 +25,7 @@ import {
   Plus,
   Info,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -36,6 +37,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -44,6 +55,7 @@ import {
 } from '@/components/ui/select';
 import {
   productFormSchema,
+  type ProductFormValues,
   PRODUCT_CATEGORIES,
   PRODUCT_UNITS,
 } from '../schemas/product-schema';
@@ -75,6 +87,8 @@ export function ProductForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingSubmitValues, setPendingSubmitValues] = useState<ProductFormValues | null>(null);
+  const [showInvertedPriceDialog, setShowInvertedPriceDialog] = useState(false);
 
   // Batch state for existing products
   const [batches, setBatches] = useState<BatchData[]>(initialData?.batches || []);
@@ -336,10 +350,9 @@ export function ProductForm({
           : 'Unit'
     : selectedUnit;
 
-  const onSubmit = handleSubmit(
-    async (values) => {
-      setError(null);
-      setIsLoading(true);
+  const executeSubmit = async (values: ProductFormValues) => {
+    setError(null);
+    setIsLoading(true);
 
     // Build attributes payload based on category
     const attributes: Record<string, any> = {};
@@ -441,14 +454,38 @@ export function ProductForm({
     } finally {
       setIsLoading(false);
     }
-  },
-  (formErrors) => {
-    setError(null);
-    const firstError = Object.values(formErrors)[0]?.message;
-    if (firstError) {
-      toast.error(String(firstError));
+  };
+
+  const onSubmit = handleSubmit(
+    async (values) => {
+      setError(null);
+      const cost = values.costPrice !== undefined ? Number(values.costPrice) : 0;
+      const sell = values.sellPrice !== undefined ? Number(values.sellPrice) : 0;
+
+      if (cost > 0 && sell > 0 && cost > sell) {
+        setPendingSubmitValues(values);
+        setShowInvertedPriceDialog(true);
+        return;
+      }
+
+      await executeSubmit(values);
+    },
+    (formErrors) => {
+      setError(null);
+      const firstError = Object.values(formErrors)[0]?.message;
+      if (firstError) {
+        toast.error(String(firstError));
+      }
     }
-  });
+  );
+
+  const handleConfirmInvertedPricing = async () => {
+    if (!pendingSubmitValues) return;
+    const valuesToSubmit = pendingSubmitValues;
+    setShowInvertedPriceDialog(false);
+    await executeSubmit(valuesToSubmit);
+    setPendingSubmitValues(null);
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto px-0 sm:px-4 pb-28 sm:pb-12">
@@ -833,7 +870,7 @@ export function ProductForm({
 
                       <div className="sm:px-3 last:pr-0 space-y-0.5">
                         <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
-                        <p className="text-xs sm:text-sm font-bold text-success">
+                        <p className={`text-xs sm:text-sm font-bold ${sellPriceVal > 0 && costPriceVal > sellPriceVal ? 'text-destructive font-black' : 'text-success'}`}>
                           {sellPriceVal > 0 ? (((sellPriceVal - costPriceVal) / sellPriceVal) * 100).toFixed(1) : '0.0'}%
                         </p>
                       </div>
@@ -1200,6 +1237,81 @@ export function ProductForm({
         </div>
       </form>
 
-      </div>
+      {/* Inverted Pricing Confirmation Modal */}
+      <AlertDialog
+        open={showInvertedPriceDialog}
+        onOpenChange={(open) => {
+          setShowInvertedPriceDialog(open);
+          if (!open) setPendingSubmitValues(null);
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md p-5 sm:p-6 gap-4">
+          <AlertDialogHeader className="sm:text-left gap-3">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                <AlertTriangle className="size-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-base font-semibold text-foreground">
+                  Selling Price is Below Cost
+                </AlertDialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Check if prices were entered correctly
+                </p>
+              </div>
+            </div>
+
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-1 text-xs text-foreground">
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  Your purchase cost is higher than your selling price. Selling this medicine will result in a loss.
+                </p>
+
+                {/* Clean Price Comparison Box */}
+                <div className="rounded-lg border border-border/80 bg-muted/40 p-3 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Purchase Cost:</span>
+                    <span className="font-semibold text-foreground">
+                      PKR {pendingSubmitValues?.costPrice !== undefined ? Number(pendingSubmitValues.costPrice).toFixed(2) : '0.00'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Retail Price (MRP):</span>
+                    <span className="font-bold text-destructive">
+                      PKR {pendingSubmitValues?.sellPrice !== undefined ? Number(pendingSubmitValues.sellPrice).toFixed(2) : '0.00'}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Did you accidentally swap the purchase price and retail price?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="grid grid-cols-2 gap-2.5 sm:flex sm:justify-end sm:gap-2.5 pt-1">
+            <AlertDialogCancel
+              variant="default"
+              disabled={isLoading}
+              className="w-full sm:w-auto h-9 text-xs font-semibold shadow-xs order-1"
+            >
+              Fix Prices
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="secondary"
+              type="button"
+              onClick={handleConfirmInvertedPricing}
+              disabled={isLoading}
+              className="w-full sm:w-auto h-9 text-xs font-medium order-2"
+            >
+              {isLoading && <Loader2 className="size-3.5 animate-spin mr-1" />}
+              Save Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+    </div>
   );
 }
