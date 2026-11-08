@@ -89,6 +89,7 @@ export function ProductForm({
   const [isLoading, setIsLoading] = useState(false);
   const [pendingSubmitValues, setPendingSubmitValues] = useState<ProductFormValues | null>(null);
   const [showInvertedPriceDialog, setShowInvertedPriceDialog] = useState(false);
+  const [showBarcodeCollisionDialog, setShowBarcodeCollisionDialog] = useState(false);
 
   // Batch state for existing products
   const [batches, setBatches] = useState<BatchData[]>(initialData?.batches || []);
@@ -264,6 +265,38 @@ export function ProductForm({
       }
     },
     [isEditing, setValue, watch]
+  );
+
+  const handleNavigateToReceiveBatch = useCallback(() => {
+    if (!scannedExistingProduct) return;
+    const params = new URLSearchParams();
+    params.set('productId', scannedExistingProduct.id);
+    if (watch('batchNumber')) params.set('batchNumber', String(watch('batchNumber')));
+    if (watch('expiryDate')) params.set('expiryDate', String(watch('expiryDate')));
+    if (watch('mfgDate')) params.set('mfgDate', String(watch('mfgDate')));
+    router.push(`/inventory/receive?${params.toString()}`);
+  }, [scannedExistingProduct, watch, router]);
+
+  const handleBarcodeChange = useCallback(
+    async (val: string) => {
+      setValue('barcode', val, { shouldValidate: true, shouldDirty: true });
+      const clean = val.trim();
+      if (!clean || isEditing) {
+        setScannedExistingProduct(null);
+        return;
+      }
+      try {
+        const res = await productsApi.lookupByBarcode(clean);
+        if (res?.product) {
+          setScannedExistingProduct(res.product);
+        } else {
+          setScannedExistingProduct(null);
+        }
+      } catch {
+        setScannedExistingProduct(null);
+      }
+    },
+    [isEditing, setValue]
   );
 
   // Pre-fill from URL query parameters (e.g. navigated from POS "Add New Medicine from Scan")
@@ -459,6 +492,13 @@ export function ProductForm({
   const onSubmit = handleSubmit(
     async (values) => {
       setError(null);
+
+      // Barcode Collision Guard: Prevent duplicate product creation conflict
+      if (!isEditing && scannedExistingProduct) {
+        setShowBarcodeCollisionDialog(true);
+        return;
+      }
+
       const cost = values.costPrice !== undefined ? Number(values.costPrice) : 0;
       const sell = values.sellPrice !== undefined ? Number(values.sellPrice) : 0;
 
@@ -561,31 +601,35 @@ export function ProductForm({
                 buttonOnly
                 buttonLabel="Scan Box"
                 value={watch('barcode') || ''}
-                onChange={(val) => setValue('barcode', val, { shouldValidate: true, shouldDirty: true })}
+                onChange={handleBarcodeChange}
                 onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
               />
             </div>
 
             {scannedExistingProduct && (
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-primary/20 text-xs">
-                <span className="text-muted-foreground truncate">
-                  Found <strong className="text-foreground">{scannedExistingProduct.name}</strong> in catalog
-                </span>
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs animate-in fade-in">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="size-7 rounded-md bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                    <Boxes className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">
+                      Medicine already in catalog: <span className="text-primary font-bold">{scannedExistingProduct.name}</span>
+                    </p>
+                    <p className="text-micro text-muted-foreground">
+                      Barcode {watch('barcode')} is already registered. Switch to receive a new stock batch.
+                    </p>
+                  </div>
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   size="sm"
-                  onClick={() => {
-                    const params = new URLSearchParams();
-                    params.set('productId', scannedExistingProduct.id);
-                    if (watch('batchNumber')) params.set('batchNumber', String(watch('batchNumber')));
-                    if (watch('expiryDate')) params.set('expiryDate', String(watch('expiryDate')));
-                    if (watch('mfgDate')) params.set('mfgDate', String(watch('mfgDate')));
-                    router.push(`/inventory/receive?${params.toString()}`);
-                  }}
-                  className="h-7 px-2.5 text-micro font-semibold shrink-0 bg-background"
+                  onClick={handleNavigateToReceiveBatch}
+                  className="h-8 px-3 text-xs font-semibold shrink-0 gap-1.5 w-full sm:w-auto shadow-xs"
                 >
-                  Receive Batch Instead
+                  <Boxes className="size-3.5" />
+                  <span>Receive Batch Instead</span>
                 </Button>
               </div>
             )}
@@ -995,9 +1039,34 @@ export function ProductForm({
                   id="barcode"
                   placeholder="Scan or enter barcode (e.g. 08964001422082)"
                   value={watch('barcode') || ''}
-                  onChange={(val) => setValue('barcode', val, { shouldValidate: true, shouldDirty: true })}
+                  onChange={handleBarcodeChange}
                   onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
                 />
+                {scannedExistingProduct && !isEditing && (
+                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in mt-1.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="font-semibold text-foreground">
+                          Barcode already belongs to <span className="text-amber-500 font-bold">{scannedExistingProduct.name}</span>
+                        </p>
+                        <p className="text-micro text-muted-foreground">
+                          Duplicate barcodes are not allowed. Switch to receive a new stock batch for this medicine.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      onClick={handleNavigateToReceiveBatch}
+                      className="h-8 px-3 text-xs font-semibold gap-1.5 shrink-0 w-full sm:w-auto shadow-xs"
+                    >
+                      <Boxes className="size-3.5" />
+                      <span>Receive Batch</span>
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
         </Card>
@@ -1170,6 +1239,9 @@ export function ProductForm({
                   },
                 })}
               />
+              {errors.lowStockThreshold && (
+                <p className="text-xs text-destructive">{errors.lowStockThreshold.message}</p>
+              )}
               <p className="text-micro text-muted-foreground">
                 Alert when stock falls below this level.
               </p>
@@ -1217,23 +1289,35 @@ export function ProductForm({
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="flex-[1.5] sm:flex-none sm:min-w-[140px] h-10 px-6 text-xs sm:text-sm font-semibold gap-2 shadow-xs"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <Save className="size-4" />
-                <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
-              </>
-            )}
-          </Button>
+          {scannedExistingProduct && !isEditing ? (
+            <Button
+              type="button"
+              onClick={handleNavigateToReceiveBatch}
+              disabled={isLoading}
+              className="flex-[1.5] sm:flex-none sm:min-w-[160px] h-10 px-6 text-xs sm:text-sm font-semibold gap-2 shadow-xs"
+            >
+              <Boxes className="size-4" />
+              <span>Receive Batch Instead</span>
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="flex-[1.5] sm:flex-none sm:min-w-[140px] h-10 px-6 text-xs sm:text-sm font-semibold gap-2 shadow-xs"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="size-4" />
+                  <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </form>
 
@@ -1307,6 +1391,91 @@ export function ProductForm({
             >
               {isLoading && <Loader2 className="size-3.5 animate-spin mr-1" />}
               Save Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Barcode Collision Confirmation Modal */}
+      <AlertDialog
+        open={showBarcodeCollisionDialog}
+        onOpenChange={setShowBarcodeCollisionDialog}
+      >
+        <AlertDialogContent className="sm:max-w-md p-5 sm:p-6 gap-4">
+          <AlertDialogHeader className="sm:text-left gap-3">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+                <Boxes className="size-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-base font-semibold text-foreground">
+                  Medicine Already in Catalog
+                </AlertDialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Barcode is already linked to an existing medicine
+                </p>
+              </div>
+            </div>
+
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-1 text-xs text-foreground">
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  <strong>{scannedExistingProduct?.name}</strong> is already registered in your inventory with this barcode. You cannot create a duplicate medicine record with the same barcode.
+                </p>
+
+                {/* Medicine Summary Box */}
+                <div className="rounded-lg border border-border/80 bg-muted/40 p-3 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Medicine:</span>
+                    <span className="font-semibold text-foreground">
+                      {scannedExistingProduct?.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Barcode:</span>
+                    <span className="font-mono text-foreground">
+                      {scannedExistingProduct?.barcode || watch('barcode')}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Current Stock:</span>
+                    <span className="font-semibold text-foreground">
+                      {scannedExistingProduct?.totalStock ?? 0} {formatUnitPlural(scannedExistingProduct?.unit || 'Box')}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Would you like to receive a new stock batch for this medicine instead?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="grid grid-cols-2 gap-2.5 sm:flex sm:justify-end sm:gap-2.5 pt-1">
+            <AlertDialogCancel
+              variant="secondary"
+              disabled={isLoading}
+              onClick={() => {
+                setValue('barcode', '', { shouldDirty: true });
+                setScannedExistingProduct(null);
+              }}
+              className="w-full sm:w-auto h-9 text-xs font-medium order-2"
+            >
+              Clear Barcode
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="default"
+              type="button"
+              onClick={() => {
+                setShowBarcodeCollisionDialog(false);
+                handleNavigateToReceiveBatch();
+              }}
+              disabled={isLoading}
+              className="w-full sm:w-auto h-9 text-xs font-semibold shadow-xs order-1"
+            >
+              <Boxes className="size-3.5 mr-1" />
+              Receive Batch
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

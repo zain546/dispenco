@@ -23,16 +23,16 @@ export const PRODUCT_UNITS = [
 
 export const productFormSchema = z.object({
   isEditing: z.boolean().optional(),
-  name: z.string().min(2, 'Product name must be at least 2 characters'),
+  name: z.string().min(2, 'Please enter a medicine name (at least 2 characters)'),
   genericName: z.string().optional(),
   category: z.string().min(1, 'Please select a category'),
-  unit: z.string().min(1, 'Please select or enter a unit of measure'),
+  unit: z.string().min(1, 'Please select a package unit (e.g. Box, Strip, Bottle)'),
   barcode: z.string().optional(),
   taxCode: z.string().optional(),
   isControlledSubstance: z.boolean().default(false),
   lowStockThreshold: z.preprocess(
     (v) => (v === '' || v === null || v === undefined ? 10 : Number(v)),
-    z.number().min(0, 'Threshold must be 0 or greater').default(10)
+    z.number().min(0, 'Low stock alert threshold cannot be negative').default(10)
   ),
 
   // Mandatory Initial Stock & Pricing Fields
@@ -118,7 +118,7 @@ export const productFormSchema = z.object({
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['expiryDate'],
-          message: 'Expiry date cannot be in the past',
+          message: 'Expiry date cannot be in the past. Please select a valid future date.',
         });
       }
     }

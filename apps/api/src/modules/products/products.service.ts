@@ -84,20 +84,20 @@ export class ProductsService {
           !dto.expiryDate
         ) {
           throw new BadRequestException(
-            'Purchase price (costPrice), retail price (sellPrice), and expiry date are required when initial stock is specified.'
+            'Purchase price, retail price (MRP), and expiry date are required when adding initial stock.'
           );
         }
 
         const parsedExpiry = new Date(dto.expiryDate);
         if (isNaN(parsedExpiry.getTime())) {
-          throw new BadRequestException('Invalid expiry date format');
+          throw new BadRequestException('Invalid expiry date format. Please provide a valid date.');
         }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (parsedExpiry < today) {
           throw new BadRequestException(
-            'Expiry date cannot be in the past for new stock intake'
+            'Expiry date cannot be in the past for new stock intake. Please select a valid future date.'
           );
         }
         // Find or fallback to primary store for tenant
