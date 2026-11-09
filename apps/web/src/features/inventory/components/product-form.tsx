@@ -28,21 +28,9 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScannerInput, type Gs1ParsedMedicineData } from '@/components/ui/scanner-input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -60,6 +48,25 @@ import { productsApi, type ProductData, type BatchData } from '../services/produ
 import { suppliersApi, type SupplierData } from '@/features/suppliers/services/suppliers-api';
 import { formatUnitPlural } from './product-list';
 import { getErrorMessage } from '@/lib/errors';
+import {
+  PosUnitBreakdown,
+  ExpiryDateNotice,
+  RequiredStockIndicator,
+  normalizeUnit,
+} from './product-form/stock-pricing-widgets';
+import {
+  SmartScanSubtitle,
+  BarcodeScannerField,
+} from './product-form/barcode-scanner-banner';
+import {
+  PrescriptionStatusSection,
+  DosageFormField,
+} from './product-form/category-details-section';
+import {
+  InvertedPriceDialog,
+  BarcodeCollisionDialog,
+} from './product-form/product-form-dialogs';
+import type { Gs1ParsedMedicineData } from '@/components/ui/scanner-input';
 
 interface ProductFormProps {
   initialData?: ProductData;
@@ -67,370 +74,6 @@ interface ProductFormProps {
   initialBatchId?: string | null;
   initialBatchNumber?: string | null;
 }
-
-function normalizeUnit(unit?: string | null): string {
-  if (!unit) return 'Box';
-  const clean = unit.trim().toLowerCase();
-  if (clean === 'pack' || clean === 'packs') return 'Box';
-  return unit.trim();
-}
-
-/**
- * Isolated live calculation ribbon for retail unit conversion and profit margins.
- * Subscribes to only relevant pricing and pack size fields via useWatch so that
- * keystrokes in these inputs do NOT re-render the entire ProductForm tree.
- */
-const PosUnitBreakdown = React.memo(function PosUnitBreakdown({
-  control,
-}: {
-  control: any;
-}) {
-  const [packSize, costPrice, sellPrice, initialStockQuantity, category, unit, dosageForm] = useWatch({
-    control,
-    name: [
-      'packSize',
-      'costPrice',
-      'sellPrice',
-      'initialStockQuantity',
-      'category',
-      'unit',
-      'dosageForm',
-    ],
-  });
-
-  const packSizeVal = Math.max(1, Number(packSize) || 1);
-  const costPriceVal = Math.max(0, Number(costPrice) || 0);
-  const sellPriceVal = Math.max(0, Number(sellPrice) || 0);
-  const stockQtyVal = Math.max(0, Number(initialStockQuantity) || 0);
-  const selectedUnit = normalizeUnit(unit || 'Box');
-  const selectedCategory = category || 'TABLET_CAPSULE';
-
-  const subUnitLabel =
-    packSizeVal > 1
-      ? selectedCategory === 'TABLET_CAPSULE'
-        ? dosageForm?.toLowerCase().includes('cap')
-          ? 'Capsule'
-          : dosageForm?.toLowerCase().includes('tab')
-            ? 'Tablet'
-            : selectedUnit.toLowerCase() === 'strip'
-              ? 'Tablet'
-              : 'Unit'
-        : selectedCategory === 'INJECTION_INFUSION' && selectedUnit.toLowerCase() === 'box'
-          ? 'Vial'
-          : selectedCategory === 'SYRUP_LIQUID' && selectedUnit.toLowerCase() === 'box'
-            ? 'Bottle'
-            : 'Unit'
-      : selectedUnit;
-
-  if (packSizeVal <= 1 && costPriceVal === 0 && sellPriceVal === 0) {
-    return null;
-  }
-
-  return (
-    <div className="col-span-1 sm:col-span-2 rounded-xl border border-success/30 bg-success/5 p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-2xs">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="size-6 rounded-md bg-success/10 text-success flex items-center justify-center shrink-0">
-            <Layers className="size-3.5" />
-          </div>
-          <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
-            <span className="hidden sm:inline">Retail POS Unit Conversion Breakdown</span>
-            <span className="sm:hidden font-bold">POS Unit Breakdown</span>
-          </span>
-        </div>
-        {packSizeVal > 1 && (
-          <Badge
-            variant="outline"
-            className="border-success/30 text-success bg-success/10 text-micro font-bold px-2 py-0.5 shrink-0 whitespace-nowrap"
-          >
-            {packSizeVal} {formatUnitPlural(subUnitLabel)} / {selectedUnit}
-          </Badge>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-border/60 pt-0.5">
-        <div className="sm:px-3 first:pl-0 space-y-0.5">
-          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
-            Cost / {subUnitLabel}
-          </span>
-          <p className="text-xs sm:text-sm font-bold text-foreground">
-            PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
-          </p>
-        </div>
-
-        <div className="sm:px-3 space-y-0.5">
-          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
-            Retail / {subUnitLabel}
-          </span>
-          <p className="text-xs sm:text-sm font-extrabold text-success">
-            PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
-          </p>
-        </div>
-
-        <div className="sm:px-3 space-y-0.5">
-          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
-            {packSizeVal > 1 ? 'Total Loose Stock' : 'Total Stock'}
-          </span>
-          <p className="text-xs sm:text-sm font-bold text-foreground">
-            {(stockQtyVal * packSizeVal).toLocaleString()}{' '}
-            <span className="text-micro font-normal text-muted-foreground">
-              {formatUnitPlural(subUnitLabel)}
-            </span>
-          </p>
-        </div>
-
-        <div className="sm:px-3 last:pr-0 space-y-0.5">
-          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
-            Est. Gross Margin
-          </span>
-          <p
-            className={`text-xs sm:text-sm font-bold ${
-              sellPriceVal > 0 && costPriceVal > sellPriceVal
-                ? 'text-destructive font-black'
-                : 'text-success'
-            }`}
-          >
-            {sellPriceVal > 0 ? (((sellPriceVal - costPriceVal) / sellPriceVal) * 100).toFixed(1) : '0.0'}%
-          </p>
-        </div>
-      </div>
-
-      <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-micro text-muted-foreground leading-tight">
-        <Info className="size-3.5 text-success shrink-0" />
-        <span>
-          {packSizeVal > 1
-            ? `Supports full ${selectedUnit} and loose ${formatUnitPlural(subUnitLabel).toLowerCase()} POS sales.`
-            : `Supports POS sales in full ${formatUnitPlural(selectedUnit)}.`}
-        </span>
-      </div>
-    </div>
-  );
-});
-
-/**
- * Isolated expiry date warning banner to prevent expiry date changes from re-rendering the whole form.
- */
-const ExpiryDateNotice = React.memo(function ExpiryDateNotice({
-  control,
-}: {
-  control: any;
-}) {
-  const expiryDateVal = useWatch({ control, name: 'expiryDate' });
-
-  const expiryWarning = useMemo(() => {
-    if (!expiryDateVal || !expiryDateVal.trim()) return null;
-    const parts = expiryDateVal.split('-').map(Number);
-    if (parts.length !== 3 || parts.some(isNaN)) return null;
-    const expDate = new Date(parts[0], parts[1] - 1, parts[2]);
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    const diffTime = expDate.getTime() - now.getTime();
-    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (days < 0) {
-      return {
-        type: 'expired' as const,
-        days: Math.abs(days),
-        message: `This lot expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago.`,
-      };
-    }
-    if (days === 0) {
-      return {
-        type: 'near' as const,
-        days: 0,
-        message: 'Expires today! Immediate dispensing priority required.',
-      };
-    }
-    if (days <= 30) {
-      return {
-        type: 'near' as const,
-        days,
-        message: `Expires in ${days} day${days === 1 ? '' : 's'} (short expiry). Priority FEFO dispensing will apply.`,
-      };
-    }
-    return null;
-  }, [expiryDateVal]);
-
-  if (!expiryWarning) return null;
-
-  return expiryWarning.type === 'expired' ? (
-    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-micro text-destructive flex items-center gap-1.5 animate-in fade-in">
-      <ShieldAlert className="size-3.5 shrink-0" />
-      <span>
-        <strong>Expired Lot:</strong> {expiryWarning.message}
-      </span>
-    </div>
-  ) : (
-    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-micro text-amber-700 dark:text-amber-400 flex items-center gap-1.5 animate-in fade-in">
-      <AlertCircle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-      <span>
-        <strong>Short Expiry Notice:</strong> {expiryWarning.message}
-      </span>
-    </div>
-  );
-});
-
-/**
- * Isolated asterisk indicator for fields required only when initial stock is entered.
- */
-const RequiredStockIndicator = React.memo(function RequiredStockIndicator({
-  control,
-}: {
-  control: any;
-}) {
-  const stockQty = useWatch({ control, name: 'initialStockQuantity' });
-  const hasStock = Number(stockQty) > 0;
-  if (!hasStock) return null;
-  return (
-    <span className="text-destructive font-bold text-xs" title="Required when stock > 0">
-      *
-    </span>
-  );
-});
-
-/**
- * Isolated prescription toggle to eliminate root re-renders on checkbox changes.
- */
-const PrescriptionStatusSection = React.memo(function PrescriptionStatusSection({
-  control,
-  setValue,
-}: {
-  control: any;
-  setValue: any;
-}) {
-  const isControlled = useWatch({ control, name: 'isControlledSubstance' });
-
-  return (
-    <div className="flex flex-col justify-start rounded-md border border-input p-3 bg-card gap-1.5">
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="isControlledSubstance"
-          checked={Boolean(isControlled)}
-          onCheckedChange={(checked) =>
-            setValue('isControlledSubstance', !!checked, { shouldValidate: true })
-          }
-        />
-        <Label htmlFor="isControlledSubstance" className="cursor-pointer font-medium text-xs sm:text-sm">
-          Controlled Drug (Rx)
-        </Label>
-      </div>
-      {isControlled ? (
-        <div className="flex items-center gap-1.5 text-micro text-destructive font-medium bg-destructive/10 px-2 py-1 rounded-sm">
-          <ShieldAlert className="size-3 shrink-0" />
-          <span>Prescription required</span>
-        </div>
-      ) : (
-        <p className="text-micro text-muted-foreground">Standard OTC (No prescription needed)</p>
-      )}
-    </div>
-  );
-});
-
-/**
- * Isolated smart scan subtitle to show scanned GTIN / Batch without root re-renders.
- */
-const SmartScanSubtitle = React.memo(function SmartScanSubtitle({
-  control,
-}: {
-  control: any;
-}) {
-  const [barcode, batchNumber] = useWatch({ control, name: ['barcode', 'batchNumber'] });
-  return (
-    <p className="text-[11px] text-muted-foreground truncate">
-      {barcode
-        ? `GTIN: ${barcode}${batchNumber ? ` • Batch: ${batchNumber}` : ''}`
-        : 'Auto-fills barcode, batch & expiry'}
-    </p>
-  );
-});
-
-/**
- * Isolated scanner input wrapper that subscribes only to barcode value.
- */
-const BarcodeScannerField = React.memo(function BarcodeScannerField({
-  id,
-  control,
-  onChange,
-  onScan,
-  placeholder,
-  buttonOnly,
-  buttonLabel,
-}: {
-  id: string;
-  control: any;
-  onChange: (val: string) => void;
-  onScan: (scannedVal: string, parsedData?: Gs1ParsedMedicineData) => void;
-  placeholder?: string;
-  buttonOnly?: boolean;
-  buttonLabel?: string;
-}) {
-  const barcode = useWatch({ control, name: 'barcode' }) || '';
-  return (
-    <ScannerInput
-      id={id}
-      placeholder={placeholder}
-      buttonOnly={buttonOnly}
-      buttonLabel={buttonLabel}
-      value={barcode}
-      onChange={onChange}
-      onScan={onScan}
-    />
-  );
-});
-
-const DOSAGE_FORM_PRESETS = ['Tablet', 'Capsule', 'Softgel', 'Dispersible', 'Sachet'] as const;
-
-/**
- * Isolated dosage form field with quick-select chip presets to enforce standardization
- * and prevent typographical fragmentation (e.g. "tab", "TAB", "Capsule").
- */
-const DosageFormField = React.memo(function DosageFormField({
-  control,
-  register,
-  setValue,
-}: {
-  control: any;
-  register: any;
-  setValue: any;
-}) {
-  const currentDosageForm = useWatch({ control, name: 'dosageForm' }) || '';
-
-  return (
-    <div className="space-y-1.5 col-span-1">
-      <div className="flex items-center justify-between">
-        <Label htmlFor="dosageForm" className="text-xs sm:text-sm">Dosage Form</Label>
-        <span className="text-[11px] text-muted-foreground">Quick pick or type</span>
-      </div>
-      <Input
-        id="dosageForm"
-        placeholder="e.g. Tablet, Capsule, Softgel, Dispersible"
-        autoComplete="off"
-        spellCheck={false}
-        {...register('dosageForm')}
-      />
-      <div className="flex flex-wrap gap-1.5 pt-1">
-        {DOSAGE_FORM_PRESETS.map((preset) => {
-          const isSelected = currentDosageForm.toLowerCase() === preset.toLowerCase();
-          return (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => setValue('dosageForm', preset, { shouldValidate: true, shouldDirty: true })}
-              className={`px-2 py-0.5 text-micro font-medium rounded-md border transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-primary text-primary-foreground border-primary shadow-2xs font-semibold'
-                  : 'bg-muted/40 text-muted-foreground border-border/80 hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              {preset}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
 
 export function ProductForm({
   initialData,
@@ -1639,164 +1282,33 @@ export function ProductForm({
       </form>
 
       {/* Inverted Pricing Confirmation Modal */}
-      <AlertDialog
+      <InvertedPriceDialog
         open={showInvertedPriceDialog}
         onOpenChange={(open) => {
           setShowInvertedPriceDialog(open);
           if (!open) setPendingSubmitValues(null);
         }}
-      >
-        <AlertDialogContent className="sm:max-w-md p-5 sm:p-6 gap-4">
-          <AlertDialogHeader className="sm:text-left gap-3">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
-                <AlertTriangle className="size-5" />
-              </div>
-              <div>
-                <AlertDialogTitle className="text-base font-semibold text-foreground">
-                  Selling Price is Below Cost
-                </AlertDialogTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Check if prices were entered correctly
-                </p>
-              </div>
-            </div>
-
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 pt-1 text-xs text-foreground">
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                  Your purchase cost is higher than your selling price. Selling this medicine will result in a loss.
-                </p>
-
-                {/* Clean Price Comparison Box */}
-                <div className="rounded-lg border border-border/80 bg-muted/40 p-3 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Purchase Cost:</span>
-                    <span className="font-semibold text-foreground">
-                      PKR {pendingSubmitValues?.costPrice !== undefined ? Number(pendingSubmitValues.costPrice).toFixed(2) : '0.00'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Retail Price (MRP):</span>
-                    <span className="font-bold text-destructive">
-                      PKR {pendingSubmitValues?.sellPrice !== undefined ? Number(pendingSubmitValues.sellPrice).toFixed(2) : '0.00'}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  Did you accidentally swap the purchase price and retail price?
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter className="grid grid-cols-2 gap-2.5 sm:flex sm:justify-end sm:gap-2.5 pt-1">
-            <AlertDialogCancel
-              variant="default"
-              disabled={isLoading}
-              className="w-full sm:w-auto h-9 text-xs font-semibold shadow-xs order-1"
-            >
-              Fix Prices
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="secondary"
-              type="button"
-              onClick={handleConfirmInvertedPricing}
-              disabled={isLoading}
-              className="w-full sm:w-auto h-9 text-xs font-medium order-2"
-            >
-              {isLoading && <Loader2 className="size-3.5 animate-spin mr-1" />}
-              Save Anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        pendingValues={pendingSubmitValues}
+        isLoading={isLoading}
+        onConfirm={handleConfirmInvertedPricing}
+      />
 
       {/* Barcode Collision Confirmation Modal */}
-      <AlertDialog
+      <BarcodeCollisionDialog
         open={showBarcodeCollisionDialog}
         onOpenChange={setShowBarcodeCollisionDialog}
-      >
-        <AlertDialogContent className="sm:max-w-md p-5 sm:p-6 gap-4">
-          <AlertDialogHeader className="sm:text-left gap-3">
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
-                <Boxes className="size-5" />
-              </div>
-              <div>
-                <AlertDialogTitle className="text-base font-semibold text-foreground">
-                  Medicine Already in Catalog
-                </AlertDialogTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Barcode is already linked to an existing medicine
-                </p>
-              </div>
-            </div>
-
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 pt-1 text-xs text-foreground">
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                  <strong>{scannedExistingProduct?.name}</strong> is already registered in your inventory with this barcode. You cannot create a duplicate medicine record with the same barcode.
-                </p>
-
-                {/* Medicine Summary Box */}
-                <div className="rounded-lg border border-border/80 bg-muted/40 p-3 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Medicine:</span>
-                    <span className="font-semibold text-foreground">
-                      {scannedExistingProduct?.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Barcode:</span>
-                    <span className="font-mono text-foreground">
-                      {scannedExistingProduct?.barcode || getValues('barcode')}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Current Stock:</span>
-                    <span className="font-semibold text-foreground">
-                      {scannedExistingProduct?.totalStock ?? 0} {formatUnitPlural(scannedExistingProduct?.unit || 'Box')}
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  Would you like to receive a new stock batch for this medicine instead?
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter className="grid grid-cols-2 gap-2.5 sm:flex sm:justify-end sm:gap-2.5 pt-1">
-            <AlertDialogCancel
-              variant="secondary"
-              disabled={isLoading}
-              onClick={() => {
-                setValue('barcode', '', { shouldDirty: true });
-                setScannedExistingProduct(null);
-              }}
-              className="w-full sm:w-auto h-9 text-xs font-medium order-2"
-            >
-              Clear Barcode
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="default"
-              type="button"
-              onClick={() => {
-                setShowBarcodeCollisionDialog(false);
-                handleNavigateToReceiveBatch();
-              }}
-              disabled={isLoading}
-              className="w-full sm:w-auto h-9 text-xs font-semibold shadow-xs order-1"
-            >
-              <Boxes className="size-3.5 mr-1" />
-              Receive Batch
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        scannedProduct={scannedExistingProduct}
+        barcodeValue={getValues('barcode')}
+        isLoading={isLoading}
+        onClearBarcode={() => {
+          setValue('barcode', '', { shouldDirty: true });
+          setScannedExistingProduct(null);
+        }}
+        onReceiveBatch={() => {
+          setShowBarcodeCollisionDialog(false);
+          handleNavigateToReceiveBatch();
+        }}
+      />
 
     </div>
   );

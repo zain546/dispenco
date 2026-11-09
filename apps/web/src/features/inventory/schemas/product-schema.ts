@@ -45,10 +45,7 @@ export const productFormSchema = z.object({
   barcode: z.string().optional(),
   taxCode: z.string().optional(),
   isControlledSubstance: z.boolean(),
-  lowStockThreshold: z.preprocess(
-    (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? 10 : Number(v)),
-    z.number().min(0, 'Low stock alert threshold cannot be negative')
-  ),
+  lowStockThreshold: z.number().min(0, 'Low stock alert threshold cannot be negative'),
 
   // Mandatory Initial Stock & Pricing Fields
   initialStockQuantity: optionalNumber(0, 'Stock quantity cannot be negative'),
