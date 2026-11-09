@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useForm, useWatch, type Control, type UseFormSetValue } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -664,24 +664,50 @@ export function ProductForm({
     router.push(`/inventory/receive?${params.toString()}`);
   }, [scannedExistingProduct, getValues, router]);
 
+  // Sequence counter and timer ref to prevent race conditions & debounce manual barcode typing
+  const barcodeDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const barcodeLookupSeqRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      if (barcodeDebounceTimerRef.current) {
+        clearTimeout(barcodeDebounceTimerRef.current);
+      }
+    };
+  }, []);
+
   const handleBarcodeChange = useCallback(
-    async (val: string) => {
+    (val: string) => {
       setValue('barcode', val, { shouldValidate: true, shouldDirty: true });
       const clean = val.trim();
+
+      if (barcodeDebounceTimerRef.current) {
+        clearTimeout(barcodeDebounceTimerRef.current);
+      }
+
       if (!clean || isEditing) {
         setScannedExistingProduct(null);
         return;
       }
-      try {
-        const res = await productsApi.lookupByBarcode(clean);
-        if (res?.product) {
-          setScannedExistingProduct(res.product);
-        } else {
-          setScannedExistingProduct(null);
+
+      // Debounce barcode lookups by 300ms to avoid flooding requests on fast typing/paste
+      const seq = ++barcodeLookupSeqRef.current;
+      barcodeDebounceTimerRef.current = setTimeout(async () => {
+        try {
+          const res = await productsApi.lookupByBarcode(clean);
+          if (seq === barcodeLookupSeqRef.current) {
+            if (res?.product) {
+              setScannedExistingProduct(res.product);
+            } else {
+              setScannedExistingProduct(null);
+            }
+          }
+        } catch {
+          if (seq === barcodeLookupSeqRef.current) {
+            setScannedExistingProduct(null);
+          }
         }
-      } catch {
-        setScannedExistingProduct(null);
-      }
+      }, 300);
     },
     [isEditing, setValue]
   );
@@ -695,12 +721,14 @@ export function ProductForm({
     const qMfg = searchParams.get('mfgDate');
     const qName = searchParams.get('name');
 
-    if (qBarcode) setValue('barcode', qBarcode, { shouldDirty: true });
+    if (qBarcode) {
+      handleBarcodeChange(qBarcode);
+    }
     if (qBatch) setValue('batchNumber', qBatch, { shouldDirty: true });
     if (qExpiry) setValue('expiryDate', qExpiry, { shouldDirty: true });
     if (qMfg) setValue('mfgDate', qMfg, { shouldDirty: true });
     if (qName) setValue('name', qName, { shouldDirty: true });
-  }, [isEditing, searchParams, setValue]);
+  }, [isEditing, searchParams, setValue, handleBarcodeChange]);
 
   const preventNegativeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
