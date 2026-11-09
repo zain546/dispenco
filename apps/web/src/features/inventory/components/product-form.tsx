@@ -583,6 +583,7 @@ export function ProductForm({
 
   const selectedCategory = watch('category');
   const selectedUnit = normalizeUnit(watch('unit'));
+  const isMultiUnitPackage = ['box', 'strip', 'kit', 'pack'].includes(selectedUnit.toLowerCase());
   const [scannedExistingProduct, setScannedExistingProduct] = useState<ProductData | null>(null);
 
   const handleSmartBoxScan = useCallback(
@@ -739,7 +740,11 @@ export function ProductForm({
     if (values.mfgDate) attributes.mfgDate = values.mfgDate;
     if (values.purchaseInvoiceNumber) attributes.purchaseInvoiceNumber = values.purchaseInvoiceNumber;
     if (values.purchaseInvoiceDate) attributes.purchaseInvoiceDate = values.purchaseInvoiceDate;
-    if (values.packSize) attributes.packSize = Number(values.packSize);
+    if (isMultiUnitPackage && values.packSize) {
+      attributes.packSize = Number(values.packSize);
+    } else {
+      attributes.packSize = 1;
+    }
 
     if (selectedCategory === 'TABLET_CAPSULE') {
       if (values.dosageForm) attributes.dosageForm = values.dosageForm;
@@ -1097,28 +1102,30 @@ export function ProductForm({
                   </p>
                 </div>
 
-                {/* Pack Size (Units per Box) */}
-                <div className="space-y-1.5 col-span-1">
-                  <Label htmlFor="packSize" className="text-xs sm:text-sm flex items-center gap-1.5">
-                    <Layers className="size-3.5 text-primary shrink-0" />
-                    <span>Pack Size (Units per {selectedUnit})</span>
-                  </Label>
-                  <Input
-                    id="packSize"
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 100"
-                    onKeyDown={preventNegativeKeyDown}
-                    autoComplete="off"
-                    {...register('packSize')}
-                  />
-                  {errors.packSize && (
-                    <p className="text-xs text-destructive">{errors.packSize.message}</p>
-                  )}
-                  <p className="text-micro text-muted-foreground">
-                    Sub-units per {selectedUnit}.
-                  </p>
-                </div>
+                {/* Pack Size (Units per Box/Strip/Kit) - only shown for container units */}
+                {isMultiUnitPackage && (
+                  <div className="space-y-1.5 col-span-1">
+                    <Label htmlFor="packSize" className="text-xs sm:text-sm flex items-center gap-1.5">
+                      <Layers className="size-3.5 text-primary shrink-0" />
+                      <span>Pack Size (Units per {selectedUnit})</span>
+                    </Label>
+                    <Input
+                      id="packSize"
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 100"
+                      onKeyDown={preventNegativeKeyDown}
+                      autoComplete="off"
+                      {...register('packSize')}
+                    />
+                    {errors.packSize && (
+                      <p className="text-xs text-destructive">{errors.packSize.message}</p>
+                    )}
+                    <p className="text-micro text-muted-foreground">
+                      Sub-units per {selectedUnit}.
+                    </p>
+                  </div>
+                )}
 
                 {/* Expiry Date */}
                 <div className="space-y-1.5 col-span-1">
