@@ -551,6 +551,8 @@ export function ProductForm({
       storageTemp: initialAttrs.storageTemp ? String(initialAttrs.storageTemp) : '',
       modelNumber: initialAttrs.modelNumber ? String(initialAttrs.modelNumber) : '',
       warrantyMonths: initialAttrs.warrantyMonths ? Number(initialAttrs.warrantyMonths) : undefined,
+      weightGrams: initialAttrs.weightGrams ? Number(initialAttrs.weightGrams) : undefined,
+      skinType: initialAttrs.skinType ? String(initialAttrs.skinType) : '',
       brand: initialAttrs.brand ? String(initialAttrs.brand) : '',
       description: initialAttrs.description ? String(initialAttrs.description) : '',
     },
