@@ -40,10 +40,8 @@ export class PrescriptionsService {
       throw new BadRequestException('Invalid store selected for prescription');
     }
 
-    // Generate prescription number
-    const count = await this.prisma.prescription.count({ where: { tenantId } });
-    const year = new Date().getFullYear();
-    const prescriptionNumber = `RX-${year}-${String(count + 1).padStart(4, '0')}`;
+    // Generate prescription number atomically
+    const { formatted: prescriptionNumber } = await this.prisma.nextSequence(tenantId, 'PRESCRIPTION');
 
     const rxDate = dto.prescriptionDate ? new Date(dto.prescriptionDate) : new Date();
     const expiry = dto.expiryDate
@@ -275,9 +273,13 @@ export class PrescriptionsService {
     let allFullyDispensed = true;
     let anyDispensed = false;
 
-    // Update item quantities
+    // Update item quantities with ownership check
     if (dto.items && dto.items.length > 0) {
       for (const it of dto.items) {
+        const itemBelongs = existing.items.some((i: { id: string }) => i.id === it.itemId);
+        if (!itemBelongs) {
+          throw new BadRequestException(`Prescription item ID ${it.itemId} does not belong to this prescription`);
+        }
         await this.prisma.prescriptionItem.update({
           where: { id: it.itemId },
           data: { quantityDispensed: it.quantityDispensed },

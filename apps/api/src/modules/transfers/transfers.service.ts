@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransferDto } from './dtos/create-transfer.dto';
@@ -14,22 +15,12 @@ import { TransferStatus, Prisma } from '@prisma/client';
 export class TransfersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async generateTransferNumber(tenantId: string): Promise<string> {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-    const prefix = `TRF-${dateStr}-`;
-
-    const count = await this.prisma.stockTransfer.count({
-      where: {
-        tenantId,
-        transferNumber: {
-          startsWith: prefix,
-        },
-      },
-    });
-
-    const sequence = String(count + 1).padStart(4, '0');
-    return `${prefix}${sequence}`;
+  private async generateTransferNumber(
+    tenantId: string,
+    txClient?: Prisma.TransactionClient,
+  ): Promise<string> {
+    const { formatted } = await this.prisma.nextSequence(tenantId, 'TRANSFER', undefined, txClient);
+    return formatted;
   }
 
   async createTransferRequest(
@@ -269,15 +260,24 @@ export class TransfersService {
           );
         }
 
-        // Deduct quantity from source batch
-        await tx.batch.update({
-          where: { id: batch.id },
+        // Deduct quantity from source batch atomically with concurrency guard
+        const updateResult = await tx.batch.updateMany({
+          where: {
+            id: batch.id,
+            quantityRemaining: { gte: dispatchItem.quantitySent },
+          },
           data: {
             quantityRemaining: {
               decrement: dispatchItem.quantitySent,
             },
           },
         });
+
+        if (updateResult.count === 0) {
+          throw new ConflictException(
+            `Insufficient stock in batch ${batch.batchNumber} or concurrent transfer dispatch occurred.`
+          );
+        }
 
         // Update transfer line item with dispatched details
         await tx.stockTransferItem.update({

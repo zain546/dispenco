@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreateSaleDto } from './dtos/create-sale.dto';
@@ -64,13 +64,8 @@ export class SalesService {
         }
       }
 
-      // 2. Generate unique human-readable Receipt Number per tenant
-      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const daySalesCount = await tx.sale.count({
-        where: { tenantId },
-      });
-      const receiptSeq = (daySalesCount + 1).toString().padStart(4, '0');
-      const receiptNumber = `REC-${todayStr}-${receiptSeq}`;
+      // 2. Generate unique human-readable Receipt Number per tenant atomically
+      const { formatted: receiptNumber } = await this.prisma.nextSequence(tenantId, 'RECEIPT', undefined, tx);
 
       let runningSubtotal = 0;
       let runningTaxTotal = 0;
@@ -80,6 +75,8 @@ export class SalesService {
         productId: string;
         batchId: string;
         quantity: number;
+        unitType: string;
+        stockDeducted: number;
         unitPrice: Prisma.Decimal;
         discount: Prisma.Decimal;
         discountType: DiscountType;
@@ -155,15 +152,24 @@ export class SalesService {
 
         // Deduct from selected FEFO batches
         for (const alloc of fefoResult.allocations) {
-          // Decrement batch quantityRemaining
-          await tx.batch.update({
-            where: { id: alloc.batchId },
+          // Decrement batch quantityRemaining atomically with concurrency guard
+          const updateResult = await tx.batch.updateMany({
+            where: {
+              id: alloc.batchId,
+              quantityRemaining: { gte: alloc.quantityToDeduct },
+            },
             data: {
               quantityRemaining: {
                 decrement: alloc.quantityToDeduct,
               },
             },
           });
+
+          if (updateResult.count === 0) {
+            throw new ConflictException(
+              `Insufficient stock for batch #${alloc.batchNumber} or concurrent checkout occurred. Please refresh cart.`,
+            );
+          }
 
           // Determine item price (provided unitPrice or batch sell price converted for unit)
           const defaultBasePrice = isSingleUnit && packSize > 1 ? alloc.sellPrice / packSize : alloc.sellPrice;
@@ -203,6 +209,8 @@ export class SalesService {
             productId: item.productId,
             batchId: alloc.batchId,
             quantity: allocQuantity,
+            unitType: item.unitType || 'PACK',
+            stockDeducted: alloc.quantityToDeduct,
             unitPrice: new Prisma.Decimal(unitPrice),
             discount: new Prisma.Decimal(itemDiscount),
             discountType: item.discountType || DiscountType.FLAT,
@@ -506,11 +514,15 @@ export class SalesService {
 
       // Restore quantityRemaining for each batch affected
       for (const item of sale.saleItems) {
+        const packsToRestore = item.stockDeducted && item.stockDeducted > 0
+          ? item.stockDeducted
+          : item.quantity;
+
         await tx.batch.update({
           where: { id: item.batchId },
           data: {
             quantityRemaining: {
-              increment: item.quantity,
+              increment: packsToRestore,
             },
           },
         });
@@ -603,6 +615,7 @@ export class SalesService {
         saleItemId: string;
         batchId: string;
         quantity: number;
+        packsToRestore: number;
         unitPrice: number;
         refundAmount: number;
       }[] = [];
@@ -642,10 +655,18 @@ export class SalesService {
 
         totalRefund += refundAmount;
 
+        let packsToRestore = reqItem.quantity;
+        if (saleItem.stockDeducted && saleItem.stockDeducted > 0) {
+          packsToRestore = reqItem.quantity === saleItem.quantity
+            ? saleItem.stockDeducted
+            : Math.floor((saleItem.stockDeducted * reqItem.quantity) / saleItem.quantity);
+        }
+
         preparedReturnItems.push({
           saleItemId: saleItem.id,
           batchId: saleItem.batchId,
           quantity: reqItem.quantity,
+          packsToRestore,
           unitPrice: unitRefund,
           refundAmount,
         });
@@ -653,13 +674,8 @@ export class SalesService {
 
       totalRefund = Math.round(totalRefund * 100) / 100;
 
-      // 3. Generate human-readable Return number
-      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const dayReturnsCount = await tx.return.count({
-        where: { tenantId },
-      });
-      const returnSeq = (dayReturnsCount + 1).toString().padStart(4, '0');
-      const returnNumber = `RET-${todayStr}-${returnSeq}`;
+      // 3. Generate human-readable Return number atomically
+      const { formatted: returnNumber } = await this.prisma.nextSequence(tenantId, 'RETURN', undefined, tx);
 
       const refundMethod =
         dto.refundMethod?.toUpperCase().trim() ||
@@ -716,14 +732,16 @@ export class SalesService {
 
       // 5. Restore batch stock quantity atomically
       for (const item of preparedReturnItems) {
-        await tx.batch.update({
-          where: { id: item.batchId },
-          data: {
-            quantityRemaining: {
-              increment: item.quantity,
+        if (item.packsToRestore > 0) {
+          await tx.batch.update({
+            where: { id: item.batchId },
+            data: {
+              quantityRemaining: {
+                increment: item.packsToRestore,
+              },
             },
-          },
-        });
+          });
+        }
       }
 
       // 6. Adjust customer credit balance if sale was on credit or refundMethod is CREDIT

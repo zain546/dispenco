@@ -186,9 +186,9 @@ export class AuditExportService {
     if (query.category) {
       const cat = query.category.toLowerCase();
       if (cat === 'stock') {
-        where.action = { in: ['STOCK_ADJUSTMENT'] };
+        where.action = { in: ['STOCK_ADJUSTMENT', 'MANUAL_STOCK_ADJUSTMENT'] };
       } else if (cat === 'sales') {
-        where.action = { in: ['SALE_VOIDED', 'SALE_RETURNED'] };
+        where.action = { in: ['SALE_VOIDED', 'SALE_RETURNED', 'SALE_RETURN_PROCESSED'] };
       } else if (cat === 'security') {
         where.action = {
           in: [
@@ -204,9 +204,13 @@ export class AuditExportService {
         where.action = {
           in: [
             'TRANSFER_REQUESTED',
+            'STOCK_TRANSFER_REQUESTED',
             'TRANSFER_DISPATCHED',
+            'STOCK_TRANSFER_DISPATCHED',
             'TRANSFER_RECEIVED',
+            'STOCK_TRANSFER_RECEIVED',
             'TRANSFER_CANCELLED',
+            'STOCK_TRANSFER_CANCELLED',
           ],
         };
       } else if (cat === 'pricing') {
@@ -254,6 +258,7 @@ export class AuditExportService {
 
     switch (log.action) {
       case 'STOCK_ADJUSTMENT':
+      case 'MANUAL_STOCK_ADJUSTMENT':
         severity = 'warning';
         summaryText = `Stock adjustment for batch ${meta.batchNumber || meta.batchId || log.entityId.slice(0, 8)}. Reason: ${meta.reason || 'Inventory count reconciliation'}. Delta: ${meta.quantityChange ?? meta.delta ?? 'N/A'}`;
         break;
@@ -264,6 +269,7 @@ export class AuditExportService {
         break;
 
       case 'SALE_RETURNED':
+      case 'SALE_RETURN_PROCESSED':
         severity = 'warning';
         summaryText = `Processed customer product return for sale ${meta.saleId?.slice(0, 8) || log.entityId.slice(0, 8)}. Total items returned: ${meta.itemsCount || 1}`;
         break;
@@ -295,21 +301,25 @@ export class AuditExportService {
         break;
 
       case 'TRANSFER_REQUESTED':
+      case 'STOCK_TRANSFER_REQUESTED':
         severity = 'info';
         summaryText = `Requested inter-branch stock transfer ${meta.transferNumber || log.entityId.slice(0, 8)} to ${meta.destinationStoreName || 'destination branch'}.`;
         break;
 
       case 'TRANSFER_DISPATCHED':
+      case 'STOCK_TRANSFER_DISPATCHED':
         severity = 'info';
         summaryText = `Dispatched transfer consignment ${meta.transferNumber || log.entityId.slice(0, 8)} in transit.`;
         break;
 
       case 'TRANSFER_RECEIVED':
+      case 'STOCK_TRANSFER_RECEIVED':
         severity = 'info';
         summaryText = `Received transfer consignment ${meta.transferNumber || log.entityId.slice(0, 8)}. Stock merged into shelf batches.`;
         break;
 
       case 'TRANSFER_CANCELLED':
+      case 'STOCK_TRANSFER_CANCELLED':
         severity = 'warning';
         summaryText = `Cancelled transfer request ${meta.transferNumber || log.entityId.slice(0, 8)}. Reason: ${meta.cancelReason || 'Branch declined'}`;
         break;

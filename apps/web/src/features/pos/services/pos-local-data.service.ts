@@ -306,8 +306,12 @@ export const posLocalDataService = {
       for (const item of record.payload.items) {
         const prod = await posDb.localProducts.get(item.productId);
         if (prod) {
+          const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
+          const packsToRestore = item.unitType === 'UNIT'
+            ? Math.max(1, Math.ceil(item.quantity / packSize))
+            : item.quantity;
           await posDb.localProducts.update(item.productId, {
-            totalStock: prod.totalStock + item.quantity,
+            totalStock: prod.totalStock + packsToRestore,
           });
         }
       }

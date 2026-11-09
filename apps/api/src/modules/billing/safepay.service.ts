@@ -223,8 +223,11 @@ export class SafepayService {
           },
         });
 
-        // Extend subscription by 30 days
-        await this.subscriptionService.extendSubscriptionPeriod(invoice.tenantId, 30);
+        // Extend subscription by 30 days without creating a duplicate invoice
+        await this.subscriptionService.extendSubscriptionPeriod(invoice.tenantId, 30, {
+          existingInvoiceId: invoice.id,
+          createInvoice: false,
+        });
         this.logger.log(`Subscription for tenant ${invoice.tenantId} successfully extended via Safepay`);
       }
     }

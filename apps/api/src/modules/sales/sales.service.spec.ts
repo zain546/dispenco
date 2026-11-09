@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SalesService } from './sales.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PaymentMethod, SaleStatus } from '@prisma/client';
 
@@ -22,6 +23,7 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     },
     batch: {
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     payment: {
       create: jest.fn(),
@@ -36,6 +38,7 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
+    nextSequence: jest.fn().mockResolvedValue({ seq: 6, formatted: 'REC-20260902-0006' }),
     $transaction: jest.fn(),
   };
 
@@ -43,8 +46,14 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     selectBatchesForSale: jest.fn(),
   };
 
+  const mockNotificationsService = {
+    sendMessage: jest.fn().mockResolvedValue(true),
+  };
+
   beforeEach(async () => {
     jest.resetAllMocks();
+    mockTx.batch.updateMany.mockResolvedValue({ count: 1 });
+    mockPrismaService.nextSequence.mockResolvedValue({ seq: 6, formatted: 'REC-20260902-0006' });
     mockPrismaService.$transaction.mockImplementation((callback) => callback(mockTx));
 
     const module: TestingModule = await Test.createTestingModule({
@@ -57,6 +66,10 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
         {
           provide: InventoryService,
           useValue: mockInventoryService,
+        },
+        {
+          provide: NotificationsService,
+          useValue: mockNotificationsService,
         },
       ],
     }).compile();
@@ -155,9 +168,12 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     expect(result.sale.receiptNumber).toBe('REC-20260902-0006');
     expect(result.sale.totalAmount).toBe(400);
 
-    // Verify batch quantity remaining was decremented in transaction
-    expect(mockTx.batch.update).toHaveBeenCalledWith({
-      where: { id: 'batch-fefo-1' },
+    // Verify batch quantity remaining was decremented in transaction atomically
+    expect(mockTx.batch.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'batch-fefo-1',
+        quantityRemaining: { gte: 2 },
+      },
       data: {
         quantityRemaining: {
           decrement: 2,

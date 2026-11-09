@@ -121,7 +121,11 @@ export class SubscriptionService {
   /**
    * Extends subscription after successful payment
    */
-  async extendSubscriptionPeriod(tenantId: string, days = 30) {
+  async extendSubscriptionPeriod(
+    tenantId: string,
+    days = 30,
+    options?: { existingInvoiceId?: string; createInvoice?: boolean },
+  ) {
     const sub = await this.prisma.subscription.findUnique({
       where: { tenantId },
       include: { plan: true },
@@ -153,24 +157,28 @@ export class SubscriptionService {
       },
     });
 
-    // Create a paid invoice record
-    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
-    const invoiceNumber = `INV-${new Date().getFullYear()}-${randomSuffix}`;
+    const shouldCreateInvoice = options?.createInvoice ?? (options?.existingInvoiceId ? false : true);
 
-    await this.prisma.subscriptionInvoice.create({
-      data: {
-        subscriptionId: sub.id,
-        tenantId,
-        invoiceNumber,
-        amountMinor: sub.plan.priceMinor,
-        currency: STARTER_PLAN.currency,
-        status: 'PAID',
-        periodStart: baseDate,
-        periodEnd: newPeriodEnd,
-        provider: 'SAFEPAY',
-        paidAt: now,
-      },
-    });
+    if (shouldCreateInvoice) {
+      // Create a paid invoice record
+      const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${randomSuffix}`;
+
+      await this.prisma.subscriptionInvoice.create({
+        data: {
+          subscriptionId: sub.id,
+          tenantId,
+          invoiceNumber,
+          amountMinor: sub.plan.priceMinor,
+          currency: STARTER_PLAN.currency,
+          status: 'PAID',
+          periodStart: baseDate,
+          periodEnd: newPeriodEnd,
+          provider: 'SAFEPAY',
+          paidAt: now,
+        },
+      });
+    }
 
     return updated;
   }

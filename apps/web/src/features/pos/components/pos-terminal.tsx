@@ -359,7 +359,7 @@ export function POSTerminal() {
     setIsLoadingRecentSales(true);
     try {
       const res = await salesApi.getRecentSales(25, !isAllStores && activeStoreId ? activeStoreId : undefined);
-      setRecentSales(res?.sales || []);
+      setRecentSales(res?.data || res?.sales || []);
     } catch (err) {
       console.error('Failed to fetch recent sales:', err);
       toast.error('Failed to load recent sales history');
