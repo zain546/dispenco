@@ -8,6 +8,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 import { PrismaModule } from './modules/prisma/prisma.module';
+import { RedisCacheModule } from './modules/cache/redis-cache.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
@@ -68,6 +69,7 @@ import { BillingModule } from './modules/billing/billing.module';
       },
     }),
     PrismaModule,
+    RedisCacheModule,
     AuthModule,
     HealthModule,
     TenantsModule,

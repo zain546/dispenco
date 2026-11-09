@@ -3,6 +3,7 @@ import { SalesService } from './sales.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PaymentMethod, SaleStatus } from '@prisma/client';
 
@@ -50,6 +51,16 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     sendMessage: jest.fn().mockResolvedValue(true),
   };
 
+  const mockRedisCacheService = {
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue(undefined),
+    del: jest.fn().mockResolvedValue(undefined),
+    delByPattern: jest.fn().mockResolvedValue(0),
+    wrap: jest.fn().mockImplementation((_k, _ttl, fn) => fn()),
+    invalidateStoreInventory: jest.fn().mockResolvedValue(undefined),
+    invalidateTenantConfig: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.resetAllMocks();
     mockTx.batch.updateMany.mockResolvedValue({ count: 1 });
@@ -70,6 +81,10 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
         {
           provide: NotificationsService,
           useValue: mockNotificationsService,
+        },
+        {
+          provide: RedisCacheService,
+          useValue: mockRedisCacheService,
         },
       ],
     }).compile();

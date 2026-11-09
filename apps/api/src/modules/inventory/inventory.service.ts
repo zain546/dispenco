@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { ReceiveStockDto } from './dtos/receive-stock.dto';
 import { UpdateBatchDto } from './dtos/update-batch.dto';
 import { AdjustStockDto } from './dtos/adjust-stock.dto';
@@ -11,7 +12,10 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
 
   /**
    * Receive a new stock shipment batch for an existing product
@@ -108,6 +112,8 @@ export class InventoryService {
     });
 
     const totalStock = allBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+
+    await this.cache.invalidateStoreInventory(tenantId, store?.id);
 
     return {
       success: true,
@@ -261,6 +267,8 @@ export class InventoryService {
         attributes: updatedAttrs as Prisma.InputJsonValue,
       },
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, existingBatch.storeId);
 
     return {
       success: true,
@@ -463,6 +471,8 @@ export class InventoryService {
       return { updatedBatch, auditLog };
     });
 
+    await this.cache.invalidateStoreInventory(tenantId, existingBatch.storeId);
+
     return {
       success: true,
       message: `Batch ${result.updatedBatch.batchNumber} stock adjusted from ${oldQuantity} to ${newQuantity} (${difference > 0 ? '+' : ''}${difference} units). Reason: ${dto.reason}`,
@@ -496,18 +506,19 @@ export class InventoryService {
       search?: string;
     },
   ) {
+    const effectiveStoreId = query.storeId && query.storeId !== 'all' ? query.storeId : undefined;
     const expiryWindowDays = Number(query.expiryAlertDays) || 180;
     const defaultLowThreshold = Number(query.lowStockThreshold) || 20;
 
-    const effectiveStoreId = query.storeId && query.storeId !== 'all' ? query.storeId : undefined;
-    if (effectiveStoreId) {
-      const store = await this.prisma.store.findFirst({
-        where: { id: effectiveStoreId, tenantId, isActive: true },
-      });
-      if (!store) {
-        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+    const compute = async () => {
+      if (effectiveStoreId) {
+        const store = await this.prisma.store.findFirst({
+          where: { id: effectiveStoreId, tenantId, isActive: true },
+        });
+        if (!store) {
+          throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
+        }
       }
-    }
 
     const products = await this.prisma.product.findMany({
       where: {
@@ -608,21 +619,29 @@ export class InventoryService {
     const completionPercentage =
       totalCatalogItems > 0 ? Math.round((stockedCount / totalCatalogItems) * 100) : 100;
 
-    return {
-      totalProducts: filtered.length,
-      summary: {
-        totalCatalogItems,
-        stockedCount,
-        unstockedCount,
-        priorityUnstockedCount,
-        completionPercentage,
-        outOfStockCount: aggregated.filter((p) => p.isOutofStock).length,
-        lowStockCount: aggregated.filter((p) => p.isLowStock).length,
-        expiringSoonCount: aggregated.filter((p) => p.isExpiringSoon).length,
-        priorityCount: aggregated.filter((p) => p.isPriority).length,
-      },
-      products: filtered,
+      return {
+        totalProducts: filtered.length,
+        summary: {
+          totalCatalogItems,
+          stockedCount,
+          unstockedCount,
+          priorityUnstockedCount,
+          completionPercentage,
+          outOfStockCount: aggregated.filter((p) => p.isOutofStock).length,
+          lowStockCount: aggregated.filter((p) => p.isLowStock).length,
+          expiringSoonCount: aggregated.filter((p) => p.isExpiringSoon).length,
+          priorityCount: aggregated.filter((p) => p.isPriority).length,
+        },
+        products: filtered,
+      };
     };
+
+    if (query.search) {
+      return compute();
+    }
+
+    const cacheKey = `inv:${tenantId}:store:${effectiveStoreId || 'all'}:agg:${query.lowStockOnly ? 'low' : ''}:${query.expiringSoonOnly ? 'exp' : ''}:${query.inStockOnly ? 'in' : ''}:${query.priorityOnly ? 'prio' : ''}:${query.unstockedOnly ? 'un' : ''}:${expiryWindowDays}:${defaultLowThreshold}`;
+    return this.cache.wrap(cacheKey, 60, compute);
   }
 
   /**
@@ -732,8 +751,9 @@ export class InventoryService {
     const riskFilter = options?.riskFilter?.toUpperCase();
     const limit = Math.max(1, Math.min(500, Number(options?.limit) || 100));
 
-    // 1. Fetch active batches with quantityRemaining > 0
-    const batches = await this.prisma.batch.findMany({
+    const compute = async () => {
+      // 1. Fetch active batches with quantityRemaining > 0
+      const batches = await this.prisma.batch.findMany({
       where: {
         tenantId,
         ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
@@ -1022,11 +1042,19 @@ export class InventoryService {
       return a.daysUntilExpiry - b.daysUntilExpiry;
     });
 
-    return {
-      timeframeDays,
-      summary,
-      batches: filtered.slice(0, limit),
+      return {
+        timeframeDays,
+        summary,
+        batches: filtered.slice(0, limit),
+      };
     };
+
+    if (search) {
+      return compute();
+    }
+
+    const cacheKey = `inv:${tenantId}:store:${effectiveStoreId || 'all'}:expiry:${timeframeDays}:${riskFilter || 'ALL'}:${limit}`;
+    return this.cache.wrap(cacheKey, 180, compute);
   }
 }
 

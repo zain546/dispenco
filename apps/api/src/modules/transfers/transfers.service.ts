@@ -5,6 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreateTransferDto } from './dtos/create-transfer.dto';
 import { DispatchTransferDto } from './dtos/dispatch-transfer.dto';
 import { ReceiveTransferDto } from './dtos/receive-transfer.dto';
@@ -13,7 +14,10 @@ import { TransferStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class TransfersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
 
   private async generateTransferNumber(
     tenantId: string,
@@ -231,7 +235,7 @@ export class TransfersService {
       throw new BadRequestException('You must provide batch allocation details for dispatch');
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const dispatchItem of dto.items) {
         const transferItem = transfer.items.find((i) => i.id === dispatchItem.itemId);
         if (!transferItem) {
@@ -330,6 +334,10 @@ export class TransfersService {
         data: updatedTransfer,
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, transfer.sourceStoreId);
+
+    return result;
   }
 
   async receiveTransfer(
@@ -353,7 +361,7 @@ export class TransfersService {
       );
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const receiveItem of dto.items) {
         const transferItem = transfer.items.find((i) => i.id === receiveItem.itemId);
         if (!transferItem) {
@@ -447,6 +455,10 @@ export class TransfersService {
         data: updatedTransfer,
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, transfer.targetStoreId);
+
+    return result;
   }
 
   async cancelTransfer(
@@ -472,7 +484,7 @@ export class TransfersService {
       throw new BadRequestException('This stock transfer is already cancelled');
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // If transfer was already dispatched, restore deducted stock to source batches!
       if (transfer.status === TransferStatus.DISPATCHED) {
         for (const item of transfer.items) {
@@ -520,5 +532,11 @@ export class TransfersService {
         data: updated,
       };
     });
+
+    if (transfer.status === TransferStatus.DISPATCHED) {
+      await this.cache.invalidateStoreInventory(tenantId, transfer.sourceStoreId);
+    }
+
+    return result;
   }
 }

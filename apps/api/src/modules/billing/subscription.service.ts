@@ -1,13 +1,17 @@
 import { STARTER_PLAN } from '@dispenco/types';
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { SubscriptionStatus } from '@prisma/client';
 
 @Injectable()
 export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
 
   /**
    * Finds or auto-provisions a subscription and default plan for tenant
@@ -61,61 +65,63 @@ export class SubscriptionService {
    * Retrieves subscription status, plan details, and remaining time for tenant
    */
   async getTenantSubscription(tenantId: string) {
-    const subscription = await this.getOrCreateSubscriptionRecord(tenantId);
+    return this.cache.wrap(`cfg:${tenantId}:subscription:current`, 300, async () => {
+      const subscription = await this.getOrCreateSubscriptionRecord(tenantId);
 
-    const now = new Date();
-    const isTrial = subscription.status === SubscriptionStatus.TRIALING;
-    const expirationDate = isTrial ? subscription.trialEndsAt : (subscription.currentPeriodEnd || subscription.trialEndsAt);
-    const msRemaining = expirationDate.getTime() - now.getTime();
-    const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
-    const isExpired = now.getTime() > expirationDate.getTime();
+      const now = new Date();
+      const isTrial = subscription.status === SubscriptionStatus.TRIALING;
+      const expirationDate = isTrial ? subscription.trialEndsAt : (subscription.currentPeriodEnd || subscription.trialEndsAt);
+      const msRemaining = expirationDate.getTime() - now.getTime();
+      const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+      const isExpired = now.getTime() > expirationDate.getTime();
 
-    return {
-      id: subscription.id,
-      tenantId: subscription.tenantId,
-      status: isExpired && subscription.status !== SubscriptionStatus.CANCELED ? SubscriptionStatus.EXPIRED : subscription.status,
-      plan: {
-        id: subscription.plan.id,
-        code: subscription.plan.code,
-        name: subscription.plan.name,
-        pricePkr: subscription.plan.priceMinor / 100,
-        intervalDays: subscription.plan.intervalDays,
-      },
-      trialEndsAt: subscription.trialEndsAt,
-      currentPeriodStart: subscription.currentPeriodStart,
-      currentPeriodEnd: subscription.currentPeriodEnd,
-      daysRemaining,
-      isTrial,
-      isExpired,
-      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-      invoices: await this.prisma.subscriptionInvoice.findMany({
-        where: { subscriptionId: subscription.id },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-        select: {
-          id: true,
-          invoiceNumber: true,
-          amountMinor: true,
-          currency: true,
-          status: true,
-          periodStart: true,
-          periodEnd: true,
-          provider: true,
-          paidAt: true,
-          createdAt: true,
+      return {
+        id: subscription.id,
+        tenantId: subscription.tenantId,
+        status: isExpired && subscription.status !== SubscriptionStatus.CANCELED ? SubscriptionStatus.EXPIRED : subscription.status,
+        plan: {
+          id: subscription.plan.id,
+          code: subscription.plan.code,
+          name: subscription.plan.name,
+          pricePkr: subscription.plan.priceMinor / 100,
+          intervalDays: subscription.plan.intervalDays,
         },
-      }).then(invs => invs.map(i => ({
-        id: i.id,
-        invoiceNumber: i.invoiceNumber,
-        amount: i.amountMinor / 100,
-        currency: i.currency,
-        status: i.status,
-        billingPeriodStart: i.periodStart.toISOString(),
-        billingPeriodEnd: i.periodEnd.toISOString(),
-        paidAt: i.paidAt ? i.paidAt.toISOString() : null,
-        createdAt: i.createdAt.toISOString(),
-      }))),
-    };
+        trialEndsAt: subscription.trialEndsAt,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        daysRemaining,
+        isTrial,
+        isExpired,
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        invoices: await this.prisma.subscriptionInvoice.findMany({
+          where: { subscriptionId: subscription.id },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            invoiceNumber: true,
+            amountMinor: true,
+            currency: true,
+            status: true,
+            periodStart: true,
+            periodEnd: true,
+            provider: true,
+            paidAt: true,
+            createdAt: true,
+          },
+        }).then(invs => invs.map(i => ({
+          id: i.id,
+          invoiceNumber: i.invoiceNumber,
+          amount: i.amountMinor / 100,
+          currency: i.currency,
+          status: i.status,
+          billingPeriodStart: i.periodStart.toISOString(),
+          billingPeriodEnd: i.periodEnd.toISOString(),
+          paidAt: i.paidAt ? i.paidAt.toISOString() : null,
+          createdAt: i.createdAt.toISOString(),
+        }))),
+      };
+    });
   }
 
   /**
@@ -179,6 +185,8 @@ export class SubscriptionService {
         },
       });
     }
+
+    await this.cache.invalidateTenantConfig(tenantId, 'subscription');
 
     return updated;
   }

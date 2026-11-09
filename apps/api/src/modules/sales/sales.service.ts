@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreateSaleDto } from './dtos/create-sale.dto';
 import { CreateReturnDto } from './dtos/create-return.dto';
 import { QueryReturnsDto } from './dtos/query-returns.dto';
@@ -13,6 +14,7 @@ export class SalesService {
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
     private readonly notificationsService: NotificationsService,
+    private readonly cache: RedisCacheService,
   ) {}
 
   async createSale(tenantId: string, userId: string, dto: CreateSaleDto) {
@@ -40,7 +42,7 @@ export class SalesService {
     }
 
     // Execute atomic transaction
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Customer linkage / creation if customer details provided
       let customerId = dto.customerId;
       if (!customerId && dto.customerName) {
@@ -326,6 +328,10 @@ export class SalesService {
         },
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+
+    return result;
   }
 
   async getSaleById(tenantId: string, saleId: string) {
@@ -496,7 +502,7 @@ export class SalesService {
   }
 
   async voidSale(tenantId: string, userId: string, saleId: string, reason?: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findFirst({
         where: { id: saleId, tenantId },
         include: {
@@ -570,8 +576,13 @@ export class SalesService {
         message: `Sale #${sale.receiptNumber} has been successfully voided and inventory stock was restored.`,
         saleId: updatedSale.id,
         status: updatedSale.status,
+        storeId: sale.storeId,
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, result.storeId);
+
+    return result;
   }
 
   /**
@@ -585,7 +596,7 @@ export class SalesService {
       throw new BadRequestException('At least one item must be selected for return');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Fetch sale with existing returns and items
       const sale = await tx.sale.findFirst({
         where: { id: dto.saleId, tenantId },
@@ -716,6 +727,7 @@ export class SalesService {
             select: {
               id: true,
               receiptNumber: true,
+              storeId: true,
               customerId: true,
               customer: true,
             },
@@ -781,6 +793,10 @@ export class SalesService {
 
       return createdReturn;
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, result.sale?.storeId);
+
+    return result;
   }
 
   /**

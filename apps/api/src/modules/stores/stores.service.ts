@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma, TransferStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreateStoreDto } from './dtos/create-store.dto';
 import { UpdateStoreDto } from './dtos/update-store.dto';
 import { BulkPricePushDto } from './dtos/bulk-price-push.dto';
@@ -8,7 +9,10 @@ import { BroadcastSettingDto } from './dtos/broadcast-setting.dto';
 
 @Injectable()
 export class StoresService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
 
   async createStore(tenantId: string, dto: CreateStoreDto) {
     const store = await this.prisma.store.create({
@@ -23,6 +27,8 @@ export class StoresService {
       },
     });
 
+    await this.cache.invalidateTenantConfig(tenantId, 'stores');
+
     return {
       success: true,
       data: store,
@@ -31,19 +37,21 @@ export class StoresService {
   }
 
   async findAllStores(tenantId: string) {
-    const stores = await this.prisma.store.findMany({
-      where: {
-        tenantId,
-        isActive: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+    return this.cache.wrap(`cfg:${tenantId}:stores:all`, 900, async () => {
+      const stores = await this.prisma.store.findMany({
+        where: {
+          tenantId,
+          isActive: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      });
 
-    return {
-      success: true,
-      data: stores,
-      total: stores.length,
-    };
+      return {
+        success: true,
+        data: stores,
+        total: stores.length,
+      };
+    });
   }
 
   async findOneStore(tenantId: string, storeId: string) {
@@ -79,6 +87,8 @@ export class StoresService {
       data: dataToUpdate,
     });
 
+    await this.cache.invalidateTenantConfig(tenantId, 'stores');
+
     return {
       success: true,
       data: updatedStore,
@@ -93,6 +103,8 @@ export class StoresService {
       where: { id: storeId },
       data: { isActive: false },
     });
+
+    await this.cache.invalidateTenantConfig(tenantId, 'stores');
 
     return {
       success: true,
