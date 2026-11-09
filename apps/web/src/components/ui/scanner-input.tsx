@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { BarcodeFormat, DecodeHintType } from '@zxing/library';
+import type { BrowserMultiFormatReader } from '@zxing/browser';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -414,6 +413,12 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
           if (!videoRef.current) {
             throw new Error('Camera video element failed to initialize. Please try again.');
           }
+
+          // Dynamically import ZXing only when camera scanning is activated
+          const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
+            import('@zxing/browser'),
+            import('@zxing/library'),
+          ]);
 
           // Configure ZXing with TRY_HARDER + all 2D (QR, DataMatrix) & 1D formats
           const hints = new Map();

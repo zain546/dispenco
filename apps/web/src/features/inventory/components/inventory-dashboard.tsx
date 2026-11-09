@@ -210,7 +210,7 @@ export function InventoryDashboard() {
         exportSummary = expRes.summary;
       }
 
-      const { doc, filename } = generateInventoryStockPdfDoc({
+      const { doc, filename } = await generateInventoryStockPdfDoc({
         storeName: isAllStores ? 'All Pharmacy Branches' : (activeStore?.name || 'Dispenco Pharmacy'),
         storeAddress: isAllStores ? 'Consolidated Organization-Wide Inventory' : activeStore?.address,
         reportScope: scope,

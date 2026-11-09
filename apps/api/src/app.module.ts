@@ -11,7 +11,6 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { RedisCacheModule } from './modules/cache/redis-cache.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
-import { TenantsModule } from './modules/tenants/tenants.module';
 import { StoresModule } from './modules/stores/stores.module';
 import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -22,7 +21,6 @@ import { PurchasesModule } from './modules/purchases/purchases.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
-import { PaymentsModule } from './modules/payments/payments.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { ReportsModule } from './modules/reports/reports.module';
@@ -72,7 +70,6 @@ import { BillingModule } from './modules/billing/billing.module';
     RedisCacheModule,
     AuthModule,
     HealthModule,
-    TenantsModule,
     StoresModule,
     UsersModule,
     RolesModule,
@@ -83,7 +80,6 @@ import { BillingModule } from './modules/billing/billing.module';
     SuppliersModule,
     CustomersModule,
     NotificationsModule,
-    PaymentsModule,
     TaxRatesModule,
     JobsModule,
     ReportsModule,

@@ -323,14 +323,14 @@ export function ReportsView() {
     };
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const opts = getPdfOptions();
     if (!opts) {
       toast.error('Report data is still loading');
       return;
     }
     try {
-      downloadSalesReportPdf(opts);
+      await downloadSalesReportPdf(opts);
       toast.success(`Downloaded ${opts.periodLabel} Sales & Profit PDF Report`);
     } catch (err) {
       toast.error('Failed to generate PDF report', {

@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';
 import { formatCategory, formatUnitPlural } from '../components/product-list';
 
 export interface InventoryStockReportPdfOptions {
@@ -50,10 +50,11 @@ function fmtDateReadable(dateStr: string | null | undefined): string {
   });
 }
 
-export function generateInventoryStockPdfDoc(options: InventoryStockReportPdfOptions): {
+export async function generateInventoryStockPdfDoc(options: InventoryStockReportPdfOptions): Promise<{
   doc: jsPDF;
   filename: string;
-} {
+}> {
+  const { jsPDF } = await import('jspdf');
   const {
     storeName,
     storeAddress,
