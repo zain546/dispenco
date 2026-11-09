@@ -1,29 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { Plus, ShoppingCart } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { productsApi } from '@/features/inventory/services/products-api';
+import { useInventoryAggregation } from '@/features/inventory/hooks/use-inventory-queries';
+import { useStore } from '@/context/store-context';
 
 export function DashboardEmptyState() {
-  const [productCount, setProductCount] = useState<number | null>(null);
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
+  const storeIdParam = !isAllStores && activeStoreId ? activeStoreId : undefined;
 
-  useEffect(() => {
-    productsApi
-      .getProducts({ limit: 1 })
-      .then((res) => {
-        const count = res.meta?.total ?? (Array.isArray(res.data) ? res.data.length : 0);
-        setProductCount(count);
-      })
-      .catch(() => {
-        setProductCount(0);
-      });
-  }, []);
+  const { data, isLoading } = useInventoryAggregation(
+    storeIdParam ? { storeId: storeIdParam } : undefined,
+    { enabled: isStoreReady }
+  );
 
-  if (productCount === null || productCount > 0) {
+  if (isLoading || !data?.summary || data.summary.totalCatalogItems > 0) {
     return null;
   }
 

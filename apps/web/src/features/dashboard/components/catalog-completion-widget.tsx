@@ -1,48 +1,36 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { productsApi } from '@/features/inventory/services/products-api';
+import { useInventoryAggregation } from '@/features/inventory/hooks/use-inventory-queries';
+import { useStore } from '@/context/store-context';
 import { formatNumber } from '@/lib/format';
 import { Sparkles, ArrowRight, PackagePlus, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function CatalogCompletionWidget() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<{
-    totalCatalogItems: number;
-    stockedCount: number;
-    unstockedCount: number;
-    priorityUnstockedCount: number;
-    completionPercentage: number;
-  } | null>(null);
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
+  const storeIdParam = !isAllStores && activeStoreId ? activeStoreId : undefined;
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        setLoading(true);
-        const data = await productsApi.getInventoryAggregation();
-        if (data && data.summary) {
-          setStats({
-            totalCatalogItems: data.summary.totalCatalogItems || 0,
-            stockedCount: data.summary.stockedCount || 0,
-            unstockedCount: data.summary.unstockedCount || 0,
-            priorityUnstockedCount: data.summary.priorityUnstockedCount || 0,
-            completionPercentage: data.summary.completionPercentage || 0,
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load catalog completion stats:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadStats();
-  }, []);
+  const { data, isLoading: loading } = useInventoryAggregation(
+    storeIdParam ? { storeId: storeIdParam } : undefined,
+    { enabled: isStoreReady }
+  );
+
+  const stats = useMemo(() => {
+    if (!data?.summary) return null;
+    return {
+      totalCatalogItems: data.summary.totalCatalogItems || 0,
+      stockedCount: data.summary.stockedCount || 0,
+      unstockedCount: data.summary.unstockedCount || 0,
+      priorityUnstockedCount: data.summary.priorityUnstockedCount || 0,
+      completionPercentage: data.summary.completionPercentage || 0,
+    };
+  }, [data]);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   Receipt,
@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
+import { useRecentSales } from '@/features/sales/hooks/use-sales-queries';
 import { downloadThermalReceiptPdf } from '@/features/sales/utils/invoice-pdf-generator';
 import { useStore } from '@/context/store-context';
 import { formatCurrency } from '@/lib/format';
@@ -63,11 +64,16 @@ function getPaymentBadge(method: string) {
 }
 
 export function RecentSalesWidget() {
-  const { activeStoreId, isAllStores } = useStore();
-  const [sales, setSales] = useState<SaleResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
+  const storeIdParam = !isAllStores && activeStoreId ? activeStoreId : undefined;
   const [downloadingSaleId, setDownloadingSaleId] = useState<string | null>(null);
+
+  const { data: recentRes, isLoading, isFetching, refetch } = useRecentSales(storeIdParam, 6, {
+    enabled: isStoreReady,
+  });
+
+  const sales: SaleResponse[] = recentRes?.data || [];
+  const isRefreshing = isFetching && !isLoading;
 
   const handleDownloadReceipt = async (saleId: string) => {
     try {
@@ -89,33 +95,6 @@ export function RecentSalesWidget() {
     }
   };
 
-  const fetchSales = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
-
-    try {
-      const res = await salesApi.getRecentSales(
-        6,
-        !isAllStores && activeStoreId ? activeStoreId : undefined
-      );
-      if (res?.success && Array.isArray(res.data)) {
-        setSales(res.data);
-      } else {
-        setSales([]);
-      }
-    } catch (err) {
-      console.error('Failed to load recent sales:', err);
-      setSales([]);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [activeStoreId, isAllStores]);
-
-  useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
-
   return (
     <Card className="border-border/70 shadow-2xs overflow-hidden flex flex-col justify-between">
       <CardHeader className="p-3.5 sm:p-4 pb-3 border-b border-border/50 flex flex-row items-center justify-between gap-3">
@@ -133,7 +112,7 @@ export function RecentSalesWidget() {
             type="button"
             variant="ghost"
             size="icon"
-            onClick={() => fetchSales(true)}
+            onClick={() => refetch()}
             disabled={isRefreshing || isLoading}
             className="size-8 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer"
             title="Refresh recent sales feed"

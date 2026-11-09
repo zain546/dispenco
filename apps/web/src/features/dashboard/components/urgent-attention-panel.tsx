@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -14,50 +14,28 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { productsApi } from '@/features/inventory/services/products-api';
+import { useInventoryAggregation } from '@/features/inventory/hooks/use-inventory-queries';
 import { useStore } from '@/context/store-context';
 import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export function UrgentAttentionPanel() {
-  const { activeStoreId, isAllStores } = useStore();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<{
-    lowStockCount: number;
-    expiringSoonCount: number;
-    outOfStockCount: number;
-    totalCatalogItems: number;
-  }>({
-    lowStockCount: 0,
-    expiringSoonCount: 0,
-    outOfStockCount: 0,
-    totalCatalogItems: 0,
-  });
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
+  const storeIdParam = !isAllStores && activeStoreId ? activeStoreId : undefined;
 
-  useEffect(() => {
-    async function loadAlerts() {
-      try {
-        setLoading(true);
-        const res = await productsApi.getInventoryAggregation(
-          !isAllStores && activeStoreId ? { storeId: activeStoreId } : undefined
-        );
-        if (res?.summary) {
-          setData({
-            lowStockCount: res.summary.lowStockCount || 0,
-            expiringSoonCount: res.summary.expiringSoonCount || 0,
-            outOfStockCount: res.summary.outOfStockCount || 0,
-            totalCatalogItems: res.summary.totalCatalogItems || 0,
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load urgent attention metrics:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
+  const { data: aggData, isLoading: loading } = useInventoryAggregation(
+    storeIdParam ? { storeId: storeIdParam } : undefined,
+    { enabled: isStoreReady }
+  );
 
-    loadAlerts();
-  }, [activeStoreId, isAllStores]);
+  const data = useMemo(() => {
+    return {
+      lowStockCount: aggData?.summary?.lowStockCount || 0,
+      expiringSoonCount: aggData?.summary?.expiringSoonCount || 0,
+      outOfStockCount: aggData?.summary?.outOfStockCount || 0,
+      totalCatalogItems: aggData?.summary?.totalCatalogItems || 0,
+    };
+  }, [aggData]);
 
   if (loading) {
     return (

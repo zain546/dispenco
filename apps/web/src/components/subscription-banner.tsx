@@ -1,35 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AlertCircle, Clock, Zap, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { billingApi, SubscriptionInfo } from '@/features/settings/services/billing-api';
+import { useSubscription } from '@/features/settings/hooks/use-billing-queries';
 import { useAuth } from '@/context/auth-context';
 
 export function SubscriptionBanner() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const [sub, setSub] = useState<SubscriptionInfo | null>(null);
   const [isDismissed, setIsDismissed] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    let isMounted = true;
-    billingApi
-      .getSubscription()
-      .then((data) => {
-        if (isMounted) setSub(data);
-      })
-      .catch(() => {
-        // Silently fail if unauthenticated or offline
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, pathname]);
+  const { data: sub } = useSubscription({ enabled: Boolean(user) });
 
   if (!sub || isDismissed) return null;
 

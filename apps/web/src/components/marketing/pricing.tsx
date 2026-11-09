@@ -2,12 +2,11 @@
 
 import Link from 'next/link';
 import { ArrowRight, Check, CheckCircle2, Clock, AlertCircle, RefreshCw } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/context/auth-context';
-import { billingApi, type SubscriptionInfo } from '@/features/settings/services/billing-api';
+import { useSubscription } from '@/features/settings/hooks/use-billing-queries';
 import { marketingConfig } from './config';
 import { SectionHeading } from './shared';
 
@@ -29,19 +28,7 @@ const formatDate = (dateStr?: string | null) => {
 export function Pricing() {
   const { user } = useAuth();
 
-  const { data: subscription } = useQuery<SubscriptionInfo | null>({
-    queryKey: ['marketing-pricing-subscription', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      try {
-        return await billingApi.getSubscription();
-      } catch {
-        return null;
-      }
-    },
-    enabled: !!user,
-    staleTime: 60 * 1000,
-  });
+  const { data: subscription } = useSubscription({ enabled: !!user });
 
   const plan = marketingConfig.pricing.plans[0];
 

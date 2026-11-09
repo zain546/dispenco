@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useTransition, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingCart,
   Search,
@@ -90,6 +91,7 @@ const getSingleUnitPrice = (product: ProductData): number => {
 };
 
 export function POSTerminal() {
+  const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
 
   // Cart & Search State
@@ -945,6 +947,14 @@ export function POSTerminal() {
         setDoctorName('Self');
         setIsSelfDoctor(true);
         toast.success(`Sale completed! Receipt #${res.sale.receiptNumber}`);
+
+        // Invalidate TanStack query cache for inventory, sales, and reports
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['sales'] });
+        queryClient.invalidateQueries({ queryKey: ['reports'] });
+        if (payload.customerId) {
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        }
       }
     } catch (err: any) {
       console.error('Checkout error:', err);

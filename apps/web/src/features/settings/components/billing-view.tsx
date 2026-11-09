@@ -25,6 +25,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { billingApi, SubscriptionInfo } from '../services/billing-api';
+import { useSubscription, useVerifyBillingSession } from '../hooks/use-billing-queries';
 import { STARTER_PLAN } from '@dispenco/types';
 import { usePermissions } from '@/hooks/use-permissions';
 
@@ -106,46 +107,31 @@ export function BillingView() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: subscription, isLoading, refetch } = useSubscription();
+  const verifySessionMutation = useVerifyBillingSession();
   const [isRenewing, setIsRenewing] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  const fetchSubscription = async () => {
-    try {
-      setIsLoading(true);
-      const data = await billingApi.getSubscription();
-      setSubscription(data);
-    } catch (err: any) {
-      toast.error('Failed to load subscription details');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchSubscription();
-
     // Check if returning from Safepay hosted checkout
     const paymentStatus = searchParams.get('payment_status') || searchParams.get('status');
     const tracker = searchParams.get('beacon') || searchParams.get('tracker');
 
     if (paymentStatus === 'pending' || paymentStatus === 'success' || paymentStatus === 'completed') {
       if (tracker) {
-        billingApi.verifySession(tracker)
-          .then((data) => {
-            setSubscription(data);
+        verifySessionMutation.mutate(tracker, {
+          onSuccess: () => {
             toast.success('Payment completed successfully! Subscription extended by 30 days.');
-          })
-          .catch(() => {
-            fetchSubscription();
-          })
-          .finally(() => {
             router.replace('/settings?tab=billing');
-          });
+          },
+          onError: () => {
+            refetch();
+            router.replace('/settings?tab=billing');
+          },
+        });
       } else {
         toast.info('Check your subscription status below. Payment confirmation is not available yet.');
-        fetchSubscription();
+        refetch();
         router.replace('/settings?tab=billing');
       }
     }
@@ -171,7 +157,7 @@ export function BillingView() {
       setIsRenewing(true);
       const res = await billingApi.mockRenew();
       toast.success(res.message || 'Subscription successfully extended by 30 days!');
-      await fetchSubscription();
+      await refetch();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to process payment renewal');
     } finally {

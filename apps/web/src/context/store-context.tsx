@@ -13,6 +13,7 @@ interface StoreContextType {
   isMultiStore: boolean;
   storeCount: number;
   isLoading: boolean;
+  isStoreReady: boolean;
   setActiveStoreId: (storeId: string) => void;
   refreshStores: () => Promise<void>;
   createStore: (payload: CreateStorePayload) => Promise<StoreData | null>;
@@ -117,6 +118,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     : stores.find((s) => s.id === activeStoreId) || null;
 
   const isAllStores = activeStoreId === 'all';
+  const isStoreReady = !isLoading && (Boolean(activeStoreId) || stores.length === 0);
 
   return (
     <StoreContext.Provider
@@ -128,6 +130,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         isMultiStore: stores.length > 1,
         storeCount: stores.length,
         isLoading,
+        isStoreReady,
         setActiveStoreId,
         refreshStores: fetchStores,
         createStore,
