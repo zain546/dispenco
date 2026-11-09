@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch, type Control, type UseFormSetValue } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Save,
@@ -60,6 +60,15 @@ import {
   PRODUCT_UNITS,
 } from '../schemas/product-schema';
 import { productsApi, type ProductData, type BatchData } from '../services/products-api';
+import { suppliersApi, type SupplierData } from '@/features/suppliers/services/suppliers-api';
+import type {
+  TabletCapsuleAttributes,
+  SyrupLiquidAttributes,
+  InjectionInfusionAttributes,
+  MedicalDeviceAttributes,
+  CosmeticsPersonalCareAttributes,
+  GeneralItemAttributes,
+} from '@dispenco/types';
 import { formatCategory, formatDate, formatUnitPlural } from './product-list';
 import { getBatchExpiryDetails } from '../utils/batch-utils';
 import { getErrorMessage } from '@/lib/errors';
@@ -78,6 +87,310 @@ function normalizeUnit(unit?: string | null): string {
   return unit.trim();
 }
 
+/**
+ * Isolated live calculation ribbon for retail unit conversion and profit margins.
+ * Subscribes to only relevant pricing and pack size fields via useWatch so that
+ * keystrokes in these inputs do NOT re-render the entire ProductForm tree.
+ */
+const PosUnitBreakdown = React.memo(function PosUnitBreakdown({
+  control,
+}: {
+  control: any;
+}) {
+  const [packSize, costPrice, sellPrice, initialStockQuantity, category, unit, dosageForm] = useWatch({
+    control,
+    name: [
+      'packSize',
+      'costPrice',
+      'sellPrice',
+      'initialStockQuantity',
+      'category',
+      'unit',
+      'dosageForm',
+    ],
+  });
+
+  const packSizeVal = Math.max(1, Number(packSize) || 1);
+  const costPriceVal = Math.max(0, Number(costPrice) || 0);
+  const sellPriceVal = Math.max(0, Number(sellPrice) || 0);
+  const stockQtyVal = Math.max(0, Number(initialStockQuantity) || 0);
+  const selectedUnit = normalizeUnit(unit || 'Box');
+  const selectedCategory = category || 'TABLET_CAPSULE';
+
+  const subUnitLabel =
+    packSizeVal > 1
+      ? selectedCategory === 'TABLET_CAPSULE'
+        ? dosageForm?.toLowerCase().includes('cap')
+          ? 'Capsule'
+          : dosageForm?.toLowerCase().includes('tab')
+            ? 'Tablet'
+            : selectedUnit.toLowerCase() === 'strip'
+              ? 'Tablet'
+              : 'Unit'
+        : selectedCategory === 'INJECTION_INFUSION' && selectedUnit.toLowerCase() === 'box'
+          ? 'Vial'
+          : selectedCategory === 'SYRUP_LIQUID' && selectedUnit.toLowerCase() === 'box'
+            ? 'Bottle'
+            : 'Unit'
+      : selectedUnit;
+
+  if (packSizeVal <= 1 && costPriceVal === 0 && sellPriceVal === 0) {
+    return null;
+  }
+
+  return (
+    <div className="col-span-1 sm:col-span-2 rounded-xl border border-success/30 bg-success/5 p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-2xs">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="size-6 rounded-md bg-success/10 text-success flex items-center justify-center shrink-0">
+            <Layers className="size-3.5" />
+          </div>
+          <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
+            <span className="hidden sm:inline">Retail POS Unit Conversion Breakdown</span>
+            <span className="sm:hidden font-bold">POS Unit Breakdown</span>
+          </span>
+        </div>
+        {packSizeVal > 1 && (
+          <Badge
+            variant="outline"
+            className="border-success/30 text-success bg-success/10 text-micro font-bold px-2 py-0.5 shrink-0 whitespace-nowrap"
+          >
+            {packSizeVal} {formatUnitPlural(subUnitLabel)} / {selectedUnit}
+          </Badge>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-border/60 pt-0.5">
+        <div className="sm:px-3 first:pl-0 space-y-0.5">
+          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
+            Cost / {subUnitLabel}
+          </span>
+          <p className="text-xs sm:text-sm font-bold text-foreground">
+            PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
+          </p>
+        </div>
+
+        <div className="sm:px-3 space-y-0.5">
+          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
+            Retail / {subUnitLabel}
+          </span>
+          <p className="text-xs sm:text-sm font-extrabold text-success">
+            PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
+          </p>
+        </div>
+
+        <div className="sm:px-3 space-y-0.5">
+          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
+            {packSizeVal > 1 ? 'Total Loose Stock' : 'Total Stock'}
+          </span>
+          <p className="text-xs sm:text-sm font-bold text-foreground">
+            {(stockQtyVal * packSizeVal).toLocaleString()}{' '}
+            <span className="text-micro font-normal text-muted-foreground">
+              {formatUnitPlural(subUnitLabel)}
+            </span>
+          </p>
+        </div>
+
+        <div className="sm:px-3 last:pr-0 space-y-0.5">
+          <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
+            Est. Gross Margin
+          </span>
+          <p
+            className={`text-xs sm:text-sm font-bold ${
+              sellPriceVal > 0 && costPriceVal > sellPriceVal
+                ? 'text-destructive font-black'
+                : 'text-success'
+            }`}
+          >
+            {sellPriceVal > 0 ? (((sellPriceVal - costPriceVal) / sellPriceVal) * 100).toFixed(1) : '0.0'}%
+          </p>
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-micro text-muted-foreground leading-tight">
+        <Info className="size-3.5 text-success shrink-0" />
+        <span>
+          {packSizeVal > 1
+            ? `Supports full ${selectedUnit} and loose ${formatUnitPlural(subUnitLabel).toLowerCase()} POS sales.`
+            : `Supports POS sales in full ${formatUnitPlural(selectedUnit)}.`}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+/**
+ * Isolated expiry date warning banner to prevent expiry date changes from re-rendering the whole form.
+ */
+const ExpiryDateNotice = React.memo(function ExpiryDateNotice({
+  control,
+}: {
+  control: any;
+}) {
+  const expiryDateVal = useWatch({ control, name: 'expiryDate' });
+
+  const expiryWarning = useMemo(() => {
+    if (!expiryDateVal || !expiryDateVal.trim()) return null;
+    const parts = expiryDateVal.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    const expDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const diffTime = expDate.getTime() - now.getTime();
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (days < 0) {
+      return {
+        type: 'expired' as const,
+        days: Math.abs(days),
+        message: `This lot expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago.`,
+      };
+    }
+    if (days === 0) {
+      return {
+        type: 'near' as const,
+        days: 0,
+        message: 'Expires today! Immediate dispensing priority required.',
+      };
+    }
+    if (days <= 30) {
+      return {
+        type: 'near' as const,
+        days,
+        message: `Expires in ${days} day${days === 1 ? '' : 's'} (short expiry). Priority FEFO dispensing will apply.`,
+      };
+    }
+    return null;
+  }, [expiryDateVal]);
+
+  if (!expiryWarning) return null;
+
+  return expiryWarning.type === 'expired' ? (
+    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-micro text-destructive flex items-center gap-1.5 animate-in fade-in">
+      <ShieldAlert className="size-3.5 shrink-0" />
+      <span>
+        <strong>Expired Lot:</strong> {expiryWarning.message}
+      </span>
+    </div>
+  ) : (
+    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-micro text-amber-700 dark:text-amber-400 flex items-center gap-1.5 animate-in fade-in">
+      <AlertCircle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+      <span>
+        <strong>Short Expiry Notice:</strong> {expiryWarning.message}
+      </span>
+    </div>
+  );
+});
+
+/**
+ * Isolated asterisk indicator for fields required only when initial stock is entered.
+ */
+const RequiredStockIndicator = React.memo(function RequiredStockIndicator({
+  control,
+}: {
+  control: any;
+}) {
+  const stockQty = useWatch({ control, name: 'initialStockQuantity' });
+  const hasStock = Number(stockQty) > 0;
+  if (!hasStock) return null;
+  return (
+    <span className="text-destructive font-bold text-xs" title="Required when stock > 0">
+      *
+    </span>
+  );
+});
+
+/**
+ * Isolated prescription toggle to eliminate root re-renders on checkbox changes.
+ */
+const PrescriptionStatusSection = React.memo(function PrescriptionStatusSection({
+  control,
+  setValue,
+}: {
+  control: any;
+  setValue: any;
+}) {
+  const isControlled = useWatch({ control, name: 'isControlledSubstance' });
+
+  return (
+    <div className="flex flex-col justify-start rounded-md border border-input p-3 bg-card gap-1.5">
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="isControlledSubstance"
+          checked={Boolean(isControlled)}
+          onCheckedChange={(checked) =>
+            setValue('isControlledSubstance', !!checked, { shouldValidate: true })
+          }
+        />
+        <Label htmlFor="isControlledSubstance" className="cursor-pointer font-medium text-xs sm:text-sm">
+          Controlled Drug (Rx)
+        </Label>
+      </div>
+      {isControlled ? (
+        <div className="flex items-center gap-1.5 text-micro text-destructive font-medium bg-destructive/10 px-2 py-1 rounded-sm">
+          <ShieldAlert className="size-3 shrink-0" />
+          <span>Prescription required</span>
+        </div>
+      ) : (
+        <p className="text-micro text-muted-foreground">Standard OTC (No prescription needed)</p>
+      )}
+    </div>
+  );
+});
+
+/**
+ * Isolated smart scan subtitle to show scanned GTIN / Batch without root re-renders.
+ */
+const SmartScanSubtitle = React.memo(function SmartScanSubtitle({
+  control,
+}: {
+  control: any;
+}) {
+  const [barcode, batchNumber] = useWatch({ control, name: ['barcode', 'batchNumber'] });
+  return (
+    <p className="text-[11px] text-muted-foreground truncate">
+      {barcode
+        ? `GTIN: ${barcode}${batchNumber ? ` • Batch: ${batchNumber}` : ''}`
+        : 'Auto-fills barcode, batch & expiry'}
+    </p>
+  );
+});
+
+/**
+ * Isolated scanner input wrapper that subscribes only to barcode value.
+ */
+const BarcodeScannerField = React.memo(function BarcodeScannerField({
+  id,
+  control,
+  onChange,
+  onScan,
+  placeholder,
+  buttonOnly,
+  buttonLabel,
+}: {
+  id: string;
+  control: any;
+  onChange: (val: string) => void;
+  onScan: (scannedVal: string, parsedData?: Gs1ParsedMedicineData) => void;
+  placeholder?: string;
+  buttonOnly?: boolean;
+  buttonLabel?: string;
+}) {
+  const barcode = useWatch({ control, name: 'barcode' }) || '';
+  return (
+    <ScannerInput
+      id={id}
+      placeholder={placeholder}
+      buttonOnly={buttonOnly}
+      buttonLabel={buttonLabel}
+      value={barcode}
+      onChange={onChange}
+      onScan={onScan}
+    />
+  );
+});
+
 export function ProductForm({
   initialData,
   isEditing = false,
@@ -85,11 +398,29 @@ export function ProductForm({
   initialBatchNumber = null,
 }: ProductFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
   const [pendingSubmitValues, setPendingSubmitValues] = useState<ProductFormValues | null>(null);
   const [showInvertedPriceDialog, setShowInvertedPriceDialog] = useState(false);
   const [showBarcodeCollisionDialog, setShowBarcodeCollisionDialog] = useState(false);
+
+  // Fetch registered suppliers for autocomplete suggestions
+  useEffect(() => {
+    let isMounted = true;
+    suppliersApi
+      .getSuppliers()
+      .then((res) => {
+        if (isMounted && res?.suppliers) {
+          setSuppliers(res.suppliers);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Batch state for existing products
   const [batches, setBatches] = useState<BatchData[]>(initialData?.batches || []);
@@ -119,13 +450,15 @@ export function ProductForm({
 
 
 
-  const initialAttrs = (initialData?.attributes || {}) as Record<string, any>;
+  const initialAttrs = (initialData?.attributes || {}) as Record<string, unknown>;
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    control,
+    getValues,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(productFormSchema),
@@ -148,25 +481,25 @@ export function ProductForm({
 
       // Batch, Location & Purchase Invoice Details
       batchNumber: '',
-      rackNumber: initialAttrs.rackNumber || '',
-      vendorName: initialAttrs.vendorName || '',
-      mfgDate: initialAttrs.mfgDate || '',
-      purchaseInvoiceNumber: initialAttrs.purchaseInvoiceNumber || '',
-      purchaseInvoiceDate: initialAttrs.purchaseInvoiceDate || '',
+      rackNumber: initialAttrs.rackNumber ? String(initialAttrs.rackNumber) : '',
+      vendorName: initialAttrs.vendorName ? String(initialAttrs.vendorName) : '',
+      mfgDate: initialAttrs.mfgDate ? String(initialAttrs.mfgDate) : '',
+      purchaseInvoiceNumber: initialAttrs.purchaseInvoiceNumber ? String(initialAttrs.purchaseInvoiceNumber) : '',
+      purchaseInvoiceDate: initialAttrs.purchaseInvoiceDate ? String(initialAttrs.purchaseInvoiceDate) : '',
 
       // Category attributes
-      dosageForm: initialAttrs.dosageForm || '',
-      strength: initialAttrs.strength || '',
+      dosageForm: initialAttrs.dosageForm ? String(initialAttrs.dosageForm) : '',
+      strength: initialAttrs.strength ? String(initialAttrs.strength) : '',
       packSize: initialAttrs.packSize ? Number(initialAttrs.packSize) : undefined,
-      manufacturer: initialAttrs.manufacturer || '',
+      manufacturer: initialAttrs.manufacturer ? String(initialAttrs.manufacturer) : '',
       volumeMl: initialAttrs.volumeMl ? Number(initialAttrs.volumeMl) : undefined,
-      flavor: initialAttrs.flavor || '',
-      route: initialAttrs.route || '',
-      storageTemp: initialAttrs.storageTemp || '',
-      modelNumber: initialAttrs.modelNumber || '',
+      flavor: initialAttrs.flavor ? String(initialAttrs.flavor) : '',
+      route: initialAttrs.route ? String(initialAttrs.route) : '',
+      storageTemp: initialAttrs.storageTemp ? String(initialAttrs.storageTemp) : '',
+      modelNumber: initialAttrs.modelNumber ? String(initialAttrs.modelNumber) : '',
       warrantyMonths: initialAttrs.warrantyMonths ? Number(initialAttrs.warrantyMonths) : undefined,
-      brand: initialAttrs.brand || '',
-      description: initialAttrs.description || '',
+      brand: initialAttrs.brand ? String(initialAttrs.brand) : '',
+      description: initialAttrs.description ? String(initialAttrs.description) : '',
     },
   });
 
@@ -208,7 +541,6 @@ export function ProductForm({
 
   const selectedCategory = watch('category');
   const selectedUnit = normalizeUnit(watch('unit'));
-  const isControlled = watch('isControlledSubstance');
   const [scannedExistingProduct, setScannedExistingProduct] = useState<ProductData | null>(null);
 
   const handleSmartBoxScan = useCallback(
@@ -245,8 +577,8 @@ export function ProductForm({
           if (res?.product) {
             const p = res.product;
             setScannedExistingProduct(p);
-            if (!watch('name')) setValue('name', p.name, { shouldValidate: true });
-            if (p.genericName && !watch('genericName')) setValue('genericName', p.genericName);
+            if (!getValues('name')) setValue('name', p.name, { shouldValidate: true });
+            if (p.genericName && !getValues('genericName')) setValue('genericName', p.genericName);
             if (p.category) setValue('category', p.category);
             if (p.unit) setValue('unit', normalizeUnit(p.unit));
             if (p.latestCostPrice) setValue('costPrice', Number(p.latestCostPrice));
@@ -264,18 +596,18 @@ export function ProductForm({
         }
       }
     },
-    [isEditing, setValue, watch]
+    [isEditing, setValue, getValues]
   );
 
   const handleNavigateToReceiveBatch = useCallback(() => {
     if (!scannedExistingProduct) return;
     const params = new URLSearchParams();
     params.set('productId', scannedExistingProduct.id);
-    if (watch('batchNumber')) params.set('batchNumber', String(watch('batchNumber')));
-    if (watch('expiryDate')) params.set('expiryDate', String(watch('expiryDate')));
-    if (watch('mfgDate')) params.set('mfgDate', String(watch('mfgDate')));
+    if (getValues('batchNumber')) params.set('batchNumber', String(getValues('batchNumber')));
+    if (getValues('expiryDate')) params.set('expiryDate', String(getValues('expiryDate')));
+    if (getValues('mfgDate')) params.set('mfgDate', String(getValues('mfgDate')));
     router.push(`/inventory/receive?${params.toString()}`);
-  }, [scannedExistingProduct, watch, router]);
+  }, [scannedExistingProduct, getValues, router]);
 
   const handleBarcodeChange = useCallback(
     async (val: string) => {
@@ -301,20 +633,19 @@ export function ProductForm({
 
   // Pre-fill from URL query parameters (e.g. navigated from POS "Add New Medicine from Scan")
   useEffect(() => {
-    if (typeof window === 'undefined' || isEditing) return;
-    const params = new URLSearchParams(window.location.search);
-    const qBarcode = params.get('barcode');
-    const qBatch = params.get('batchNumber');
-    const qExpiry = params.get('expiryDate');
-    const qMfg = params.get('mfgDate');
-    const qName = params.get('name');
+    if (isEditing) return;
+    const qBarcode = searchParams.get('barcode');
+    const qBatch = searchParams.get('batchNumber');
+    const qExpiry = searchParams.get('expiryDate');
+    const qMfg = searchParams.get('mfgDate');
+    const qName = searchParams.get('name');
 
     if (qBarcode) setValue('barcode', qBarcode, { shouldDirty: true });
     if (qBatch) setValue('batchNumber', qBatch, { shouldDirty: true });
     if (qExpiry) setValue('expiryDate', qExpiry, { shouldDirty: true });
     if (qMfg) setValue('mfgDate', qMfg, { shouldDirty: true });
     if (qName) setValue('name', qName, { shouldDirty: true });
-  }, [isEditing, setValue]);
+  }, [isEditing, searchParams, setValue]);
 
   const preventNegativeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
@@ -322,73 +653,15 @@ export function ProductForm({
     }
   };
 
-  const packSizeVal = Math.max(1, Number(watch('packSize')) || 1);
-  const costPriceVal = Math.max(0, Number(watch('costPrice')) || 0);
-  const sellPriceVal = Math.max(0, Number(watch('sellPrice')) || 0);
-  const stockQtyVal = Math.max(0, Number(watch('initialStockQuantity')) || 0);
-  const dosageFormVal = watch('dosageForm');
-  const expiryDateVal = watch('expiryDate');
-
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  const expiryWarning = useMemo(() => {
-    if (!expiryDateVal || !expiryDateVal.trim()) return null;
-    const parts = expiryDateVal.split('-').map(Number);
-    if (parts.length !== 3 || parts.some(isNaN)) return null;
-    const expDate = new Date(parts[0], parts[1] - 1, parts[2]);
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    const diffTime = expDate.getTime() - now.getTime();
-    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (days < 0) {
-      return {
-        type: 'expired' as const,
-        days: Math.abs(days),
-        message: `This lot expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago.`,
-      };
-    }
-    if (days === 0) {
-      return {
-        type: 'near' as const,
-        days: 0,
-        message: 'Expires today! Immediate dispensing priority required.',
-      };
-    }
-    if (days <= 30) {
-      return {
-        type: 'near' as const,
-        days,
-        message: `Expires in ${days} day${days === 1 ? '' : 's'} (short expiry). Priority FEFO dispensing will apply.`,
-      };
-    }
-    return null;
-  }, [expiryDateVal]);
-
-  const subUnitLabel = packSizeVal > 1
-    ? selectedCategory === 'TABLET_CAPSULE'
-      ? dosageFormVal?.toLowerCase().includes('cap')
-        ? 'Capsule'
-        : dosageFormVal?.toLowerCase().includes('tab')
-          ? 'Tablet'
-          : selectedUnit.toLowerCase() === 'strip'
-            ? 'Tablet'
-            : 'Unit'
-      : selectedCategory === 'INJECTION_INFUSION' && selectedUnit.toLowerCase() === 'box'
-        ? 'Vial'
-        : selectedCategory === 'SYRUP_LIQUID' && selectedUnit.toLowerCase() === 'box'
-          ? 'Bottle'
-          : 'Unit'
-    : selectedUnit;
 
   const executeSubmit = async (values: ProductFormValues) => {
     setError(null);
     setIsLoading(true);
 
-    // Build attributes payload based on category
-    const attributes: Record<string, any> = {};
+    // Build attributes payload based on category with strong typing
+    const attributes: Record<string, unknown> = {};
 
     if (values.manufacturer) attributes.manufacturer = values.manufacturer;
     if (values.rackNumber) attributes.rackNumber = values.rackNumber;
@@ -503,12 +776,12 @@ export function ProductForm({
       const sell = values.sellPrice !== undefined ? Number(values.sellPrice) : 0;
 
       if (cost > 0 && sell > 0 && cost > sell) {
-        setPendingSubmitValues(values);
+        setPendingSubmitValues(values as ProductFormValues);
         setShowInvertedPriceDialog(true);
         return;
       }
 
-      await executeSubmit(values);
+      await executeSubmit(values as ProductFormValues);
     },
     (formErrors) => {
       setError(null);
@@ -588,19 +861,15 @@ export function ProductForm({
                   <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
                     Scan Medicine Box
                   </p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {watch('barcode')
-                      ? `GTIN: ${watch('barcode')}${watch('batchNumber') ? ` • Batch: ${watch('batchNumber')}` : ''}`
-                      : 'Auto-fills barcode, batch & expiry'}
-                  </p>
+                  <SmartScanSubtitle control={control} />
                 </div>
               </div>
 
-              <ScannerInput
+              <BarcodeScannerField
                 id="quick-box-scanner"
+                control={control}
                 buttonOnly
                 buttonLabel="Scan Box"
-                value={watch('barcode') || ''}
                 onChange={handleBarcodeChange}
                 onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
               />
@@ -617,7 +886,7 @@ export function ProductForm({
                       Medicine already in catalog: <span className="text-primary font-bold">{scannedExistingProduct.name}</span>
                     </p>
                     <p className="text-micro text-muted-foreground">
-                      Barcode {watch('barcode')} is already registered. Switch to receive a new stock batch.
+                      Barcode {scannedExistingProduct.barcode || getValues('barcode')} is already registered. Switch to receive a new stock batch.
                     </p>
                   </div>
                 </div>
@@ -656,6 +925,8 @@ export function ProductForm({
               <Input
                 id="name"
                 placeholder="e.g. Panadol Extra 500mg"
+                autoComplete="off"
+                spellCheck={false}
                 {...register('name')}
               />
               {errors.name && (
@@ -671,6 +942,8 @@ export function ProductForm({
               <Input
                 id="genericName"
                 placeholder="e.g. Paracetamol"
+                autoComplete="off"
+                spellCheck={false}
                 {...register('genericName')}
               />
             </div>
@@ -739,11 +1012,8 @@ export function ProductForm({
                     min="0"
                     placeholder="e.g. 50"
                     onKeyDown={preventNegativeKeyDown}
-                    {...register('initialStockQuantity', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                      },
-                    })}
+                    autoComplete="off"
+                    {...register('initialStockQuantity')}
                   />
                   {errors.initialStockQuantity && (
                     <p className="text-xs text-destructive">{errors.initialStockQuantity.message}</p>
@@ -765,11 +1035,8 @@ export function ProductForm({
                     min="1"
                     placeholder="e.g. 100"
                     onKeyDown={preventNegativeKeyDown}
-                    {...register('packSize', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 1 && e.target.value !== '') e.target.value = '1';
-                      },
-                    })}
+                    autoComplete="off"
+                    {...register('packSize')}
                   />
                   {errors.packSize && (
                     <p className="text-xs text-destructive">{errors.packSize.message}</p>
@@ -784,29 +1051,19 @@ export function ProductForm({
                   <Label htmlFor="expiryDate" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <Calendar className="size-3.5 text-primary shrink-0" />
                     <span>Expiry Date</span>
-                    {stockQtyVal > 0 && <span className="text-destructive font-bold text-xs" title="Required when stock > 0">*</span>}
+                    <RequiredStockIndicator control={control} />
                   </Label>
                   <Input
                     id="expiryDate"
                     type="date"
                     min={!isEditing ? todayString : undefined}
+                    autoComplete="off"
                     {...register('expiryDate')}
                   />
-                  {errors.expiryDate ? (
+                  {errors.expiryDate && (
                     <p className="text-xs text-destructive font-medium">{errors.expiryDate.message}</p>
-                  ) : expiryWarning ? (
-                    expiryWarning.type === 'expired' ? (
-                      <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-micro text-destructive flex items-center gap-1.5 animate-in fade-in">
-                        <ShieldAlert className="size-3.5 shrink-0" />
-                        <span><strong>Expired Lot:</strong> {expiryWarning.message}</span>
-                      </div>
-                    ) : (
-                      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-micro text-amber-700 dark:text-amber-400 flex items-center gap-1.5 animate-in fade-in">
-                        <AlertCircle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <span><strong>Short Expiry Notice:</strong> {expiryWarning.message}</span>
-                      </div>
-                    )
-                  ) : null}
+                  )}
+                  <ExpiryDateNotice control={control} />
                 </div>
 
                 {/* Purchase / Cost Price */}
@@ -814,7 +1071,7 @@ export function ProductForm({
                   <Label htmlFor="costPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <DollarSign className="size-3.5 text-muted-foreground shrink-0" />
                     <span>Purchase Price ({selectedUnit})</span>
-                    {stockQtyVal > 0 && <span className="text-destructive font-bold text-xs" title="Required when stock > 0">*</span>}
+                    <RequiredStockIndicator control={control} />
                   </Label>
                   <Input
                     id="costPrice"
@@ -823,11 +1080,8 @@ export function ProductForm({
                     min="0"
                     placeholder="e.g. 150.00"
                     onKeyDown={preventNegativeKeyDown}
-                    {...register('costPrice', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                      },
-                    })}
+                    autoComplete="off"
+                    {...register('costPrice')}
                   />
                   {errors.costPrice && (
                     <p className="text-xs text-destructive">{errors.costPrice.message}</p>
@@ -839,7 +1093,7 @@ export function ProductForm({
                   <Label htmlFor="sellPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <DollarSign className="size-3.5 text-primary shrink-0" />
                     <span>Retail Price (MRP)</span>
-                    {stockQtyVal > 0 && <span className="text-destructive font-bold text-xs" title="Required when stock > 0">*</span>}
+                    <RequiredStockIndicator control={control} />
                   </Label>
                   <Input
                     id="sellPrice"
@@ -848,11 +1102,8 @@ export function ProductForm({
                     min="0"
                     placeholder="e.g. 200.00"
                     onKeyDown={preventNegativeKeyDown}
-                    {...register('sellPrice', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                      },
-                    })}
+                    autoComplete="off"
+                    {...register('sellPrice')}
                   />
                   {errors.sellPrice && (
                     <p className="text-xs text-destructive">{errors.sellPrice.message}</p>
@@ -860,77 +1111,7 @@ export function ProductForm({
                 </div>
 
                 {/* Retail POS Unit Conversion Breakdown Preview */}
-                {(packSizeVal > 1 || costPriceVal > 0 || sellPriceVal > 0) && (
-                  <div className="col-span-1 sm:col-span-2 rounded-xl border border-success/30 bg-success/5 p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-2xs">
-                    {/* Top Header */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="size-6 rounded-md bg-success/10 text-success flex items-center justify-center shrink-0">
-                          <Layers className="size-3.5" />
-                        </div>
-                        <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
-                          <span className="hidden sm:inline">Retail POS Unit Conversion Breakdown</span>
-                          <span className="sm:hidden font-bold">POS Unit Breakdown</span>
-                        </span>
-                      </div>
-                      {packSizeVal > 1 && (
-                        <Badge variant="outline" className="border-success/30 text-success bg-success/10 text-micro font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
-                          {packSizeVal} {formatUnitPlural(subUnitLabel)} / {selectedUnit}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Metrics Ribbon */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-border/60 pt-0.5">
-                      <div className="sm:px-3 first:pl-0 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
-                          Cost / {subUnitLabel}
-                        </span>
-                        <p className="text-xs sm:text-sm font-bold text-foreground">
-                          PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
-                        </p>
-                      </div>
-
-                      <div className="sm:px-3 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
-                          Retail / {subUnitLabel}
-                        </span>
-                        <p className="text-xs sm:text-sm font-extrabold text-success">
-                          PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
-                        </p>
-                      </div>
-
-                      <div className="sm:px-3 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">
-                          {packSizeVal > 1 ? 'Total Loose Stock' : 'Total Stock'}
-                        </span>
-                        <p className="text-xs sm:text-sm font-bold text-foreground">
-                          {(stockQtyVal * packSizeVal).toLocaleString()}{' '}
-                          <span className="text-micro font-normal text-muted-foreground">
-                            {formatUnitPlural(subUnitLabel)}
-                          </span>
-                        </p>
-                      </div>
-
-                      <div className="sm:px-3 last:pr-0 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
-                        <p className={`text-xs sm:text-sm font-bold ${sellPriceVal > 0 && costPriceVal > sellPriceVal ? 'text-destructive font-black' : 'text-success'}`}>
-                          {sellPriceVal > 0 ? (((sellPriceVal - costPriceVal) / sellPriceVal) * 100).toFixed(1) : '0.0'}%
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Micro-copy Note */}
-                    <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-micro text-muted-foreground leading-tight">
-                      <Info className="size-3.5 text-success shrink-0" />
-                      <span>
-                        {packSizeVal > 1
-                          ? `Supports full ${selectedUnit} and loose ${formatUnitPlural(subUnitLabel).toLowerCase()} POS sales.`
-                          : `Supports POS sales in full ${formatUnitPlural(selectedUnit)}.`}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <PosUnitBreakdown control={control} />
               </>
           </CardContent>
         </Card>
@@ -960,6 +1141,8 @@ export function ProductForm({
                 <Input
                   id="batchNumber"
                   placeholder="e.g. BATCH-1024"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('batchNumber')}
                 />
               </div>
@@ -973,11 +1156,12 @@ export function ProductForm({
                 <Input
                   id="mfgDate"
                   type="date"
+                  autoComplete="off"
                   {...register('mfgDate')}
                 />
               </div>
 
-              {/* Vendor / Distributor Name */}
+              {/* Vendor / Distributor Name with Autocomplete */}
               <div className="space-y-1.5 col-span-1">
                 <Label htmlFor="vendorName" className="text-xs sm:text-sm flex items-center gap-1.5">
                   <Truck className="size-3.5 text-muted-foreground shrink-0" />
@@ -985,9 +1169,17 @@ export function ProductForm({
                 </Label>
                 <Input
                   id="vendorName"
+                  list="supplier-suggestions"
                   placeholder="e.g. Muller & Phipps"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('vendorName')}
                 />
+                <datalist id="supplier-suggestions">
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.name} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Purchase Invoice Number */}
@@ -999,6 +1191,8 @@ export function ProductForm({
                 <Input
                   id="purchaseInvoiceNumber"
                   placeholder="e.g. INV-2026-981"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('purchaseInvoiceNumber')}
                 />
               </div>
@@ -1012,6 +1206,7 @@ export function ProductForm({
                 <Input
                   id="purchaseInvoiceDate"
                   type="date"
+                  autoComplete="off"
                   {...register('purchaseInvoiceDate')}
                 />
               </div>
@@ -1025,6 +1220,8 @@ export function ProductForm({
                 <Input
                   id="rackNumber"
                   placeholder="e.g. Rack A-3"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('rackNumber')}
                 />
               </div>
@@ -1035,10 +1232,10 @@ export function ProductForm({
                   <QrCode className="size-3.5 text-muted-foreground shrink-0" />
                   <span>Barcode / EAN</span>
                 </Label>
-                <ScannerInput
+                <BarcodeScannerField
                   id="barcode"
                   placeholder="Scan or enter barcode (e.g. 08964001422082)"
-                  value={watch('barcode') || ''}
+                  control={control}
                   onChange={handleBarcodeChange}
                   onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
                 />
@@ -1094,6 +1291,8 @@ export function ProductForm({
               <Input
                 id="manufacturer"
                 placeholder="e.g. GSK, Abbott, Getz"
+                autoComplete="off"
+                spellCheck={false}
                 {...register('manufacturer')}
               />
             </div>
@@ -1106,6 +1305,8 @@ export function ProductForm({
                   <Input
                     id="dosageForm"
                     placeholder="e.g. Tablet, Capsule, Softgel, Dispersible"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('dosageForm')}
                   />
                 </div>
@@ -1114,6 +1315,8 @@ export function ProductForm({
                   <Input
                     id="strength"
                     placeholder="e.g. 500mg, 20mg"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('strength')}
                   />
                 </div>
@@ -1129,6 +1332,7 @@ export function ProductForm({
                     id="volumeMl"
                     type="number"
                     placeholder="e.g. 120"
+                    autoComplete="off"
                     {...register('volumeMl')}
                   />
                 </div>
@@ -1137,6 +1341,8 @@ export function ProductForm({
                   <Input
                     id="flavor"
                     placeholder="e.g. Cherry, Mixed Fruit"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('flavor')}
                   />
                 </div>
@@ -1151,6 +1357,8 @@ export function ProductForm({
                   <Input
                     id="route"
                     placeholder="e.g. IV / IM"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('route')}
                   />
                 </div>
@@ -1159,6 +1367,8 @@ export function ProductForm({
                   <Input
                     id="storageTemp"
                     placeholder="e.g. 2°C - 8°C"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('storageTemp')}
                   />
                 </div>
@@ -1173,6 +1383,8 @@ export function ProductForm({
                   <Input
                     id="modelNumber"
                     placeholder="e.g. BP-301"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('modelNumber')}
                   />
                 </div>
@@ -1182,6 +1394,7 @@ export function ProductForm({
                     id="warrantyMonths"
                     type="number"
                     placeholder="e.g. 12"
+                    autoComplete="off"
                     {...register('warrantyMonths')}
                   />
                 </div>
@@ -1196,6 +1409,8 @@ export function ProductForm({
                   <Input
                     id="brand"
                     placeholder="e.g. Dettol, Nestlé"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('brand')}
                   />
                 </div>
@@ -1204,6 +1419,8 @@ export function ProductForm({
                   <Input
                     id="description"
                     placeholder="Short product overview"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('description')}
                   />
                 </div>
@@ -1233,11 +1450,8 @@ export function ProductForm({
                 min="0"
                 placeholder="10"
                 onKeyDown={preventNegativeKeyDown}
-                {...register('lowStockThreshold', {
-                  onChange: (e) => {
-                    if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                  },
-                })}
+                autoComplete="off"
+                {...register('lowStockThreshold')}
               />
               {errors.lowStockThreshold && (
                 <p className="text-xs text-destructive">{errors.lowStockThreshold.message}</p>
@@ -1250,30 +1464,7 @@ export function ProductForm({
             {/* Controlled Substance Panel */}
             <div className="space-y-1.5 col-span-1">
               <Label htmlFor="isControlledSubstance" className="text-xs sm:text-sm">Prescription Status</Label>
-              <div className="flex flex-col justify-start rounded-md border border-input p-3 bg-card gap-1.5">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="isControlledSubstance"
-                    checked={isControlled}
-                    onCheckedChange={(checked) =>
-                      setValue('isControlledSubstance', !!checked, { shouldValidate: true })
-                    }
-                  />
-                  <Label htmlFor="isControlledSubstance" className="cursor-pointer font-medium text-xs sm:text-sm">
-                    Controlled Drug (Rx)
-                  </Label>
-                </div>
-                {isControlled ? (
-                  <div className="flex items-center gap-1.5 text-micro text-destructive font-medium bg-destructive/10 px-2 py-1 rounded-sm">
-                    <ShieldAlert className="size-3 shrink-0" />
-                    <span>Prescription required</span>
-                  </div>
-                ) : (
-                  <p className="text-micro text-muted-foreground">
-                    Standard OTC (No prescription needed)
-                  </p>
-                )}
-              </div>
+              <PrescriptionStatusSection control={control} setValue={setValue} />
             </div>
           </CardContent>
         </Card>
@@ -1434,7 +1625,7 @@ export function ProductForm({
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Barcode:</span>
                     <span className="font-mono text-foreground">
-                      {scannedExistingProduct?.barcode || watch('barcode')}
+                      {scannedExistingProduct?.barcode || getValues('barcode')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
