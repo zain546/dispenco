@@ -20,14 +20,11 @@ import {
   MapPin,
   Truck,
   FileText,
-  Edit3,
   Layers,
-  Plus,
   Info,
   X,
   AlertTriangle,
 } from 'lucide-react';
-import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,16 +58,7 @@ import {
 } from '../schemas/product-schema';
 import { productsApi, type ProductData, type BatchData } from '../services/products-api';
 import { suppliersApi, type SupplierData } from '@/features/suppliers/services/suppliers-api';
-import type {
-  TabletCapsuleAttributes,
-  SyrupLiquidAttributes,
-  InjectionInfusionAttributes,
-  MedicalDeviceAttributes,
-  CosmeticsPersonalCareAttributes,
-  GeneralItemAttributes,
-} from '@dispenco/types';
-import { formatCategory, formatDate, formatUnitPlural } from './product-list';
-import { getBatchExpiryDetails } from '../utils/batch-utils';
+import { formatUnitPlural } from './product-list';
 import { getErrorMessage } from '@/lib/errors';
 
 interface ProductFormProps {
@@ -476,8 +464,7 @@ export function ProductForm({
   }, []);
 
   // Batch state for existing products
-  const [batches, setBatches] = useState<BatchData[]>(initialData?.batches || []);
-  const [activeBatchId, setActiveBatchId] = useState<string | null>(initialBatchId);
+  const batches = useMemo(() => initialData?.batches || [], [initialData]);
 
   const formatIsoDate = (dString?: string | null) => {
     if (!dString) return '';
@@ -488,10 +475,10 @@ export function ProductForm({
     }
   };
 
-  const activeBatch = React.useMemo(() => {
+  const activeBatch = useMemo(() => {
     if (!batches || batches.length === 0) return null;
-    if (activeBatchId) {
-      const found = batches.find((b) => b.id === activeBatchId || b.batchNumber === activeBatchId);
+    if (initialBatchId) {
+      const found = batches.find((b) => b.id === initialBatchId || b.batchNumber === initialBatchId);
       if (found) return found;
     }
     if (initialBatchNumber) {
@@ -499,7 +486,7 @@ export function ProductForm({
       if (found) return found;
     }
     return batches[0] || null;
-  }, [batches, activeBatchId, initialBatchNumber]);
+  }, [batches, initialBatchId, initialBatchNumber]);
 
 
 
@@ -527,10 +514,10 @@ export function ProductForm({
       lowStockThreshold: initialData?.lowStockThreshold ?? 10,
 
       // Initial Stock & Pricing
-      initialStockQuantity: initialData?.totalStock || undefined,
+      initialStockQuantity: initialData?.totalStock !== undefined ? initialData.totalStock : undefined,
       expiryDate: '',
-      costPrice: initialData?.latestCostPrice ? Number(initialData.latestCostPrice) : undefined,
-      sellPrice: initialData?.latestSellPrice ? Number(initialData.latestSellPrice) : undefined,
+      costPrice: initialData?.latestCostPrice !== undefined && initialData.latestCostPrice !== null ? Number(initialData.latestCostPrice) : undefined,
+      sellPrice: initialData?.latestSellPrice !== undefined && initialData.latestSellPrice !== null ? Number(initialData.latestSellPrice) : undefined,
 
       // Batch, Location & Purchase Invoice Details
       batchNumber: '',
@@ -768,6 +755,10 @@ export function ProductForm({
     } else if (selectedCategory === 'MEDICAL_DEVICE') {
       if (values.modelNumber) attributes.modelNumber = values.modelNumber;
       if (values.warrantyMonths) attributes.warrantyMonths = Number(values.warrantyMonths);
+    } else if (selectedCategory === 'COSMETICS_PERSONAL_CARE') {
+      if (values.volumeMl) attributes.volumeMl = Number(values.volumeMl);
+      if (values.weightGrams) attributes.weightGrams = Number(values.weightGrams);
+      if (values.skinType) attributes.skinType = values.skinType;
     } else if (selectedCategory === 'GENERAL_ITEM') {
       if (values.brand) attributes.brand = values.brand;
       if (values.description) attributes.description = values.description;
@@ -819,10 +810,10 @@ export function ProductForm({
           lowStockThreshold: Number(values.lowStockThreshold),
 
           // Stock & Batch payload
-          initialStockQuantity: values.initialStockQuantity ? Number(values.initialStockQuantity) : undefined,
+          initialStockQuantity: values.initialStockQuantity !== undefined ? Number(values.initialStockQuantity) : undefined,
           expiryDate: values.expiryDate || undefined,
-          costPrice: values.costPrice ? Number(values.costPrice) : undefined,
-          sellPrice: values.sellPrice ? Number(values.sellPrice) : undefined,
+          costPrice: values.costPrice !== undefined ? Number(values.costPrice) : undefined,
+          sellPrice: values.sellPrice !== undefined ? Number(values.sellPrice) : undefined,
           batchNumber: values.batchNumber || undefined,
           rackNumber: values.rackNumber || undefined,
           vendorName: values.vendorName || undefined,
@@ -1474,6 +1465,42 @@ export function ProductForm({
                     placeholder="e.g. 12"
                     autoComplete="off"
                     {...register('warrantyMonths')}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* COSMETICS_PERSONAL_CARE Fields */}
+            {selectedCategory === 'COSMETICS_PERSONAL_CARE' && (
+              <>
+                <div className="space-y-1.5 col-span-1">
+                  <Label htmlFor="volumeMl" className="text-xs sm:text-sm">Volume (ml)</Label>
+                  <Input
+                    id="volumeMl"
+                    type="number"
+                    placeholder="e.g. 100, 250"
+                    autoComplete="off"
+                    {...register('volumeMl')}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-1">
+                  <Label htmlFor="weightGrams" className="text-xs sm:text-sm">Weight (g)</Label>
+                  <Input
+                    id="weightGrams"
+                    type="number"
+                    placeholder="e.g. 50, 100"
+                    autoComplete="off"
+                    {...register('weightGrams')}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-1">
+                  <Label htmlFor="skinType" className="text-xs sm:text-sm">Skin Type / Application</Label>
+                  <Input
+                    id="skinType"
+                    placeholder="e.g. All Skin Types, Oily, Sensitive"
+                    autoComplete="off"
+                    spellCheck={false}
+                    {...register('skinType')}
                   />
                 </div>
               </>
