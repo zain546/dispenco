@@ -391,6 +391,59 @@ const BarcodeScannerField = React.memo(function BarcodeScannerField({
   );
 });
 
+const DOSAGE_FORM_PRESETS = ['Tablet', 'Capsule', 'Softgel', 'Dispersible', 'Sachet'] as const;
+
+/**
+ * Isolated dosage form field with quick-select chip presets to enforce standardization
+ * and prevent typographical fragmentation (e.g. "tab", "TAB", "Capsule").
+ */
+const DosageFormField = React.memo(function DosageFormField({
+  control,
+  register,
+  setValue,
+}: {
+  control: any;
+  register: any;
+  setValue: any;
+}) {
+  const currentDosageForm = useWatch({ control, name: 'dosageForm' }) || '';
+
+  return (
+    <div className="space-y-1.5 col-span-1">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="dosageForm" className="text-xs sm:text-sm">Dosage Form</Label>
+        <span className="text-[11px] text-muted-foreground">Quick pick or type</span>
+      </div>
+      <Input
+        id="dosageForm"
+        placeholder="e.g. Tablet, Capsule, Softgel, Dispersible"
+        autoComplete="off"
+        spellCheck={false}
+        {...register('dosageForm')}
+      />
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {DOSAGE_FORM_PRESETS.map((preset) => {
+          const isSelected = currentDosageForm.toLowerCase() === preset.toLowerCase();
+          return (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => setValue('dosageForm', preset, { shouldValidate: true, shouldDirty: true })}
+              className={`px-2 py-0.5 text-micro font-medium rounded-md border transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-primary text-primary-foreground border-primary shadow-2xs font-semibold'
+                  : 'bg-muted/40 text-muted-foreground border-border/80 hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {preset}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 export function ProductForm({
   initialData,
   isEditing = false,
@@ -1300,16 +1353,11 @@ export function ProductForm({
             {/* TABLET_CAPSULE Fields */}
             {selectedCategory === 'TABLET_CAPSULE' && (
               <>
-                <div className="space-y-1.5 col-span-1">
-                  <Label htmlFor="dosageForm" className="text-xs sm:text-sm">Dosage Form</Label>
-                  <Input
-                    id="dosageForm"
-                    placeholder="e.g. Tablet, Capsule, Softgel, Dispersible"
-                    autoComplete="off"
-                    spellCheck={false}
-                    {...register('dosageForm')}
-                  />
-                </div>
+                <DosageFormField
+                  control={control}
+                  register={register}
+                  setValue={setValue}
+                />
                 <div className="space-y-1.5 col-span-1">
                   <Label htmlFor="strength" className="text-xs sm:text-sm">Strength</Label>
                   <Input
@@ -1469,46 +1517,60 @@ export function ProductForm({
           </CardContent>
         </Card>
 
-        {/* Bottom Action Footer */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            disabled={isLoading}
-            className="flex-1 sm:flex-none sm:min-w-[100px] h-10 px-4 text-xs sm:text-sm font-medium"
-          >
-            Cancel
-          </Button>
-          {scannedExistingProduct && !isEditing ? (
+        {/* Sticky Mobile & Desktop Action Bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border px-4 py-2.5 sm:static sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-t sm:px-0 sm:py-0 sm:pt-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-end gap-2.5 sm:gap-3">
+            {/* Mobile Error Summary Indicator (floated to the left when errors exist) */}
+            {Object.keys(errors).length > 0 && (
+              <div className="mr-auto flex items-center gap-1.5 text-xs font-semibold text-destructive bg-destructive/10 px-2.5 py-1.5 rounded-md animate-in fade-in">
+                <AlertCircle className="size-3.5 shrink-0" />
+                <span>
+                  {Object.keys(errors).length} {Object.keys(errors).length === 1 ? 'error' : 'errors'}
+                </span>
+              </div>
+            )}
+
+            {/* Paired Actions Grouped on the Right */}
             <Button
               type="button"
-              onClick={handleNavigateToReceiveBatch}
+              variant="outline"
+              onClick={() => router.back()}
               disabled={isLoading}
-              className="flex-[1.5] sm:flex-none sm:min-w-[160px] h-10 px-6 text-xs sm:text-sm font-semibold gap-2 shadow-xs"
+              className="h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm font-medium"
             >
-              <Boxes className="size-4" />
-              <span>Receive Batch Instead</span>
+              Cancel
             </Button>
-          ) : (
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="flex-[1.5] sm:flex-none sm:min-w-[140px] h-10 px-6 text-xs sm:text-sm font-semibold gap-2 shadow-xs"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="size-4" />
-                  <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
-                </>
-              )}
-            </Button>
-          )}
+
+            {scannedExistingProduct && !isEditing ? (
+              <Button
+                type="button"
+                onClick={handleNavigateToReceiveBatch}
+                disabled={isLoading}
+                className="h-9 sm:h-10 px-4 sm:px-5 text-xs sm:text-sm font-semibold gap-2 shadow-xs shrink-0"
+              >
+                <Boxes className="size-4" />
+                <span>Receive Batch Instead</span>
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="h-9 sm:h-10 px-4 sm:px-5 text-xs sm:text-sm font-semibold gap-2 shadow-xs shrink-0"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-4" />
+                    <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </form>
 

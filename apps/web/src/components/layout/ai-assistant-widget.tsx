@@ -206,7 +206,7 @@ export function AiAssistantWidget() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? 'Close AI Assistant' : 'Open AI Assistant (Ctrl+K)'}
         title={isOpen ? 'Close Assistant' : 'Dispenco AI Assistant (Ctrl+K)'}
-        className={`group fixed right-0 bottom-6 sm:bottom-8 z-50 h-11 rounded-l-2xl border border-r-0 border-primary-foreground/15 bg-primary hover:bg-primary/95 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 pl-2.5 pr-3.5 transition-all duration-300 ease-out cursor-pointer print:hidden ${
+        className={`group fixed right-0 bottom-20 sm:bottom-8 z-50 h-11 rounded-l-2xl border border-r-0 border-primary-foreground/15 bg-primary hover:bg-primary/95 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 pl-2.5 pr-3.5 transition-all duration-300 ease-out cursor-pointer print:hidden ${
           isOpen
             ? 'translate-x-0 ring-2 ring-primary/30'
             : 'translate-x-[calc(100%-38px)] hover:translate-x-0 focus-visible:translate-x-0 opacity-85 hover:opacity-100'
