@@ -26,10 +26,8 @@ export class AuthRateLimitGuard implements CanActivate {
     const req = http.getRequest<Request>();
     const res = http.getResponse<Response>();
 
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.socket?.remoteAddress ||
-      'unknown-ip';
+    // Use Express-resolved req.ip (governed by Express 'trust proxy' setting) rather than trusting client-supplied headers
+    const ip = req.ip || req.socket?.remoteAddress || 'unknown-ip';
 
     const path = req.path || req.url || '';
     const action = path.includes('signup') ? 'signup' : 'login';

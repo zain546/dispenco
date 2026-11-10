@@ -11,6 +11,11 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 4000);
+
+  // Trust upstream reverse proxy hops safely so req.ip reflects the actual client address
+  const expressApp = app.getHttpAdapter().getInstance();
+  const trustProxy = configService.get<string | number>('TRUST_PROXY', 1);
+  expressApp.set('trust proxy', trustProxy);
   const clientUrlRaw = configService.get<string>(
     'CLIENT_URL',
     configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
