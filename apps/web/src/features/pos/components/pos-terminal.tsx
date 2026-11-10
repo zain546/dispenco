@@ -570,6 +570,13 @@ export function POSTerminal() {
     const singleUnitPrice = getSingleUnitPrice(product);
     const defaultPrice = initialUnitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
+    const availableStock = product.totalStock ?? 0;
+    const maxStockAllowed = initialUnitType === 'UNIT' ? availableStock * packSize : availableStock;
+
+    if (maxStockAllowed <= 0) {
+      toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+      return;
+    }
 
     setCart((prev) => {
       const existingIndex = prev.findIndex(
@@ -578,8 +585,6 @@ export function POSTerminal() {
       if (existingIndex > -1) {
         const updated = [...prev];
         const currentQty = updated[existingIndex].quantity;
-        const availableStock = product.totalStock ?? 999;
-        const maxStockAllowed = initialUnitType === 'UNIT' ? availableStock * packSize : availableStock;
 
         if (currentQty + 1 > maxStockAllowed) {
           toast.warning(
@@ -627,6 +632,13 @@ export function POSTerminal() {
     const singleUnitPrice = getSingleUnitPrice(product);
     const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
+    const availableStock = product.totalStock ?? 0;
+    const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
+
+    if (maxStockAllowed <= 0) {
+      toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+      return;
+    }
 
     setCart((prev) => {
       const existingIndex = prev.findIndex(
@@ -635,8 +647,6 @@ export function POSTerminal() {
       if (existingIndex > -1) {
         const updated = [...prev];
         const currentQty = updated[existingIndex].quantity;
-        const availableStock = product.totalStock ?? 999;
-        const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
 
         if (currentQty + 1 > maxStockAllowed) {
           toast.warning(
@@ -699,8 +709,15 @@ export function POSTerminal() {
     const singleUnitPrice = getSingleUnitPrice(product);
     const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
-    const availableStock = product.totalStock ?? 999;
+    const availableStock = product.totalStock ?? 0;
     const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
+
+    if (maxStockAllowed <= 0) {
+      toast.warning(`"${product.name}" is out of stock.`);
+      setCart((prev) => prev.filter((item) => !(item.product.id === product.id && item.unitType === unitType)));
+      return;
+    }
+
     const clampedQty = Math.min(newQty, maxStockAllowed);
 
     if (newQty > maxStockAllowed) {
@@ -887,9 +904,15 @@ export function POSTerminal() {
     setCart((prev) => {
       const updated = [...prev];
       const item = updated[index];
+      if (!item) return prev;
       const packSize = getPackSize(item.product);
-      const availableStockBoxes = item.product.totalStock ?? 999;
+      const availableStockBoxes = item.product.totalStock ?? 0;
       const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
+
+      if (maxStock <= 0) {
+        toast.warning(`"${item.product.name}" is out of stock.`);
+        return prev.filter((_, i) => i !== index);
+      }
 
       if (newQty > maxStock) {
         toast.warning(
@@ -1620,7 +1643,7 @@ export function POSTerminal() {
                       const packSize = getPackSize(item.product);
                       const boxPrice = item.product.latestSellPrice ?? 0;
                       const singleUnitPrice = getSingleUnitPrice(item.product);
-                      const availableStockBoxes = item.product.totalStock ?? 999;
+                      const availableStockBoxes = item.product.totalStock ?? 0;
                       const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
 
                       return (
@@ -1819,7 +1842,7 @@ export function POSTerminal() {
                           const packSize = getPackSize(item.product);
                           const boxPrice = item.product.latestSellPrice ?? 0;
                           const singleUnitPrice = getSingleUnitPrice(item.product);
-                          const availableStockBoxes = item.product.totalStock ?? 999;
+                          const availableStockBoxes = item.product.totalStock ?? 0;
                           const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
 
                           return (
