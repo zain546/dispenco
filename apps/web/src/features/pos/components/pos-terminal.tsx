@@ -299,6 +299,9 @@ export function POSTerminal() {
         const res = await posLocalDataService.syncPendingSales();
         if (res.successCount > 0) {
           toast.success(`Auto-synced ${res.successCount} offline transaction(s)!`);
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['sales'] });
+          queryClient.invalidateQueries({ queryKey: ['reports'] });
         }
         if (res.conflictCount > 0) {
           toast.warning(`${res.conflictCount} sale(s) have inventory conflicts.`);
@@ -319,7 +322,7 @@ export function POSTerminal() {
         window.removeEventListener('offline', handleOffline);
       };
     }
-  }, [checkPendingOfflineSales]);
+  }, [checkPendingOfflineSales, queryClient]);
 
   // Live Customer Search for POS & Outside Click Handler
   useEffect(() => {

@@ -33,6 +33,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { posLocalDataService, LocalSyncStatus } from '../services/pos-local-data.service';
 import { OfflineSaleRecord } from '../db/pos-db';
 import { useStore } from '@/context/store-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 interface OfflineSyncModalProps {
@@ -42,6 +43,7 @@ interface OfflineSyncModalProps {
 }
 
 export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: OfflineSyncModalProps) {
+  const queryClient = useQueryClient();
   const { activeStoreId, isAllStores } = useStore();
   const [records, setRecords] = useState<OfflineSaleRecord[]>([]);
   const [status, setStatus] = useState<LocalSyncStatus | null>(null);
@@ -118,6 +120,9 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
       const res = await posLocalDataService.syncPendingSales();
       if (res.successCount > 0) {
         toast.success(`Successfully synced ${res.successCount} offline transaction(s)!`);
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['sales'] });
+        queryClient.invalidateQueries({ queryKey: ['reports'] });
       }
       if (res.conflictCount > 0) {
         toast.warning(`${res.conflictCount} sale(s) encountered inventory conflicts during sync.`);
@@ -138,6 +143,9 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
     const success = await posLocalDataService.resolveConflict(id, resolution);
     if (success && resolution === 'OVERRIDE_ADJUST') {
       toast.success('Successfully resolved and synced conflict transaction.');
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
     }
     await loadData();
     if (onSyncComplete) onSyncComplete();

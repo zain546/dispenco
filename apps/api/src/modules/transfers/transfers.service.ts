@@ -236,6 +236,24 @@ export class TransfersService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the status transition inside the transaction atomically
+      const claimResult = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          tenantId,
+          status: TransferStatus.REQUESTED,
+        },
+        data: {
+          status: TransferStatus.DISPATCHED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new ConflictException(
+          `Transfer #${transferId} cannot be dispatched because it is not in REQUESTED status or is concurrently being processed.`
+        );
+      }
+
       for (const dispatchItem of dto.items) {
         const transferItem = transfer.items.find((i) => i.id === dispatchItem.itemId);
         if (!transferItem) {
@@ -362,6 +380,24 @@ export class TransfersService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the status transition inside the transaction atomically
+      const claimResult = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          tenantId,
+          status: TransferStatus.DISPATCHED,
+        },
+        data: {
+          status: TransferStatus.RECEIVED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new ConflictException(
+          `Transfer #${transferId} cannot be received because it is not in DISPATCHED status or is concurrently being processed.`
+        );
+      }
+
       for (const receiveItem of dto.items) {
         const transferItem = transfer.items.find((i) => i.id === receiveItem.itemId);
         if (!transferItem) {
@@ -485,6 +521,24 @@ export class TransfersService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the status transition inside the transaction atomically
+      const claimResult = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          tenantId,
+          status: transfer.status,
+        },
+        data: {
+          status: TransferStatus.CANCELLED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new ConflictException(
+          `Transfer #${transferId} cannot be cancelled because its status has changed or is concurrently being processed.`
+        );
+      }
+
       // If transfer was already dispatched, restore deducted stock to source batches!
       if (transfer.status === TransferStatus.DISPATCHED) {
         for (const item of transfer.items) {
