@@ -3,63 +3,59 @@
 .gitignore
 .gitattributes
 
-# Environment & Sensitive Secrets
-.env
-.env.*
-*.env
-*.key
-*.pem
-*.cert
-*.crt
-oracle.key
-id_rsa
-id_ed25519
+# Environment & Sensitive Secrets (any directory level)
+**/.env
+**/.env.*
+**/*.env
+!**/.env.example
+!**/.env.*.example
+**/*.key
+**/*.pem
+**/*.cert
+**/*.crt
+**/oracle.key
+**/id_rsa*
+**/id_ed25519*
 
 # Dependencies
-node_modules
-*/node_modules
-*/*/node_modules
-.pnpm-store
+**/node_modules
+**/.pnpm-store
 
 # Build & Cache Artifacts
-.next
-*/.next
-dist
-*/dist
-build
-*/build
-.turbo
-.cache
-*.tsbuildinfo
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+**/.next
+**/dist
+**/build
+**/.turbo
+**/.cache
+**/*.tsbuildinfo
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
 
 # Test & Coverage Artifacts
-coverage
-*.lcov
-.nyc_output
+**/coverage
+**/*.lcov
+**/.nyc_output
 
 # Local DB & Data files
-*.sqlite
-*.sqlite3
-*.db
-*.dump
-*.sql
-StockList*.pdf
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/*.dump
+**/*.sql
+**/StockList*.pdf
 
 # Editor & OS Artifacts
-.vscode
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-.DS_Store
-Thumbs.db
+**/.vscode
+**/.idea
+**/*.suo
+**/*.ntvs*
+**/*.njsproj
+**/*.sln
+**/*.sw?
+**/.DS_Store
+**/Thumbs.db
 
 # Unrelated standalone directories
 teacher-portal
-

@@ -1,0 +1,46 @@
+# Environment & Sensitive Secrets
+**/.env
+**/.env.*
+**/*.env
+!**/.env.example
+!**/.env.*.example
+**/*.key
+**/*.pem
+**/*.cert
+**/*.crt
+**/oracle.key
+**/id_rsa*
+**/id_ed25519*
+
+# Dependencies
+**/node_modules
+**/.pnpm-store
+
+# Build & Cache Artifacts
+**/dist
+**/build
+**/.turbo
+**/.cache
+**/*.tsbuildinfo
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+
+# Test & Coverage Artifacts
+**/coverage
+**/*.lcov
+**/.nyc_output
+
+# Local DB & Data files
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/*.dump
+**/*.sql
+
+# Editor & OS Artifacts
+**/.vscode
+**/.idea
+**/.DS_Store
+**/Thumbs.db
