@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useForm, useWatch, type Control, type UseFormSetValue } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Save,
@@ -20,19 +20,16 @@ import {
   MapPin,
   Truck,
   FileText,
-  Edit3,
   Layers,
-  Plus,
   Info,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
-import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScannerInput, type Gs1ParsedMedicineData } from '@/components/ui/scanner-input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -43,26 +40,39 @@ import {
 } from '@/components/ui/select';
 import {
   productFormSchema,
+  type ProductFormValues,
   PRODUCT_CATEGORIES,
   PRODUCT_UNITS,
 } from '../schemas/product-schema';
 import { productsApi, type ProductData, type BatchData } from '../services/products-api';
-import { formatCategory, formatDate, formatUnitPlural } from './product-list';
-import { getBatchExpiryDetails } from '../utils/batch-utils';
+import { suppliersApi, type SupplierData } from '@/features/suppliers/services/suppliers-api';
+import { formatUnitPlural } from './product-list';
 import { getErrorMessage } from '@/lib/errors';
+import {
+  PosUnitBreakdown,
+  ExpiryDateNotice,
+  RequiredStockIndicator,
+  normalizeUnit,
+} from './product-form/stock-pricing-widgets';
+import {
+  SmartScanSubtitle,
+  BarcodeScannerField,
+} from './product-form/barcode-scanner-banner';
+import {
+  PrescriptionStatusSection,
+  DosageFormField,
+} from './product-form/category-details-section';
+import {
+  InvertedPriceDialog,
+  BarcodeCollisionDialog,
+} from './product-form/product-form-dialogs';
+import type { Gs1ParsedMedicineData } from '@/components/ui/scanner-input';
 
 interface ProductFormProps {
   initialData?: ProductData;
   isEditing?: boolean;
   initialBatchId?: string | null;
   initialBatchNumber?: string | null;
-}
-
-function normalizeUnit(unit?: string | null): string {
-  if (!unit) return 'Box';
-  const clean = unit.trim().toLowerCase();
-  if (clean === 'pack' || clean === 'packs') return 'Box';
-  return unit.trim();
 }
 
 export function ProductForm({
@@ -72,12 +82,32 @@ export function ProductForm({
   initialBatchNumber = null,
 }: ProductFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
+  const [pendingSubmitValues, setPendingSubmitValues] = useState<ProductFormValues | null>(null);
+  const [showInvertedPriceDialog, setShowInvertedPriceDialog] = useState(false);
+  const [showBarcodeCollisionDialog, setShowBarcodeCollisionDialog] = useState(false);
+
+  // Fetch registered suppliers for autocomplete suggestions
+  useEffect(() => {
+    let isMounted = true;
+    suppliersApi
+      .getSuppliers()
+      .then((res) => {
+        if (isMounted && res?.suppliers) {
+          setSuppliers(res.suppliers);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Batch state for existing products
-  const [batches, setBatches] = useState<BatchData[]>(initialData?.batches || []);
-  const [activeBatchId, setActiveBatchId] = useState<string | null>(initialBatchId);
+  const batches = useMemo(() => initialData?.batches || [], [initialData]);
 
   const formatIsoDate = (dString?: string | null) => {
     if (!dString) return '';
@@ -88,10 +118,10 @@ export function ProductForm({
     }
   };
 
-  const activeBatch = React.useMemo(() => {
+  const activeBatch = useMemo(() => {
     if (!batches || batches.length === 0) return null;
-    if (activeBatchId) {
-      const found = batches.find((b) => b.id === activeBatchId || b.batchNumber === activeBatchId);
+    if (initialBatchId) {
+      const found = batches.find((b) => b.id === initialBatchId || b.batchNumber === initialBatchId);
       if (found) return found;
     }
     if (initialBatchNumber) {
@@ -99,21 +129,24 @@ export function ProductForm({
       if (found) return found;
     }
     return batches[0] || null;
-  }, [batches, activeBatchId, initialBatchNumber]);
+  }, [batches, initialBatchId, initialBatchNumber]);
 
 
 
-  const initialAttrs = (initialData?.attributes || {}) as Record<string, any>;
+  const initialAttrs = (initialData?.attributes || {}) as Record<string, unknown>;
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    control,
+    getValues,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
+      isEditing: Boolean(isEditing),
       name: initialData?.name || '',
       genericName: initialData?.genericName || '',
       category: initialData?.category || 'TABLET_CAPSULE',
@@ -124,32 +157,34 @@ export function ProductForm({
       lowStockThreshold: initialData?.lowStockThreshold ?? 10,
 
       // Initial Stock & Pricing
-      initialStockQuantity: initialData?.totalStock || undefined,
+      initialStockQuantity: initialData?.totalStock !== undefined ? initialData.totalStock : undefined,
       expiryDate: '',
-      costPrice: initialData?.latestCostPrice ? Number(initialData.latestCostPrice) : undefined,
-      sellPrice: initialData?.latestSellPrice ? Number(initialData.latestSellPrice) : undefined,
+      costPrice: initialData?.latestCostPrice !== undefined && initialData.latestCostPrice !== null ? Number(initialData.latestCostPrice) : undefined,
+      sellPrice: initialData?.latestSellPrice !== undefined && initialData.latestSellPrice !== null ? Number(initialData.latestSellPrice) : undefined,
 
       // Batch, Location & Purchase Invoice Details
       batchNumber: '',
-      rackNumber: initialAttrs.rackNumber || '',
-      vendorName: initialAttrs.vendorName || '',
-      mfgDate: initialAttrs.mfgDate || '',
-      purchaseInvoiceNumber: initialAttrs.purchaseInvoiceNumber || '',
-      purchaseInvoiceDate: initialAttrs.purchaseInvoiceDate || '',
+      rackNumber: initialAttrs.rackNumber ? String(initialAttrs.rackNumber) : '',
+      vendorName: initialAttrs.vendorName ? String(initialAttrs.vendorName) : '',
+      mfgDate: initialAttrs.mfgDate ? String(initialAttrs.mfgDate) : '',
+      purchaseInvoiceNumber: initialAttrs.purchaseInvoiceNumber ? String(initialAttrs.purchaseInvoiceNumber) : '',
+      purchaseInvoiceDate: initialAttrs.purchaseInvoiceDate ? String(initialAttrs.purchaseInvoiceDate) : '',
 
       // Category attributes
-      dosageForm: initialAttrs.dosageForm || '',
-      strength: initialAttrs.strength || '',
+      dosageForm: initialAttrs.dosageForm ? String(initialAttrs.dosageForm) : '',
+      strength: initialAttrs.strength ? String(initialAttrs.strength) : '',
       packSize: initialAttrs.packSize ? Number(initialAttrs.packSize) : undefined,
-      manufacturer: initialAttrs.manufacturer || '',
+      manufacturer: initialAttrs.manufacturer ? String(initialAttrs.manufacturer) : '',
       volumeMl: initialAttrs.volumeMl ? Number(initialAttrs.volumeMl) : undefined,
-      flavor: initialAttrs.flavor || '',
-      route: initialAttrs.route || '',
-      storageTemp: initialAttrs.storageTemp || '',
-      modelNumber: initialAttrs.modelNumber || '',
+      flavor: initialAttrs.flavor ? String(initialAttrs.flavor) : '',
+      route: initialAttrs.route ? String(initialAttrs.route) : '',
+      storageTemp: initialAttrs.storageTemp ? String(initialAttrs.storageTemp) : '',
+      modelNumber: initialAttrs.modelNumber ? String(initialAttrs.modelNumber) : '',
       warrantyMonths: initialAttrs.warrantyMonths ? Number(initialAttrs.warrantyMonths) : undefined,
-      brand: initialAttrs.brand || '',
-      description: initialAttrs.description || '',
+      weightGrams: initialAttrs.weightGrams ? Number(initialAttrs.weightGrams) : undefined,
+      skinType: initialAttrs.skinType ? String(initialAttrs.skinType) : '',
+      brand: initialAttrs.brand ? String(initialAttrs.brand) : '',
+      description: initialAttrs.description ? String(initialAttrs.description) : '',
     },
   });
 
@@ -180,9 +215,18 @@ export function ProductForm({
     }
   }, [isEditing, activeBatch, populateBatchValues]);
 
+  // Auto-dismiss stale server error alert as soon as the user edits any field
+  useEffect(() => {
+    if (!error) return;
+    const subscription = watch(() => {
+      setError(null);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, error]);
+
   const selectedCategory = watch('category');
   const selectedUnit = normalizeUnit(watch('unit'));
-  const isControlled = watch('isControlledSubstance');
+  const isMultiUnitPackage = ['box', 'strip', 'kit', 'pack'].includes(selectedUnit.toLowerCase());
   const [scannedExistingProduct, setScannedExistingProduct] = useState<ProductData | null>(null);
 
   const handleSmartBoxScan = useCallback(
@@ -219,8 +263,8 @@ export function ProductForm({
           if (res?.product) {
             const p = res.product;
             setScannedExistingProduct(p);
-            if (!watch('name')) setValue('name', p.name, { shouldValidate: true });
-            if (p.genericName && !watch('genericName')) setValue('genericName', p.genericName);
+            if (!getValues('name')) setValue('name', p.name, { shouldValidate: true });
+            if (p.genericName && !getValues('genericName')) setValue('genericName', p.genericName);
             if (p.category) setValue('category', p.category);
             if (p.unit) setValue('unit', normalizeUnit(p.unit));
             if (p.latestCostPrice) setValue('costPrice', Number(p.latestCostPrice));
@@ -238,25 +282,84 @@ export function ProductForm({
         }
       }
     },
-    [isEditing, setValue, watch]
+    [isEditing, setValue, getValues]
+  );
+
+  const handleNavigateToReceiveBatch = useCallback(() => {
+    if (!scannedExistingProduct) return;
+    const params = new URLSearchParams();
+    params.set('productId', scannedExistingProduct.id);
+    if (getValues('batchNumber')) params.set('batchNumber', String(getValues('batchNumber')));
+    if (getValues('expiryDate')) params.set('expiryDate', String(getValues('expiryDate')));
+    if (getValues('mfgDate')) params.set('mfgDate', String(getValues('mfgDate')));
+    router.push(`/inventory/receive?${params.toString()}`);
+  }, [scannedExistingProduct, getValues, router]);
+
+  // Sequence counter and timer ref to prevent race conditions & debounce manual barcode typing
+  const barcodeDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const barcodeLookupSeqRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      if (barcodeDebounceTimerRef.current) {
+        clearTimeout(barcodeDebounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleBarcodeChange = useCallback(
+    (val: string) => {
+      setValue('barcode', val, { shouldValidate: true, shouldDirty: true });
+      const clean = val.trim();
+
+      if (barcodeDebounceTimerRef.current) {
+        clearTimeout(barcodeDebounceTimerRef.current);
+      }
+
+      if (!clean || isEditing) {
+        setScannedExistingProduct(null);
+        return;
+      }
+
+      // Debounce barcode lookups by 300ms to avoid flooding requests on fast typing/paste
+      const seq = ++barcodeLookupSeqRef.current;
+      barcodeDebounceTimerRef.current = setTimeout(async () => {
+        try {
+          const res = await productsApi.lookupByBarcode(clean);
+          if (seq === barcodeLookupSeqRef.current) {
+            if (res?.product) {
+              setScannedExistingProduct(res.product);
+            } else {
+              setScannedExistingProduct(null);
+            }
+          }
+        } catch {
+          if (seq === barcodeLookupSeqRef.current) {
+            setScannedExistingProduct(null);
+          }
+        }
+      }, 300);
+    },
+    [isEditing, setValue]
   );
 
   // Pre-fill from URL query parameters (e.g. navigated from POS "Add New Medicine from Scan")
   useEffect(() => {
-    if (typeof window === 'undefined' || isEditing) return;
-    const params = new URLSearchParams(window.location.search);
-    const qBarcode = params.get('barcode');
-    const qBatch = params.get('batchNumber');
-    const qExpiry = params.get('expiryDate');
-    const qMfg = params.get('mfgDate');
-    const qName = params.get('name');
+    if (isEditing) return;
+    const qBarcode = searchParams.get('barcode');
+    const qBatch = searchParams.get('batchNumber');
+    const qExpiry = searchParams.get('expiryDate');
+    const qMfg = searchParams.get('mfgDate');
+    const qName = searchParams.get('name');
 
-    if (qBarcode) setValue('barcode', qBarcode, { shouldDirty: true });
+    if (qBarcode) {
+      handleBarcodeChange(qBarcode);
+    }
     if (qBatch) setValue('batchNumber', qBatch, { shouldDirty: true });
     if (qExpiry) setValue('expiryDate', qExpiry, { shouldDirty: true });
     if (qMfg) setValue('mfgDate', qMfg, { shouldDirty: true });
     if (qName) setValue('name', qName, { shouldDirty: true });
-  }, [isEditing, setValue]);
+  }, [isEditing, searchParams, setValue, handleBarcodeChange]);
 
   const preventNegativeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
@@ -264,21 +367,15 @@ export function ProductForm({
     }
   };
 
-  const packSizeVal = Math.max(1, Number(watch('packSize')) || 1);
-  const costPriceVal = Math.max(0, Number(watch('costPrice')) || 0);
-  const sellPriceVal = Math.max(0, Number(watch('sellPrice')) || 0);
-  const stockQtyVal = Math.max(0, Number(watch('initialStockQuantity')) || 0);
+  const today = useMemo(() => new Date(), []);
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  const onSubmit = handleSubmit(async (values) => {
+  const executeSubmit = async (values: ProductFormValues) => {
+    setError(null);
     setIsLoading(true);
-    if (!isEditing && values.initialStockQuantity && Number(values.initialStockQuantity) > 0 && !values.expiryDate) {
-      toast.error('Please select an expiry date for the initial stock batch');
-      setIsLoading(false);
-      return;
-    }
 
-    // Build attributes payload based on category
-    const attributes: Record<string, any> = {};
+    // Build attributes payload based on category with strong typing
+    const attributes: Record<string, unknown> = {};
 
     if (values.manufacturer) attributes.manufacturer = values.manufacturer;
     if (values.rackNumber) attributes.rackNumber = values.rackNumber;
@@ -286,7 +383,11 @@ export function ProductForm({
     if (values.mfgDate) attributes.mfgDate = values.mfgDate;
     if (values.purchaseInvoiceNumber) attributes.purchaseInvoiceNumber = values.purchaseInvoiceNumber;
     if (values.purchaseInvoiceDate) attributes.purchaseInvoiceDate = values.purchaseInvoiceDate;
-    if (values.packSize) attributes.packSize = Number(values.packSize);
+    if (isMultiUnitPackage && values.packSize) {
+      attributes.packSize = Number(values.packSize);
+    } else {
+      attributes.packSize = 1;
+    }
 
     if (selectedCategory === 'TABLET_CAPSULE') {
       if (values.dosageForm) attributes.dosageForm = values.dosageForm;
@@ -302,6 +403,10 @@ export function ProductForm({
     } else if (selectedCategory === 'MEDICAL_DEVICE') {
       if (values.modelNumber) attributes.modelNumber = values.modelNumber;
       if (values.warrantyMonths) attributes.warrantyMonths = Number(values.warrantyMonths);
+    } else if (selectedCategory === 'COSMETICS_PERSONAL_CARE') {
+      if (values.volumeMl) attributes.volumeMl = Number(values.volumeMl);
+      if (values.weightGrams) attributes.weightGrams = Number(values.weightGrams);
+      if (values.skinType) attributes.skinType = values.skinType;
     } else if (selectedCategory === 'GENERAL_ITEM') {
       if (values.brand) attributes.brand = values.brand;
       if (values.description) attributes.description = values.description;
@@ -353,10 +458,10 @@ export function ProductForm({
           lowStockThreshold: Number(values.lowStockThreshold),
 
           // Stock & Batch payload
-          initialStockQuantity: values.initialStockQuantity ? Number(values.initialStockQuantity) : undefined,
+          initialStockQuantity: values.initialStockQuantity !== undefined ? Number(values.initialStockQuantity) : undefined,
           expiryDate: values.expiryDate || undefined,
-          costPrice: values.costPrice ? Number(values.costPrice) : undefined,
-          sellPrice: values.sellPrice ? Number(values.sellPrice) : undefined,
+          costPrice: values.costPrice !== undefined ? Number(values.costPrice) : undefined,
+          sellPrice: values.sellPrice !== undefined ? Number(values.sellPrice) : undefined,
           batchNumber: values.batchNumber || undefined,
           rackNumber: values.rackNumber || undefined,
           vendorName: values.vendorName || undefined,
@@ -377,7 +482,45 @@ export function ProductForm({
     } finally {
       setIsLoading(false);
     }
-  });
+  };
+
+  const onSubmit = handleSubmit(
+    async (values) => {
+      setError(null);
+
+      // Barcode Collision Guard: Prevent duplicate product creation conflict
+      if (!isEditing && scannedExistingProduct) {
+        setShowBarcodeCollisionDialog(true);
+        return;
+      }
+
+      const cost = values.costPrice !== undefined ? Number(values.costPrice) : 0;
+      const sell = values.sellPrice !== undefined ? Number(values.sellPrice) : 0;
+
+      if (cost > 0 && sell > 0 && cost > sell) {
+        setPendingSubmitValues(values as ProductFormValues);
+        setShowInvertedPriceDialog(true);
+        return;
+      }
+
+      await executeSubmit(values as ProductFormValues);
+    },
+    (formErrors) => {
+      setError(null);
+      const firstError = Object.values(formErrors)[0]?.message;
+      if (firstError) {
+        toast.error(String(firstError));
+      }
+    }
+  );
+
+  const handleConfirmInvertedPricing = async () => {
+    if (!pendingSubmitValues) return;
+    const valuesToSubmit = pendingSubmitValues;
+    setShowInvertedPriceDialog(false);
+    await executeSubmit(valuesToSubmit);
+    setPendingSubmitValues(null);
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto px-0 sm:px-4 pb-28 sm:pb-12">
@@ -409,9 +552,21 @@ export function ProductForm({
       </div>
 
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            <AlertDescription className="text-xs sm:text-sm break-words">{error}</AlertDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setError(null)}
+            className="size-6 -mr-1.5 -mt-1 text-destructive hover:bg-destructive/15 shrink-0"
+            title="Dismiss error"
+          >
+            <X className="size-3.5" />
+          </Button>
         </Alert>
       )}
 
@@ -428,44 +583,44 @@ export function ProductForm({
                   <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
                     Scan Medicine Box
                   </p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {watch('barcode')
-                      ? `GTIN: ${watch('barcode')}${watch('batchNumber') ? ` • Batch: ${watch('batchNumber')}` : ''}`
-                      : 'Auto-fills barcode, batch & expiry'}
-                  </p>
+                  <SmartScanSubtitle control={control} />
                 </div>
               </div>
 
-              <ScannerInput
+              <BarcodeScannerField
                 id="quick-box-scanner"
+                control={control}
                 buttonOnly
                 buttonLabel="Scan Box"
-                value={watch('barcode') || ''}
-                onChange={(val) => setValue('barcode', val, { shouldValidate: true, shouldDirty: true })}
+                onChange={handleBarcodeChange}
                 onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
               />
             </div>
 
             {scannedExistingProduct && (
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-primary/20 text-xs">
-                <span className="text-muted-foreground truncate">
-                  Found <strong className="text-foreground">{scannedExistingProduct.name}</strong> in catalog
-                </span>
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs animate-in fade-in">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="size-7 rounded-md bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                    <Boxes className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">
+                      Medicine already in catalog: <span className="text-primary font-bold">{scannedExistingProduct.name}</span>
+                    </p>
+                    <p className="text-micro text-muted-foreground">
+                      Barcode {scannedExistingProduct.barcode || getValues('barcode')} is already registered. Switch to receive a new stock batch.
+                    </p>
+                  </div>
+                </div>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   size="sm"
-                  onClick={() => {
-                    const params = new URLSearchParams();
-                    params.set('productId', scannedExistingProduct.id);
-                    if (watch('batchNumber')) params.set('batchNumber', String(watch('batchNumber')));
-                    if (watch('expiryDate')) params.set('expiryDate', String(watch('expiryDate')));
-                    if (watch('mfgDate')) params.set('mfgDate', String(watch('mfgDate')));
-                    router.push(`/inventory/receive?${params.toString()}`);
-                  }}
-                  className="h-7 px-2.5 text-micro font-semibold shrink-0 bg-background"
+                  onClick={handleNavigateToReceiveBatch}
+                  className="h-8 px-3 text-xs font-semibold shrink-0 gap-1.5 w-full sm:w-auto shadow-xs"
                 >
-                  Receive Batch Instead
+                  <Boxes className="size-3.5" />
+                  <span>Receive Batch Instead</span>
                 </Button>
               </div>
             )}
@@ -492,6 +647,8 @@ export function ProductForm({
               <Input
                 id="name"
                 placeholder="e.g. Panadol Extra 500mg"
+                autoComplete="off"
+                spellCheck={false}
                 {...register('name')}
               />
               {errors.name && (
@@ -507,6 +664,8 @@ export function ProductForm({
               <Input
                 id="genericName"
                 placeholder="e.g. Paracetamol"
+                autoComplete="off"
+                spellCheck={false}
                 {...register('genericName')}
               />
             </div>
@@ -575,51 +734,60 @@ export function ProductForm({
                     min="0"
                     placeholder="e.g. 50"
                     onKeyDown={preventNegativeKeyDown}
-                    {...register('initialStockQuantity', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                      },
-                    })}
+                    autoComplete="off"
+                    {...register('initialStockQuantity')}
                   />
+                  {errors.initialStockQuantity && (
+                    <p className="text-xs text-destructive">{errors.initialStockQuantity.message}</p>
+                  )}
                   <p className="text-micro text-muted-foreground">
                     Quantity measured in full <strong>{formatUnitPlural(selectedUnit)}</strong>.
                   </p>
                 </div>
 
-                {/* Pack Size (Units per Box) */}
-                <div className="space-y-1.5 col-span-1">
-                  <Label htmlFor="packSize" className="text-xs sm:text-sm flex items-center gap-1.5">
-                    <Layers className="size-3.5 text-primary shrink-0" />
-                    <span>Pack Size (Units per {selectedUnit})</span>
-                  </Label>
-                  <Input
-                    id="packSize"
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 100"
-                    onKeyDown={preventNegativeKeyDown}
-                    {...register('packSize', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 1 && e.target.value !== '') e.target.value = '1';
-                      },
-                    })}
-                  />
-                  <p className="text-micro text-muted-foreground">
-                    Sub-units per {selectedUnit}.
-                  </p>
-                </div>
+                {/* Pack Size (Units per Box/Strip/Kit) - only shown for container units */}
+                {isMultiUnitPackage && (
+                  <div className="space-y-1.5 col-span-1">
+                    <Label htmlFor="packSize" className="text-xs sm:text-sm flex items-center gap-1.5">
+                      <Layers className="size-3.5 text-primary shrink-0" />
+                      <span>Pack Size (Units per {selectedUnit})</span>
+                    </Label>
+                    <Input
+                      id="packSize"
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 100"
+                      onKeyDown={preventNegativeKeyDown}
+                      autoComplete="off"
+                      {...register('packSize')}
+                    />
+                    {errors.packSize && (
+                      <p className="text-xs text-destructive">{errors.packSize.message}</p>
+                    )}
+                    <p className="text-micro text-muted-foreground">
+                      Sub-units per {selectedUnit}.
+                    </p>
+                  </div>
+                )}
 
                 {/* Expiry Date */}
                 <div className="space-y-1.5 col-span-1">
                   <Label htmlFor="expiryDate" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <Calendar className="size-3.5 text-primary shrink-0" />
                     <span>Expiry Date</span>
+                    <RequiredStockIndicator control={control} />
                   </Label>
                   <Input
                     id="expiryDate"
                     type="date"
+                    min={!isEditing ? todayString : undefined}
+                    autoComplete="off"
                     {...register('expiryDate')}
                   />
+                  {errors.expiryDate && (
+                    <p className="text-xs text-destructive font-medium">{errors.expiryDate.message}</p>
+                  )}
+                  <ExpiryDateNotice control={control} />
                 </div>
 
                 {/* Purchase / Cost Price */}
@@ -627,6 +795,7 @@ export function ProductForm({
                   <Label htmlFor="costPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <DollarSign className="size-3.5 text-muted-foreground shrink-0" />
                     <span>Purchase Price ({selectedUnit})</span>
+                    <RequiredStockIndicator control={control} />
                   </Label>
                   <Input
                     id="costPrice"
@@ -635,12 +804,12 @@ export function ProductForm({
                     min="0"
                     placeholder="e.g. 150.00"
                     onKeyDown={preventNegativeKeyDown}
-                    {...register('costPrice', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                      },
-                    })}
+                    autoComplete="off"
+                    {...register('costPrice')}
                   />
+                  {errors.costPrice && (
+                    <p className="text-xs text-destructive">{errors.costPrice.message}</p>
+                  )}
                 </div>
 
                 {/* Retail Price / MRP */}
@@ -648,6 +817,7 @@ export function ProductForm({
                   <Label htmlFor="sellPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <DollarSign className="size-3.5 text-primary shrink-0" />
                     <span>Retail Price (MRP)</span>
+                    <RequiredStockIndicator control={control} />
                   </Label>
                   <Input
                     id="sellPrice"
@@ -656,73 +826,16 @@ export function ProductForm({
                     min="0"
                     placeholder="e.g. 200.00"
                     onKeyDown={preventNegativeKeyDown}
-                    {...register('sellPrice', {
-                      onChange: (e) => {
-                        if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                      },
-                    })}
+                    autoComplete="off"
+                    {...register('sellPrice')}
                   />
+                  {errors.sellPrice && (
+                    <p className="text-xs text-destructive">{errors.sellPrice.message}</p>
+                  )}
                 </div>
 
                 {/* Retail POS Unit Conversion Breakdown Preview */}
-                {(packSizeVal > 1 || costPriceVal > 0 || sellPriceVal > 0) && (
-                  <div className="col-span-1 sm:col-span-2 rounded-xl border border-success/30 bg-success/5 p-3 sm:p-4 space-y-2.5 sm:space-y-3 shadow-2xs">
-                    {/* Top Header */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="size-6 rounded-md bg-success/10 text-success flex items-center justify-center shrink-0">
-                          <Layers className="size-3.5" />
-                        </div>
-                        <span className="text-xs sm:text-sm font-semibold text-foreground tracking-tight truncate">
-                          <span className="hidden sm:inline">Retail POS Unit Conversion Breakdown</span>
-                          <span className="sm:hidden font-bold">POS Unit Breakdown</span>
-                        </span>
-                      </div>
-                      {packSizeVal > 1 && (
-                        <Badge variant="outline" className="border-success/30 text-success bg-success/10 text-micro font-bold px-2 py-0.5 shrink-0 whitespace-nowrap">
-                          {packSizeVal} Units / {selectedUnit}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Metrics Ribbon */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0 sm:divide-x divide-border/60 pt-0.5">
-                      <div className="sm:px-3 first:pl-0 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Cost / Tablet</span>
-                        <p className="text-xs sm:text-sm font-bold text-foreground">
-                          PKR {packSizeVal > 0 ? (costPriceVal / packSizeVal).toFixed(2) : '0.00'}
-                        </p>
-                      </div>
-
-                      <div className="sm:px-3 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Retail / Tablet</span>
-                        <p className="text-xs sm:text-sm font-extrabold text-success">
-                          PKR {packSizeVal > 0 ? (sellPriceVal / packSizeVal).toFixed(2) : '0.00'}
-                        </p>
-                      </div>
-
-                      <div className="sm:px-3 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Total Loose Stock</span>
-                        <p className="text-xs sm:text-sm font-bold text-foreground">
-                          {(stockQtyVal * packSizeVal).toLocaleString()} <span className="text-micro font-normal text-muted-foreground">Units</span>
-                        </p>
-                      </div>
-
-                      <div className="sm:px-3 last:pr-0 space-y-0.5">
-                        <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider block">Est. Gross Margin</span>
-                        <p className="text-xs sm:text-sm font-bold text-success">
-                          {costPriceVal > 0 ? (((sellPriceVal - costPriceVal) / costPriceVal) * 100).toFixed(1) : '0.0'}%
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Micro-copy Note */}
-                    <div className="pt-2 border-t border-border/60 flex items-center gap-1.5 text-micro text-muted-foreground leading-tight">
-                      <Info className="size-3.5 text-success shrink-0" />
-                      <span>Supports full {selectedUnit} and loose sub-unit POS sales.</span>
-                    </div>
-                  </div>
-                )}
+                <PosUnitBreakdown control={control} />
               </>
           </CardContent>
         </Card>
@@ -752,6 +865,8 @@ export function ProductForm({
                 <Input
                   id="batchNumber"
                   placeholder="e.g. BATCH-1024"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('batchNumber')}
                 />
               </div>
@@ -765,11 +880,12 @@ export function ProductForm({
                 <Input
                   id="mfgDate"
                   type="date"
+                  autoComplete="off"
                   {...register('mfgDate')}
                 />
               </div>
 
-              {/* Vendor / Distributor Name */}
+              {/* Vendor / Distributor Name with Autocomplete */}
               <div className="space-y-1.5 col-span-1">
                 <Label htmlFor="vendorName" className="text-xs sm:text-sm flex items-center gap-1.5">
                   <Truck className="size-3.5 text-muted-foreground shrink-0" />
@@ -777,9 +893,17 @@ export function ProductForm({
                 </Label>
                 <Input
                   id="vendorName"
+                  list="supplier-suggestions"
                   placeholder="e.g. Muller & Phipps"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('vendorName')}
                 />
+                <datalist id="supplier-suggestions">
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.name} />
+                  ))}
+                </datalist>
               </div>
 
               {/* Purchase Invoice Number */}
@@ -791,6 +915,8 @@ export function ProductForm({
                 <Input
                   id="purchaseInvoiceNumber"
                   placeholder="e.g. INV-2026-981"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('purchaseInvoiceNumber')}
                 />
               </div>
@@ -804,6 +930,7 @@ export function ProductForm({
                 <Input
                   id="purchaseInvoiceDate"
                   type="date"
+                  autoComplete="off"
                   {...register('purchaseInvoiceDate')}
                 />
               </div>
@@ -817,6 +944,8 @@ export function ProductForm({
                 <Input
                   id="rackNumber"
                   placeholder="e.g. Rack A-3"
+                  autoComplete="off"
+                  spellCheck={false}
                   {...register('rackNumber')}
                 />
               </div>
@@ -827,13 +956,38 @@ export function ProductForm({
                   <QrCode className="size-3.5 text-muted-foreground shrink-0" />
                   <span>Barcode / EAN</span>
                 </Label>
-                <ScannerInput
+                <BarcodeScannerField
                   id="barcode"
                   placeholder="Scan or enter barcode (e.g. 08964001422082)"
-                  value={watch('barcode') || ''}
-                  onChange={(val) => setValue('barcode', val, { shouldValidate: true, shouldDirty: true })}
+                  control={control}
+                  onChange={handleBarcodeChange}
                   onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
                 />
+                {scannedExistingProduct && !isEditing && (
+                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in mt-1.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="font-semibold text-foreground">
+                          Barcode already belongs to <span className="text-amber-500 font-bold">{scannedExistingProduct.name}</span>
+                        </p>
+                        <p className="text-micro text-muted-foreground">
+                          Duplicate barcodes are not allowed. Switch to receive a new stock batch for this medicine.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="default"
+                      onClick={handleNavigateToReceiveBatch}
+                      className="h-8 px-3 text-xs font-semibold gap-1.5 shrink-0 w-full sm:w-auto shadow-xs"
+                    >
+                      <Boxes className="size-3.5" />
+                      <span>Receive Batch</span>
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
         </Card>
@@ -861,6 +1015,8 @@ export function ProductForm({
               <Input
                 id="manufacturer"
                 placeholder="e.g. GSK, Abbott, Getz"
+                autoComplete="off"
+                spellCheck={false}
                 {...register('manufacturer')}
               />
             </div>
@@ -868,19 +1024,18 @@ export function ProductForm({
             {/* TABLET_CAPSULE Fields */}
             {selectedCategory === 'TABLET_CAPSULE' && (
               <>
-                <div className="space-y-1.5 col-span-1">
-                  <Label htmlFor="dosageForm" className="text-xs sm:text-sm">Dosage Form</Label>
-                  <Input
-                    id="dosageForm"
-                    placeholder="e.g. Tablet, Capsule, Softgel, Dispersible"
-                    {...register('dosageForm')}
-                  />
-                </div>
+                <DosageFormField
+                  control={control}
+                  register={register}
+                  setValue={setValue}
+                />
                 <div className="space-y-1.5 col-span-1">
                   <Label htmlFor="strength" className="text-xs sm:text-sm">Strength</Label>
                   <Input
                     id="strength"
                     placeholder="e.g. 500mg, 20mg"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('strength')}
                   />
                 </div>
@@ -896,6 +1051,7 @@ export function ProductForm({
                     id="volumeMl"
                     type="number"
                     placeholder="e.g. 120"
+                    autoComplete="off"
                     {...register('volumeMl')}
                   />
                 </div>
@@ -904,6 +1060,8 @@ export function ProductForm({
                   <Input
                     id="flavor"
                     placeholder="e.g. Cherry, Mixed Fruit"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('flavor')}
                   />
                 </div>
@@ -918,6 +1076,8 @@ export function ProductForm({
                   <Input
                     id="route"
                     placeholder="e.g. IV / IM"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('route')}
                   />
                 </div>
@@ -926,6 +1086,8 @@ export function ProductForm({
                   <Input
                     id="storageTemp"
                     placeholder="e.g. 2°C - 8°C"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('storageTemp')}
                   />
                 </div>
@@ -940,6 +1102,8 @@ export function ProductForm({
                   <Input
                     id="modelNumber"
                     placeholder="e.g. BP-301"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('modelNumber')}
                   />
                 </div>
@@ -949,7 +1113,44 @@ export function ProductForm({
                     id="warrantyMonths"
                     type="number"
                     placeholder="e.g. 12"
+                    autoComplete="off"
                     {...register('warrantyMonths')}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* COSMETICS_PERSONAL_CARE Fields */}
+            {selectedCategory === 'COSMETICS_PERSONAL_CARE' && (
+              <>
+                <div className="space-y-1.5 col-span-1">
+                  <Label htmlFor="volumeMl" className="text-xs sm:text-sm">Volume (ml)</Label>
+                  <Input
+                    id="volumeMl"
+                    type="number"
+                    placeholder="e.g. 100, 250"
+                    autoComplete="off"
+                    {...register('volumeMl')}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-1">
+                  <Label htmlFor="weightGrams" className="text-xs sm:text-sm">Weight (g)</Label>
+                  <Input
+                    id="weightGrams"
+                    type="number"
+                    placeholder="e.g. 50, 100"
+                    autoComplete="off"
+                    {...register('weightGrams')}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-1">
+                  <Label htmlFor="skinType" className="text-xs sm:text-sm">Skin Type / Application</Label>
+                  <Input
+                    id="skinType"
+                    placeholder="e.g. All Skin Types, Oily, Sensitive"
+                    autoComplete="off"
+                    spellCheck={false}
+                    {...register('skinType')}
                   />
                 </div>
               </>
@@ -963,6 +1164,8 @@ export function ProductForm({
                   <Input
                     id="brand"
                     placeholder="e.g. Dettol, Nestlé"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('brand')}
                   />
                 </div>
@@ -971,6 +1174,8 @@ export function ProductForm({
                   <Input
                     id="description"
                     placeholder="Short product overview"
+                    autoComplete="off"
+                    spellCheck={false}
                     {...register('description')}
                   />
                 </div>
@@ -1000,12 +1205,12 @@ export function ProductForm({
                 min="0"
                 placeholder="10"
                 onKeyDown={preventNegativeKeyDown}
-                {...register('lowStockThreshold', {
-                  onChange: (e) => {
-                    if (parseFloat(e.target.value) < 0) e.target.value = '0';
-                  },
-                })}
+                autoComplete="off"
+                {...register('lowStockThreshold')}
               />
+              {errors.lowStockThreshold && (
+                <p className="text-xs text-destructive">{errors.lowStockThreshold.message}</p>
+              )}
               <p className="text-micro text-muted-foreground">
                 Alert when stock falls below this level.
               </p>
@@ -1014,65 +1219,97 @@ export function ProductForm({
             {/* Controlled Substance Panel */}
             <div className="space-y-1.5 col-span-1">
               <Label htmlFor="isControlledSubstance" className="text-xs sm:text-sm">Prescription Status</Label>
-              <div className="flex flex-col justify-start rounded-md border border-input p-3 bg-card gap-1.5">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="isControlledSubstance"
-                    checked={isControlled}
-                    onCheckedChange={(checked) =>
-                      setValue('isControlledSubstance', !!checked, { shouldValidate: true })
-                    }
-                  />
-                  <Label htmlFor="isControlledSubstance" className="cursor-pointer font-medium text-xs sm:text-sm">
-                    Controlled Drug (Rx)
-                  </Label>
-                </div>
-                {isControlled ? (
-                  <div className="flex items-center gap-1.5 text-micro text-destructive font-medium bg-destructive/10 px-2 py-1 rounded-sm">
-                    <ShieldAlert className="size-3 shrink-0" />
-                    <span>Prescription required</span>
-                  </div>
-                ) : (
-                  <p className="text-micro text-muted-foreground">
-                    Standard OTC (No prescription needed)
-                  </p>
-                )}
-              </div>
+              <PrescriptionStatusSection control={control} setValue={setValue} />
             </div>
           </CardContent>
         </Card>
 
-        {/* Bottom Action Footer */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            disabled={isLoading}
-            className="flex-1 sm:flex-none sm:min-w-[100px] h-10 px-4 text-xs sm:text-sm font-medium"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="flex-[1.5] sm:flex-none sm:min-w-[140px] h-10 px-6 text-xs sm:text-sm font-semibold gap-2 shadow-xs"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <Save className="size-4" />
-                <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
-              </>
+        {/* Sticky Mobile & Desktop Action Bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border px-4 py-2.5 sm:static sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-t sm:px-0 sm:py-0 sm:pt-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-end gap-2.5 sm:gap-3">
+            {/* Mobile Error Summary Indicator (floated to the left when errors exist) */}
+            {Object.keys(errors).length > 0 && (
+              <div className="mr-auto flex items-center gap-1.5 text-xs font-semibold text-destructive bg-destructive/10 px-2.5 py-1.5 rounded-md animate-in fade-in">
+                <AlertCircle className="size-3.5 shrink-0" />
+                <span>
+                  {Object.keys(errors).length} {Object.keys(errors).length === 1 ? 'error' : 'errors'}
+                </span>
+              </div>
             )}
-          </Button>
+
+            {/* Paired Actions Grouped on the Right */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              disabled={isLoading}
+              className="h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm font-medium"
+            >
+              Cancel
+            </Button>
+
+            {scannedExistingProduct && !isEditing ? (
+              <Button
+                type="button"
+                onClick={handleNavigateToReceiveBatch}
+                disabled={isLoading}
+                className="h-9 sm:h-10 px-4 sm:px-5 text-xs sm:text-sm font-semibold gap-2 shadow-xs shrink-0"
+              >
+                <Boxes className="size-4" />
+                <span>Receive Batch Instead</span>
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="h-9 sm:h-10 px-4 sm:px-5 text-xs sm:text-sm font-semibold gap-2 shadow-xs shrink-0"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-4" />
+                    <span>{isEditing ? 'Update Medicine' : 'Add Stock'}</span>
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </form>
 
-      </div>
+      {/* Inverted Pricing Confirmation Modal */}
+      <InvertedPriceDialog
+        open={showInvertedPriceDialog}
+        onOpenChange={(open) => {
+          setShowInvertedPriceDialog(open);
+          if (!open) setPendingSubmitValues(null);
+        }}
+        pendingValues={pendingSubmitValues}
+        isLoading={isLoading}
+        onConfirm={handleConfirmInvertedPricing}
+      />
+
+      {/* Barcode Collision Confirmation Modal */}
+      <BarcodeCollisionDialog
+        open={showBarcodeCollisionDialog}
+        onOpenChange={setShowBarcodeCollisionDialog}
+        scannedProduct={scannedExistingProduct}
+        barcodeValue={getValues('barcode')}
+        isLoading={isLoading}
+        onClearBarcode={() => {
+          setValue('barcode', '', { shouldDirty: true });
+          setScannedExistingProduct(null);
+        }}
+        onReceiveBatch={() => {
+          setShowBarcodeCollisionDialog(false);
+          handleNavigateToReceiveBatch();
+        }}
+      />
+
+    </div>
   );
 }

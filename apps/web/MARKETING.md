@@ -65,7 +65,7 @@ In `src/components/marketing/config.ts`:
 - **Testimonials:** Replace all three examples with approved customer quotes and
   attribution, then update the explicit placeholder copy in `testimonials.tsx`.
 - **Contact:** `/contact` displays the owner-provided email
-  `zainali546official@gmail.com` and WhatsApp number `+923424912546` as direct links.
+  `dispenco@gmail.com` and WhatsApp number `+923186942546` as direct links.
 - **Demo:** The demo page and enquiry forms have been removed. All contact CTAs
   use `/contact`; legacy `/demo` URLs redirect to it and are excluded from the sitemap.
 - **Canonical domain:** `https://dispenco.com` is selected. Change `url` if

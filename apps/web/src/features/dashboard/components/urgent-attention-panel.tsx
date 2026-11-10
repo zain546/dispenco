@@ -158,12 +158,12 @@ export function UrgentAttentionPanel() {
               <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
                 {data.expiringSoonCount === 0
                   ? 'No near-expiry inventory'
-                  : `${formatNumber(data.expiringSoonCount)} Lots Expiring Soon`}
+                  : `${formatNumber(data.expiringSoonCount)} ${data.expiringSoonCount === 1 ? 'Batch' : 'Batches'} Expiring Soon`}
               </p>
               <p className="text-micro text-muted-foreground mt-0.5 truncate">
                 {data.expiringSoonCount === 0
-                  ? 'Batches expire well beyond alert window'
-                  : 'Prioritize via FEFO dispensing'}
+                  ? 'All batches are within safe expiry dates'
+                  : 'Sell these expiring batches first'}
               </p>
             </div>
           </div>

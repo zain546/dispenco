@@ -74,14 +74,32 @@ export class ProductsService {
         },
       });
 
-      // 2. If initial stock & batch info are provided, create the initial Batch
-      if (
-        dto.initialStockQuantity !== undefined &&
-        dto.initialStockQuantity > 0 &&
-        dto.costPrice !== undefined &&
-        dto.sellPrice !== undefined &&
-        dto.expiryDate
-      ) {
+      // 2. If initial stock is specified, validate required batch fields and create the initial Batch
+      if (dto.initialStockQuantity !== undefined && dto.initialStockQuantity > 0) {
+        if (
+          dto.costPrice === undefined ||
+          dto.costPrice === null ||
+          dto.sellPrice === undefined ||
+          dto.sellPrice === null ||
+          !dto.expiryDate
+        ) {
+          throw new BadRequestException(
+            'Purchase price, retail price (MRP), and expiry date are required when adding initial stock.'
+          );
+        }
+
+        const parsedExpiry = new Date(dto.expiryDate);
+        if (isNaN(parsedExpiry.getTime())) {
+          throw new BadRequestException('Invalid expiry date format. Please provide a valid date.');
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parsedExpiry < today) {
+          throw new BadRequestException(
+            'Expiry date cannot be in the past for new stock intake. Please select a valid future date.'
+          );
+        }
         // Find or fallback to primary store for tenant
         let store: { id: string; name: string } | null = null;
         if (dto.storeId) {

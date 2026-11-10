@@ -51,7 +51,7 @@ export function QuickActionsHub() {
     },
     {
       title: 'Receive Stock Delivery',
-      description: 'Check in supplier shipment & record incoming batch lots',
+      description: 'Check in supplier shipment & record incoming batches',
       href: '/inventory/receive',
       icon: Truck,
       requiredPermission: canManageInventory,

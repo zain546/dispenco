@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/features/auth/services/auth-api';
 import { setSessionIdentity } from '@/lib/session-identity';
-import { sessionAuthorityKey } from '@/lib/auth-policy';
+import { isProtectedPath, sessionAuthorityKey } from '@/lib/auth-policy';
 
 export interface UserSession {
   id: string;
@@ -73,8 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         applyUser(null);
         if (
           typeof window !== 'undefined' &&
-          !window.location.pathname.startsWith('/login') &&
-          !window.location.pathname.startsWith('/signup')
+          isProtectedPath(window.location.pathname)
         ) {
           router.replace('/login');
         }

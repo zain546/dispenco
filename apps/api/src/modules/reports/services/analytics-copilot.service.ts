@@ -401,29 +401,23 @@ Return strict JSON:
     suggestedFollowUps?: string[];
   }> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
-    const prompt = `You are the Lead Healthcare & Pharmacy Business Intelligence Analyst for Dispenco.
-A pharmacy owner asked: "${question}"
-Domain Intent: ${intent} (${timeframeLabel})
-Verified Live Database Metrics:
+    const prompt = `You are a fast, concise AI assistant for Dispenco Pharmacy Management System.
+The user asked: "${question}"
+Timeframe: ${timeframeLabel}
+Live Metrics:
 ${JSON.stringify(metrics, null, 2)}
-Sample Verified Data Records:
-${JSON.stringify(sampleRecords.slice(0, 8), null, 2)}
+Sample Records:
+${JSON.stringify(sampleRecords.slice(0, 10), null, 2)}
 
-Provide an executive, highly professional briefing in strict JSON:
+Instructions:
+- Keep the response short, simple, clean, and directly to the point (1-3 sentences maximum, or a clean numbered list if asking for top or multiple items).
+- Use **bold** for numbers, currency amounts (Rs.), percentages, and product names.
+- Do NOT include corporate buzzwords, long essays, or unsolicited advisory fluff.
+
+Return strict JSON:
 {
-  "narrative": "A concise, impactful 2-3 sentence markdown summary highlighting the exact numbers, rupee amounts (Rs.), percentages, and critical items. Use **bold** for metrics.",
-  "executiveTakeaway": "1 sentence high-impact strategic takeaway for the pharmacy owner.",
-  "actionItems": [
-    "Immediate operational or clinical action 1 (e.g. stock replenishment, supplier return, pricing, or collection)",
-    "Immediate action 2"
-  ],
-  "suggestedFollowUps": [
-    "Contextual follow-up question 1",
-    "Contextual follow-up question 2",
-    "Contextual follow-up question 3"
-  ]
-}
-Return ONLY valid JSON matching this schema.`;
+  "narrative": "Your short, clean, direct answer here."
+}`;
 
     const res = await fetch(url, {
       method: 'POST',

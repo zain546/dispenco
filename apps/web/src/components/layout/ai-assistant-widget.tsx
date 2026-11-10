@@ -12,6 +12,7 @@ import {
   Loader2,
   Lightbulb,
   CheckCircle2,
+  ChevronLeft,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { reportsApi, CopilotQueryResult } from '@/features/reports/services/reports-api';
@@ -38,6 +39,50 @@ const STARTER_PROMPTS = [
 ];
 
 const STORAGE_KEY = 'dispenco_ai_widget_messages_v1';
+
+
+function formatTimeAgo(timestamp: number): string {
+  const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
+function FormattedMessageText({ text }: { text: string }) {
+  const lines = text.split('\n');
+
+  return (
+    <div className="space-y-1 text-xs leading-relaxed text-foreground">
+      {lines.map((line, idx) => {
+        if (!line.trim()) {
+          return <div key={idx} className="h-1" />;
+        }
+
+        // Parse bold segments (**...**)
+        const parts = line.split(/(\*\*.*?\*\*)/g);
+
+        return (
+          <p key={idx} className="leading-relaxed">
+            {parts.map((part, pIdx) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                  <strong key={pIdx} className="font-semibold text-foreground">
+                    {part.slice(2, -2)}
+                  </strong>
+                );
+              }
+              return part;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 export function AiAssistantWidget() {
   const { activeStoreId, isAllStores } = useStore();
@@ -87,10 +132,9 @@ export function AiAssistantWidget() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Focus input and scroll to bottom when opening or adding messages
+  // Scroll to bottom when opening or adding messages
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
       setTimeout(() => {
         if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -156,22 +200,36 @@ export function AiAssistantWidget() {
 
   return (
     <>
-      {/* Floating Action Button (FAB) at Bottom-Right */}
+      {/* Right-Edge Docked Slide-Out Tab (Never overlaps table buttons; slides out on hover/click) */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? 'Close AI Assistant' : 'Open AI Assistant (Ctrl+K)'}
         title={isOpen ? 'Close Assistant' : 'Dispenco AI Assistant (Ctrl+K)'}
-        className={`fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 size-13 sm:size-14 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-lg active:scale-95 ${
+        className={`group fixed right-0 bottom-20 sm:bottom-8 z-50 h-11 rounded-l-2xl border border-r-0 border-primary-foreground/15 bg-primary hover:bg-primary/95 text-primary-foreground shadow-lg shadow-primary/25 flex items-center gap-2 pl-2.5 pr-3.5 transition-all duration-300 ease-out cursor-pointer print:hidden ${
           isOpen
-            ? 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/25 ring-4 ring-primary/20 rotate-90'
-            : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30 hover:scale-105 ring-4 ring-primary/20'
+            ? 'translate-x-0 ring-2 ring-primary/30'
+            : 'translate-x-[calc(100%-38px)] hover:translate-x-0 focus-visible:translate-x-0 opacity-85 hover:opacity-100'
         }`}
       >
         {isOpen ? (
-          <X className="size-6 transition-transform" />
+          <>
+            <X className="size-4.5 shrink-0 transition-transform" />
+            <span className="text-xs font-bold tracking-tight whitespace-nowrap">Close AI</span>
+          </>
         ) : (
-          <Bot className="size-6 transition-transform" />
+          <>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <ChevronLeft className="size-3.5 opacity-80 group-hover:opacity-0 group-hover:-translate-x-1 transition-all duration-200 -ml-1" />
+              <Bot className="size-4.5 shrink-0" />
+            </div>
+            <span className="text-xs font-bold tracking-tight whitespace-nowrap pl-0.5">
+              AI Copilot
+            </span>
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-primary-foreground/15 text-primary-foreground text-[10px] font-mono font-semibold whitespace-nowrap">
+              Ctrl+K
+            </kbd>
+          </>
         )}
       </button>
 
@@ -180,7 +238,7 @@ export function AiAssistantWidget() {
         <div
           role="dialog"
           aria-labelledby="ai-assistant-title"
-          className="fixed bottom-20 sm:bottom-23 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[430px] max-w-[430px] h-[580px] max-h-[calc(100vh-110px)] bg-card border border-border/90 rounded-3xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200"
+          className="fixed bottom-20 sm:bottom-22 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[430px] max-w-[430px] h-[580px] max-h-[calc(100vh-110px)] bg-card border border-border/90 rounded-3xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200 print:hidden"
         >
           {/* Header */}
           <div className="p-3.5 sm:p-4 border-b border-border/70 bg-muted/20 flex items-center justify-between gap-3 shrink-0">
@@ -278,111 +336,38 @@ export function AiAssistantWidget() {
                     }`}
                   >
                     {msg.sender === 'user' ? (
-                      <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-primary text-primary-foreground px-3.5 py-2.5 text-xs shadow-2xs leading-relaxed font-medium">
-                        {msg.text}
+                      <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-primary text-primary-foreground px-3.5 py-2 text-xs shadow-2xs leading-relaxed font-medium">
+                        <p>{msg.text}</p>
+                        <span className="block text-[10px] text-primary-foreground/75 text-right mt-0.5 font-normal">
+                          {formatTimeAgo(msg.timestamp)}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-start gap-2 max-w-[95%]">
                         <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
                           <Bot className="size-4" />
                         </div>
-                        <div className="flex-1 space-y-2.5 rounded-2xl rounded-tl-xs bg-muted/40 border border-border/80 p-3.5 text-xs shadow-2xs">
-                          {/* Executive Takeaway Callout */}
-                          {msg.result?.executiveTakeaway && (
-                            <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-2 text-foreground">
-                              <Lightbulb className="size-3.5 text-primary shrink-0 mt-0.5" />
-                              <span className="font-semibold text-micro leading-snug">
-                                {msg.result.executiveTakeaway}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Markdown Narrative */}
-                          <div
-                            className="text-foreground leading-relaxed prose dark:prose-invert max-w-none text-xs"
-                            dangerouslySetInnerHTML={{
-                              __html: msg.text.replace(
-                                /\*\*(.*?)\*\*/g,
-                                '<strong class="font-bold text-primary">$1</strong>'
-                              ),
-                            }}
-                          />
-
-                          {/* Action Items */}
-                          {msg.result?.actionItems && msg.result.actionItems.length > 0 && (
-                            <div className="space-y-1.5 pt-1 border-t border-border/60">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                                <CheckCircle2 className="size-3 text-primary" />
-                                <span>Action Recommendations:</span>
-                              </span>
-                              <div className="space-y-1">
-                                {msg.result.actionItems.map((act, i) => (
-                                  <div
-                                    key={i}
-                                    className="p-1.5 rounded-lg bg-card border border-border/60 text-micro text-foreground leading-tight flex items-start gap-1.5"
-                                  >
-                                    <span className="font-bold text-primary">{i + 1}.</span>
-                                    <span>{act}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Metric Cards Quick Grid */}
-                          {msg.result?.summaryMetrics && msg.result.summaryMetrics.length > 0 && (
-                            <div className="grid grid-cols-2 gap-1.5 pt-1">
-                              {msg.result.summaryMetrics.slice(0, 4).map((m, i) => (
-                                <div
-                                  key={i}
-                                  className="p-2 rounded-lg bg-card border border-border/60 text-left"
-                                >
-                                  <span className="text-[10px] text-muted-foreground block truncate">
-                                    {m.label}
-                                  </span>
-                                  <strong className="text-xs font-bold text-foreground block truncate mt-0.5">
-                                    {m.value}
-                                  </strong>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Follow-up Prompts */}
-                          {msg.result?.suggestedFollowUps && msg.result.suggestedFollowUps.length > 0 && (
-                            <div className="pt-1 space-y-1">
-                              <span className="text-[10px] text-muted-foreground block font-medium">
-                                Follow-up:
-                              </span>
-                              <div className="flex flex-wrap gap-1">
-                                {msg.result.suggestedFollowUps.slice(0, 2).map((fu, idx) => (
-                                  <button
-                                    key={idx}
-                                    type="button"
-                                    onClick={() => handleSend(fu)}
-                                    className="px-2 py-1 rounded-md text-[10px] font-medium bg-card border border-border/70 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-foreground text-left cursor-pointer transition-colors"
-                                  >
-                                    {fu}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                        <div className="flex-1 rounded-2xl rounded-tl-xs bg-muted/40 border border-border/80 p-3 text-xs shadow-2xs space-y-1">
+                          <FormattedMessageText text={msg.text} />
+                          <span className="block text-[10px] text-muted-foreground/70 text-left mt-1 font-normal">
+                            {formatTimeAgo(msg.timestamp)}
+                          </span>
                         </div>
                       </div>
                     )}
                   </div>
                 ))}
 
-                {/* Live Synthesizing State */}
+                {/* Animated typing dots matching reference screenshot */}
                 {loading && (
-                  <div className="flex items-start gap-2">
-                    <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="size-4 animate-pulse" />
+                  <div className="flex items-center gap-2">
+                    <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+                      <Bot className="size-4" />
                     </div>
-                    <div className="p-3 rounded-2xl rounded-tl-xs bg-muted/40 border border-border/80 text-xs text-muted-foreground flex items-center gap-2">
-                      <Loader2 className="size-3.5 animate-spin text-primary" />
-                      <span>Interrogating database &amp; compiling analytics...</span>
+                    <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-xs bg-muted/50 border border-border/70 flex items-center gap-1.5 shadow-2xs">
+                      <span className="size-1.5 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.3s]" />
+                      <span className="size-1.5 rounded-full bg-foreground/60 animate-bounce [animation-delay:-0.15s]" />
+                      <span className="size-1.5 rounded-full bg-foreground/60 animate-bounce" />
                     </div>
                   </div>
                 )}

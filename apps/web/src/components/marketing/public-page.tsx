@@ -17,7 +17,7 @@ export function publicPageMetadata(title: string, description: string, path: str
       siteName: 'Dispenco',
       type: 'website',
     },
-    twitter: { card: 'summary', title: `${title} | Dispenco`, description },
+    twitter: { card: 'summary_large_image', title: `${title} | Dispenco`, description },
   };
 }
 
