@@ -14,16 +14,24 @@ export class AnomalyScanProcessor {
 
   async process(job: Job<any, any, string>): Promise<any> {
     if (job.name === 'scan-anomalies') {
-      return this.handleAnomalyScan();
+      return this.handleAnomalyScan(job.data?.tenantId);
     }
   }
 
-  private async handleAnomalyScan() {
+  private async handleAnomalyScan(tenantId?: string) {
     this.logger.log(
-      'Starting automated operational integrity & discrepancy scan across all tenants...',
+      tenantId
+        ? `Starting operational integrity & discrepancy scan for tenant ${tenantId}...`
+        : 'Starting automated operational integrity & discrepancy scan across all tenants...',
     );
 
+    const where: any = {};
+    if (tenantId) {
+      where.id = tenantId;
+    }
+
     const tenants = await this.prisma.tenant.findMany({
+      where,
       select: { id: true, name: true },
     });
 

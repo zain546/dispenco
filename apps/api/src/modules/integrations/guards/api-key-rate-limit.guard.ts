@@ -5,8 +5,7 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import { RedisCacheService } from '../../cache/redis-cache.service';
 import { AuthenticatedApiKey } from '../decorators/current-api-key.decorator';
 
 interface MemoryRateLimitBucket {
@@ -16,26 +15,9 @@ interface MemoryRateLimitBucket {
 
 @Injectable()
 export class ApiKeyRateLimitGuard implements CanActivate {
-  private redis: Redis | null = null;
   private memoryBuckets = new Map<string, MemoryRateLimitBucket>();
 
-  constructor(private readonly config: ConfigService) {
-    const redisUrl = this.config.get<string>('REDIS_URL');
-    if (redisUrl) {
-      try {
-        this.redis = new Redis(redisUrl, {
-          lazyConnect: true,
-          maxRetriesPerRequest: 1,
-          retryStrategy: () => null, // don't spam if local redis is off
-        });
-        this.redis.connect().catch(() => {
-          this.redis = null;
-        });
-      } catch {
-        this.redis = null;
-      }
-    }
-  }
+  constructor(private readonly cache: RedisCacheService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -55,15 +37,20 @@ export class ApiKeyRateLimitGuard implements CanActivate {
     let currentCount = 1;
     let resetInSeconds = 60;
 
-    if (this.redis && this.redis.status === 'ready') {
+    const redis = this.cache.getClient();
+    if (redis) {
       try {
         const redisKey = `ratelimit:apikey:${keyId}:${Math.floor(now / windowMs)}`;
-        currentCount = await this.redis.incr(redisKey);
-        if (currentCount === 1) {
-          await this.redis.expire(redisKey, 65);
+        const pipeline = redis.pipeline();
+        pipeline.incr(redisKey);
+        pipeline.expire(redisKey, 65);
+        pipeline.ttl(redisKey);
+        const results = await pipeline.exec();
+        if (results && results[0] && !results[0][0]) {
+          currentCount = Number(results[0][1]);
+          const ttl = Number(results[2]?.[1]);
+          resetInSeconds = ttl > 0 ? ttl : 60;
         }
-        const ttl = await this.redis.ttl(redisKey);
-        resetInSeconds = ttl > 0 ? ttl : 60;
       } catch {
         currentCount = this.checkMemoryRateLimit(keyId, limit, windowMs, now);
         resetInSeconds = Math.ceil(
@@ -105,6 +92,15 @@ export class ApiKeyRateLimitGuard implements CanActivate {
     windowMs: number,
     now: number
   ): number {
+    // Prune expired buckets if memory map exceeds threshold
+    if (this.memoryBuckets.size > 500) {
+      for (const [k, b] of this.memoryBuckets.entries()) {
+        if (b.resetAt <= now) {
+          this.memoryBuckets.delete(k);
+        }
+      }
+    }
+
     const bucket = this.memoryBuckets.get(keyId);
     if (!bucket || bucket.resetAt <= now) {
       this.memoryBuckets.set(keyId, {

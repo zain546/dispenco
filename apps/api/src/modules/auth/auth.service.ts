@@ -1,11 +1,12 @@
 import { STARTER_PLAN } from '@dispenco/types';
-import { Injectable, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Optional, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Response, Request } from 'express';
 import * as bcrypt from 'bcryptjs';
 import { ALL_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS } from '@dispenco/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
 import { sessionProfile, sessionUserInclude } from './session-user';
@@ -17,6 +18,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    @Optional() private readonly cache?: RedisCacheService,
   ) {}
 
   async signup(dto: SignupDto, res: Response) {
@@ -282,6 +284,11 @@ export class AuthService {
           refreshTokenHash: null,
         },
       });
+
+      // Invalidate active session cache immediately
+      if (this.cache) {
+        await this.cache.delByPattern(`auth:session:${user.userId}:*`);
+      }
     }
 
     res.clearCookie('refresh_token', {

@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import type { jsPDF } from 'jspdf';
 import type { SalesReportResponse, StorePerformanceBreakdown } from '../services/reports-api';
 
 export interface SalesReportPdfOptions {
@@ -55,10 +55,11 @@ function fmtCategory(cat?: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
+export async function generateSalesReportPdfDoc(options: SalesReportPdfOptions): Promise<{
   doc: jsPDF;
   filename: string;
-} {
+}> {
+  const { jsPDF } = await import('jspdf');
   const {
     reportData,
     storeName,
@@ -634,15 +635,15 @@ export function generateSalesReportPdfDoc(options: SalesReportPdfOptions): {
   return { doc, filename };
 }
 
-export function downloadSalesReportPdf(options: SalesReportPdfOptions): void {
-  const { doc, filename } = generateSalesReportPdfDoc(options);
+export async function downloadSalesReportPdf(options: SalesReportPdfOptions): Promise<void> {
+  const { doc, filename } = await generateSalesReportPdfDoc(options);
   doc.save(filename);
 }
 
 export async function shareSalesReportOnWhatsApp(
   options: SalesReportPdfOptions,
 ): Promise<void> {
-  const { doc, filename } = generateSalesReportPdfDoc(options);
+  const { doc, filename } = await generateSalesReportPdfDoc(options);
   const summary = options.reportData.summary;
   const totalRevenue = Number(summary.totalRevenue ?? 0);
   const totalCost = Number(summary.totalCost ?? 0);

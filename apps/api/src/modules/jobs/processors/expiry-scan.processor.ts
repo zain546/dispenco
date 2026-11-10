@@ -14,22 +14,31 @@ export class ExpiryScanProcessor {
 
   async process(job: Job<any, any, string>): Promise<any> {
     if (job.name === 'scan-expiry') {
-      return this.handleExpiryScan();
+      return this.handleExpiryScan(job.data?.tenantId);
     }
   }
 
-  private async handleExpiryScan() {
-    this.logger.log('Starting automated inventory batch expiry scan...');
+  private async handleExpiryScan(tenantId?: string) {
+    this.logger.log(
+      tenantId
+        ? `Starting batch expiry scan for tenant ${tenantId}...`
+        : 'Starting automated inventory batch expiry scan across all tenants...',
+    );
 
     const oneHundredEightyDaysFromNow = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
 
-    const batches = await this.prisma.batch.findMany({
-      where: {
-        quantityRemaining: { gt: 0 },
-        expiryDate: {
-          lte: oneHundredEightyDaysFromNow,
-        },
+    const where: any = {
+      quantityRemaining: { gt: 0 },
+      expiryDate: {
+        lte: oneHundredEightyDaysFromNow,
       },
+    };
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
+
+    const batches = await this.prisma.batch.findMany({
+      where,
       include: {
         product: {
           select: { name: true },

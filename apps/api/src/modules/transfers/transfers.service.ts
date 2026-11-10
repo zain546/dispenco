@@ -2,8 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreateTransferDto } from './dtos/create-transfer.dto';
 import { DispatchTransferDto } from './dtos/dispatch-transfer.dto';
 import { ReceiveTransferDto } from './dtos/receive-transfer.dto';
@@ -12,24 +14,17 @@ import { TransferStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class TransfersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
 
-  private async generateTransferNumber(tenantId: string): Promise<string> {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-    const prefix = `TRF-${dateStr}-`;
-
-    const count = await this.prisma.stockTransfer.count({
-      where: {
-        tenantId,
-        transferNumber: {
-          startsWith: prefix,
-        },
-      },
-    });
-
-    const sequence = String(count + 1).padStart(4, '0');
-    return `${prefix}${sequence}`;
+  private async generateTransferNumber(
+    tenantId: string,
+    txClient?: Prisma.TransactionClient,
+  ): Promise<string> {
+    const { formatted } = await this.prisma.nextSequence(tenantId, 'TRANSFER', undefined, txClient);
+    return formatted;
   }
 
   async createTransferRequest(
@@ -240,7 +235,25 @@ export class TransfersService {
       throw new BadRequestException('You must provide batch allocation details for dispatch');
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the status transition inside the transaction atomically
+      const claimResult = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          tenantId,
+          status: TransferStatus.REQUESTED,
+        },
+        data: {
+          status: TransferStatus.DISPATCHED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new ConflictException(
+          `Transfer #${transferId} cannot be dispatched because it is not in REQUESTED status or is concurrently being processed.`
+        );
+      }
+
       for (const dispatchItem of dto.items) {
         const transferItem = transfer.items.find((i) => i.id === dispatchItem.itemId);
         if (!transferItem) {
@@ -269,15 +282,24 @@ export class TransfersService {
           );
         }
 
-        // Deduct quantity from source batch
-        await tx.batch.update({
-          where: { id: batch.id },
+        // Deduct quantity from source batch atomically with concurrency guard
+        const updateResult = await tx.batch.updateMany({
+          where: {
+            id: batch.id,
+            quantityRemaining: { gte: dispatchItem.quantitySent },
+          },
           data: {
             quantityRemaining: {
               decrement: dispatchItem.quantitySent,
             },
           },
         });
+
+        if (updateResult.count === 0) {
+          throw new ConflictException(
+            `Insufficient stock in batch ${batch.batchNumber} or concurrent transfer dispatch occurred.`
+          );
+        }
 
         // Update transfer line item with dispatched details
         await tx.stockTransferItem.update({
@@ -330,6 +352,10 @@ export class TransfersService {
         data: updatedTransfer,
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, transfer.sourceStoreId);
+
+    return result;
   }
 
   async receiveTransfer(
@@ -353,7 +379,25 @@ export class TransfersService {
       );
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the status transition inside the transaction atomically
+      const claimResult = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          tenantId,
+          status: TransferStatus.DISPATCHED,
+        },
+        data: {
+          status: TransferStatus.RECEIVED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new ConflictException(
+          `Transfer #${transferId} cannot be received because it is not in DISPATCHED status or is concurrently being processed.`
+        );
+      }
+
       for (const receiveItem of dto.items) {
         const transferItem = transfer.items.find((i) => i.id === receiveItem.itemId);
         if (!transferItem) {
@@ -447,6 +491,10 @@ export class TransfersService {
         data: updatedTransfer,
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, transfer.targetStoreId);
+
+    return result;
   }
 
   async cancelTransfer(
@@ -472,7 +520,25 @@ export class TransfersService {
       throw new BadRequestException('This stock transfer is already cancelled');
     }
 
-    return await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Claim the status transition inside the transaction atomically
+      const claimResult = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          tenantId,
+          status: transfer.status,
+        },
+        data: {
+          status: TransferStatus.CANCELLED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new ConflictException(
+          `Transfer #${transferId} cannot be cancelled because its status has changed or is concurrently being processed.`
+        );
+      }
+
       // If transfer was already dispatched, restore deducted stock to source batches!
       if (transfer.status === TransferStatus.DISPATCHED) {
         for (const item of transfer.items) {
@@ -520,5 +586,11 @@ export class TransfersService {
         data: updated,
       };
     });
+
+    if (transfer.status === TransferStatus.DISPATCHED) {
+      await this.cache.invalidateStoreInventory(tenantId, transfer.sourceStoreId);
+    }
+
+    return result;
   }
 }

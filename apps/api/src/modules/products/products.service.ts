@@ -196,14 +196,53 @@ export class ProductsService {
       }
     }
 
-    // If stock status filter or inStockOnly is provided, fetch matching products to apply computed stock filters
-    const isFilteredByStatus = (!!query.stockStatus && query.stockStatus !== 'ALL') || Boolean(query.inStockOnly);
+    const now = new Date();
+    const hundredEightyDaysFromNow = new Date();
+    hundredEightyDaysFromNow.setDate(now.getDate() + 180);
+
+    const storeBatchFilter = effectiveStoreId ? { storeId: effectiveStoreId } : {};
+    const stockStatus = query.stockStatus ? query.stockStatus.toUpperCase() : null;
+
+    // Push down batch stock filters into PostgreSQL WHERE clause
+    if (query.inStockOnly || stockStatus === 'IN_STOCK') {
+      where.batches = {
+        some: {
+          quantityRemaining: { gt: 0 },
+          ...storeBatchFilter,
+        },
+      };
+    } else if (stockStatus === 'OUT') {
+      where.batches = {
+        none: {
+          quantityRemaining: { gt: 0 },
+          ...storeBatchFilter,
+        },
+      };
+    } else if (stockStatus === 'EXPIRED') {
+      where.batches = {
+        some: {
+          expiryDate: { lte: now },
+          ...storeBatchFilter,
+        },
+      };
+    } else if (stockStatus === 'NEAR_EXPIRY') {
+      where.batches = {
+        some: {
+          expiryDate: { gt: now, lte: hundredEightyDaysFromNow },
+          quantityRemaining: { gt: 0 },
+          ...storeBatchFilter,
+        },
+      };
+    }
+
+    // Only 'LOW' status requires full memory calculation because it compares batch sum against product.lowStockThreshold
+    const requiresMemoryScan = stockStatus === 'LOW';
 
     const [totalRaw, rawProducts] = await Promise.all([
       this.prisma.product.count({ where }),
       this.prisma.product.findMany({
         where,
-        ...(isFilteredByStatus ? {} : { skip, take: limit }),
+        ...(requiresMemoryScan ? {} : { skip, take: limit }),
         orderBy: { createdAt: 'desc' },
         include: {
           batches: {
@@ -215,10 +254,6 @@ export class ProductsService {
         },
       }),
     ]);
-
-    const now = new Date();
-    const hundredEightyDaysFromNow = new Date();
-    hundredEightyDaysFromNow.setDate(now.getDate() + 180);
 
     const allMapped = rawProducts.map((product) => {
       const activeStockBatches = product.batches.filter((b) => b.quantityRemaining > 0);
@@ -260,26 +295,12 @@ export class ProductsService {
     }
 
     let filteredItems = allMapped;
-    if (query.inStockOnly) {
-      filteredItems = filteredItems.filter((p) => p.totalStock > 0);
-    }
-    if (query.stockStatus && query.stockStatus !== 'ALL') {
-      const status = query.stockStatus.toUpperCase();
-      if (status === 'IN_STOCK') {
-        filteredItems = filteredItems.filter((p) => p.totalStock > 0);
-      } else if (status === 'LOW') {
-        filteredItems = filteredItems.filter((p) => p.totalStock > 0 && p.totalStock <= p.lowStockThreshold);
-      } else if (status === 'OUT') {
-        filteredItems = filteredItems.filter((p) => p.totalStock === 0);
-      } else if (status === 'EXPIRED') {
-        filteredItems = filteredItems.filter((p) => p.expiredBatchCount > 0);
-      } else if (status === 'NEAR_EXPIRY') {
-        filteredItems = filteredItems.filter((p) => p.nearExpiryBatchCount > 0);
-      }
+    if (requiresMemoryScan) {
+      filteredItems = filteredItems.filter((p) => p.totalStock > 0 && p.totalStock <= p.lowStockThreshold);
     }
 
-    const total = isFilteredByStatus ? filteredItems.length : totalRaw;
-    const paginatedItems = isFilteredByStatus
+    const total = requiresMemoryScan ? filteredItems.length : totalRaw;
+    const paginatedItems = requiresMemoryScan
       ? filteredItems.slice(skip, skip + limit)
       : filteredItems;
 

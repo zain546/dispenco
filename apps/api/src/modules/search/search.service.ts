@@ -112,9 +112,11 @@ export class SearchService implements OnModuleInit {
     }
 
     try {
-      const filters: string[] = [`tenantId = "${tenantId}"`, 'isActive = true'];
+      const sanitizedTenant = tenantId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const filters: string[] = [`tenantId = "${sanitizedTenant}"`, 'isActive = true'];
       if (options?.category) {
-        filters.push(`category = "${options.category}"`);
+        const sanitizedCategory = options.category.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        filters.push(`category = "${sanitizedCategory}"`);
       }
 
       const searchRes = await this.productsIndex.search(query.trim(), {

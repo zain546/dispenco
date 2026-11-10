@@ -7,9 +7,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Permission } from '@dispenco/types';
 import { NotificationsService } from './notifications.service';
 import { JobsService } from '../jobs/jobs.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('notifications')
@@ -51,8 +54,10 @@ export class NotificationsController {
   }
 
   @Post('scan-low-stock')
-  async triggerLowStockScan() {
-    const job = await this.jobsService.triggerLowStockScan();
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.INVENTORY_READ)
+  async triggerLowStockScan(@CurrentUser('tenantId') tenantId: string) {
+    const job = await this.jobsService.triggerLowStockScan(tenantId);
     return {
       success: true,
       message: 'Low stock scan job enqueued',
@@ -61,8 +66,10 @@ export class NotificationsController {
   }
 
   @Post('scan-expiry')
-  async triggerExpiryScan() {
-    const job = await this.jobsService.triggerExpiryScan();
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(Permission.INVENTORY_READ)
+  async triggerExpiryScan(@CurrentUser('tenantId') tenantId: string) {
+    const job = await this.jobsService.triggerExpiryScan(tenantId);
     return {
       success: true,
       message: 'Expiry scan job enqueued',

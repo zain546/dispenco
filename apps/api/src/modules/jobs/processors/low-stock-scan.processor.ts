@@ -14,15 +14,24 @@ export class LowStockScanProcessor {
 
   async process(job: Job<any, any, string>): Promise<any> {
     if (job.name === 'scan-low-stock') {
-      return this.handleLowStockScan();
+      return this.handleLowStockScan(job.data?.tenantId);
     }
   }
 
-  private async handleLowStockScan() {
-    this.logger.log('Starting automated low-stock inventory scan...');
+  private async handleLowStockScan(tenantId?: string) {
+    this.logger.log(
+      tenantId
+        ? `Starting low-stock inventory scan for tenant ${tenantId}...`
+        : 'Starting automated low-stock inventory scan across all tenants...',
+    );
+
+    const where: any = { isActive: true };
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
 
     const products = await this.prisma.product.findMany({
-      where: { isActive: true },
+      where,
       include: {
         batches: {
           select: { quantityRemaining: true },

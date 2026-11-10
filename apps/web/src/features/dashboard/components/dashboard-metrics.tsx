@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import Link from 'next/link';
 import {
   DollarSign,
@@ -9,86 +9,72 @@ import {
   Clock,
   PackageCheck,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { StatCard } from '@/components/ui/stat-card';
-import { productsApi } from '@/features/inventory/services/products-api';
+import { useInventoryAggregation } from '@/features/inventory/hooks/use-inventory-queries';
 import { reportsApi } from '@/features/reports/services/reports-api';
+import { queryKeys } from '@/lib/query-keys';
 import { useStore } from '@/context/store-context';
 import { formatCurrency, formatNumber } from '@/lib/format';
 
 export function DashboardMetrics() {
-  const { activeStoreId, isAllStores } = useStore();
-  const [isLoading, setIsLoading] = useState(true);
-  const [todaySales, setTodaySales] = useState({
-    revenue: 0,
-    profit: 0,
-    cost: 0,
-    margin: 0,
-    count: 0,
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
+  const storeIdParam = !isAllStores && activeStoreId ? activeStoreId : undefined;
+
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const { data: aggData, isLoading: isAggLoading } = useInventoryAggregation(
+    storeIdParam ? { storeId: storeIdParam } : undefined,
+    { enabled: isStoreReady }
+  );
+
+  const { data: salesReport, isLoading: isSalesLoading } = useQuery({
+    queryKey: queryKeys.reports.sales(storeIdParam, { startDate: todayStr, endDate: todayStr, groupBy: 'day' }),
+    queryFn: () =>
+      reportsApi.getSalesReport({
+        startDate: todayStr,
+        endDate: todayStr,
+        groupBy: 'day',
+        ...(storeIdParam ? { storeId: storeIdParam } : {}),
+      }),
+    enabled: isStoreReady,
+    staleTime: 60 * 1000,
   });
-  const [metrics, setMetrics] = useState({
-    totalProducts: 0,
-    stockedCount: 0,
-    lowStockCount: 0,
-    expiringSoonCount: 0,
-  });
 
-  useEffect(() => {
-    async function loadMetrics() {
-      try {
-        setIsLoading(true);
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const isLoading = isAggLoading || isSalesLoading;
 
-        const [aggRes, salesRes] = await Promise.allSettled([
-          productsApi.getInventoryAggregation(
-            !isAllStores && activeStoreId ? { storeId: activeStoreId } : undefined
-          ),
-          reportsApi.getSalesReport({
-            startDate: todayStr,
-            endDate: todayStr,
-            groupBy: 'day',
-            ...(!isAllStores && activeStoreId ? { storeId: activeStoreId } : {}),
-          }),
-        ]);
+  const metrics = useMemo(() => {
+    const s = aggData?.summary;
+    return {
+      totalProducts: s?.totalCatalogItems || 0,
+      stockedCount: s?.stockedCount || 0,
+      lowStockCount: s?.lowStockCount || 0,
+      expiringSoonCount: s?.expiringSoonCount || 0,
+    };
+  }, [aggData]);
 
-        if (aggRes.status === 'fulfilled' && aggRes.value?.summary) {
-          const s = aggRes.value.summary;
-          setMetrics({
-            totalProducts: s.totalCatalogItems || 0,
-            stockedCount: s.stockedCount || 0,
-            lowStockCount: s.lowStockCount || 0,
-            expiringSoonCount: s.expiringSoonCount || 0,
-          });
-        }
-
-        if (salesRes.status === 'fulfilled' && salesRes.value?.success && salesRes.value.data?.summary) {
-          const sum = salesRes.value.data.summary;
-          const rev = sum.totalRevenue || 0;
-          const cost = sum.totalCost || 0;
-          const profit = sum.totalProfit !== undefined ? sum.totalProfit : rev - cost;
-          const margin =
-            sum.profitMargin !== undefined
-              ? sum.profitMargin
-              : rev > 0
-                ? Number(((profit / rev) * 100).toFixed(1))
-                : 0;
-          setTodaySales({
-            revenue: rev,
-            profit,
-            cost,
-            margin,
-            count: sum.totalTransactions || 0,
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load dashboard metrics:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadMetrics();
-  }, [activeStoreId, isAllStores]);
+  const todaySales = useMemo(() => {
+    const sum = salesReport?.data?.summary;
+    const rev = sum?.totalRevenue || 0;
+    const cost = sum?.totalCost || 0;
+    const profit = sum?.totalProfit !== undefined ? sum.totalProfit : rev - cost;
+    const margin =
+      sum?.profitMargin !== undefined
+        ? sum.profitMargin
+        : rev > 0
+          ? Number(((profit / rev) * 100).toFixed(1))
+          : 0;
+    return {
+      revenue: rev,
+      profit,
+      cost,
+      margin,
+      count: sum?.totalTransactions || 0,
+    };
+  }, [salesReport]);
 
   return (
     <div className="flex items-stretch sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">

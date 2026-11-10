@@ -1,6 +1,7 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreateSaleDto } from './dtos/create-sale.dto';
 import { CreateReturnDto } from './dtos/create-return.dto';
 import { QueryReturnsDto } from './dtos/query-returns.dto';
@@ -13,6 +14,7 @@ export class SalesService {
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
     private readonly notificationsService: NotificationsService,
+    private readonly cache: RedisCacheService,
   ) {}
 
   async createSale(tenantId: string, userId: string, dto: CreateSaleDto) {
@@ -40,7 +42,7 @@ export class SalesService {
     }
 
     // Execute atomic transaction
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Customer linkage / creation if customer details provided
       let customerId = dto.customerId;
       if (!customerId && dto.customerName) {
@@ -64,13 +66,8 @@ export class SalesService {
         }
       }
 
-      // 2. Generate unique human-readable Receipt Number per tenant
-      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const daySalesCount = await tx.sale.count({
-        where: { tenantId },
-      });
-      const receiptSeq = (daySalesCount + 1).toString().padStart(4, '0');
-      const receiptNumber = `REC-${todayStr}-${receiptSeq}`;
+      // 2. Generate unique human-readable Receipt Number per tenant atomically
+      const { formatted: receiptNumber } = await this.prisma.nextSequence(tenantId, 'RECEIPT', undefined, tx);
 
       let runningSubtotal = 0;
       let runningTaxTotal = 0;
@@ -80,6 +77,8 @@ export class SalesService {
         productId: string;
         batchId: string;
         quantity: number;
+        unitType: string;
+        stockDeducted: number;
         unitPrice: Prisma.Decimal;
         discount: Prisma.Decimal;
         discountType: DiscountType;
@@ -89,11 +88,24 @@ export class SalesService {
 
       const preparedSaleItems: PreparedSaleItem[] = [];
 
+      // Pre-fetch all cart products in a single bulk query (replaces sequential per-item queries)
+      const cartProductIds = Array.from(new Set(dto.items.map((i) => i.productId)));
+      const productsList = await tx.product.findMany({
+        where: { id: { in: cartProductIds }, tenantId },
+      });
+      const productMap = new Map(productsList.map((p) => [p.id, p]));
+
+      // Pre-fetch all tenant tax rates in a single bulk query
+      const taxRatesList = await tx.taxRate.findMany({
+        where: { tenantId },
+      });
+      const taxRateMap = new Map(
+        taxRatesList.map((tr) => [tr.code.toUpperCase().trim(), Number(tr.ratePercent)]),
+      );
+
       // 3. Process each item in cart via FEFO batch allocation
       for (const item of dto.items) {
-        const product = await tx.product.findFirst({
-          where: { id: item.productId, tenantId },
-        });
+        const product = productMap.get(item.productId);
 
         if (!product) {
           throw new NotFoundException(`Medicine product with ID "${item.productId}" not found`);
@@ -103,17 +115,10 @@ export class SalesService {
         let effectiveTaxRatePercent = item.taxRatePercent ?? 0;
         if (effectiveTaxRatePercent === 0 && product.taxCode) {
           const cleanCode = product.taxCode.toUpperCase().trim();
-          const taxRateRecord = await tx.taxRate.findUnique({
-            where: {
-              tenantId_code: {
-                tenantId,
-                code: cleanCode,
-              },
-            },
-          });
+          const rateFromDb = taxRateMap.get(cleanCode);
 
-          if (taxRateRecord) {
-            effectiveTaxRatePercent = Number(taxRateRecord.ratePercent);
+          if (rateFromDb !== undefined) {
+            effectiveTaxRatePercent = rateFromDb;
           } else {
             switch (cleanCode) {
               case 'EXEMPT':
@@ -155,15 +160,24 @@ export class SalesService {
 
         // Deduct from selected FEFO batches
         for (const alloc of fefoResult.allocations) {
-          // Decrement batch quantityRemaining
-          await tx.batch.update({
-            where: { id: alloc.batchId },
+          // Decrement batch quantityRemaining atomically with concurrency guard
+          const updateResult = await tx.batch.updateMany({
+            where: {
+              id: alloc.batchId,
+              quantityRemaining: { gte: alloc.quantityToDeduct },
+            },
             data: {
               quantityRemaining: {
                 decrement: alloc.quantityToDeduct,
               },
             },
           });
+
+          if (updateResult.count === 0) {
+            throw new ConflictException(
+              `Insufficient stock for batch #${alloc.batchNumber} or concurrent checkout occurred. Please refresh cart.`,
+            );
+          }
 
           // Determine item price (provided unitPrice or batch sell price converted for unit)
           const defaultBasePrice = isSingleUnit && packSize > 1 ? alloc.sellPrice / packSize : alloc.sellPrice;
@@ -203,6 +217,8 @@ export class SalesService {
             productId: item.productId,
             batchId: alloc.batchId,
             quantity: allocQuantity,
+            unitType: item.unitType || 'PACK',
+            stockDeducted: alloc.quantityToDeduct,
             unitPrice: new Prisma.Decimal(unitPrice),
             discount: new Prisma.Decimal(itemDiscount),
             discountType: item.discountType || DiscountType.FLAT,
@@ -320,6 +336,10 @@ export class SalesService {
         },
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+
+    return result;
   }
 
   async getSaleById(tenantId: string, saleId: string) {
@@ -491,7 +511,7 @@ export class SalesService {
   }
 
   async voidSale(tenantId: string, userId: string, saleId: string, reason?: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findFirst({
         where: { id: saleId, tenantId },
         include: {
@@ -503,17 +523,36 @@ export class SalesService {
         throw new NotFoundException(`Sale with ID "${saleId}" not found`);
       }
 
-      if (sale.status === SaleStatus.VOIDED) {
-        throw new BadRequestException(`Sale #${sale.receiptNumber} is already voided`);
+      // Atomically claim the sale void before restoring stock.
+      // Under default READ COMMITTED isolation, if two concurrent void requests arrive,
+      // only one updateMany can update a row; the second gets count === 0 and aborts,
+      // preventing duplicate batch stock restoration.
+      const claimResult = await tx.sale.updateMany({
+        where: {
+          id: sale.id,
+          tenantId,
+          status: { not: SaleStatus.VOIDED },
+        },
+        data: {
+          status: SaleStatus.VOIDED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new BadRequestException(`Sale #${sale.receiptNumber || saleId} is already voided`);
       }
 
       // Restore quantityRemaining for each batch affected
       for (const item of sale.saleItems) {
+        const packsToRestore = item.stockDeducted && item.stockDeducted > 0
+          ? item.stockDeducted
+          : item.quantity;
+
         await tx.batch.update({
           where: { id: item.batchId },
           data: {
             quantityRemaining: {
-              increment: item.quantity,
+              increment: packsToRestore,
             },
           },
         });
@@ -530,14 +569,6 @@ export class SalesService {
           },
         });
       }
-
-      // Mark sale as VOIDED
-      const updatedSale = await tx.sale.update({
-        where: { id: sale.id },
-        data: {
-          status: SaleStatus.VOIDED,
-        },
-      });
 
       // Write AuditLog entry
       await tx.auditLog.create({
@@ -559,10 +590,15 @@ export class SalesService {
       return {
         success: true,
         message: `Sale #${sale.receiptNumber} has been successfully voided and inventory stock was restored.`,
-        saleId: updatedSale.id,
-        status: updatedSale.status,
+        saleId: sale.id,
+        status: SaleStatus.VOIDED,
+        storeId: sale.storeId,
       };
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, result.storeId);
+
+    return result;
   }
 
   /**
@@ -576,8 +612,18 @@ export class SalesService {
       throw new BadRequestException('At least one item must be selected for return');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Fetch sale with existing returns and items
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 0. Serialize returns per sale to prevent concurrent race conditions
+      // from over-returning quantities or over-incrementing batch stock.
+      if (typeof (tx as any).$queryRawUnsafe === 'function') {
+        await tx.$queryRawUnsafe(
+          `SELECT "id" FROM "Sale" WHERE "id" = $1 AND "tenantId" = $2 FOR UPDATE`,
+          dto.saleId,
+          tenantId,
+        );
+      }
+
+      // 1. Fetch sale with existing returns and items after acquiring the row lock
       const sale = await tx.sale.findFirst({
         where: { id: dto.saleId, tenantId },
         include: {
@@ -606,6 +652,7 @@ export class SalesService {
         saleItemId: string;
         batchId: string;
         quantity: number;
+        packsToRestore: number;
         unitPrice: number;
         refundAmount: number;
       }[] = [];
@@ -645,10 +692,25 @@ export class SalesService {
 
         totalRefund += refundAmount;
 
+        let packsToRestore = reqItem.quantity;
+        if (saleItem.stockDeducted && saleItem.stockDeducted > 0) {
+          // Compute packs to restore from cumulative target minus already-restored packs
+          // to ensure multiple partial returns never permanently lose loose units/packs.
+          const newCumulativeReturned = previouslyReturned + reqItem.quantity;
+          const cumulativeTarget = Math.floor(
+            (saleItem.stockDeducted * newCumulativeReturned) / saleItem.quantity,
+          );
+          const alreadyRestored = Math.floor(
+            (saleItem.stockDeducted * previouslyReturned) / saleItem.quantity,
+          );
+          packsToRestore = Math.max(0, cumulativeTarget - alreadyRestored);
+        }
+
         preparedReturnItems.push({
           saleItemId: saleItem.id,
           batchId: saleItem.batchId,
           quantity: reqItem.quantity,
+          packsToRestore,
           unitPrice: unitRefund,
           refundAmount,
         });
@@ -656,13 +718,8 @@ export class SalesService {
 
       totalRefund = Math.round(totalRefund * 100) / 100;
 
-      // 3. Generate human-readable Return number
-      const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      const dayReturnsCount = await tx.return.count({
-        where: { tenantId },
-      });
-      const returnSeq = (dayReturnsCount + 1).toString().padStart(4, '0');
-      const returnNumber = `RET-${todayStr}-${returnSeq}`;
+      // 3. Generate human-readable Return number atomically
+      const { formatted: returnNumber } = await this.prisma.nextSequence(tenantId, 'RETURN', undefined, tx);
 
       const refundMethod =
         dto.refundMethod?.toUpperCase().trim() ||
@@ -703,6 +760,7 @@ export class SalesService {
             select: {
               id: true,
               receiptNumber: true,
+              storeId: true,
               customerId: true,
               customer: true,
             },
@@ -719,14 +777,16 @@ export class SalesService {
 
       // 5. Restore batch stock quantity atomically
       for (const item of preparedReturnItems) {
-        await tx.batch.update({
-          where: { id: item.batchId },
-          data: {
-            quantityRemaining: {
-              increment: item.quantity,
+        if (item.packsToRestore > 0) {
+          await tx.batch.update({
+            where: { id: item.batchId },
+            data: {
+              quantityRemaining: {
+                increment: item.packsToRestore,
+              },
             },
-          },
-        });
+          });
+        }
       }
 
       // 6. Adjust customer credit balance if sale was on credit or refundMethod is CREDIT
@@ -766,6 +826,10 @@ export class SalesService {
 
       return createdReturn;
     });
+
+    await this.cache.invalidateStoreInventory(tenantId, result.sale?.storeId);
+
+    return result;
   }
 
   /**

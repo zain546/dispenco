@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useTransition, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingCart,
   Search,
@@ -91,6 +92,7 @@ const getSingleUnitPrice = (product: ProductData): number => {
 };
 
 export function POSTerminal() {
+  const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
   const { user: currentUser } = useAuth();
 
@@ -297,6 +299,9 @@ export function POSTerminal() {
         const res = await posLocalDataService.syncPendingSales();
         if (res.successCount > 0) {
           toast.success(`Auto-synced ${res.successCount} offline transaction(s)!`);
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['sales'] });
+          queryClient.invalidateQueries({ queryKey: ['reports'] });
         }
         if (res.conflictCount > 0) {
           toast.warning(`${res.conflictCount} sale(s) have inventory conflicts.`);
@@ -317,7 +322,7 @@ export function POSTerminal() {
         window.removeEventListener('offline', handleOffline);
       };
     }
-  }, [checkPendingOfflineSales]);
+  }, [checkPendingOfflineSales, queryClient]);
 
   // Live Customer Search for POS & Outside Click Handler
   useEffect(() => {
@@ -365,7 +370,7 @@ export function POSTerminal() {
     setIsLoadingRecentSales(true);
     try {
       const res = await salesApi.getRecentSales(25, !isAllStores && activeStoreId ? activeStoreId : undefined);
-      setRecentSales(res?.sales || []);
+      setRecentSales(res?.data || res?.sales || []);
     } catch (err) {
       console.error('Failed to fetch recent sales:', err);
       toast.error('Failed to load recent sales history');
@@ -1088,6 +1093,14 @@ export function POSTerminal() {
         setDoctorName('Self');
         setIsSelfDoctor(true);
         toast.success(`Sale completed! Receipt #${res.sale.receiptNumber}`);
+
+        // Invalidate TanStack query cache for inventory, sales, and reports
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['sales'] });
+        queryClient.invalidateQueries({ queryKey: ['reports'] });
+        if (payload.customerId) {
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+        }
       }
     } catch (err: any) {
       console.error('Checkout error:', err);

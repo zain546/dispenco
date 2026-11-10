@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -11,6 +11,11 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 4000);
+
+  // Trust upstream reverse proxy hops safely so req.ip reflects the actual client address
+  const expressApp = app.getHttpAdapter().getInstance();
+  const trustProxy = configService.get<string | number>('TRUST_PROXY', 1);
+  expressApp.set('trust proxy', trustProxy);
   const clientUrlRaw = configService.get<string>(
     'CLIENT_URL',
     configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
@@ -20,10 +25,27 @@ async function bootstrap() {
     : ['http://localhost:3000'];
 
   app.use(cookieParser());
-  app.use(json({ limit: '25mb', verify: (req, _res, body) => {
-    (req as typeof req & { rawBody: Buffer }).rawBody = Buffer.from(body);
-  } }));
-  app.use(urlencoded({ extended: true, limit: '25mb' }));
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const isUploadOrOcr =
+      req.url?.includes('ocr') ||
+      req.url?.includes('import') ||
+      req.url?.includes('upload');
+    const limit = isUploadOrOcr ? '25mb' : '2mb';
+    json({
+      limit,
+      verify: (r, _res, body) => {
+        (r as typeof r & { rawBody: Buffer }).rawBody = Buffer.from(body);
+      },
+    })(req, res, next);
+  });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const isUploadOrOcr =
+      req.url?.includes('ocr') ||
+      req.url?.includes('import') ||
+      req.url?.includes('upload');
+    const limit = isUploadOrOcr ? '25mb' : '2mb';
+    urlencoded({ extended: true, limit })(req, res, next);
+  });
 
   app.setGlobalPrefix('api/v1');
 

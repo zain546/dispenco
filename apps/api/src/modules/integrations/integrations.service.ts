@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { SaleStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApiKeyDto } from './dtos/create-api-key.dto';
 import {
@@ -553,7 +554,7 @@ export class IntegrationsService {
     tenantId: string,
     query: PublicFinancialSummaryQueryDto
   ): Promise<PublicFinancialSummary> {
-    const whereClause: any = { tenantId, status: 'completed' };
+    const whereClause: any = { tenantId, status: SaleStatus.COMPLETED };
 
     if (query.storeId) {
       whereClause.storeId = query.storeId;

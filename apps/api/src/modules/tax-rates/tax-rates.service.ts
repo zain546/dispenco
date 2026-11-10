@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreateTaxRateDto } from './dtos/create-tax-rate.dto';
 import { UpdateTaxRateDto } from './dtos/update-tax-rate.dto';
 
 @Injectable()
 export class TaxRatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
 
   async create(tenantId: string, dto: CreateTaxRateDto) {
     const existing = await this.prisma.taxRate.findUnique({
@@ -28,7 +32,7 @@ export class TaxRatesService {
       });
     }
 
-    return this.prisma.taxRate.create({
+    const created = await this.prisma.taxRate.create({
       data: {
         tenantId,
         code: dto.code.toUpperCase().trim(),
@@ -37,23 +41,28 @@ export class TaxRatesService {
         isDefault: dto.isDefault ?? false,
       },
     });
+
+    await this.cache.invalidateTenantConfig(tenantId, 'tax-rates');
+    return created;
   }
 
   async findAll(tenantId: string) {
-    const taxRates = await this.prisma.taxRate.findMany({
-      where: { tenantId },
-      orderBy: { code: 'asc' },
+    return this.cache.wrap(`cfg:${tenantId}:tax-rates:all`, 900, async () => {
+      const taxRates = await this.prisma.taxRate.findMany({
+        where: { tenantId },
+        orderBy: { code: 'asc' },
+      });
+
+      if (taxRates.length === 0) {
+        return [
+          { code: 'EXEMPT', name: 'Exempt / Zero Tax (0%)', ratePercent: 0, isDefault: false },
+          { code: 'REDUCED_5', name: 'Reduced Tax (5%)', ratePercent: 5, isDefault: false },
+          { code: 'STANDARD', name: 'Standard GST (18%)', ratePercent: 18, isDefault: true },
+        ];
+      }
+
+      return taxRates;
     });
-
-    if (taxRates.length === 0) {
-      return [
-        { code: 'EXEMPT', name: 'Exempt / Zero Tax (0%)', ratePercent: 0, isDefault: false },
-        { code: 'REDUCED_5', name: 'Reduced Tax (5%)', ratePercent: 5, isDefault: false },
-        { code: 'STANDARD', name: 'Standard GST (18%)', ratePercent: 18, isDefault: true },
-      ];
-    }
-
-    return taxRates;
   }
 
   async findOne(tenantId: string, id: string) {
@@ -78,7 +87,7 @@ export class TaxRatesService {
       });
     }
 
-    return this.prisma.taxRate.update({
+    const updated = await this.prisma.taxRate.update({
       where: { id },
       data: {
         ...(dto.code ? { code: dto.code.toUpperCase().trim() } : {}),
@@ -87,13 +96,19 @@ export class TaxRatesService {
         ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),
       },
     });
+
+    await this.cache.invalidateTenantConfig(tenantId, 'tax-rates');
+    return updated;
   }
 
   async remove(tenantId: string, id: string) {
     await this.findOne(tenantId, id);
-    return this.prisma.taxRate.delete({
+    const deleted = await this.prisma.taxRate.delete({
       where: { id },
     });
+
+    await this.cache.invalidateTenantConfig(tenantId, 'tax-rates');
+    return deleted;
   }
 
   async getEffectiveTaxRate(tenantId: string, taxCode?: string | null): Promise<number> {

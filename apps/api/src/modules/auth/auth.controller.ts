@@ -6,6 +6,7 @@ import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { AuthRateLimitGuard } from './guards/auth-rate-limit.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { RequirePermissions } from './decorators/require-permissions.decorator';
 import { AuthenticatedUser } from './interfaces/jwt-payload.interface';
@@ -15,11 +16,13 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
+  @UseGuards(AuthRateLimitGuard)
   async signup(@Body() dto: SignupDto, @Res({ passthrough: true }) res: Response) {
     return this.authService.signup(dto, res);
   }
 
   @Post('login')
+  @UseGuards(AuthRateLimitGuard)
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     return this.authService.login(dto, res);
   }

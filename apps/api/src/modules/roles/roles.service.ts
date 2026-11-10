@@ -1,5 +1,6 @@
 import {
   Injectable,
+  OnModuleInit,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -18,10 +19,14 @@ import { CreateRoleDto } from './dtos/create-role.dto';
 import { UpdateRoleDto } from './dtos/update-role.dto';
 
 @Injectable()
-export class RolesService {
+export class RolesService implements OnModuleInit {
   private readonly logger = new Logger(RolesService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.ensurePermissionsInDatabase();
+  }
 
   /**
    * Return metadata and categorizations for all system permissions
@@ -34,71 +39,93 @@ export class RolesService {
   }
 
   /**
-   * Ensure all system permissions exist in database
+   * Ensure all system permissions exist in database (single batch query)
    */
   async ensurePermissionsInDatabase() {
-    for (const perm of ALL_PERMISSIONS) {
-      await this.prisma.permission.upsert({
-        where: { name: perm },
-        update: {},
-        create: { name: perm },
+    try {
+      await this.prisma.permission.createMany({
+        data: ALL_PERMISSIONS.map((name) => ({ name })),
+        skipDuplicates: true,
       });
+    } catch (err) {
+      this.logger.error(`Permission batch initialization failed: ${err}`);
+      throw err;
     }
   }
 
   /**
-   * Seed default standard pharmacy roles for a tenant if not present
+   * Seed default standard pharmacy roles for a tenant if not present or if permissions were missing
    */
   async seedStandardRolesIfMissing(tenantId: string) {
+    // Ensure permission records exist in the database before seeding or repairing roles
     await this.ensurePermissionsInDatabase();
 
     const existingRoles = await this.prisma.role.findMany({
       where: { tenantId },
-      select: { name: true },
+      include: {
+        rolePermissions: true,
+      },
     });
-    const existingNames = new Set(existingRoles.map((r) => r.name.toLowerCase()));
+    const rolesByName = new Map(existingRoles.map((r) => [r.name.toLowerCase(), r]));
 
-    // 1. Manager Role
-    if (!existingNames.has('manager')) {
-      await this.createPresetRole(
-        tenantId,
-        'Manager',
-        DEFAULT_MANAGER_PERMISSIONS,
-        true
-      );
+    const presets: Array<{ name: string; permissions: Permission[] }> = [
+      { name: 'Manager', permissions: DEFAULT_MANAGER_PERMISSIONS },
+      { name: 'Pharmacist', permissions: DEFAULT_PHARMACIST_PERMISSIONS },
+      { name: 'Cashier', permissions: DEFAULT_CASHIER_PERMISSIONS },
+    ];
+
+    for (const preset of presets) {
+      const existing = rolesByName.get(preset.name.toLowerCase());
+      if (!existing) {
+        await this.createPresetRole(
+          tenantId,
+          preset.name,
+          preset.permissions,
+          true,
+        );
+      } else if (existing.rolePermissions.length === 0) {
+        // Repair role: if the role was previously created without permissions, attach them now
+        await this.attachPermissionsToRole(existing.id, preset.permissions);
+      }
+    }
+  }
+
+  private async attachPermissionsToRole(roleId: string, permissions: Permission[]) {
+    const permRecords = await this.prisma.permission.findMany({
+      where: { name: { in: permissions } },
+    });
+
+    if (permRecords.length === 0) {
+      this.logger.error(`Cannot attach permissions to role ${roleId}: permissions not found in database.`);
+      return;
     }
 
-    // 2. Pharmacist Role
-    if (!existingNames.has('pharmacist')) {
-      await this.createPresetRole(
-        tenantId,
-        'Pharmacist',
-        DEFAULT_PHARMACIST_PERMISSIONS,
-        true
-      );
-    }
-
-    // 3. Cashier Role
-    if (!existingNames.has('cashier')) {
-      await this.createPresetRole(
-        tenantId,
-        'Cashier',
-        DEFAULT_CASHIER_PERMISSIONS,
-        true
-      );
-    }
+    await this.prisma.rolePermission.createMany({
+      data: permRecords.map((p) => ({
+        roleId,
+        permissionId: p.id,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   private async createPresetRole(
     tenantId: string,
     name: string,
     permissions: Permission[],
-    isDefault: boolean
+    isDefault: boolean,
   ) {
     try {
       const permRecords = await this.prisma.permission.findMany({
         where: { name: { in: permissions } },
       });
+
+      if (permRecords.length === 0) {
+        this.logger.error(
+          `Aborting preset role creation "${name}" for tenant ${tenantId}: required permissions not found in database.`,
+        );
+        return;
+      }
 
       const role = await this.prisma.role.create({
         data: {

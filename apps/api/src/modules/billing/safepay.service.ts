@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ConflictException, BadGatewayException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionService } from './subscription.service';
@@ -80,10 +80,16 @@ export class SafepayService {
           trackerToken = json.data.token;
           isLiveGatewayCall = true;
         } else {
+          if (this.env === 'production') {
+            throw new BadGatewayException('Payment gateway initialization failed. Please try again.');
+          }
           this.logger.warn(`Safepay init returned non-standard format: ${JSON.stringify(json)}`);
           trackerToken = `track_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
         }
       } catch (err: any) {
+        if (this.env === 'production') {
+          throw new BadGatewayException(`Payment gateway error: ${err.message}`);
+        }
         this.logger.error(`Failed to call Safepay init API: ${err.message}. Using fallback token.`);
         trackerToken = `track_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       }
@@ -223,8 +229,11 @@ export class SafepayService {
           },
         });
 
-        // Extend subscription by 30 days
-        await this.subscriptionService.extendSubscriptionPeriod(invoice.tenantId, 30);
+        // Extend subscription by 30 days without creating a duplicate invoice
+        await this.subscriptionService.extendSubscriptionPeriod(invoice.tenantId, 30, {
+          existingInvoiceId: invoice.id,
+          createInvoice: false,
+        });
         this.logger.log(`Subscription for tenant ${invoice.tenantId} successfully extended via Safepay`);
       }
     }

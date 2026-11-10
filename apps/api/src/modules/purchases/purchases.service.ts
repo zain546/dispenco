@@ -1,16 +1,21 @@
 import {
   Injectable,
+  Optional,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreatePurchaseOrderDto } from './dtos/create-purchase-order.dto';
 import { ReceivePurchaseOrderDto } from './dtos/receive-purchase-order.dto';
 import { PurchaseOrderStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class PurchasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly cache?: RedisCacheService,
+  ) {}
 
   private generateOrderNumber(): string {
     const today = new Date();
@@ -38,6 +43,17 @@ export class PurchasesService {
 
     if (!store) {
       throw new NotFoundException(`Active store with ID "${dto.storeId}" not found for this tenant`);
+    }
+
+    // Verify all items belong to this tenant to prevent cross-tenant IDOR
+    const productIds = dto.items.map((i) => i.productId).filter(Boolean);
+    if (productIds.length > 0) {
+      const validProductsCount = await this.prisma.product.count({
+        where: { id: { in: productIds }, tenantId },
+      });
+      if (validProductsCount !== productIds.length) {
+        throw new BadRequestException('One or more selected products are invalid or belong to another organization');
+      }
     }
 
     const totalCost = dto.items.reduce(
@@ -106,7 +122,9 @@ export class PurchasesService {
       throw new BadRequestException('Cannot receive stock against a cancelled purchase order');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const targetStoreId = order.storeId;
+
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const itemDto of dto.items) {
         const item = order.purchaseItems.find(
           (i) => i.id === itemDto.purchaseItemId,
@@ -211,6 +229,12 @@ export class PurchasesService {
         data: updatedOrder,
       };
     });
+
+    if (this.cache) {
+      await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+    }
+
+    return result;
   }
 
   async findAll(tenantId: string, storeId?: string, status?: string) {

@@ -61,6 +61,7 @@ model User {
   reviewedAnomalies  AnomalyFlag[]    @relation("ReviewedByUser")
 
   @@unique([tenantId, email])
+  @@index([email])
 }
 
 model Role {
@@ -179,6 +180,7 @@ model Batch {
 
   @@index([tenantId, storeId])
   @@index([expiryDate])
+  @@index([tenantId, productId, storeId, expiryDate])
 }
 
 model Supplier {
@@ -288,6 +290,8 @@ model Sale {
   prescriptions  Prescription[]
 
   @@index([tenantId, receiptNumber])
+  @@index([tenantId, storeId, status, createdAt])
+  @@index([tenantId, customerId, status])
 }
 
 enum DiscountType {
@@ -296,21 +300,27 @@ enum DiscountType {
 }
 
 model SaleItem {
-  id           String       @id @default(uuid())
-  saleId       String
-  batchId      String
-  productId    String
-  quantity     Int
-  unitPrice    Decimal      @db.Decimal(12, 2)
-  discount     Decimal      @default(0) @db.Decimal(12, 2)
-  discountType DiscountType @default(FLAT)
-  taxRate      Decimal      @default(0) @db.Decimal(5, 2)
-  taxApplied   Decimal      @default(0) @db.Decimal(12, 2)
+  id            String       @id @default(uuid())
+  saleId        String
+  batchId       String
+  productId     String
+  quantity      Int
+  unitType      String       @default("PACK")
+  stockDeducted Int          @default(0)
+  unitPrice     Decimal      @db.Decimal(12, 2)
+  discount      Decimal      @default(0) @db.Decimal(12, 2)
+  discountType  DiscountType @default(FLAT)
+  taxRate       Decimal      @default(0) @db.Decimal(5, 2)
+  taxApplied    Decimal      @default(0) @db.Decimal(12, 2)
 
   sale         Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   batch        Batch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
   product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   returnItems  ReturnItem[]
+
+  @@index([saleId])
+  @@index([productId])
+  @@index([batchId])
 }
 
 enum PaymentMethod {
@@ -340,6 +350,9 @@ model Payment {
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sale        Sale?         @relation(fields: [saleId], references: [id], onDelete: Cascade)
   customer    Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, customerId, status])
+  @@index([saleId])
 }
 
 model Return {
@@ -386,6 +399,8 @@ model Notification {
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, read, createdAt])
 }
 
 model AuditLog {
@@ -701,4 +716,16 @@ model BillingWebhookEvent {
   processedAt DateTime?
   error       String?
   receivedAt  DateTime  @default(now())
+}
+
+model DocumentSequence {
+  id         String   @id @default(uuid())
+  tenantId   String
+  type       String
+  dateKey    String
+  currentSeq Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, type, dateKey])
+  @@index([tenantId, type])
 }

@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Optional, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RedisCacheService } from '../../cache/redis-cache.service';
 import { JwtPayload, AuthenticatedUser } from '../interfaces/jwt-payload.interface';
 import { sessionProfile, sessionUserInclude } from '../session-user';
 
@@ -11,6 +12,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    @Optional() private readonly cache?: RedisCacheService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -24,6 +26,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (payload.tokenUse !== 'access' || !payload.sub || !payload.tenantId) {
       throw new UnauthorizedException('Invalid access token');
     }
+
+    const cacheKey = `auth:session:${payload.sub}:v${payload.tokenVersion}`;
+    const cachedUser = this.cache ? await this.cache.get<AuthenticatedUser>(cacheKey) : null;
+    if (cachedUser) {
+      if (cachedUser.tenantId !== payload.tenantId) {
+        throw new UnauthorizedException('Token has been invalidated');
+      }
+      return cachedUser;
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: sessionUserInclude,
@@ -37,12 +49,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Token has been invalidated');
     }
 
-    return {
+    const authUser: AuthenticatedUser = {
       ...sessionProfile(user),
       userId: user.id,
       email: user.email,
       tenantId: user.tenantId,
       tokenVersion: user.tokenVersion,
     };
+
+    // Cache session for 5 minutes (invalidated immediately if tokenVersion changes)
+    if (this.cache) {
+      await this.cache.set(cacheKey, authUser, 300);
+    }
+    return authUser;
   }
 }

@@ -9,18 +9,30 @@ export const envValidationSchema = Joi.object({
       is: 'production',
       then: Joi.string()
         .min(32)
-        .invalid('dispenco_secret_key_change_in_prod', 'your-secret-key-change-in-production'),
+        .invalid(
+          'dispenco_secret_key_change_in_prod',
+          'your-secret-key-change-in-production',
+          'generate-a-strong-random-secret-key-for-jwt',
+        ),
     })
     .required(),
   REFRESH_TOKEN_SECRET: Joi.string()
-    .when('NODE_ENV', { is: 'production', then: Joi.string().min(32) })
+    .when('NODE_ENV', {
+      is: 'production',
+      then: Joi.string()
+        .min(32)
+        .invalid(
+          Joi.ref('JWT_SECRET'),
+          'generate-a-strong-random-refresh-secret-for-jwt',
+        ),
+    })
     .invalid(Joi.ref('JWT_SECRET'))
     .required(),
   REDIS_URL: Joi.string().required(),
   CLIENT_URL: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.string()
-      .pattern(/^https?:\/\/[^*\s]+(?:,\s*https?:\/\/[^*\s]+)*$/)
+      .pattern(/^https:\/\/[^*\s]+(?:,\s*https:\/\/[^*\s]+)*$/)
       .required(),
     otherwise: Joi.string().default('http://localhost:3000'),
   }),
