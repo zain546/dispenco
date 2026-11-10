@@ -8,6 +8,7 @@ import { RedisCacheService } from '../cache/redis-cache.service';
 import { ReceiveStockDto } from './dtos/receive-stock.dto';
 import { UpdateBatchDto } from './dtos/update-batch.dto';
 import { AdjustStockDto } from './dtos/adjust-stock.dto';
+import { ProductsService } from '../products/products.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class InventoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: RedisCacheService,
+    private readonly productsService: ProductsService,
   ) {}
 
   /**
@@ -645,89 +647,10 @@ export class InventoryService {
   }
 
   /**
-   * Step 1.13 — Lookup product and active FEFO-ordered batches by barcode
+   * Step 1.13 — Lookup product and active FEFO-ordered batches by barcode (delegated to ProductsService)
    */
   async lookupByBarcode(tenantId: string, barcode: string, storeId?: string) {
-    const cleanBarcode = barcode?.trim();
-    if (!cleanBarcode) {
-      throw new BadRequestException('Barcode parameter is required');
-    }
-
-    const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
-    if (effectiveStoreId) {
-      const store = await this.prisma.store.findFirst({
-        where: { id: effectiveStoreId, tenantId, isActive: true },
-      });
-      if (!store) {
-        throw new NotFoundException(`Active store with ID "${effectiveStoreId}" not found for this tenant`);
-      }
-    }
-
-    const product = await this.prisma.product.findFirst({
-      where: { tenantId, barcode: cleanBarcode },
-      include: {
-        batches: {
-          where: {
-            ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
-            quantityRemaining: { gt: 0 },
-          },
-          orderBy: { expiryDate: 'asc' },
-        },
-      },
-    });
-
-    if (!product) {
-      throw new NotFoundException(`No product found matching barcode "${cleanBarcode}"`);
-    }
-
-    const now = new Date();
-    const formattedBatches = product.batches.map((batch) => {
-      const expiry = new Date(batch.expiryDate);
-      const diffMs = expiry.getTime() - now.getTime();
-      const daysUntilExpiry = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-      return {
-        id: batch.id,
-        batchNumber: batch.batchNumber,
-        expiryDate: batch.expiryDate.toISOString(),
-        costPrice: Number(batch.costPrice),
-        sellPrice: Number(batch.sellPrice),
-        quantityReceived: batch.quantityReceived,
-        quantityRemaining: batch.quantityRemaining,
-        daysUntilExpiry,
-        isExpired: daysUntilExpiry <= 0,
-        isNearExpiry: daysUntilExpiry > 0 && daysUntilExpiry <= 180,
-        createdAt: batch.createdAt.toISOString(),
-      };
-    });
-
-    const totalStock = formattedBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
-    const isLowStock = totalStock <= product.lowStockThreshold;
-    const latestBatch = formattedBatches[0] || null;
-
-    return {
-      success: true,
-      product: {
-        id: product.id,
-        name: product.name,
-        genericName: product.genericName,
-        category: product.category,
-        unit: product.unit,
-        barcode: product.barcode,
-        images: product.images,
-        taxCode: product.taxCode,
-        isControlledSubstance: product.isControlledSubstance,
-        isActive: product.isActive,
-        lowStockThreshold: product.lowStockThreshold,
-        attributes: product.attributes,
-        totalStock,
-        isLowStock,
-        latestCostPrice: latestBatch ? latestBatch.costPrice : null,
-        latestSellPrice: latestBatch ? latestBatch.sellPrice : null,
-        nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
-      },
-      batches: formattedBatches,
-    };
+    return this.productsService.lookupByBarcode(tenantId, barcode, storeId);
   }
 
   /**
