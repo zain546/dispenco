@@ -1,12 +1,16 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Optional, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { GetSalesReportDto, GroupByFrequency } from './dto/get-sales-report.dto';
 import { GetOrgOverviewDto } from './dto/get-org-overview.dto';
 import { SaleStatus } from '@prisma/client';
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly cache?: RedisCacheService,
+  ) {}
 
   /**
    * Computes accurate Cost of Goods Sold (COGS) for a sale line item,
@@ -84,6 +88,16 @@ export class ReportsService {
       endDate = temp;
     }
 
+    const cacheKey = `rep:${tenantId}:org-overview:${startDate.toISOString().slice(0, 10)}:${endDate.toISOString().slice(0, 10)}`;
+    if (this.cache) {
+      return this.cache.wrap(cacheKey, 120, () =>
+        this.executeOrgOverview(tenantId, startDate, endDate),
+      );
+    }
+    return this.executeOrgOverview(tenantId, startDate, endDate);
+  }
+
+  private async executeOrgOverview(tenantId: string, startDate: Date, endDate: Date) {
     // 1. Fetch all active stores for this tenant
     const stores = await this.prisma.store.findMany({
       where: { tenantId, isActive: true },
@@ -273,6 +287,21 @@ export class ReportsService {
       endDate = temp;
     }
 
+    const cacheKey = `rep:${tenantId}:sales:${query.storeId || 'all'}:${startDate.toISOString().slice(0, 10)}:${endDate.toISOString().slice(0, 10)}:${query.groupBy || ''}`;
+    if (this.cache) {
+      return this.cache.wrap(cacheKey, 120, () =>
+        this.executeSalesReport(tenantId, query, startDate, endDate),
+      );
+    }
+    return this.executeSalesReport(tenantId, query, startDate, endDate);
+  }
+
+  private async executeSalesReport(
+    tenantId: string,
+    query: GetSalesReportDto,
+    startDate: Date,
+    endDate: Date,
+  ) {
     const whereCondition: any = {
       tenantId,
       status: SaleStatus.COMPLETED,

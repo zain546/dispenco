@@ -88,11 +88,24 @@ export class SalesService {
 
       const preparedSaleItems: PreparedSaleItem[] = [];
 
+      // Pre-fetch all cart products in a single bulk query (replaces sequential per-item queries)
+      const cartProductIds = Array.from(new Set(dto.items.map((i) => i.productId)));
+      const productsList = await tx.product.findMany({
+        where: { id: { in: cartProductIds }, tenantId },
+      });
+      const productMap = new Map(productsList.map((p) => [p.id, p]));
+
+      // Pre-fetch all tenant tax rates in a single bulk query
+      const taxRatesList = await tx.taxRate.findMany({
+        where: { tenantId },
+      });
+      const taxRateMap = new Map(
+        taxRatesList.map((tr) => [tr.code.toUpperCase().trim(), Number(tr.ratePercent)]),
+      );
+
       // 3. Process each item in cart via FEFO batch allocation
       for (const item of dto.items) {
-        const product = await tx.product.findFirst({
-          where: { id: item.productId, tenantId },
-        });
+        const product = productMap.get(item.productId);
 
         if (!product) {
           throw new NotFoundException(`Medicine product with ID "${item.productId}" not found`);
@@ -102,17 +115,10 @@ export class SalesService {
         let effectiveTaxRatePercent = item.taxRatePercent ?? 0;
         if (effectiveTaxRatePercent === 0 && product.taxCode) {
           const cleanCode = product.taxCode.toUpperCase().trim();
-          const taxRateRecord = await tx.taxRate.findUnique({
-            where: {
-              tenantId_code: {
-                tenantId,
-                code: cleanCode,
-              },
-            },
-          });
+          const rateFromDb = taxRateMap.get(cleanCode);
 
-          if (taxRateRecord) {
-            effectiveTaxRatePercent = Number(taxRateRecord.ratePercent);
+          if (rateFromDb !== undefined) {
+            effectiveTaxRatePercent = rateFromDb;
           } else {
             switch (cleanCode) {
               case 'EXEMPT':

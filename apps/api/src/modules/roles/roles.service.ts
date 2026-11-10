@@ -1,5 +1,6 @@
 import {
   Injectable,
+  OnModuleInit,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -18,10 +19,14 @@ import { CreateRoleDto } from './dtos/create-role.dto';
 import { UpdateRoleDto } from './dtos/update-role.dto';
 
 @Injectable()
-export class RolesService {
+export class RolesService implements OnModuleInit {
   private readonly logger = new Logger(RolesService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.ensurePermissionsInDatabase();
+  }
 
   /**
    * Return metadata and categorizations for all system permissions
@@ -34,15 +39,16 @@ export class RolesService {
   }
 
   /**
-   * Ensure all system permissions exist in database
+   * Ensure all system permissions exist in database (single batch query)
    */
   async ensurePermissionsInDatabase() {
-    for (const perm of ALL_PERMISSIONS) {
-      await this.prisma.permission.upsert({
-        where: { name: perm },
-        update: {},
-        create: { name: perm },
+    try {
+      await this.prisma.permission.createMany({
+        data: ALL_PERMISSIONS.map((name) => ({ name })),
+        skipDuplicates: true,
       });
+    } catch (err) {
+      this.logger.warn(`Permission batch initialization notice: ${err}`);
     }
   }
 
@@ -50,13 +56,20 @@ export class RolesService {
    * Seed default standard pharmacy roles for a tenant if not present
    */
   async seedStandardRolesIfMissing(tenantId: string) {
-    await this.ensurePermissionsInDatabase();
-
     const existingRoles = await this.prisma.role.findMany({
       where: { tenantId },
       select: { name: true },
     });
     const existingNames = new Set(existingRoles.map((r) => r.name.toLowerCase()));
+
+    // If standard preset roles are already present, no-op
+    if (
+      existingNames.has('manager') &&
+      existingNames.has('pharmacist') &&
+      existingNames.has('cashier')
+    ) {
+      return;
+    }
 
     // 1. Manager Role
     if (!existingNames.has('manager')) {

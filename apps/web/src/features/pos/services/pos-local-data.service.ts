@@ -117,13 +117,15 @@ export const posLocalDataService = {
       .startsWithIgnoreCase(q)
       .toArray();
 
-    // 2. Name & Generic Formula substring match
-    const all = await posDb.localProducts.toArray();
-    const textMatches = all.filter((p) => {
-      const name = p.name.toLowerCase();
-      const gen = (p.genericName || '').toLowerCase();
-      return name.includes(q) || gen.includes(q);
-    });
+    // 2. Name & Generic Formula substring match with cursor-limited search
+    const textMatches = await posDb.localProducts
+      .filter((p) => {
+        const name = p.name?.toLowerCase() || '';
+        const gen = p.genericName?.toLowerCase() || '';
+        return name.includes(q) || gen.includes(q);
+      })
+      .limit(30)
+      .toArray();
 
     // Merge and deduplicate
     const combined = Array.from(
