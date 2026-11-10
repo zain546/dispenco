@@ -14,19 +14,29 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     customer: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
     sale: {
-      count: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     product: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+    taxRate: {
+      findMany: jest.fn(),
     },
     batch: {
       update: jest.fn(),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     payment: {
+      create: jest.fn(),
+    },
+    auditLog: {
       create: jest.fn(),
     },
   };
@@ -64,6 +74,11 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     mockTx.batch.updateMany.mockResolvedValue({ count: 1 });
+    mockTx.sale.updateMany.mockResolvedValue({ count: 1 });
+    mockTx.taxRate.findMany.mockResolvedValue([]);
+    mockTx.product.findMany.mockResolvedValue([
+      { id: 'prod-1', name: 'Augmentin 625mg', unit: 'Pack', attributes: {} },
+    ]);
     mockPrismaService.nextSequence.mockResolvedValue({ seq: 6, formatted: 'REC-20260902-0006' });
     mockPrismaService.$transaction.mockImplementation((callback) => callback(mockTx));
 
@@ -110,7 +125,7 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
 
   it('should throw NotFoundException if a medicine product in cart does not exist', async () => {
     mockPrismaService.store.findFirst.mockResolvedValue({ id: 'store-1', name: 'Main Pharmacy' });
-    mockTx.product.findFirst.mockResolvedValue(null);
+    mockTx.product.findMany.mockResolvedValue([]);
 
     await expect(
       service.createSale('tenant-1', 'user-1', {
@@ -121,13 +136,15 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
 
   it('should create sale, deduct stock FEFO, generate receipt, and record payment', async () => {
     mockPrismaService.store.findFirst.mockResolvedValue({ id: 'store-1', name: 'Main Store' });
-    mockTx.sale.count.mockResolvedValue(5);
 
-    mockTx.product.findFirst.mockResolvedValue({
-      id: 'prod-1',
-      name: 'Augmentin 625mg',
-      unit: 'Pack',
-    });
+    mockTx.product.findMany.mockResolvedValue([
+      {
+        id: 'prod-1',
+        name: 'Augmentin 625mg',
+        unit: 'Pack',
+        attributes: {},
+      },
+    ]);
 
     mockInventoryService.selectBatchesForSale.mockResolvedValue({
       productId: 'prod-1',
@@ -198,5 +215,65 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
 
     // Verify payment record was created
     expect(mockTx.payment.create).toHaveBeenCalled();
+  });
+
+  describe('voidSale', () => {
+    it('should atomically claim the sale and restore batch stock', async () => {
+      mockTx.sale.findFirst.mockResolvedValue({
+        id: 'sale-1',
+        receiptNumber: 'REC-20261102-0001',
+        status: SaleStatus.COMPLETED,
+        storeId: 'store-1',
+        totalAmount: 200,
+        saleItems: [
+          {
+            id: 'si-1',
+            batchId: 'batch-1',
+            quantity: 2,
+            stockDeducted: 2,
+          },
+        ],
+      });
+      mockTx.sale.updateMany.mockResolvedValue({ count: 1 });
+      mockTx.batch.update.mockResolvedValue({});
+      mockTx.auditLog.create.mockResolvedValue({});
+
+      const result = await service.voidSale('tenant-1', 'user-1', 'sale-1', 'Customer returned');
+
+      expect(result.success).toBe(true);
+      expect(mockTx.sale.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'sale-1',
+          tenantId: 'tenant-1',
+          status: { not: SaleStatus.VOIDED },
+        },
+        data: {
+          status: SaleStatus.VOIDED,
+        },
+      });
+      expect(mockTx.batch.update).toHaveBeenCalledWith({
+        where: { id: 'batch-1' },
+        data: {
+          quantityRemaining: {
+            increment: 2,
+          },
+        },
+      });
+    });
+
+    it('should throw BadRequestException if sale was already voided or concurrently claimed', async () => {
+      mockTx.sale.findFirst.mockResolvedValue({
+        id: 'sale-1',
+        receiptNumber: 'REC-20261102-0001',
+        status: SaleStatus.COMPLETED,
+        storeId: 'store-1',
+        saleItems: [],
+      });
+      mockTx.sale.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.voidSale('tenant-1', 'user-1', 'sale-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 });

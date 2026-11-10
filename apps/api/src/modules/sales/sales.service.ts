@@ -523,8 +523,23 @@ export class SalesService {
         throw new NotFoundException(`Sale with ID "${saleId}" not found`);
       }
 
-      if (sale.status === SaleStatus.VOIDED) {
-        throw new BadRequestException(`Sale #${sale.receiptNumber} is already voided`);
+      // Atomically claim the sale void before restoring stock.
+      // Under default READ COMMITTED isolation, if two concurrent void requests arrive,
+      // only one updateMany can update a row; the second gets count === 0 and aborts,
+      // preventing duplicate batch stock restoration.
+      const claimResult = await tx.sale.updateMany({
+        where: {
+          id: sale.id,
+          tenantId,
+          status: { not: SaleStatus.VOIDED },
+        },
+        data: {
+          status: SaleStatus.VOIDED,
+        },
+      });
+
+      if (claimResult.count === 0) {
+        throw new BadRequestException(`Sale #${sale.receiptNumber || saleId} is already voided`);
       }
 
       // Restore quantityRemaining for each batch affected
@@ -555,14 +570,6 @@ export class SalesService {
         });
       }
 
-      // Mark sale as VOIDED
-      const updatedSale = await tx.sale.update({
-        where: { id: sale.id },
-        data: {
-          status: SaleStatus.VOIDED,
-        },
-      });
-
       // Write AuditLog entry
       await tx.auditLog.create({
         data: {
@@ -583,8 +590,8 @@ export class SalesService {
       return {
         success: true,
         message: `Sale #${sale.receiptNumber} has been successfully voided and inventory stock was restored.`,
-        saleId: updatedSale.id,
-        status: updatedSale.status,
+        saleId: sale.id,
+        status: SaleStatus.VOIDED,
         storeId: sale.storeId,
       };
     });
