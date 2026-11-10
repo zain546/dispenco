@@ -44,7 +44,56 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       dateKey,
     );
 
-    const seq = Number(rows[0]?.currentSeq) || 1;
+    let seq = Number(rows[0]?.currentSeq) || 1;
+
+    // Cutover safety guard: if this sequence row was newly initialized at 1,
+    // verify there isn't an existing legacy document for this dateKey with a >= sequence.
+    if (seq === 1) {
+      if (type === 'RECEIPT') {
+        const existingMax = await client.$queryRawUnsafe<Array<{ maxSeq: number }>>(
+          `SELECT COALESCE(MAX(CAST(NULLIF(SUBSTRING("receiptNumber" FROM 14), '') AS INTEGER)), 0) as "maxSeq"
+           FROM "Sale"
+           WHERE "tenantId" = $1 AND "receiptNumber" LIKE $2;`,
+          tenantId,
+          `REC-${dateKey}-%`,
+        );
+        const maxSeq = Number(existingMax[0]?.maxSeq || 0);
+        if (maxSeq >= 1) {
+          seq = maxSeq + 1;
+          await client.$queryRawUnsafe(
+            `UPDATE "DocumentSequence"
+             SET "currentSeq" = $1, "updatedAt" = NOW()
+             WHERE "tenantId" = $2 AND "type" = $3 AND "dateKey" = $4;`,
+            seq,
+            tenantId,
+            type,
+            dateKey,
+          );
+        }
+      } else if (type === 'RETURN') {
+        const existingMax = await client.$queryRawUnsafe<Array<{ maxSeq: number }>>(
+          `SELECT COALESCE(MAX(CAST(NULLIF(SUBSTRING("returnNumber" FROM 14), '') AS INTEGER)), 0) as "maxSeq"
+           FROM "Return"
+           WHERE "tenantId" = $1 AND "returnNumber" LIKE $2;`,
+          tenantId,
+          `RET-${dateKey}-%`,
+        );
+        const maxSeq = Number(existingMax[0]?.maxSeq || 0);
+        if (maxSeq >= 1) {
+          seq = maxSeq + 1;
+          await client.$queryRawUnsafe(
+            `UPDATE "DocumentSequence"
+             SET "currentSeq" = $1, "updatedAt" = NOW()
+             WHERE "tenantId" = $2 AND "type" = $3 AND "dateKey" = $4;`,
+            seq,
+            tenantId,
+            type,
+            dateKey,
+          );
+        }
+      }
+    }
+
     const prefixMap: Record<string, string> = {
       RECEIPT: 'REC',
       RETURN: 'RET',

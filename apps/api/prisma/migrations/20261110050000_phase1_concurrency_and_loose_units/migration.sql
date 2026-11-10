@@ -20,6 +20,40 @@ CREATE INDEX IF NOT EXISTS "DocumentSequence_tenantId_type_idx" ON "DocumentSequ
 -- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "DocumentSequence_tenantId_type_dateKey_key" ON "DocumentSequence"("tenantId", "type", "dateKey");
 
+-- Seed DocumentSequence from existing Sales so cutover never duplicates existing receipt numbers
+INSERT INTO "DocumentSequence" ("id", "tenantId", "type", "dateKey", "currentSeq", "updatedAt")
+SELECT 
+    gen_random_uuid(),
+    s."tenantId",
+    'RECEIPT',
+    SUBSTRING(s."receiptNumber" FROM 5 FOR 8) AS "dateKey",
+    COALESCE(MAX(CAST(NULLIF(SUBSTRING(s."receiptNumber" FROM 14), '') AS INTEGER)), 0) AS "currentSeq",
+    NOW()
+FROM "Sale" s
+WHERE s."receiptNumber" ~ '^REC-[0-9]{8}-[0-9]+$'
+GROUP BY s."tenantId", SUBSTRING(s."receiptNumber" FROM 5 FOR 8)
+ON CONFLICT ("tenantId", "type", "dateKey")
+DO UPDATE SET 
+    "currentSeq" = GREATEST("DocumentSequence"."currentSeq", EXCLUDED."currentSeq"),
+    "updatedAt" = NOW();
+
+-- Seed DocumentSequence from existing Returns so cutover never duplicates existing return numbers
+INSERT INTO "DocumentSequence" ("id", "tenantId", "type", "dateKey", "currentSeq", "updatedAt")
+SELECT 
+    gen_random_uuid(),
+    r."tenantId",
+    'RETURN',
+    SUBSTRING(r."returnNumber" FROM 5 FOR 8) AS "dateKey",
+    COALESCE(MAX(CAST(NULLIF(SUBSTRING(r."returnNumber" FROM 14), '') AS INTEGER)), 0) AS "currentSeq",
+    NOW()
+FROM "Return" r
+WHERE r."returnNumber" ~ '^RET-[0-9]{8}-[0-9]+$'
+GROUP BY r."tenantId", SUBSTRING(r."returnNumber" FROM 5 FOR 8)
+ON CONFLICT ("tenantId", "type", "dateKey")
+DO UPDATE SET 
+    "currentSeq" = GREATEST("DocumentSequence"."currentSeq", EXCLUDED."currentSeq"),
+    "updatedAt" = NOW();
+
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "Batch_tenantId_productId_storeId_expiryDate_idx" ON "Batch"("tenantId", "productId", "storeId", "expiryDate");
 
