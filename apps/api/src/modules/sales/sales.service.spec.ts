@@ -39,6 +39,10 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     auditLog: {
       create: jest.fn(),
     },
+    return: {
+      create: jest.fn(),
+    },
+    $queryRawUnsafe: jest.fn().mockResolvedValue([]),
   };
 
   const mockPrismaService = {
@@ -273,6 +277,103 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
 
       await expect(
         service.voidSale('tenant-1', 'user-1', 'sale-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('createReturn', () => {
+    it('should serialize return using row lock and correctly restore packs on cumulative returns', async () => {
+      // Sale item: 10 loose units sold from 1 pack (stockDeducted = 1).
+      // Previous return: 5 units were already returned (restored 0 packs).
+      // Current return: returning the remaining 5 units.
+      // Expected: cumulative return is now 10/10 -> restores 1 pack!
+      mockTx.sale.findFirst.mockResolvedValue({
+        id: 'sale-1',
+        receiptNumber: 'REC-20261102-0001',
+        status: SaleStatus.COMPLETED,
+        storeId: 'store-1',
+        saleItems: [
+          {
+            id: 'si-1',
+            batchId: 'batch-1',
+            quantity: 10,
+            stockDeducted: 1,
+            unitPrice: 20,
+            discount: 0,
+            taxApplied: 0,
+            product: { id: 'p-1', name: 'Panadol', barcode: '123' },
+            batch: { id: 'batch-1', batchNumber: 'B-01' },
+            returnItems: [
+              { id: 'ri-prev', quantity: 5, refundAmount: 100 },
+            ],
+          },
+        ],
+      });
+
+      mockPrismaService.nextSequence.mockResolvedValue({
+        seq: 1,
+        formatted: 'RET-20261110-0001',
+      });
+
+      mockTx.return.create.mockResolvedValue({
+        id: 'ret-1',
+        returnNumber: 'RET-20261110-0001',
+        returnItems: [],
+        sale: { id: 'sale-1', receiptNumber: 'REC-20261102-0001', storeId: 'store-1' },
+        processedByUser: { id: 'user-1', name: 'Staff' },
+      });
+
+      mockTx.batch.update.mockResolvedValue({});
+      mockTx.auditLog.create.mockResolvedValue({});
+
+      const result = await service.createReturn('tenant-1', 'user-1', {
+        saleId: 'sale-1',
+        reason: 'Customer return',
+        items: [{ saleItemId: 'si-1', quantity: 5 }],
+      });
+
+      expect(result.success).toBe(true);
+
+      // Verify row lock was acquired for serialization
+      expect(mockTx.$queryRawUnsafe).toHaveBeenCalledWith(
+        'SELECT "id" FROM "Sale" WHERE "id" = $1 AND "tenantId" = $2 FOR UPDATE',
+        'sale-1',
+        'tenant-1',
+      );
+
+      // Verify 1 pack was restored (cumulative target 1 pack minus 0 already restored)
+      expect(mockTx.batch.update).toHaveBeenCalledWith({
+        where: { id: 'batch-1' },
+        data: {
+          quantityRemaining: {
+            increment: 1,
+          },
+        },
+      });
+    });
+
+    it('should throw BadRequestException if return quantity exceeds remaining returnable', async () => {
+      mockTx.sale.findFirst.mockResolvedValue({
+        id: 'sale-1',
+        receiptNumber: 'REC-20261102-0001',
+        status: SaleStatus.COMPLETED,
+        storeId: 'store-1',
+        saleItems: [
+          {
+            id: 'si-1',
+            quantity: 10,
+            product: { id: 'p-1', name: 'Panadol' },
+            returnItems: [{ id: 'ri-1', quantity: 8 }],
+          },
+        ],
+      });
+
+      await expect(
+        service.createReturn('tenant-1', 'user-1', {
+          saleId: 'sale-1',
+          reason: 'Excess return',
+          items: [{ saleItemId: 'si-1', quantity: 5 }],
+        }),
       ).rejects.toThrow(BadRequestException);
     });
   });

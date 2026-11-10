@@ -613,7 +613,17 @@ export class SalesService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Fetch sale with existing returns and items
+      // 0. Serialize returns per sale to prevent concurrent race conditions
+      // from over-returning quantities or over-incrementing batch stock.
+      if (typeof (tx as any).$queryRawUnsafe === 'function') {
+        await tx.$queryRawUnsafe(
+          `SELECT "id" FROM "Sale" WHERE "id" = $1 AND "tenantId" = $2 FOR UPDATE`,
+          dto.saleId,
+          tenantId,
+        );
+      }
+
+      // 1. Fetch sale with existing returns and items after acquiring the row lock
       const sale = await tx.sale.findFirst({
         where: { id: dto.saleId, tenantId },
         include: {
@@ -684,9 +694,16 @@ export class SalesService {
 
         let packsToRestore = reqItem.quantity;
         if (saleItem.stockDeducted && saleItem.stockDeducted > 0) {
-          packsToRestore = reqItem.quantity === saleItem.quantity
-            ? saleItem.stockDeducted
-            : Math.floor((saleItem.stockDeducted * reqItem.quantity) / saleItem.quantity);
+          // Compute packs to restore from cumulative target minus already-restored packs
+          // to ensure multiple partial returns never permanently lose loose units/packs.
+          const newCumulativeReturned = previouslyReturned + reqItem.quantity;
+          const cumulativeTarget = Math.floor(
+            (saleItem.stockDeducted * newCumulativeReturned) / saleItem.quantity,
+          );
+          const alreadyRestored = Math.floor(
+            (saleItem.stockDeducted * previouslyReturned) / saleItem.quantity,
+          );
+          packsToRestore = Math.max(0, cumulativeTarget - alreadyRestored);
         }
 
         preparedReturnItems.push({
