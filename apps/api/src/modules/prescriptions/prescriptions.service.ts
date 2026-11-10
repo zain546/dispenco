@@ -43,6 +43,17 @@ export class PrescriptionsService {
     // Generate prescription number atomically
     const { formatted: prescriptionNumber } = await this.prisma.nextSequence(tenantId, 'PRESCRIPTION');
 
+    // Verify all items belong to this tenant to prevent cross-tenant IDOR
+    const productIds = dto.items.map((i) => i.productId).filter(Boolean);
+    if (productIds.length > 0) {
+      const validProductsCount = await this.prisma.product.count({
+        where: { id: { in: productIds }, tenantId },
+      });
+      if (validProductsCount !== productIds.length) {
+        throw new BadRequestException('One or more selected products are invalid or belong to another organization');
+      }
+    }
+
     const rxDate = dto.prescriptionDate ? new Date(dto.prescriptionDate) : new Date();
     const expiry = dto.expiryDate
       ? new Date(dto.expiryDate)

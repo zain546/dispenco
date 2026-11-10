@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
-import { json, urlencoded } from 'express';
+import { json, urlencoded, Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -20,10 +20,27 @@ async function bootstrap() {
     : ['http://localhost:3000'];
 
   app.use(cookieParser());
-  app.use(json({ limit: '25mb', verify: (req, _res, body) => {
-    (req as typeof req & { rawBody: Buffer }).rawBody = Buffer.from(body);
-  } }));
-  app.use(urlencoded({ extended: true, limit: '25mb' }));
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const isUploadOrOcr =
+      req.url?.includes('ocr') ||
+      req.url?.includes('import') ||
+      req.url?.includes('upload');
+    const limit = isUploadOrOcr ? '25mb' : '2mb';
+    json({
+      limit,
+      verify: (r, _res, body) => {
+        (r as typeof r & { rawBody: Buffer }).rawBody = Buffer.from(body);
+      },
+    })(req, res, next);
+  });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const isUploadOrOcr =
+      req.url?.includes('ocr') ||
+      req.url?.includes('import') ||
+      req.url?.includes('upload');
+    const limit = isUploadOrOcr ? '25mb' : '2mb';
+    urlencoded({ extended: true, limit })(req, res, next);
+  });
 
   app.setGlobalPrefix('api/v1');
 

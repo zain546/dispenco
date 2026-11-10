@@ -40,6 +40,17 @@ export class PurchasesService {
       throw new NotFoundException(`Active store with ID "${dto.storeId}" not found for this tenant`);
     }
 
+    // Verify all items belong to this tenant to prevent cross-tenant IDOR
+    const productIds = dto.items.map((i) => i.productId).filter(Boolean);
+    if (productIds.length > 0) {
+      const validProductsCount = await this.prisma.product.count({
+        where: { id: { in: productIds }, tenantId },
+      });
+      if (validProductsCount !== productIds.length) {
+        throw new BadRequestException('One or more selected products are invalid or belong to another organization');
+      }
+    }
+
     const totalCost = dto.items.reduce(
       (acc, item) => acc + item.expectedQuantity * item.unitCost,
       0,
