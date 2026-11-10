@@ -11,6 +11,7 @@ const bcrypt = require('bcryptjs');
 const { Test } = require('@nestjs/testing');
 const { JwtModule, JwtService } = require('@nestjs/jwt');
 const { ConfigService } = require('@nestjs/config');
+const { APP_GUARD } = require('@nestjs/core');
 const { PassportModule } = require('@nestjs/passport');
 const { AuthController } = require('../src/modules/auth/auth.controller.ts');
 const { AuthService } = require('../src/modules/auth/auth.service.ts');
@@ -23,6 +24,7 @@ const { TaxRatesService } = require('../src/modules/tax-rates/tax-rates.service.
 const { SafepayService } = require('../src/modules/billing/safepay.service.ts');
 const { envValidationSchema } = require('../src/common/config/env.schema.ts');
 const { SubscriptionService } = require('../src/modules/billing/subscription.service.ts');
+const { SubscriptionGuard } = require('../src/modules/billing/guards/subscription.guard.ts');
 const accessSecret = 'test-access-secret-at-least-thirty-two-characters';
 const refreshSecret = 'different-test-refresh-secret-thirty-two-characters';
 let app, base, jwt, user;
@@ -41,6 +43,20 @@ before(async () => {
       { provide: PrismaService, useValue: { user: { findUnique: async () => user, findFirst: async () => user, update: async () => { user.tokenVersion++; return user; } } } },
       { provide: InventoryService, useValue: { getInventoryAggregation: () => ({ success: true }), updateBatch: () => ({ success: true }) } },
       { provide: TaxRatesService, useValue: { create: () => ({ success: true }) } },
+      {
+        provide: SubscriptionService,
+        useValue: {
+          getTenantSubscription: async (tenantId) => ({
+            isExpired: tenantId === 'expired-tenant',
+            status: tenantId === 'expired-tenant' ? 'EXPIRED' : 'ACTIVE',
+            daysRemaining: tenantId === 'expired-tenant' ? 0 : 30,
+          }),
+        },
+      },
+      {
+        provide: APP_GUARD,
+        useClass: SubscriptionGuard,
+      },
     ],
   }).compile();
   app = module.createNestApplication({ logger: false });
@@ -149,4 +165,30 @@ test('Starter checkout invoices use PKR 1,500 and begin after the remaining free
   assert.equal(invoice.amountMinor, 150000);
   assert.equal(invoice.status, 'PENDING');
   assert.equal(invoice.periodStart, trialEndsAt);
+});
+
+test('write request from an expired tenant returns 402 Payment Required while read-only remains accessible', async () => {
+  const expiredUser = { ...user, tenantId: 'expired-tenant', userRoles: [role('Admin', ['inventory:read', 'settings:manage'], 'expired-tenant')] };
+  const originalUser = user;
+  user = expiredUser;
+
+  const expiredBearer = token({ tenantId: 'expired-tenant' });
+
+  // Read-only GET request must succeed (never lock out access to data)
+  const readRes = await send('inventory', expiredBearer);
+  assert.equal(readRes.status, 200);
+
+  // Write request (POST /tax-rates) with valid permissions must be blocked with 402 Payment Required
+  const writeRes = await send('tax-rates', expiredBearer, 'POST', { name: 'VAT', rate: 5 });
+  assert.equal(writeRes.status, 402);
+  const data = await writeRes.json();
+  assert.equal(data.code, 'SUBSCRIPTION_EXPIRED');
+
+  // Active tenant write request must succeed
+  user = originalUser;
+  user.userRoles = [role('Admin', ['settings:manage'], 'tenant-1')];
+  const activeBearer = token({ tenantId: 'tenant-1' });
+  const activeWriteRes = await send('tax-rates', activeBearer, 'POST', { name: 'VAT', rate: 5 });
+  assert.equal(activeWriteRes.status, 201);
+  user.userRoles = [role('Staff', ['inventory:read'])];
 });
