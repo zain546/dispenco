@@ -56,8 +56,8 @@ export class NotificationsController {
   @Post('scan-low-stock')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(Permission.INVENTORY_READ)
-  async triggerLowStockScan() {
-    const job = await this.jobsService.triggerLowStockScan();
+  async triggerLowStockScan(@CurrentUser('tenantId') tenantId: string) {
+    const job = await this.jobsService.triggerLowStockScan(tenantId);
     return {
       success: true,
       message: 'Low stock scan job enqueued',
@@ -68,8 +68,8 @@ export class NotificationsController {
   @Post('scan-expiry')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(Permission.INVENTORY_READ)
-  async triggerExpiryScan() {
-    const job = await this.jobsService.triggerExpiryScan();
+  async triggerExpiryScan(@CurrentUser('tenantId') tenantId: string) {
+    const job = await this.jobsService.triggerExpiryScan(tenantId);
     return {
       success: true,
       message: 'Expiry scan job enqueued',

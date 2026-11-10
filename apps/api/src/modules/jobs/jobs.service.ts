@@ -66,26 +66,26 @@ export class JobsService implements OnApplicationBootstrap {
     }
   }
 
-  async triggerLowStockScan() {
+  async triggerLowStockScan(tenantId?: string) {
     return this.schedulerQueue.add(
       'scan-low-stock',
-      { source: 'manual-trigger', timestamp: new Date().toISOString() },
+      { source: 'manual-trigger', tenantId, timestamp: new Date().toISOString() },
       { removeOnComplete: true },
     );
   }
 
-  async triggerExpiryScan() {
+  async triggerExpiryScan(tenantId?: string) {
     return this.schedulerQueue.add(
       'scan-expiry',
-      { source: 'manual-trigger', timestamp: new Date().toISOString() },
+      { source: 'manual-trigger', tenantId, timestamp: new Date().toISOString() },
       { removeOnComplete: true },
     );
   }
 
-  async triggerAnomalyScan() {
+  async triggerAnomalyScan(tenantId?: string) {
     return this.schedulerQueue.add(
       'scan-anomalies',
-      { source: 'manual-trigger', timestamp: new Date().toISOString() },
+      { source: 'manual-trigger', tenantId, timestamp: new Date().toISOString() },
       { removeOnComplete: true },
     );
   }
