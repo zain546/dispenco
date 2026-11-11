@@ -64,6 +64,7 @@ import { posLocalDataService } from '../services/pos-local-data.service';
 import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
 import { RecentSalesModal } from './recent-sales-modal';
+import { DraftQuantityInput } from './draft-quantity-input';
 import { formatCurrency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
@@ -1589,14 +1590,11 @@ export function POSTerminal() {
                                       >
                                         <Minus className="size-3" />
                                       </Button>
-                                      <Input
-                                        type="number"
-                                        min="1"
+                                      <DraftQuantityInput
                                         value={unitQty}
-                                        onChange={(e) => {
-                                          const val = parseInt(e.target.value, 10);
-                                          handleDropdownSetQuantity(prod, 'UNIT', isNaN(val) ? 1 : val);
-                                        }}
+                                        min={1}
+                                        max={unitsAddable}
+                                        onChange={(val) => handleDropdownSetQuantity(prod, 'UNIT', val)}
                                         className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
                                         title="Type unit quantity"
                                       />
@@ -1657,14 +1655,11 @@ export function POSTerminal() {
                                       >
                                         <Minus className="size-3" />
                                       </Button>
-                                      <Input
-                                        type="number"
-                                        min="1"
+                                      <DraftQuantityInput
                                         value={boxQty}
-                                        onChange={(e) => {
-                                          const val = parseInt(e.target.value, 10);
-                                          handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
-                                        }}
+                                        min={1}
+                                        max={boxesAddable}
+                                        onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
                                         className="h-7.5 w-9 text-center font-bold text-xs text-foreground bg-card border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
                                         title="Type box quantity"
                                       />
@@ -1732,14 +1727,11 @@ export function POSTerminal() {
                                       >
                                         <Minus className="size-3" />
                                       </Button>
-                                      <Input
-                                        type="number"
-                                        min="1"
+                                      <DraftQuantityInput
                                         value={boxQty}
-                                        onChange={(e) => {
-                                          const val = parseInt(e.target.value, 10);
-                                          handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
-                                        }}
+                                        min={1}
+                                        max={boxesAddable}
+                                        onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
                                         className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
                                         title={`Type ${prod.unit} quantity`}
                                       />
@@ -1946,12 +1938,11 @@ export function POSTerminal() {
                                   <Minus className="size-3.5" />
                                 </Button>
 
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  max={lineMaxStock}
+                                <DraftQuantityInput
                                   value={item.quantity}
-                                  onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
+                                  min={1}
+                                  max={lineMaxStock}
+                                  onChange={(val) => updateQuantity(idx, val)}
                                   className="h-8 w-14 text-xs text-center font-bold px-1"
                                 />
 
@@ -2142,12 +2133,11 @@ export function POSTerminal() {
                                       <Minus className="size-3" />
                                     </Button>
 
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max={lineMaxStock}
+                                    <DraftQuantityInput
                                       value={item.quantity}
-                                      onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
+                                      min={1}
+                                      max={lineMaxStock}
+                                      onChange={(val) => updateQuantity(idx, val)}
                                       className="h-8 w-14 text-xs text-center font-bold px-1 focus-visible:ring-1"
                                     />
 
