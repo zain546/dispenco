@@ -91,6 +91,38 @@ const getSingleUnitPrice = (product: ProductData): number => {
   return packSize > 0 ? Number((boxPrice / packSize).toFixed(2)) : boxPrice;
 };
 
+// Calculate total single units (tablets) already committed in cart for a product
+const getCommittedUnitsInCart = (
+  cartItems: CartItem[],
+  productId: string,
+  packSize: number,
+  excludeIndex: number = -1
+): number => {
+  return cartItems.reduce((total, item, idx) => {
+    if (idx === excludeIndex || item.product.id !== productId) return total;
+    const itemUnits = item.unitType === 'UNIT' ? item.quantity : item.quantity * packSize;
+    return total + itemUnits;
+  }, 0);
+};
+
+// Calculate maximum allowed quantity for a given unitType considering what's already in cart across all lines
+const getMaxAllowedQuantity = (
+  cartItems: CartItem[],
+  product: ProductData,
+  unitType: 'BOX' | 'UNIT',
+  excludeIndex: number = -1
+): { maxAllowed: number; totalAvailableUnits: number; committedUnits: number; remainingUnits: number } => {
+  const packSize = getPackSize(product);
+  const totalStockBoxes = product.totalStock ?? 0;
+  const totalAvailableUnits = totalStockBoxes * packSize;
+  const committedUnits = getCommittedUnitsInCart(cartItems, product.id, packSize, excludeIndex);
+  const remainingUnits = Math.max(0, totalAvailableUnits - committedUnits);
+
+  const maxAllowed = unitType === 'UNIT' ? remainingUnits : Math.floor(remainingUnits / packSize);
+
+  return { maxAllowed, totalAvailableUnits, committedUnits, remainingUnits };
+};
+
 export function POSTerminal() {
   const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
@@ -574,33 +606,48 @@ export function POSTerminal() {
     const singleUnitPrice = getSingleUnitPrice(product);
     const defaultPrice = initialUnitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
-    const availableStock = product.totalStock ?? 0;
-    const maxStockAllowed = initialUnitType === 'UNIT' ? availableStock * packSize : availableStock;
 
-    if (maxStockAllowed <= 0) {
-      toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id && item.unitType === initialUnitType
+    );
+
+    const { maxAllowed, totalAvailableUnits, committedUnits } = getMaxAllowedQuantity(
+      cart,
+      product,
+      initialUnitType,
+      existingIndex
+    );
+
+    if (maxAllowed <= 0) {
+      if (committedUnits > 0) {
+        toast.warning(
+          `Cannot add more "${product.name}" (${initialUnitType === 'UNIT' ? 'Tablet/Unit' : 'Box'}) — All available stock (${totalAvailableUnits} units) is already in the cart.`
+        );
+      } else {
+        toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+      }
       return;
     }
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex(
+      const idx = prev.findIndex(
         (item) => item.product.id === product.id && item.unitType === initialUnitType
       );
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        const currentQty = updated[existingIndex].quantity;
+      if (idx > -1) {
+        const currentQty = prev[idx].quantity;
 
-        if (currentQty + 1 > maxStockAllowed) {
+        if (currentQty + 1 > maxAllowed) {
           toast.warning(
-            `Maximum available stock reached for ${product.name} (${maxStockAllowed} ${
+            `Maximum available stock reached for ${product.name} (${maxAllowed} ${
               initialUnitType === 'UNIT' ? 'tablet/unit' : product.unit
             }s)`
           );
           return prev;
         }
 
-        updated[existingIndex] = {
-          ...updated[existingIndex],
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
           quantity: currentQty + 1,
         };
         return updated;
@@ -636,31 +683,46 @@ export function POSTerminal() {
     const singleUnitPrice = getSingleUnitPrice(product);
     const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
-    const availableStock = product.totalStock ?? 0;
-    const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
 
-    if (maxStockAllowed <= 0) {
-      toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id && item.unitType === unitType
+    );
+
+    const { maxAllowed, totalAvailableUnits, committedUnits } = getMaxAllowedQuantity(
+      cart,
+      product,
+      unitType,
+      existingIndex
+    );
+
+    if (maxAllowed <= 0) {
+      if (committedUnits > 0) {
+        toast.warning(
+          `Cannot add more ${product.name} (${unitType === 'UNIT' ? 'Unit' : 'Box'}) — All available stock (${totalAvailableUnits} units) is already in the cart.`
+        );
+      } else {
+        toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+      }
       return;
     }
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex(
+      const idx = prev.findIndex(
         (item) => item.product.id === product.id && item.unitType === unitType
       );
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        const currentQty = updated[existingIndex].quantity;
+      if (idx > -1) {
+        const currentQty = prev[idx].quantity;
 
-        if (currentQty + 1 > maxStockAllowed) {
+        if (currentQty + 1 > maxAllowed) {
           toast.warning(
-            `Max stock reached for ${product.name} (${maxStockAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s)`
+            `Max stock reached for ${product.name} (${maxAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s)`
           );
           return prev;
         }
 
-        updated[existingIndex] = {
-          ...updated[existingIndex],
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
           quantity: currentQty + 1,
         };
         return updated;
@@ -713,31 +775,46 @@ export function POSTerminal() {
     const singleUnitPrice = getSingleUnitPrice(product);
     const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
-    const availableStock = product.totalStock ?? 0;
-    const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
 
-    if (maxStockAllowed <= 0) {
-      toast.warning(`"${product.name}" is out of stock.`);
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id && item.unitType === unitType
+    );
+
+    const { maxAllowed, committedUnits } = getMaxAllowedQuantity(
+      cart,
+      product,
+      unitType,
+      existingIndex
+    );
+
+    if (maxAllowed <= 0) {
+      if (committedUnits > 0) {
+        toast.warning(
+          `Cannot allocate ${product.name} (${unitType === 'UNIT' ? 'Unit' : 'Box'}) — All available stock is already in the cart.`
+        );
+      } else {
+        toast.warning(`"${product.name}" is out of stock.`);
+      }
       setCart((prev) => prev.filter((item) => !(item.product.id === product.id && item.unitType === unitType)));
       return;
     }
 
-    const clampedQty = Math.min(newQty, maxStockAllowed);
+    const clampedQty = Math.min(newQty, maxAllowed);
 
-    if (newQty > maxStockAllowed) {
+    if (newQty > maxAllowed) {
       toast.warning(
-        `Max available stock is ${maxStockAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s`
+        `Max available stock is ${maxAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s`
       );
     }
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex(
+      const idx = prev.findIndex(
         (item) => item.product.id === product.id && item.unitType === unitType
       );
-      if (existingIndex > -1) {
+      if (idx > -1) {
         const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
+        updated[idx] = {
+          ...updated[idx],
           quantity: clampedQty,
         };
         return updated;
@@ -761,33 +838,62 @@ export function POSTerminal() {
   // Toggle cart line item unit type (Box vs Single Unit)
   const toggleUnitType = (index: number, targetUnitType: 'BOX' | 'UNIT') => {
     setCart((prev) => {
-      const updated = [...prev];
-      const item = updated[index];
-      if (item.unitType === targetUnitType) return prev;
+      const item = prev[index];
+      if (!item || item.unitType === targetUnitType) return prev;
 
       const packSize = getPackSize(item.product);
       const boxPrice = item.product.latestSellPrice ?? 0;
       const singleUnitPrice = getSingleUnitPrice(item.product);
 
+      const existingTargetIdx = prev.findIndex(
+        (it, idx) => idx !== index && it.product.id === item.product.id && it.unitType === targetUnitType
+      );
+
+      let requestedTargetQty: number;
       if (targetUnitType === 'UNIT') {
-        updated[index] = {
-          ...item,
-          unitType: 'UNIT',
-          unitPrice: singleUnitPrice,
-          quantity: item.quantity === 1 ? 1 : item.quantity,
-        };
-        toast.info(`Switched ${item.product.name} to Single Tablet/Unit (${singleUnitPrice.toFixed(2)} PKR/unit)`);
+        requestedTargetQty = item.quantity * packSize;
       } else {
-        updated[index] = {
-          ...item,
-          unitType: 'BOX',
-          unitPrice: boxPrice,
-          quantity: Math.max(1, Math.round(item.quantity / packSize)),
-        };
-        toast.info(`Switched ${item.product.name} to Full ${item.product.unit} (${boxPrice.toFixed(2)} PKR/box)`);
+        requestedTargetQty = Math.max(1, Math.floor(item.quantity / packSize));
       }
 
-      return updated;
+      const { maxAllowed } = getMaxAllowedQuantity(
+        prev,
+        item.product,
+        targetUnitType,
+        existingTargetIdx > -1 ? undefined : index
+      );
+
+      if (existingTargetIdx > -1) {
+        const existingItem = prev[existingTargetIdx];
+        const combinedQty = Math.min(existingItem.quantity + requestedTargetQty, existingItem.quantity + maxAllowed);
+        const updated = prev.filter((_, idx) => idx !== index);
+        const adjustedTargetIdx = existingTargetIdx > index ? existingTargetIdx - 1 : existingTargetIdx;
+        updated[adjustedTargetIdx] = {
+          ...existingItem,
+          quantity: Math.max(1, combinedQty),
+        };
+        toast.info(
+          `Merged into ${targetUnitType === 'UNIT' ? 'Single Tablets' : 'Boxes'} (Total: ${Math.max(1, combinedQty)})`
+        );
+        return updated;
+      } else {
+        const updated = [...prev];
+        const clampedQty = Math.max(1, Math.min(requestedTargetQty, maxAllowed));
+        updated[index] = {
+          ...item,
+          unitType: targetUnitType,
+          unitPrice: targetUnitType === 'UNIT' ? singleUnitPrice : boxPrice,
+          quantity: clampedQty,
+        };
+        toast.info(
+          `Switched ${item.product.name} to ${
+            targetUnitType === 'UNIT'
+              ? `Single Tablet/Unit (${singleUnitPrice.toFixed(2)} PKR/unit)`
+              : `Full Box (${boxPrice.toFixed(0)} PKR/box)`
+          }`
+        );
+        return updated;
+      }
     });
   };
 
@@ -909,20 +1015,26 @@ export function POSTerminal() {
       const updated = [...prev];
       const item = updated[index];
       if (!item) return prev;
-      const packSize = getPackSize(item.product);
-      const availableStockBoxes = item.product.totalStock ?? 0;
-      const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
 
-      if (maxStock <= 0) {
-        toast.warning(`"${item.product.name}" is out of stock.`);
-        return prev.filter((_, i) => i !== index);
+      const { maxAllowed, totalAvailableUnits, committedUnits } = getMaxAllowedQuantity(
+        prev,
+        item.product,
+        item.unitType,
+        index
+      );
+
+      if (maxAllowed <= 0) {
+        toast.warning(
+          `"${item.product.name}" has no additional stock available (${committedUnits}/${totalAvailableUnits} units allocated).`
+        );
+        return prev;
       }
 
-      if (newQty > maxStock) {
+      if (newQty > maxAllowed) {
         toast.warning(
-          `Cannot exceed available stock of ${maxStock} ${item.unitType === 'UNIT' ? 'tablet/unit' : item.product.unit}(s)`
+          `Cannot exceed available stock of ${maxAllowed} ${item.unitType === 'UNIT' ? 'tablet/unit' : item.product.unit}(s)`
         );
-        updated[index].quantity = maxStock;
+        updated[index].quantity = maxAllowed;
       } else {
         updated[index].quantity = newQty;
       }
@@ -1379,6 +1491,19 @@ export function POSTerminal() {
                     const boxQty = boxItem ? boxItem.quantity : 0;
                     const inCartTotal = unitQty + boxQty;
 
+                    const { maxAllowed: unitsAddable, remainingUnits, totalAvailableUnits } = getMaxAllowedQuantity(
+                      cart,
+                      prod,
+                      'UNIT',
+                      unitItem ? cart.indexOf(unitItem) : -1
+                    );
+                    const { maxAllowed: boxesAddable } = getMaxAllowedQuantity(
+                      cart,
+                      prod,
+                      'BOX',
+                      boxItem ? cart.indexOf(boxItem) : -1
+                    );
+
                     return (
                       <div
                         key={prod.id}
@@ -1479,9 +1604,10 @@ export function POSTerminal() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
+                                        disabled={unitQty >= unitsAddable}
                                         onClick={() => handleDropdownIncrement(prod, 'UNIT')}
-                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                        title="Increase unit quantity (+1)"
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={unitQty >= unitsAddable ? `All ${totalAvailableUnits} units allocated in cart` : "Increase unit quantity (+1)"}
                                       >
                                         <Plus className="size-3" />
                                       </Button>
@@ -1489,6 +1615,17 @@ export function POSTerminal() {
                                         Unit
                                       </span>
                                     </div>
+                                  ) : unitsAddable <= 0 ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                      title={`All ${totalAvailableUnits} units allocated in cart`}
+                                    >
+                                      <span>Unit (Max in Cart)</span>
+                                    </Button>
                                   ) : (
                                     /* Clean Add Button (Single + icon only) */
                                     <Button
@@ -1535,9 +1672,16 @@ export function POSTerminal() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
+                                        disabled={boxQty >= boxesAddable}
                                         onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
-                                        title="Increase box quantity (+1)"
+                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={
+                                          boxQty >= boxesAddable
+                                            ? remainingUnits < packSize
+                                              ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
+                                              : 'Max boxes in cart'
+                                            : "Increase box quantity (+1)"
+                                        }
                                       >
                                         <Plus className="size-3" />
                                       </Button>
@@ -1545,6 +1689,21 @@ export function POSTerminal() {
                                         Box
                                       </span>
                                     </div>
+                                  ) : boxesAddable <= 0 ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                      title={
+                                        remainingUnits < packSize
+                                          ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
+                                          : 'Max boxes in cart'
+                                      }
+                                    >
+                                      <span>Box (Max in Cart)</span>
+                                    </Button>
                                   ) : (
                                     /* Clean Box Add Button (Single + icon only) */
                                     <Button
@@ -1588,9 +1747,10 @@ export function POSTerminal() {
                                         type="button"
                                         variant="ghost"
                                         size="icon"
+                                        disabled={boxQty >= boxesAddable}
                                         onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                        title={`Increase ${prod.unit} quantity (+1)`}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={boxQty >= boxesAddable ? `All ${totalAvailableUnits} ${prod.unit}s allocated in cart` : `Increase ${prod.unit} quantity (+1)`}
                                       >
                                         <Plus className="size-3" />
                                       </Button>
@@ -1598,6 +1758,17 @@ export function POSTerminal() {
                                         {prod.unit}
                                       </span>
                                     </div>
+                                  ) : boxesAddable <= 0 ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                      title={`All ${totalAvailableUnits} ${prod.unit}s allocated in cart`}
+                                    >
+                                      <span>{prod.unit} (Max in Cart)</span>
+                                    </Button>
                                   ) : (
                                     <Button
                                       type="button"
@@ -1683,7 +1854,7 @@ export function POSTerminal() {
                       const boxPrice = item.product.latestSellPrice ?? 0;
                       const singleUnitPrice = getSingleUnitPrice(item.product);
                       const availableStockBoxes = item.product.totalStock ?? 0;
-                      const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
+                      const { maxAllowed: lineMaxStock } = getMaxAllowedQuantity(cart, item.product, item.unitType, idx);
 
                       return (
                         <div key={`${item.product.id}-${item.unitType}`} className="p-3.5 space-y-2.5 bg-card hover:bg-muted/20 transition-colors">
@@ -1778,7 +1949,7 @@ export function POSTerminal() {
                                 <Input
                                   type="number"
                                   min="1"
-                                  max={maxStock}
+                                  max={lineMaxStock}
                                   value={item.quantity}
                                   onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
                                   className="h-8 w-14 text-xs text-center font-bold px-1"
@@ -1789,7 +1960,7 @@ export function POSTerminal() {
                                   variant="outline"
                                   size="icon"
                                   onClick={() => updateQuantity(idx, item.quantity + 1)}
-                                  disabled={item.quantity >= maxStock}
+                                  disabled={item.quantity >= lineMaxStock}
                                   className="size-8 shrink-0 text-muted-foreground"
                                   aria-label="Increase quantity"
                                 >
@@ -1882,7 +2053,7 @@ export function POSTerminal() {
                           const boxPrice = item.product.latestSellPrice ?? 0;
                           const singleUnitPrice = getSingleUnitPrice(item.product);
                           const availableStockBoxes = item.product.totalStock ?? 0;
-                          const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
+                          const { maxAllowed: lineMaxStock } = getMaxAllowedQuantity(cart, item.product, item.unitType, idx);
 
                           return (
                             <tr key={`${item.product.id}-${item.unitType}`} className="hover:bg-muted/30 transition-colors">
@@ -1974,7 +2145,7 @@ export function POSTerminal() {
                                     <Input
                                       type="number"
                                       min="1"
-                                      max={maxStock}
+                                      max={lineMaxStock}
                                       value={item.quantity}
                                       onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
                                       className="h-8 w-14 text-xs text-center font-bold px-1 focus-visible:ring-1"
@@ -1985,7 +2156,7 @@ export function POSTerminal() {
                                       variant="outline"
                                       size="icon"
                                       onClick={() => updateQuantity(idx, item.quantity + 1)}
-                                      disabled={item.quantity >= maxStock}
+                                      disabled={item.quantity >= lineMaxStock}
                                       className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
                                     >
                                       <Plus className="size-3" />
