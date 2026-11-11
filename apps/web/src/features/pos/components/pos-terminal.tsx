@@ -125,6 +125,29 @@ const getMaxAllowedQuantity = (
   return { maxAllowed, totalAvailableUnits, committedUnits, remainingUnits };
 };
 
+const getKhataBalanceBadge = (creditBalance: number) => {
+  const num = Number(creditBalance) || 0;
+  if (num > 0) {
+    return {
+      label: `Debt: ${num.toLocaleString('en-PK')} PKR`,
+      variant: 'destructive' as const,
+      className: 'bg-destructive/15 text-destructive border-destructive/30 font-semibold',
+    };
+  }
+  if (num < 0) {
+    return {
+      label: `Advance: ${Math.abs(num).toLocaleString('en-PK')} PKR`,
+      variant: 'outline' as const,
+      className: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 font-semibold',
+    };
+  }
+  return {
+    label: 'Settled: 0 PKR',
+    variant: 'secondary' as const,
+    className: 'bg-muted text-muted-foreground font-medium',
+  };
+};
+
 export function POSTerminal() {
   const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
@@ -2302,7 +2325,7 @@ export function POSTerminal() {
                     </Label>
                     {paymentMethod === 'CREDIT' && !selectedCustomer && (
                       <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-sm whitespace-nowrap">
-                        Khata Required
+                        Required
                       </span>
                     )}
                   </div>
@@ -2328,14 +2351,17 @@ export function POSTerminal() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-xs font-bold text-foreground truncate">{selectedCustomer.name}</p>
-                          <Badge
-                            variant={selectedCustomer.creditBalance > 0 ? 'destructive' : 'secondary'}
-                            className="text-micro py-0 px-1.5 h-4.5 font-semibold shrink-0"
-                          >
-                            {selectedCustomer.creditBalance > 0
-                              ? `Debt: ${Number(selectedCustomer.creditBalance).toLocaleString('en-PK')} PKR`
-                              : 'Khata: 0 PKR'}
-                          </Badge>
+                          {(() => {
+                            const badge = getKhataBalanceBadge(selectedCustomer.creditBalance);
+                            return (
+                              <Badge
+                                variant={badge.variant}
+                                className={`text-micro py-0 px-1.5 h-4.5 shrink-0 ${badge.className}`}
+                              >
+                                {badge.label}
+                              </Badge>
+                            );
+                          })()}
                         </div>
                         {selectedCustomer.phone && (
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -2422,12 +2448,17 @@ export function POSTerminal() {
                                 <p className="text-xs font-bold text-foreground truncate">{cust.name}</p>
                                 <p className="text-xs text-muted-foreground">{cust.phone || 'No phone'}</p>
                               </div>
-                              <Badge
-                                variant={cust.creditBalance > 0 ? 'destructive' : 'outline'}
-                                className="text-micro py-0 px-1.5 h-4.5 font-semibold shrink-0"
-                              >
-                                {cust.creditBalance > 0 ? `${cust.creditBalance} PKR debt` : '0 PKR debt'}
-                              </Badge>
+                              {(() => {
+                                const badge = getKhataBalanceBadge(cust.creditBalance);
+                                return (
+                                  <Badge
+                                    variant={badge.variant}
+                                    className={`text-micro py-0 px-1.5 h-4.5 shrink-0 ${badge.className}`}
+                                  >
+                                    {badge.label}
+                                  </Badge>
+                                );
+                              })()}
                             </button>
                           ))}
                         </div>
@@ -2603,18 +2634,27 @@ export function POSTerminal() {
                       </span>
                       <span className="truncate max-w-[140px] font-bold">{selectedCustomer.name}</span>
                     </div>
-                    <div className="space-y-1 text-micro text-muted-foreground pt-1 border-t border-border/40">
-                      <div className="flex justify-between">
-                        <span>Current Debt:</span>
-                        <span className="font-medium text-foreground">{Number(selectedCustomer.creditBalance).toLocaleString()} PKR</span>
-                      </div>
-                      <div className="flex justify-between font-semibold text-foreground">
-                        <span>New Total Debt:</span>
-                        <span className="text-amber-500 font-bold">
-                          {(Number(selectedCustomer.creditBalance) + totals.grandTotal).toLocaleString()} PKR
-                        </span>
-                      </div>
-                    </div>
+                    {(() => {
+                      const curBal = Number(selectedCustomer.creditBalance) || 0;
+                      const newBal = curBal + totals.grandTotal;
+
+                      return (
+                        <div className="space-y-1 text-micro text-muted-foreground pt-1 border-t border-border/40">
+                          <div className="flex justify-between">
+                            <span>{curBal < 0 ? 'Advance Credit:' : 'Current Debt:'}</span>
+                            <span className={`font-semibold ${curBal < 0 ? 'text-emerald-500' : curBal > 0 ? 'text-destructive' : 'text-foreground'}`}>
+                              {Math.abs(curBal).toLocaleString()} PKR
+                            </span>
+                          </div>
+                          <div className="flex justify-between font-semibold text-foreground">
+                            <span>{newBal < 0 ? 'Remaining Advance:' : 'New Total Debt:'}</span>
+                            <span className={`font-bold ${newBal < 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                              {Math.abs(newBal).toLocaleString()} PKR
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="p-2.5 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2">
