@@ -455,6 +455,10 @@ export function POSTerminal() {
         e.preventDefault();
         const selected = searchResults[selectedResultIndex] || searchResults[0];
         if (selected) {
+          if ((selected.totalStock ?? 0) <= 0) {
+            toast.warning(`Cannot add "${selected.name}" — Out of stock.`);
+            return;
+          }
           addToCart(selected, 'UNIT');
           clearSearch(true);
         }
@@ -1303,24 +1307,38 @@ export function POSTerminal() {
                       <span>Top Seller Speed Dial:</span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {topSellers.map((prod) => (
-                        <Button
-                          key={prod.id}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addToCart(prod)}
-                          className="h-7 text-xs gap-1.5 bg-warning/10 hover:bg-warning/20 border-warning/30 text-warning font-semibold rounded-lg shadow-2xs"
-                        >
-                          <Star className="size-3 fill-warning text-warning" />
-                          <span>{prod.name}</span>
-                          {prod.latestSellPrice !== null && prod.latestSellPrice !== undefined && (
-                            <span className="text-micro text-warning font-bold">
-                              ({prod.latestSellPrice.toFixed(0)} PKR)
-                            </span>
-                          )}
-                        </Button>
-                      ))}
+                      {topSellers.map((prod) => {
+                        const isOutOfStock = (prod.totalStock ?? 0) <= 0;
+                        return (
+                          <Button
+                            key={prod.id}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isOutOfStock}
+                            onClick={() => addToCart(prod)}
+                            className={`h-7 text-xs gap-1.5 font-semibold rounded-lg shadow-2xs ${
+                              isOutOfStock
+                                ? 'opacity-50 border-destructive/30 text-destructive cursor-not-allowed'
+                                : 'bg-warning/10 hover:bg-warning/20 border-warning/30 text-warning'
+                            }`}
+                          >
+                            <Star className="size-3 fill-warning text-warning" />
+                            <span>{prod.name}</span>
+                            {isOutOfStock ? (
+                              <span className="text-micro font-bold text-destructive">
+                                (Out of stock)
+                              </span>
+                            ) : (
+                              prod.latestSellPrice !== null && prod.latestSellPrice !== undefined && (
+                                <span className="text-micro text-warning font-bold">
+                                  ({prod.latestSellPrice.toFixed(0)} PKR)
+                                </span>
+                              )
+                            )}
+                          </Button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1364,16 +1382,21 @@ export function POSTerminal() {
                     return (
                       <div
                         key={prod.id}
-                        className={`p-3 hover:bg-primary/5 transition-colors text-xs sm:text-sm ${
+                        className={`p-3 transition-colors text-xs sm:text-sm ${
                           idx === selectedResultIndex ? 'bg-primary/10' : ''
-                        }`}
+                        } ${stock <= 0 ? 'opacity-70 hover:bg-destructive/5' : 'hover:bg-primary/5'}`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
                           {/* Product Info Column - Clicking row adds/increments default unit */}
                           <div
-                            onClick={() => handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX')}
-                            className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
-                            title="Click to add to cart"
+                            onClick={() => {
+                              if (stock <= 0) return;
+                              handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX');
+                            }}
+                            className={`flex items-start sm:items-center gap-2.5 min-w-0 flex-1 ${
+                              stock <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
+                            }`}
+                            title={stock <= 0 ? 'Out of stock' : 'Click to add to cart'}
                           >
                             <div className={`size-8 sm:size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
                               <ItemIcon className="size-4" />
@@ -1397,9 +1420,13 @@ export function POSTerminal() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2 text-micro text-muted-foreground flex-wrap">
-                                {packSize > 1 ? (
+                                {stock <= 0 ? (
+                                  <span className="text-destructive font-semibold flex items-center gap-1">
+                                    Stock: {formatUnitPlural(prod.unit, 0)} • Out of stock
+                                  </span>
+                                ) : packSize > 1 ? (
                                   <span className="text-success font-medium">
-                                    {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit
+                                    {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit • Stock: {formatUnitPlural('Box', stock)}
                                   </span>
                                 ) : (
                                   <span>Stock: {formatUnitPlural(prod.unit, stock)}</span>
@@ -1413,169 +1440,181 @@ export function POSTerminal() {
                             onClick={(e) => e.stopPropagation()}
                             className="flex items-center gap-1.5 shrink-0 flex-nowrap"
                           >
-                            {/* Tablet/Unit Control (if packSize > 1) */}
-                            {packSize > 1 && (
-                              unitQty > 0 ? (
-                                /* Compact Active Stepper when in cart */
-                                <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownDecrement(prod, 'UNIT')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title="Decrease unit quantity (-1)"
-                                  >
-                                    <Minus className="size-3" />
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={unitQty}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value, 10);
-                                      handleDropdownSetQuantity(prod, 'UNIT', isNaN(val) ? 1 : val);
-                                    }}
-                                    className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
-                                    title="Type unit quantity"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownIncrement(prod, 'UNIT')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title="Increase unit quantity (+1)"
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
-                                  <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
-                                    Unit
-                                  </span>
-                                </div>
-                              ) : (
-                                /* Clean Add Button (Single + icon only) */
-                                <Button
-                                  type="button"
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => handleDropdownIncrement(prod, 'UNIT')}
-                                  className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-                                  title={`Add 1 Unit (${singlePrice.toFixed(0)} PKR)`}
-                                >
-                                  <Plus className="size-3.5" />
-                                  <span>Unit ({singlePrice.toFixed(0)} PKR)</span>
-                                </Button>
-                              )
-                            )}
-
-                            {/* Box / Main Unit Control */}
-                            {packSize > 1 ? (
-                              boxQty > 0 ? (
-                                /* Compact Active Box Stepper when in cart */
-                                <div className="flex items-center rounded-lg border border-border/80 bg-muted/60 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownDecrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
-                                    title="Decrease box quantity (-1)"
-                                  >
-                                    <Minus className="size-3" />
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={boxQty}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value, 10);
-                                      handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
-                                    }}
-                                    className="h-7.5 w-9 text-center font-bold text-xs text-foreground bg-card border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
-                                    title="Type box quantity"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
-                                    title="Increase box quantity (+1)"
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
-                                  <span className="text-[10px] font-semibold text-muted-foreground px-1.5 whitespace-nowrap">
-                                    Box
-                                  </span>
-                                </div>
-                              ) : (
-                                /* Clean Box Add Button (Single + icon only) */
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                  className="h-7.5 px-2.5 text-xs font-semibold gap-1 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap shrink-0 cursor-pointer"
-                                  title={`Add full Box (${boxPrice.toFixed(0)} PKR)`}
-                                >
-                                  <Plus className="size-3.5" />
-                                  <span>Box ({boxPrice.toFixed(0)} PKR)</span>
-                                </Button>
-                              )
+                            {stock <= 0 ? (
+                              <div
+                                className="h-7.5 px-2.5 rounded-lg text-xs font-bold gap-1 inline-flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/30 whitespace-nowrap shrink-0 shadow-2xs select-none"
+                              >
+                                <Ban className="size-3.5" />
+                                <span>Out of Stock</span>
+                              </div>
                             ) : (
-                              /* Single-Unit Item (Syrups, Injections, Drops, etc.) */
-                              boxQty > 0 ? (
-                                <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownDecrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title={`Decrease ${prod.unit} quantity (-1)`}
-                                  >
-                                    <Minus className="size-3" />
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={boxQty}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value, 10);
-                                      handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
-                                    }}
-                                    className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
-                                    title={`Type ${prod.unit} quantity`}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title={`Increase ${prod.unit} quantity (+1)`}
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
-                                  <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
-                                    {prod.unit}
-                                  </span>
-                                </div>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                  className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-                                  title={`Add 1 ${prod.unit} (${boxPrice.toFixed(0)} PKR)`}
-                                >
-                                  <Plus className="size-3.5" />
-                                  <span>{prod.unit} ({boxPrice.toFixed(0)} PKR)</span>
-                                </Button>
-                              )
-                            )}                          </div>
+                              <>
+                                {/* Tablet/Unit Control (if packSize > 1) */}
+                                {packSize > 1 && (
+                                  unitQty > 0 ? (
+                                    /* Compact Active Stepper when in cart */
+                                    <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownDecrement(prod, 'UNIT')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                        title="Decrease unit quantity (-1)"
+                                      >
+                                        <Minus className="size-3" />
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={unitQty}
+                                        onChange={(e) => {
+                                          const val = parseInt(e.target.value, 10);
+                                          handleDropdownSetQuantity(prod, 'UNIT', isNaN(val) ? 1 : val);
+                                        }}
+                                        className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
+                                        title="Type unit quantity"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                        title="Increase unit quantity (+1)"
+                                      >
+                                        <Plus className="size-3" />
+                                      </Button>
+                                      <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
+                                        Unit
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    /* Clean Add Button (Single + icon only) */
+                                    <Button
+                                      type="button"
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                      className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                      title={`Add 1 Unit (${singlePrice.toFixed(0)} PKR)`}
+                                    >
+                                      <Plus className="size-3.5" />
+                                      <span>Unit ({singlePrice.toFixed(0)} PKR)</span>
+                                    </Button>
+                                  )
+                                )}
+
+                                {/* Box / Main Unit Control */}
+                                {packSize > 1 ? (
+                                  boxQty > 0 ? (
+                                    /* Compact Active Box Stepper when in cart */
+                                    <div className="flex items-center rounded-lg border border-border/80 bg-muted/60 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
+                                        title="Decrease box quantity (-1)"
+                                      >
+                                        <Minus className="size-3" />
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={boxQty}
+                                        onChange={(e) => {
+                                          const val = parseInt(e.target.value, 10);
+                                          handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
+                                        }}
+                                        className="h-7.5 w-9 text-center font-bold text-xs text-foreground bg-card border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
+                                        title="Type box quantity"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
+                                        title="Increase box quantity (+1)"
+                                      >
+                                        <Plus className="size-3" />
+                                      </Button>
+                                      <span className="text-[10px] font-semibold text-muted-foreground px-1.5 whitespace-nowrap">
+                                        Box
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    /* Clean Box Add Button (Single + icon only) */
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap shrink-0 cursor-pointer"
+                                      title={`Add full Box (${boxPrice.toFixed(0)} PKR)`}
+                                    >
+                                      <Plus className="size-3.5" />
+                                      <span>Box ({boxPrice.toFixed(0)} PKR)</span>
+                                    </Button>
+                                  )
+                                ) : (
+                                  /* Single-Unit Item (Syrups, Injections, Drops, etc.) */
+                                  boxQty > 0 ? (
+                                    <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                        title={`Decrease ${prod.unit} quantity (-1)`}
+                                      >
+                                        <Minus className="size-3" />
+                                      </Button>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={boxQty}
+                                        onChange={(e) => {
+                                          const val = parseInt(e.target.value, 10);
+                                          handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
+                                        }}
+                                        className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
+                                        title={`Type ${prod.unit} quantity`}
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                        title={`Increase ${prod.unit} quantity (+1)`}
+                                      >
+                                        <Plus className="size-3" />
+                                      </Button>
+                                      <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
+                                        {prod.unit}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      type="button"
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                      className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                      title={`Add 1 ${prod.unit} (${boxPrice.toFixed(0)} PKR)`}
+                                    >
+                                      <Plus className="size-3.5" />
+                                      <span>{prod.unit} ({boxPrice.toFixed(0)} PKR)</span>
+                                    </Button>
+                                  )
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
