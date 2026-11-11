@@ -22,6 +22,16 @@ export class SalesService {
       throw new BadRequestException('Sale cart must contain at least one medicine item');
     }
 
+    const paymentMethod = dto.paymentMethod || PaymentMethod.CASH;
+    const isOnCredit = paymentMethod === PaymentMethod.CREDIT;
+
+    // Strict Khata check: Credit transactions require an explicitly selected registered customer ID
+    if (isOnCredit && !dto.customerId) {
+      throw new BadRequestException(
+        'A registered customer must be selected from the ledger to complete a sale on credit (Khata).'
+      );
+    }
+
     // Idempotency check: if clientTxId was already processed within last 24h, return cached result immediately
     if (dto.clientTxId) {
       const idempotencyKey = `idempotency:sale:${tenantId}:${dto.clientTxId}`;
@@ -52,23 +62,22 @@ export class SalesService {
 
     // Execute atomic transaction
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Customer linkage / creation if customer details provided
+      // 1. Customer linkage: only link or auto-create a Customer ledger row if customerId was provided OR a valid phone is supplied
       let customerId = dto.customerId;
-      if (!customerId && dto.customerName) {
-        let existingCustomer = dto.customerPhone
-          ? await tx.customer.findFirst({
-              where: { tenantId, phone: dto.customerPhone.trim() },
-            })
-          : null;
+      if (!customerId && dto.customerPhone?.trim()) {
+        const cleanPhone = dto.customerPhone.trim();
+        const existingCustomer = await tx.customer.findFirst({
+          where: { tenantId, phone: cleanPhone },
+        });
 
         if (existingCustomer) {
           customerId = existingCustomer.id;
-        } else {
+        } else if (dto.customerName?.trim()) {
           const newCust = await tx.customer.create({
             data: {
               tenantId,
               name: dto.customerName.trim(),
-              phone: dto.customerPhone?.trim() || null,
+              phone: cleanPhone,
             },
           });
           customerId = newCust.id;
@@ -324,7 +333,12 @@ export class SalesService {
           subtotal: Number(runningSubtotal),
           status: sale.status,
         createdAt: sale.createdAt.toISOString(),
-          customerName: sale.customer?.name || null,
+          customerName: sale.customer?.name || dto.customerName?.trim() || null,
+          customer: sale.customer
+            ? { id: sale.customer.id, name: sale.customer.name, phone: sale.customer.phone }
+            : dto.customerName?.trim()
+            ? { id: 'walkin', name: dto.customerName.trim(), phone: dto.customerPhone?.trim() || null }
+            : null,
           doctorName: sale.doctorName || 'Self',
           paymentMethod,
           itemsCount: sale.saleItems.length,

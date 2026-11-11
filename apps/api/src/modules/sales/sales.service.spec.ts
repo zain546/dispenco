@@ -133,6 +133,16 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
   });
 
+  it('should throw BadRequestException if sale is on credit but no registered customerId is provided', async () => {
+    await expect(
+      service.createSale('tenant-1', 'user-1', {
+        paymentMethod: PaymentMethod.CREDIT,
+        customerName: 'Anonymous Walk-in',
+        items: [{ productId: 'prod-1', quantity: 1 }],
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   it('should throw NotFoundException if no active store is found', async () => {
     mockPrismaService.store.findFirst.mockResolvedValue(null);
 
