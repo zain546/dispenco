@@ -42,9 +42,20 @@ export class CartItemDto {
   @Min(0)
   @IsOptional()
   taxRatePercent?: number;
+
+  @IsString()
+  @IsOptional()
+  productName?: string;
+
+  @IsString()
+  @IsOptional()
+  unit?: string;
 }
 
 export class CreateSaleDto {
+  @IsString()
+  @IsOptional()
+  clientTxId?: string;
   @IsString()
   @IsOptional()
   storeId?: string;

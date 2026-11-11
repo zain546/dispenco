@@ -1216,7 +1216,13 @@ export function POSTerminal() {
     }
 
     setIsSubmitting(true);
+    const clientTxId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
     const payload = {
+      clientTxId,
       storeId: currentBranchId || undefined,
       customerId: selectedCustomer?.id || undefined,
       customerName: (selectedCustomer ? selectedCustomer.name : customerName.trim()) || undefined,
@@ -1227,6 +1233,8 @@ export function POSTerminal() {
       paymentMethod,
       items: cart.map((item) => ({
         productId: item.product.id,
+        productName: item.product.name,
+        unit: item.unitType === 'UNIT' ? (formatUnitPlural(item.product.unit, 1) || 'Tablet') : item.product.unit,
         quantity: item.quantity,
         unitType: item.unitType,
         unitPrice: item.unitPrice,

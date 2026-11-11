@@ -22,6 +22,15 @@ export class SalesService {
       throw new BadRequestException('Sale cart must contain at least one medicine item');
     }
 
+    // Idempotency check: if clientTxId was already processed within last 24h, return cached result immediately
+    if (dto.clientTxId) {
+      const idempotencyKey = `idempotency:sale:${tenantId}:${dto.clientTxId}`;
+      const cachedResult = await this.cache.get<any>(idempotencyKey);
+      if (cachedResult) {
+        return cachedResult;
+      }
+    }
+
     // Determine target store
     let targetStoreId = dto.storeId;
     if (targetStoreId) {
@@ -338,6 +347,12 @@ export class SalesService {
     });
 
     await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+
+    // Cache idempotent response for 24 hours to prevent duplicate sale creation on network retry
+    if (dto.clientTxId) {
+      const idempotencyKey = `idempotency:sale:${tenantId}:${dto.clientTxId}`;
+      await this.cache.set(idempotencyKey, result, 86400);
+    }
 
     return result;
   }

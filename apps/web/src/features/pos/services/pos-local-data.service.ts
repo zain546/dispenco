@@ -168,13 +168,13 @@ export const posLocalDataService = {
   ): Promise<{ sale: SaleResponse; isOffline: boolean }> {
     const posDb = getPosDatabase();
     const localReceiptNumber = generateLocalReceiptNumber();
-    const clientTxId = generateClientTxId();
+    const clientTxId = payload.clientTxId || generateClientTxId();
     const createdAt = new Date().toISOString();
 
     const record: OfflineSaleRecord = {
       localReceiptNumber,
       clientTxId,
-      payload,
+      payload: { ...payload, clientTxId },
       totals,
       status: 'pending_sync',
       createdAt,

@@ -14,6 +14,8 @@ export interface OfflineSaleItemPayload {
 }
 
 export interface OfflineSalePayload {
+  clientTxId?: string;
+  storeId?: string;
   customerName?: string;
   customerPhone?: string;
   doctorName?: string;
