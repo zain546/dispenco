@@ -65,6 +65,7 @@ import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
 import { RecentSalesModal } from './recent-sales-modal';
 import { DraftQuantityInput } from './draft-quantity-input';
+import { playScanSuccess, playScanError } from '../utils/pos-audio';
 import { formatCurrency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
@@ -208,15 +209,31 @@ export function POSTerminal() {
     const timer = setTimeout(async () => {
       setLinkCodeModal((prev) => ({ ...prev, isSearching: true }));
       try {
-        const res = await productsApi.getProducts({
-          search: term,
-          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-          limit: 10,
-        });
+        let results: ProductData[] = [];
+        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+        if (isOnline) {
+          try {
+            const res = await productsApi.getProducts({
+              search: term,
+              storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+              limit: 10,
+            });
+            results = res?.data || [];
+          } catch {
+            // Online search failed; proceed to offline fallback
+          }
+        }
+
+        // Offline or fallback to local IndexedDB catalog
+        if (results.length === 0) {
+          results = await posLocalDataService.searchLocalProducts(term);
+        }
+
         if (!cancelled) {
           setLinkCodeModal((prev) => ({
             ...prev,
-            results: res?.data || [],
+            results,
             isSearching: false,
           }));
         }
@@ -237,14 +254,29 @@ export function POSTerminal() {
     if (!code) return;
     setLinkCodeModal((prev) => ({ ...prev, isLinking: true }));
     try {
-      const updatedRes = await productsApi.updateProduct(product.id, {
-        barcode: code,
-      });
-      const updatedProduct: ProductData = updatedRes?.data
-        ? { ...product, ...updatedRes.data, barcode: code }
-        : { ...product, barcode: code };
+      // 1. Immediately update IndexedDB local cache so future offline scans match instantly
+      const localUpdated = await posLocalDataService.updateLocalProductBarcode(product.id, code);
+      let updatedProduct: ProductData = localUpdated || { ...product, barcode: code };
 
-      toast.success(`Linked QR/Barcode "${code}" to "${product.name}"!`);
+      // 2. If online, sync barcode association to backend API catalog
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      if (isOnline) {
+        try {
+          const updatedRes = await productsApi.updateProduct(product.id, {
+            barcode: code,
+          });
+          if (updatedRes?.data) {
+            updatedProduct = { ...updatedProduct, ...updatedRes.data, barcode: code };
+          }
+        } catch {
+          // Keep local link and notify user
+        }
+      }
+
+      toast.success(
+        `Linked QR/Barcode "${code}" to "${product.name}"${!isOnline ? ' (saved locally for offline use)' : ''}!`
+      );
+      playScanSuccess();
       setLinkCodeModal({
         isOpen: false,
         scannedCode: '',
@@ -257,6 +289,7 @@ export function POSTerminal() {
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
       posLocalDataService.syncCatalogToLocal(targetStore).catch(() => {});
     } catch (err) {
+      playScanError();
       toast.error(getErrorMessage(err, 'Failed to link QR/barcode to medicine'));
       setLinkCodeModal((prev) => ({ ...prev, isLinking: false }));
     }
@@ -620,6 +653,7 @@ export function POSTerminal() {
     );
 
     if (maxAllowed <= 0) {
+      playScanError();
       if (committedUnits > 0) {
         toast.warning(
           `Cannot add more "${product.name}" (${initialUnitType === 'UNIT' ? 'Tablet/Unit' : 'Box'}) — All available stock (${totalAvailableUnits} units) is already in the cart.`
@@ -638,6 +672,7 @@ export function POSTerminal() {
         const currentQty = prev[idx].quantity;
 
         if (currentQty + 1 > maxAllowed) {
+          playScanError();
           toast.warning(
             `Maximum available stock reached for ${product.name} (${maxAllowed} ${
               initialUnitType === 'UNIT' ? 'tablet/unit' : product.unit
@@ -668,6 +703,7 @@ export function POSTerminal() {
       }
     });
 
+    playScanSuccess();
     setSearchQuery('');
     setSearchResults([]);
     toast.success(
@@ -951,8 +987,10 @@ export function POSTerminal() {
         return;
       }
 
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
       // 2. Fallback to online API lookup if online
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
+      if (isOnline) {
         try {
           const res = await productsApi.lookupByBarcode(
             code,
@@ -965,41 +1003,57 @@ export function POSTerminal() {
             return;
           }
         } catch {
-          // Not found by exact barcode; check if QR text matches a medicine name or offer 1-click link
+          // Not found by exact barcode online
         }
+      }
 
-        // 3. If QR code contains medicine name/text, check catalog search
-        if (/[a-zA-Z]{3,}/.test(code) && !/^https?:/i.test(code)) {
+      // 3. If QR code contains medicine name/text, check catalog search (online or local)
+      if (/[a-zA-Z]{3,}/.test(code) && !/^https?:/i.test(code)) {
+        let matchedItems: ProductData[] = [];
+        if (isOnline) {
           try {
             const searchRes = await productsApi.getProducts({
               search: code,
               storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
               limit: 5,
             });
-            const matchedItems = searchRes?.data || [];
-            if (matchedItems.length === 1) {
-              addToCart(matchedItems[0]);
-              setSearchQuery('');
-              focusSearchInput();
-              return;
-            }
+            matchedItems = searchRes?.data || [];
           } catch {
-            // Ignore search error and open link modal
+            // Online search error; will fallback to local search
           }
         }
+        if (matchedItems.length === 0) {
+          matchedItems = await posLocalDataService.searchLocalProducts(code);
+        }
+        if (matchedItems.length === 1) {
+          addToCart(matchedItems[0]);
+          setSearchQuery('');
+          focusSearchInput();
+          return;
+        }
+      }
 
-        // 4. Unregistered QR / Barcode: Open clean Link or Create Medicine modal
-        setLinkCodeModal({
-          isOpen: true,
-          scannedCode: code,
-          parsedData,
-          query: '',
-          results: [],
-          isSearching: false,
-          isLinking: false,
-        });
-      } else {
-        toast.error(`QR/Barcode "${code}" not found in local offline cache`);
+      // 4. Unregistered QR / Barcode: Play error alert & open Link or Create Medicine modal
+      playScanError();
+
+      const seedQuery =
+        parsedData?.gtin ||
+        (/[a-zA-Z]{3,}/.test(code) && !/^https?:/i.test(code) ? code : '');
+
+      setLinkCodeModal({
+        isOpen: true,
+        scannedCode: code,
+        parsedData,
+        query: seedQuery,
+        results: [],
+        isSearching: false,
+        isLinking: false,
+      });
+
+      if (!isOnline) {
+        toast.info(
+          `QR/Barcode "${code}" not registered. Match with a cached medicine to link for offline billing.`
+        );
       }
     } finally {
       setSearchQuery('');

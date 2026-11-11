@@ -148,6 +148,18 @@ export const posLocalDataService = {
   },
 
   /**
+   * 3b. Update or link a barcode to a local product in IndexedDB for immediate offline scans
+   */
+  async updateLocalProductBarcode(productId: string, barcode: string): Promise<ProductData | null> {
+    const posDb = getPosDatabase();
+    const prod = await posDb.localProducts.get(productId);
+    if (!prod) return null;
+    const updated = { ...prod, barcode: barcode.trim(), updatedAt: new Date().toISOString() };
+    await posDb.localProducts.put(updated);
+    return updated as unknown as ProductData;
+  },
+
+  /**
    * 4. Save local-first sale: saves queue record AND immediately decrements local stock
    */
   async recordLocalSale(
