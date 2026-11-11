@@ -2294,23 +2294,27 @@ export function POSTerminal() {
             <CardContent className="p-4 space-y-4">
               {/* Customer Account & Khata Credit Section */}
               <div className="space-y-2" ref={customerSearchRef}>
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <User className="size-3.5 text-primary" />
-                    <span>Customer Account</span>
-                    {paymentMethod === 'CREDIT' && (
-                      <span className="text-micro text-destructive font-bold">* Required for Khata</span>
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <User className="size-3.5 text-primary shrink-0" />
+                    <Label className="text-xs font-semibold text-foreground whitespace-nowrap">
+                      Customer
+                    </Label>
+                    {paymentMethod === 'CREDIT' && !selectedCustomer && (
+                      <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-sm whitespace-nowrap">
+                        Khata Required
+                      </span>
                     )}
-                  </Label>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsAddCustomerModalOpen(true)}
-                    className="h-6 px-2 text-micro gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer font-medium"
+                    className="h-6 px-1.5 text-micro gap-1 text-primary hover:text-primary hover:bg-primary/10 shrink-0 font-medium whitespace-nowrap cursor-pointer"
                   >
                     <UserPlus className="size-3" />
-                    <span>+ New Customer</span>
+                    <span>New</span>
                   </Button>
                 </div>
 
@@ -2431,18 +2435,18 @@ export function POSTerminal() {
                     )}
 
                     {/* Walk-in Customer Fallback Inputs */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
                       <Input
-                        placeholder="Or walk-in name"
+                        placeholder="Walk-in name"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        className="h-8 text-xs bg-muted/20"
+                        className="h-8 text-xs bg-muted/20 border-border/70"
                       />
                       <Input
-                        placeholder="Walk-in phone"
+                        placeholder="Phone (optional)"
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
-                        className="h-8 text-xs bg-muted/20"
+                        className="h-8 text-xs bg-muted/20 border-border/70"
                       />
                     </div>
                   </div>
@@ -2451,19 +2455,19 @@ export function POSTerminal() {
 
               {/* Prescribing Doctor / Self OTC Section */}
               <div className="space-y-1.5 pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Stethoscope className="size-3.5 text-primary" />
-                    <span>Prescriber / Doctor</span>
+                <div className="flex items-center justify-between gap-1.5">
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5 whitespace-nowrap">
+                    <Stethoscope className="size-3.5 text-primary shrink-0" />
+                    <span>Prescriber</span>
                   </Label>
-                  <div className="flex items-center gap-1 p-0.5 bg-muted/40 border border-border/60 rounded-lg">
+                  <div className="flex items-center gap-0.5 p-0.5 bg-muted/40 border border-border/60 rounded-md">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSelfDoctor(true);
                         setDoctorName('Self');
                       }}
-                      className={`h-5.5 px-2 text-micro font-bold rounded-md transition-all cursor-pointer ${
+                      className={`h-5.5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
                         isSelfDoctor
                           ? 'bg-primary text-primary-foreground shadow-2xs'
                           : 'text-muted-foreground hover:text-foreground'
@@ -2479,7 +2483,7 @@ export function POSTerminal() {
                           setDoctorName('Dr. ');
                         }
                       }}
-                      className={`h-5.5 px-2 text-micro font-bold rounded-md transition-all cursor-pointer ${
+                      className={`h-5.5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
                         !isSelfDoctor
                           ? 'bg-primary text-primary-foreground shadow-2xs'
                           : 'text-muted-foreground hover:text-foreground'
@@ -2490,15 +2494,8 @@ export function POSTerminal() {
                   </div>
                 </div>
 
-                {isSelfDoctor ? (
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/50 text-xs">
-                    <span className="text-muted-foreground">Sale Reference:</span>
-                    <Badge variant="outline" className="text-micro font-semibold text-primary border-primary/30 bg-primary/5">
-                      Self / Counter Sale
-                    </Badge>
-                  </div>
-                ) : (
-                  <div className="relative">
+                {!isSelfDoctor && (
+                  <div className="relative pt-0.5">
                     <Input
                       placeholder="Enter Dr. Name (e.g. Dr. Asif)"
                       value={doctorName}
@@ -2522,29 +2519,34 @@ export function POSTerminal() {
 
               {/* Overall Discount Toggle */}
               <div className="space-y-1.5 pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between text-xs">
-                  <Label className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Tag className="size-3.5 text-muted-foreground" /> Order Discount
+                <div className="flex items-center justify-between text-xs gap-1.5">
+                  <Label className="font-semibold text-foreground flex items-center gap-1.5 whitespace-nowrap">
+                    <Tag className="size-3.5 text-muted-foreground shrink-0" />
+                    <span>Order Discount</span>
                   </Label>
-                  <div className="flex items-center gap-1">
-                    <Button
+                  <div className="flex items-center gap-0.5 p-0.5 bg-muted/40 border border-border/60 rounded-md">
+                    <button
                       type="button"
-                      variant={overallDiscountType === 'FLAT' ? 'secondary' : 'ghost'}
-                      size="sm"
                       onClick={() => setOverallDiscountType('FLAT')}
-                      className="h-6 text-micro px-2"
+                      className={`h-5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
+                        overallDiscountType === 'FLAT'
+                          ? 'bg-primary text-primary-foreground shadow-2xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
                     >
                       Flat PKR
-                    </Button>
-                    <Button
+                    </button>
+                    <button
                       type="button"
-                      variant={overallDiscountType === 'PERCENT' ? 'secondary' : 'ghost'}
-                      size="sm"
                       onClick={() => setOverallDiscountType('PERCENT')}
-                      className="h-6 text-micro px-2"
+                      className={`h-5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
+                        overallDiscountType === 'PERCENT'
+                          ? 'bg-primary text-primary-foreground shadow-2xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
                     >
                       Percent %
-                    </Button>
+                    </button>
                   </div>
                 </div>
                 <Input
@@ -2553,7 +2555,7 @@ export function POSTerminal() {
                   placeholder="0"
                   value={overallDiscount || ''}
                   onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
-                  className="h-9 text-xs"
+                  className="h-8 text-xs bg-muted/20 border-border/70"
                 />
               </div>
 
@@ -2568,18 +2570,22 @@ export function POSTerminal() {
                   ].map((method) => {
                     const Icon = method.icon;
                     const isActive = paymentMethod === method.id;
+                    const isCredit = method.id === 'CREDIT';
                     return (
                       <button
                         key={method.id}
                         type="button"
                         onClick={() => setPaymentMethod(method.id as 'CASH' | 'DIGITAL' | 'CREDIT')}
-                        className={`h-11 rounded-lg border text-xs flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${isActive
-                            ? 'bg-primary/10 border-primary text-primary font-bold shadow-2xs ring-1 ring-primary/30'
+                        className={`h-10 rounded-lg border text-xs flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                          isActive
+                            ? isCredit
+                              ? 'bg-amber-500/10 border-amber-500/60 text-amber-500 font-bold shadow-2xs ring-1 ring-amber-500/30'
+                              : 'bg-primary/10 border-primary text-primary font-bold shadow-2xs ring-1 ring-primary/30'
                             : 'bg-card border-border/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground font-medium'
-                          }`}
+                        }`}
                       >
-                        <Icon className={`size-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span>{method.label}</span>
+                        <Icon className={`size-3.5 ${isActive ? (isCredit ? 'text-amber-500' : 'text-primary') : 'text-muted-foreground'}`} />
+                        <span className="whitespace-nowrap">{method.label}</span>
                       </button>
                     );
                   })}
@@ -2588,38 +2594,36 @@ export function POSTerminal() {
 
               {/* Credit / Khata Validation Notice */}
               {paymentMethod === 'CREDIT' && (
-                <div className={`p-3 rounded-xl border text-xs space-y-2 ${
-                  selectedCustomer
-                    ? 'bg-warning/10 border-warning/30 text-foreground'
-                    : 'bg-destructive/10 border-destructive/30 text-destructive'
-                }`}>
-                  <div className="flex items-center gap-2 font-bold">
-                    <BookOpen className="size-4 shrink-0" />
-                    <span>Khata (Customer Credit Ledger)</span>
-                  </div>
-                  {selectedCustomer ? (
-                    <div className="space-y-1 text-xs">
+                selectedCustomer ? (
+                  <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-amber-500 font-semibold text-micro">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen className="size-3.5" />
+                        <span>Khata Ledger</span>
+                      </span>
+                      <span className="truncate max-w-[140px] font-bold">{selectedCustomer.name}</span>
+                    </div>
+                    <div className="space-y-1 text-micro text-muted-foreground pt-1 border-t border-border/40">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Current Outstanding Debt:</span>
-                        <span className="font-semibold text-destructive">{Number(selectedCustomer.creditBalance).toFixed(2)} PKR</span>
+                        <span>Current Debt:</span>
+                        <span className="font-medium text-foreground">{Number(selectedCustomer.creditBalance).toLocaleString()} PKR</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">+ This Purchase:</span>
-                        <span className="font-semibold text-foreground">{totals.grandTotal.toFixed(2)} PKR</span>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-border/40 font-bold">
-                        <span>New Outstanding Balance:</span>
-                        <span className="text-destructive">
-                          {(Number(selectedCustomer.creditBalance) + totals.grandTotal).toFixed(2)} PKR
+                      <div className="flex justify-between font-semibold text-foreground">
+                        <span>New Total Debt:</span>
+                        <span className="text-amber-500 font-bold">
+                          {(Number(selectedCustomer.creditBalance) + totals.grandTotal).toLocaleString()} PKR
                         </span>
                       </div>
                     </div>
-                  ) : (
-                    <p className="text-xs leading-relaxed">
-                      ⚠️ Khata credit sales require a registered customer. Please search or register a customer above before completing this transaction.
-                    </p>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2">
+                    <AlertCircle className="size-4 shrink-0 text-destructive" />
+                    <span className="text-micro font-medium leading-snug">
+                      Select a registered customer above to complete this Khata credit sale.
+                    </span>
+                  </div>
+                )
               )}
 
               {/* Cash Tendered & Change Due Calculator */}
