@@ -65,11 +65,13 @@ import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
 import { RecentSalesModal } from './recent-sales-modal';
 import { DraftQuantityInput } from './draft-quantity-input';
+import { DraftPriceInput } from './draft-price-input';
 import { playScanSuccess, playScanError } from '../utils/pos-audio';
 import { formatCurrency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
 import { useAuth } from '@/context/auth-context';
+import { usePermissions } from '@/hooks/use-permissions';
 import { toast } from 'sonner';
 
 export interface CartItem {
@@ -152,6 +154,7 @@ export function POSTerminal() {
   const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
   const { user: currentUser } = useAuth();
+  const { isOwner, isManager, canManageInventory } = usePermissions();
 
   // Cart & Search State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -329,12 +332,16 @@ export function POSTerminal() {
 
   const handleSavePackSize = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!isOwner && !isManager && !canManageInventory) {
+      toast.error('Manager approval required to change pack size.');
+      setPackSizeModal((prev) => ({ ...prev, isOpen: false }));
+      return;
+    }
     const parsed = parseInt(packSizeModal.packSize, 10);
     if (!isNaN(parsed) && parsed > 0 && packSizeModal.itemIndex >= 0) {
       updatePackSize(packSizeModal.itemIndex, parsed);
-      toast.success(`Pack size for "${packSizeModal.productName}" updated to ${parsed} units/box`);
     } else {
-      toast.error('Please enter a valid positive number for pack size.');
+      toast.error('Please enter a valid pack size (e.g. 10 or 100).');
     }
     setPackSizeModal((prev) => ({ ...prev, isOpen: false }));
   };
@@ -563,11 +570,9 @@ export function POSTerminal() {
         focusSearchInput();
       } else if (e.key === 'F4') {
         e.preventDefault();
-        setPaymentMethod((prev) => {
-          if (prev === 'CASH') return 'DIGITAL';
-          if (prev === 'DIGITAL') return 'CREDIT';
-          return 'CASH';
-        });
+        // Cycle safely between immediate payment methods (CASH <-> DIGITAL)
+        // CREDIT (Khata) requires explicit cashier selection to prevent accidental credit booking
+        setPaymentMethod((prev) => (prev === 'CASH' ? 'DIGITAL' : 'CASH'));
       } else if (e.key === 'F8') {
         e.preventDefault();
         if (paymentMethod !== 'CASH') setPaymentMethod('CASH');
@@ -575,6 +580,10 @@ export function POSTerminal() {
       } else if (e.key === 'F9') {
         e.preventDefault();
         if (cart.length > 0 && !isSubmitting && !isReceiptOpen) {
+          if (paymentMethod === 'CREDIT' && !selectedCustomer) {
+            toast.error('Please select a customer for Khata credit.');
+            return;
+          }
           handleCheckout();
         }
       } else if (e.key === 'Escape') {
@@ -963,6 +972,11 @@ export function POSTerminal() {
     const item = cart[index];
     if (!item) return;
 
+    if (!isOwner && !isManager && !canManageInventory) {
+      toast.error('Manager approval required to change pack size.');
+      return;
+    }
+
     const existingAttrs = (item.product.attributes || {}) as Record<string, unknown>;
     const updatedAttrs = { ...existingAttrs, packSize: newPackSize };
     const boxPrice = item.product.latestSellPrice ?? 0;
@@ -1121,9 +1135,41 @@ export function POSTerminal() {
   };
 
   const updateUnitPrice = (index: number, newPrice: number) => {
+    const item = cart[index];
+    if (!item) return;
+
+    if (newPrice <= 0) {
+      toast.error('Price must be greater than 0. Use discount for free items.');
+      return;
+    }
+
+    const packSize = getPackSize(item.product);
+    const unitCostPrice =
+      item.unitType === 'BOX'
+        ? (item.product.latestCostPrice ?? 0)
+        : packSize > 0
+          ? (item.product.latestCostPrice ?? 0) / packSize
+          : (item.product.latestCostPrice ?? 0);
+
+    if (unitCostPrice > 0 && newPrice < unitCostPrice) {
+      if (!isOwner && !isManager && !canManageInventory) {
+        toast.error(
+          `Manager approval needed to sell ${item.product.name} below cost (${formatCurrency(unitCostPrice)}).`
+        );
+        return;
+      }
+      toast.warning(
+        `Selling below cost price (${formatCurrency(unitCostPrice)}).`
+      );
+    }
+
     setCart((prev) => {
       const updated = [...prev];
-      updated[index].unitPrice = Math.max(0, newPrice);
+      if (!updated[index]) return prev;
+      updated[index] = {
+        ...updated[index],
+        unitPrice: Math.max(0.01, Number(newPrice.toFixed(2))),
+      };
       return updated;
     });
   };
@@ -1233,34 +1279,48 @@ export function POSTerminal() {
   // Handle Checkout submission
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      toast.error('Cart is empty. Scan or search medicines to add.');
+      toast.error('Cart is empty. Add a medicine first.');
       return;
     }
 
     if (paymentMethod === 'CASH' && cashTendered && tenderedNum < totals.grandTotal) {
-      toast.error(`Cash tendered (${formatCurrency(tenderedNum)}) is less than total amount (${formatCurrency(totals.grandTotal)})`);
+      toast.error(`Cash received is less than total bill (${formatCurrency(totals.grandTotal)}).`);
       return;
     }
 
     if (stores.length === 0) {
-      toast.error('No active store branch found. Please add a store branch in settings before processing sales.');
+      toast.error('No store branch found. Please add one in settings.');
       return;
     }
 
     if (isAllStores) {
-      toast.error('Please select a specific store branch from the header switcher to process sales.');
+      toast.error('Please select a specific store branch from the header.');
       return;
     }
 
     const currentBranchId = activeStoreId || stores[0]?.id;
     if (!currentBranchId) {
-      toast.error('No valid store branch selected. Please select a branch to process sales.');
+      toast.error('Please select a store branch to process sales.');
       return;
     }
 
     if (paymentMethod === 'CREDIT' && !selectedCustomer) {
-      toast.error('A registered customer must be selected from the ledger to complete a sale on credit (Khata).');
+      toast.error('Please select a customer for Khata credit.');
       return;
+    }
+
+    const zeroPriceItem = cart.find((i) => i.unitPrice <= 0);
+    if (zeroPriceItem) {
+      toast.error(`"${zeroPriceItem.product.name}" price cannot be 0. Use discount instead.`);
+      return;
+    }
+
+    if (!selectedCustomer && customerPhone.trim()) {
+      const cleanPhone = customerPhone.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^\d{7,15}$/.test(cleanPhone)) {
+        toast.error('Enter a valid phone number (7–15 digits) or leave blank.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -2073,13 +2133,12 @@ export function POSTerminal() {
                             {/* Unit Price */}
                             <div className="space-y-1 text-right">
                               <span className="text-micro text-muted-foreground font-medium">Unit Price (PKR):</span>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                              <DraftPriceInput
                                 value={item.unitPrice}
-                                onChange={(e) => updateUnitPrice(idx, parseFloat(e.target.value) || 0)}
+                                min={0.01}
+                                onChange={(val) => updateUnitPrice(idx, val)}
                                 className="h-8 text-xs text-right font-semibold ml-auto max-w-[100px]"
+                                title="Edit unit price (PKR)"
                               />
                             </div>
 
@@ -2218,13 +2277,12 @@ export function POSTerminal() {
                               {/* Unit Price */}
                               <td className="p-3 align-middle text-center">
                                 <div className="relative inline-block w-20">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
+                                  <DraftPriceInput
                                     value={item.unitPrice}
-                                    onChange={(e) => updateUnitPrice(idx, parseFloat(e.target.value) || 0)}
+                                    min={0.01}
+                                    onChange={(val) => updateUnitPrice(idx, val)}
                                     className="h-8 text-xs text-center font-semibold focus-visible:ring-1"
+                                    title="Edit unit price (PKR)"
                                   />
                                 </div>
                               </td>
@@ -2693,7 +2751,7 @@ export function POSTerminal() {
                   <div className="p-2.5 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs flex items-center gap-2">
                     <AlertCircle className="size-4 shrink-0 text-destructive" />
                     <span className="text-micro font-medium leading-snug">
-                      Select a registered customer above to complete this Khata credit sale.
+                      Select a customer above for Khata credit sale.
                     </span>
                   </div>
                 )
@@ -2776,23 +2834,37 @@ export function POSTerminal() {
               </div>
 
               {/* Complete Checkout Action Button */}
-              <Button
-                type="button"
-                onClick={handleCheckout}
-                disabled={cart.length === 0 || isSubmitting}
-                className="w-full h-12 text-sm font-bold shadow-md gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Processing Sale...
-                  </>
-                ) : (
-                  <>
-                    <span>Complete Sale <span className="hidden md:inline">(F9)</span></span>
-                    <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
+              {(() => {
+                const isKhataBlocked = paymentMethod === 'CREDIT' && !selectedCustomer;
+                return (
+                  <Button
+                    type="button"
+                    onClick={handleCheckout}
+                    disabled={cart.length === 0 || isSubmitting || isKhataBlocked}
+                    className={`w-full h-12 text-sm font-bold shadow-md gap-2 ${
+                      isKhataBlocked
+                        ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30 cursor-not-allowed hover:bg-amber-500/15'
+                        : ''
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" /> Processing Sale...
+                      </>
+                    ) : isKhataBlocked ? (
+                      <>
+                        <span>Select Customer for Khata</span>
+                        <ArrowRight className="size-4 opacity-50" />
+                      </>
+                    ) : (
+                      <>
+                        <span>Complete Sale <span className="hidden md:inline">(F9)</span></span>
+                        <ArrowRight className="size-4" />
+                      </>
+                    )}
+                  </Button>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
@@ -2878,6 +2950,16 @@ export function POSTerminal() {
               </p>
             </div>
           </div>
+
+          {/* Authorization Guard Notice */}
+          {!isOwner && !isManager && !canManageInventory && (
+            <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500 text-xs flex items-center gap-2">
+              <AlertTriangle className="size-4 shrink-0" />
+              <span className="text-micro font-medium">
+                Manager approval required to change pack size.
+              </span>
+            </div>
+          )}
 
           <form onSubmit={handleSavePackSize} className="space-y-4">
             <div className="space-y-2">
@@ -2980,7 +3062,12 @@ export function POSTerminal() {
               </Button>
               <Button
                 type="submit"
-                className="flex-1 h-11 px-4 rounded-xl font-bold text-xs sm:text-sm bg-primary hover:bg-primary/95 text-primary-foreground gap-2 shadow-xs active:scale-98 cursor-pointer"
+                disabled={!isOwner && !isManager && !canManageInventory}
+                className={`flex-1 h-11 px-4 rounded-xl font-bold text-xs sm:text-sm gap-2 shadow-xs active:scale-98 cursor-pointer ${
+                  !isOwner && !isManager && !canManageInventory
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
+                    : 'bg-primary hover:bg-primary/95 text-primary-foreground'
+                }`}
               >
                 <CheckCircle2 className="size-4 shrink-0" />
                 <span className="whitespace-nowrap">Save Pack Size</span>

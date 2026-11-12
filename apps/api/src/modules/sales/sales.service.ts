@@ -27,9 +27,7 @@ export class SalesService {
 
     // Strict Khata check: Credit transactions require an explicitly selected registered customer ID
     if (isOnCredit && !dto.customerId) {
-      throw new BadRequestException(
-        'A registered customer must be selected from the ledger to complete a sale on credit (Khata).'
-      );
+      throw new BadRequestException('Customer account required for Khata credit sale.');
     }
 
     // Idempotency check: if clientTxId was already processed within last 24h, return cached result immediately
@@ -158,6 +156,12 @@ export class SalesService {
           }
         }
 
+        if (item.unitPrice !== undefined && item.unitPrice <= 0) {
+          throw new BadRequestException(
+            `Unit price for "${product.name}" must be greater than 0. Use discount for free items.`,
+          );
+        }
+
         const packSize = Number((product.attributes as Record<string, unknown>)?.packSize) || 1;
         const isSingleUnit = item.unitType === 'UNIT';
         const stockQuantityToDeduct = isSingleUnit
@@ -279,7 +283,7 @@ export class SalesService {
       const isOnCredit = paymentMethod === PaymentMethod.CREDIT;
 
       if (isOnCredit && !customerId) {
-        throw new BadRequestException('A registered customer must be selected to complete a sale on credit (Khata).');
+        throw new BadRequestException('Customer account required for Khata credit sale.');
       }
 
       // 4. Create Sale Record

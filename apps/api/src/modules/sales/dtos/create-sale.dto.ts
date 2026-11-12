@@ -21,7 +21,7 @@ export class CartItemDto {
   quantity!: number;
 
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   @IsOptional()
   unitPrice?: number;
 
