@@ -1131,8 +1131,24 @@ export function POSTerminal() {
   const updateItemDiscount = (index: number, val: number, type?: 'FLAT' | 'PERCENT') => {
     setCart((prev) => {
       const updated = [...prev];
-      updated[index].discount = Math.max(0, val);
-      if (type) updated[index].discountType = type;
+      const item = updated[index];
+      if (!item) return prev;
+
+      const targetType = type || item.discountType;
+      const lineSubtotal = item.unitPrice * item.quantity;
+      let clampedVal = Math.max(0, val);
+
+      if (targetType === 'PERCENT') {
+        clampedVal = Math.min(100, clampedVal);
+      } else {
+        clampedVal = Math.min(lineSubtotal, clampedVal);
+      }
+
+      updated[index] = {
+        ...item,
+        discount: clampedVal,
+        discountType: targetType,
+      };
       return updated;
     });
   };
@@ -1153,11 +1169,11 @@ export function POSTerminal() {
     toast.info('Cart cleared');
   };
 
-  // Calculations
+  // Calculations: strictly sequential discount calculation & proportional tax adjustment
   const calculateCartTotals = () => {
     let subtotal = 0;
     let itemDiscounts = 0;
-    let taxTotal = 0;
+    let unadjustedTaxTotal = 0;
 
     cart.forEach((item) => {
       const lineSubtotal = item.unitPrice * item.quantity;
@@ -1165,28 +1181,37 @@ export function POSTerminal() {
 
       if (item.discount > 0) {
         if (item.discountType === 'PERCENT') {
-          lineDiscount = (lineSubtotal * item.discount) / 100;
+          const clampedPercent = Math.min(100, Math.max(0, item.discount));
+          lineDiscount = (lineSubtotal * clampedPercent) / 100;
         } else {
           lineDiscount = Math.min(lineSubtotal, item.discount);
         }
       }
 
       const taxableAmount = Math.max(0, lineSubtotal - lineDiscount);
-      const lineTax = (taxableAmount * item.taxRatePercent) / 100;
+      const lineTax = (taxableAmount * (item.taxRatePercent || 0)) / 100;
 
       subtotal += lineSubtotal;
       itemDiscounts += lineDiscount;
-      taxTotal += lineTax;
+      unadjustedTaxTotal += lineTax;
     });
 
+    // Order-level discount strictly applies to remaining post-item-discount balance
+    const remainingSubtotal = Math.max(0, subtotal - itemDiscounts);
     let overallDiscAmount = 0;
-    if (overallDiscount > 0) {
+
+    if (overallDiscount > 0 && remainingSubtotal > 0) {
       if (overallDiscountType === 'PERCENT') {
-        overallDiscAmount = (subtotal * overallDiscount) / 100;
+        const clampedPercent = Math.min(100, Math.max(0, overallDiscount));
+        overallDiscAmount = (remainingSubtotal * clampedPercent) / 100;
       } else {
-        overallDiscAmount = Math.min(subtotal, overallDiscount);
+        overallDiscAmount = Math.min(remainingSubtotal, overallDiscount);
       }
     }
+
+    // Proportionally scale tax when order-level discount is applied
+    const taxAdjustmentRatio = remainingSubtotal > 0 ? Math.max(0, 1 - overallDiscAmount / remainingSubtotal) : 0;
+    const taxTotal = Math.round(unadjustedTaxTotal * taxAdjustmentRatio * 100) / 100;
 
     const totalDiscount = itemDiscounts + overallDiscAmount;
     const grandTotal = Math.max(0, subtotal - totalDiscount + taxTotal);
@@ -2583,9 +2608,17 @@ export function POSTerminal() {
                 <Input
                   type="number"
                   min="0"
+                  max={overallDiscountType === 'PERCENT' ? 100 : undefined}
                   placeholder="0"
                   value={overallDiscount || ''}
-                  onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
+                  onChange={(e) => {
+                    const parsed = parseFloat(e.target.value) || 0;
+                    const clamped =
+                      overallDiscountType === 'PERCENT'
+                        ? Math.min(100, Math.max(0, parsed))
+                        : Math.max(0, parsed);
+                    setOverallDiscount(clamped);
+                  }}
                   className="h-8 text-xs bg-muted/20 border-border/70"
                 />
               </div>

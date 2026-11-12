@@ -209,11 +209,12 @@ export class SalesService {
 
           const itemSubtotal = unitPrice * allocQuantity;
 
-          // Item-level discount calculation
+          // Item-level discount calculation (clamped to 100% or line subtotal)
           let itemDiscount = 0;
           if (item.discount && item.discount > 0) {
             if (item.discountType === DiscountType.PERCENT) {
-              itemDiscount = (itemSubtotal * item.discount) / 100;
+              const clampedPercent = Math.min(100, Math.max(0, item.discount));
+              itemDiscount = (itemSubtotal * clampedPercent) / 100;
             } else {
               // Flat discount split proportionally across allocations
               itemDiscount = Math.min(itemSubtotal, (item.discount / item.quantity) * allocQuantity);
@@ -246,14 +247,30 @@ export class SalesService {
         }
       }
 
-      // Overall Sale level discount
-      if (dto.overallDiscount && dto.overallDiscount > 0) {
+      // Overall Sale level discount (strictly calculated against net remaining subtotal)
+      let overallDiscAmount = 0;
+      const remainingSubtotal = Math.max(0, runningSubtotal - runningDiscountTotal);
+
+      if (dto.overallDiscount && dto.overallDiscount > 0 && remainingSubtotal > 0) {
         if (dto.overallDiscountType === DiscountType.PERCENT) {
-          const addlDiscount = (runningSubtotal * dto.overallDiscount) / 100;
-          runningDiscountTotal += addlDiscount;
+          const clampedPercent = Math.min(100, Math.max(0, dto.overallDiscount));
+          overallDiscAmount = (remainingSubtotal * clampedPercent) / 100;
         } else {
-          runningDiscountTotal += dto.overallDiscount;
+          overallDiscAmount = Math.min(remainingSubtotal, dto.overallDiscount);
         }
+        runningDiscountTotal += overallDiscAmount;
+      }
+
+      // Proportionally adjust tax when overall discount is applied
+      if (runningTaxTotal > 0 && remainingSubtotal > 0 && overallDiscAmount > 0) {
+        const taxAdjustmentRatio = Math.max(0, 1 - overallDiscAmount / remainingSubtotal);
+        runningTaxTotal = Math.round(runningTaxTotal * taxAdjustmentRatio * 100) / 100;
+
+        // Scale taxApplied in preparedSaleItems proportionally
+        preparedSaleItems.forEach((si) => {
+          const adjustedItemTax = Math.round(Number(si.taxApplied) * taxAdjustmentRatio * 100) / 100;
+          si.taxApplied = new Prisma.Decimal(adjustedItemTax);
+        });
       }
 
       const totalAmount = Math.max(0, runningSubtotal - runningDiscountTotal + runningTaxTotal);
