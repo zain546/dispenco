@@ -95,6 +95,15 @@ const getSingleUnitPrice = (product: ProductData): number => {
   return packSize > 0 ? Number((boxPrice / packSize).toFixed(2)) : boxPrice;
 };
 
+// Validate that a entered doctor prescriber name has an actual name beyond "Dr.", "Dr", or "Self"
+const isValidDoctorName = (name?: string | null): boolean => {
+  if (!name) return false;
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'self') return false;
+  const withoutPrefix = trimmed.replace(/^(dr\.?|doctor)\s*/i, '').trim();
+  return withoutPrefix.length >= 2;
+};
+
 // Calculate total single units (tablets) already committed in cart for a product
 const getCommittedUnitsInCart = (
   cartItems: CartItem[],
@@ -180,6 +189,7 @@ export function POSTerminal() {
   const [overallDiscountType, setOverallDiscountType] = useState<'FLAT' | 'PERCENT'>('FLAT');
   const customerSearchRef = useRef<HTMLDivElement>(null);
   const cashInputRef = useRef<HTMLInputElement>(null);
+  const doctorInputRef = useRef<HTMLInputElement>(null);
   const productSearchContainerRef = useRef<HTMLDivElement>(null);
 
   // Checkout State
@@ -582,6 +592,11 @@ export function POSTerminal() {
         if (cart.length > 0 && !isSubmitting && !isReceiptOpen) {
           if (paymentMethod === 'CREDIT' && !selectedCustomer) {
             toast.error('Please select a customer for Khata credit.');
+            return;
+          }
+          if (hasControlledMedicine && !isValidDoctorName(doctorName)) {
+            toast.error("Please enter doctor's name for Rx controlled medicine.");
+            setTimeout(() => doctorInputRef.current?.focus(), 60);
             return;
           }
           handleCheckout();
@@ -1276,6 +1291,19 @@ export function POSTerminal() {
   const tenderedNum = Number(cashTendered) || 0;
   const changeDue = Math.max(0, tenderedNum - totals.grandTotal);
 
+  // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
+  const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
+
+  // Automatically select Doctor prescriber mode when a controlled medicine is added to the cart
+  useEffect(() => {
+    if (hasControlledMedicine && isSelfDoctor) {
+      setIsSelfDoctor(false);
+      if (doctorName === 'Self' || !doctorName) {
+        setDoctorName('Dr. ');
+      }
+    }
+  }, [hasControlledMedicine, isSelfDoctor, doctorName]);
+
   // Handle Checkout submission
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -1306,6 +1334,12 @@ export function POSTerminal() {
 
     if (paymentMethod === 'CREDIT' && !selectedCustomer) {
       toast.error('Please select a customer for Khata credit.');
+      return;
+    }
+
+    if (hasControlledMedicine && !isValidDoctorName(doctorName)) {
+      toast.error("Please enter doctor's name for Rx controlled medicine.");
+      setTimeout(() => doctorInputRef.current?.focus(), 60);
       return;
     }
 
@@ -1702,6 +1736,11 @@ export function POSTerminal() {
                                 <span className="font-bold text-foreground leading-snug break-words">
                                   {prod.name}
                                 </span>
+                                {prod.isControlledSubstance && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                                    Rx
+                                  </span>
+                                )}
                                 {isPriority && <Star className="size-3 fill-warning text-warning shrink-0" />}
                                 {prod.genericName && (
                                   <span className="text-micro text-muted-foreground truncate">({prod.genericName})</span>
@@ -2023,9 +2062,16 @@ export function POSTerminal() {
                           {/* Card Header: Product Name, Unit Mode Toggle & Trash Button */}
                           <div className="flex items-start justify-between gap-2">
                             <div className="space-y-1 min-w-0">
-                              <p className="font-bold text-sm text-foreground leading-snug break-words">
-                                {item.product.name}
-                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-bold text-sm text-foreground leading-snug break-words">
+                                  {item.product.name}
+                                </p>
+                                {item.product.isControlledSubstance && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                                    Rx
+                                  </span>
+                                )}
+                              </div>
 
                               {/* Minimal Glassmorphic Segmented Toggle Control */}
                               <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
@@ -2220,9 +2266,16 @@ export function POSTerminal() {
                               {/* Medicine Name & Unit Mode Toggle */}
                               <td className="p-3 pl-4 align-middle min-w-[240px]">
                                 <div className="space-y-1">
-                                  <p className="font-bold text-foreground leading-snug break-words">
-                                    {item.product.name}
-                                  </p>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="font-bold text-foreground leading-snug break-words">
+                                      {item.product.name}
+                                    </p>
+                                    {item.product.isControlledSubstance && (
+                                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                                        Rx Controlled
+                                      </span>
+                                    )}
+                                  </div>
 
                                   {/* Minimal Glassmorphic Segmented Toggle Control */}
                                   <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
@@ -2570,22 +2623,35 @@ export function POSTerminal() {
               {/* Prescribing Doctor / Self OTC Section */}
               <div className="space-y-1.5 pt-2 border-t border-border/60">
                 <div className="flex items-center justify-between gap-1.5">
-                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <Stethoscope className="size-3.5 text-primary shrink-0" />
-                    <span>Prescriber</span>
-                  </Label>
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5 whitespace-nowrap">
+                      <span>Prescriber</span>
+                    </Label>
+                    {hasControlledMedicine && (
+                      <span className="text-[10px] font-semibold text-destructive bg-destructive/10 border border-destructive/20 px-1.5 py-0.5 rounded-sm whitespace-nowrap">
+                        Rx Required
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-0.5 p-0.5 bg-muted/40 border border-border/60 rounded-md">
                     <button
                       type="button"
+                      disabled={hasControlledMedicine}
                       onClick={() => {
-                        setIsSelfDoctor(true);
-                        setDoctorName('Self');
+                        if (!hasControlledMedicine) {
+                          setIsSelfDoctor(true);
+                          setDoctorName('Self');
+                        }
                       }}
-                      className={`h-5.5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
-                        isSelfDoctor
-                          ? 'bg-primary text-primary-foreground shadow-2xs'
-                          : 'text-muted-foreground hover:text-foreground'
+                      className={`h-5.5 px-2 text-micro font-bold rounded transition-all whitespace-nowrap ${
+                        hasControlledMedicine
+                          ? 'text-muted-foreground/40 cursor-not-allowed'
+                          : isSelfDoctor
+                            ? 'bg-primary text-primary-foreground shadow-2xs cursor-pointer'
+                            : 'text-muted-foreground hover:text-foreground cursor-pointer'
                       }`}
+                      title={hasControlledMedicine ? 'Controlled medicine requires prescribing doctor' : 'Over the counter'}
                     >
                       Self (OTC)
                     </button>
@@ -2611,22 +2677,24 @@ export function POSTerminal() {
                 {!isSelfDoctor && (
                   <div className="relative pt-0.5">
                     <Input
+                      ref={doctorInputRef}
                       placeholder="Enter Dr. Name (e.g. Dr. Asif)"
                       value={doctorName}
                       onChange={(e) => setDoctorName(e.target.value)}
                       className="h-8 text-xs pr-14"
-                      autoFocus
                     />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSelfDoctor(true);
-                        setDoctorName('Self');
-                      }}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-micro text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded bg-muted/50 cursor-pointer font-medium"
-                    >
-                      Self
-                    </button>
+                    {!hasControlledMedicine && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSelfDoctor(true);
+                          setDoctorName('Self');
+                        }}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-micro text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded bg-muted/50 cursor-pointer font-medium"
+                      >
+                        Self
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2836,11 +2904,13 @@ export function POSTerminal() {
               {/* Complete Checkout Action Button */}
               {(() => {
                 const isKhataBlocked = paymentMethod === 'CREDIT' && !selectedCustomer;
+                const isBlocked = cart.length === 0 || isSubmitting || isKhataBlocked;
+
                 return (
                   <Button
                     type="button"
                     onClick={handleCheckout}
-                    disabled={cart.length === 0 || isSubmitting || isKhataBlocked}
+                    disabled={isBlocked}
                     className={`w-full h-12 text-sm font-bold shadow-md gap-2 ${
                       isKhataBlocked
                         ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30 cursor-not-allowed hover:bg-amber-500/15'

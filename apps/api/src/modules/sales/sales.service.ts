@@ -127,6 +127,16 @@ export class SalesService {
           throw new NotFoundException(`Medicine product with ID "${item.productId}" not found`);
         }
 
+        if (product.isControlledSubstance) {
+          const doc = (dto.doctorName || '').trim();
+          const withoutPrefix = doc.replace(/^(dr\.?|doctor)\s*/i, '').trim();
+          if (!doc || doc.toLowerCase() === 'self' || withoutPrefix.length < 2) {
+            throw new BadRequestException(
+              `Prescribing doctor name required for controlled medicine "${product.name}".`,
+            );
+          }
+        }
+
         // Determine effective tax rate percent for product from taxCode or item override
         let effectiveTaxRatePercent = item.taxRatePercent ?? 0;
         if (effectiveTaxRatePercent === 0 && product.taxCode) {
