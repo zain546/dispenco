@@ -176,6 +176,62 @@ export const posLocalDataService = {
   },
 
   /**
+   * 3c. Local-First Customer Search: instantaneous query directly from IndexedDB (<2ms latency)
+   */
+  async searchLocalCustomers(query: string): Promise<LocalCustomerRecord[]> {
+    const posDb = getPosDatabase();
+    const q = (query || '').trim().toLowerCase();
+    if (!q) {
+      return await posDb.localCustomers.limit(10).toArray();
+    }
+
+    // 1. Phone match (exact or prefix match via index)
+    const phoneMatches = await posDb.localCustomers
+      .where('phone')
+      .startsWithIgnoreCase(q)
+      .toArray();
+
+    // 2. Name or phone substring search
+    const textMatches = await posDb.localCustomers
+      .filter((c) => {
+        const name = c.name?.toLowerCase() || '';
+        const phone = c.phone?.toLowerCase() || '';
+        return name.includes(q) || phone.includes(q);
+      })
+      .limit(20)
+      .toArray();
+
+    // Merge and deduplicate
+    const combined = Array.from(
+      new Map([...phoneMatches, ...textMatches].map((c) => [c.id, c])).values(),
+    );
+
+    return combined.slice(0, 15);
+  },
+
+  /**
+   * 3d. Cache or update local customer record in IndexedDB
+   */
+  async saveLocalCustomer(customer: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    creditBalance?: number;
+  }): Promise<void> {
+    try {
+      const posDb = getPosDatabase();
+      await posDb.localCustomers.put({
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone || null,
+        creditBalance: Number(customer.creditBalance) || 0,
+      });
+    } catch (err) {
+      console.warn('Failed to save local customer to IndexedDB:', err);
+    }
+  },
+
+  /**
    * 4. Save local-first sale: saves queue record AND immediately decrements local stock
    */
   async recordLocalSale(

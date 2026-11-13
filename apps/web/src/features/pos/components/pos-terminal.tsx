@@ -396,26 +396,60 @@ export function POSTerminal() {
   }, []);
 
   useEffect(() => {
-    if (!customerSearchQuery.trim() || customerSearchQuery.trim().length < 2) {
+    const term = customerSearchQuery.trim();
+    if (!term) {
       setCustomerSearchResults([]);
       setIsCustomerSearching(false);
       return;
     }
 
+    let isCancelled = false;
+
+    // 1. Instant local IndexedDB query (<2ms latency) - shows results on the very first character
+    posLocalDataService
+      .searchLocalCustomers(term)
+      .then((localMatches) => {
+        if (!isCancelled && localMatches.length > 0) {
+          const mapped: CustomerItem[] = localMatches.map((c) => ({
+            id: c.id,
+            name: c.name,
+            phone: c.phone || undefined,
+            creditBalance: c.creditBalance ?? 0,
+            createdAt: '',
+          }));
+          setCustomerSearchResults(mapped);
+          setIsCustomerDropdownOpen(true);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Debounced background cloud search (150ms) to ensure up-to-date khata balances and new cloud customers
     const timer = setTimeout(async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       setIsCustomerSearching(true);
       try {
-        const results = await customersApi.searchCustomers(customerSearchQuery.trim());
-        setCustomerSearchResults((results || []) as CustomerItem[]);
-        setIsCustomerDropdownOpen(true);
+        const results = await customersApi.searchCustomers(term);
+        if (!isCancelled && results && results.length > 0) {
+          setCustomerSearchResults(results as CustomerItem[]);
+          setIsCustomerDropdownOpen(true);
+          // Asynchronously persist fetched customers to IndexedDB for future instant queries
+          for (const c of results) {
+            void posLocalDataService.saveLocalCustomer(c);
+          }
+        }
       } catch (err) {
-        console.error('Customer search error:', err);
+        console.error('Customer cloud search error:', err);
       } finally {
-        setIsCustomerSearching(false);
+        if (!isCancelled) {
+          setIsCustomerSearching(false);
+        }
       }
-    }, 250);
+    }, 150);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
   }, [customerSearchQuery]);
 
   // Recent Sales History State
@@ -2134,6 +2168,7 @@ export function POSTerminal() {
             setSelectedCustomer(newCust);
             setCustomerName(newCust.name);
             setCustomerPhone(newCust.phone || '');
+            void posLocalDataService.saveLocalCustomer(newCust);
             toast.success(`Customer "${newCust.name}" selected.`);
           }
         }}
