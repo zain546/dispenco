@@ -60,6 +60,76 @@ export class SalesService {
 
     // Execute atomic transaction
     const result = await this.prisma.$transaction(async (tx) => {
+      // 0. Durable DB Idempotency check: if clientTxId was already committed, recover and return recorded sale
+      if (dto.clientTxId) {
+        const existingPayment = await tx.payment.findFirst({
+          where: {
+            tenantId,
+            gatewayRef: dto.clientTxId,
+            status: PaymentStatus.COMPLETED,
+          },
+          include: {
+            sale: {
+              include: {
+                saleItems: {
+                  include: {
+                    product: true,
+                    batch: true,
+                  },
+                },
+                customer: true,
+                store: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (existingPayment?.sale) {
+          const s = existingPayment.sale;
+          return {
+            success: true,
+            message: `Sale already processed (recovered from transaction record). Receipt: ${s.receiptNumber}`,
+            sale: {
+              id: s.id,
+              receiptNumber: s.receiptNumber,
+              totalAmount: Number(s.totalAmount),
+              discountAmount: Number(s.discountAmount),
+              taxAmount: Number(s.taxAmount),
+              subtotal: Number(s.totalAmount) + Number(s.discountAmount) - Number(s.taxAmount),
+              status: s.status,
+              createdAt: s.createdAt.toISOString(),
+              customerName: s.customer?.name || dto.customerName?.trim() || 'Walk-in Customer',
+              customer: s.customer,
+              doctorName: s.doctorName || 'Self',
+              cashierName: s.user?.name || 'Staff',
+              itemsCount: s.saleItems.length,
+              items: s.saleItems.map((si) => ({
+                id: si.id,
+                productId: si.productId,
+                productName: si.product.name,
+                unit: si.product.unit,
+                batchNumber: si.batch.batchNumber,
+                expiryDate: si.batch.expiryDate.toISOString(),
+                quantity: si.quantity,
+                unitPrice: Number(si.unitPrice),
+                discount: Number(si.discount),
+                discountAmount: Number(si.discount),
+                taxApplied: Number(si.taxApplied),
+                taxAmount: Number(si.taxApplied),
+                lineTotal: Number(si.unitPrice) * si.quantity - Number(si.discount),
+              })),
+            },
+          };
+        }
+      }
+
       // 1. Customer linkage: only link or auto-create a Customer ledger row if customerId was provided OR a valid phone is supplied
       let customerId = dto.customerId;
       if (!customerId && dto.customerPhone?.trim()) {
@@ -278,13 +348,17 @@ export class SalesService {
       // Proportionally adjust tax when overall discount is applied
       if (runningTaxTotal > 0 && remainingSubtotal > 0 && overallDiscAmount > 0) {
         const taxAdjustmentRatio = Math.max(0, 1 - overallDiscAmount / remainingSubtotal);
-        runningTaxTotal = Math.round(runningTaxTotal * taxAdjustmentRatio * 100) / 100;
+        let adjustedTotal = 0;
 
         // Scale taxApplied in preparedSaleItems proportionally
         preparedSaleItems.forEach((si) => {
           const adjustedItemTax = Math.round(Number(si.taxApplied) * taxAdjustmentRatio * 100) / 100;
           si.taxApplied = new Prisma.Decimal(adjustedItemTax);
+          adjustedTotal += adjustedItemTax;
         });
+
+        // Set runningTaxTotal exactly to the sum of the rounded item taxes to ensure 100% reconciliation
+        runningTaxTotal = Math.round(adjustedTotal * 100) / 100;
       }
 
       const totalAmount = Math.max(0, runningSubtotal - runningDiscountTotal + runningTaxTotal);
@@ -348,7 +422,24 @@ export class SalesService {
           customerId,
           amount: new Prisma.Decimal(totalAmount),
           method: paymentMethod,
+          gatewayRef: dto.clientTxId || null,
           status: PaymentStatus.COMPLETED,
+        },
+      });
+
+      // 7. Record durable transaction audit log with customer snapshot
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: 'SALE_CREATE',
+          entityType: 'Sale',
+          entityId: sale.id,
+          metadata: {
+            customerName: dto.customerName?.trim() || null,
+            customerPhone: dto.customerPhone?.trim() || null,
+            clientTxId: dto.clientTxId || null,
+          },
         },
       });
 
@@ -449,6 +540,21 @@ export class SalesService {
       throw new NotFoundException(`Sale with ID/Receipt "${saleId}" not found`);
     }
 
+    let walkInCustomer: { name: string; phone?: string } | null = null;
+    if (!sale.customer) {
+      const audit = await this.prisma.auditLog.findFirst({
+        where: { tenantId, entityType: 'Sale', entityId: sale.id, action: 'SALE_CREATE' },
+        select: { metadata: true },
+      });
+      const meta = audit?.metadata as Record<string, unknown> | null;
+      if (meta?.customerName && typeof meta.customerName === 'string') {
+        walkInCustomer = {
+          name: meta.customerName,
+          phone: typeof meta.customerPhone === 'string' ? meta.customerPhone : undefined,
+        };
+      }
+    }
+
     return {
       success: true,
       sale: {
@@ -468,7 +574,15 @@ export class SalesService {
               address: sale.customer.address,
               creditBalance: Number(sale.customer.creditBalance),
             }
-          : null,
+          : walkInCustomer
+            ? {
+                id: null,
+                name: walkInCustomer.name,
+                phone: walkInCustomer.phone || null,
+                address: null,
+                creditBalance: 0,
+              }
+            : null,
         user: sale.user,
         cashierName: sale.user?.name || 'Staff',
         store: {
@@ -553,6 +667,26 @@ export class SalesService {
       },
     });
 
+    const salesWithoutCustomer = sales.filter((s) => !s.customer).map((s) => s.id);
+    const auditNameMap = new Map<string, string>();
+    if (salesWithoutCustomer.length > 0) {
+      const audits = await this.prisma.auditLog.findMany({
+        where: {
+          tenantId,
+          entityType: 'Sale',
+          entityId: { in: salesWithoutCustomer },
+          action: 'SALE_CREATE',
+        },
+        select: { entityId: true, metadata: true },
+      });
+      for (const a of audits) {
+        const meta = a.metadata as Record<string, unknown> | null;
+        if (meta?.customerName && typeof meta.customerName === 'string') {
+          auditNameMap.set(a.entityId, meta.customerName);
+        }
+      }
+    }
+
     return {
       success: true,
       data: sales.map((s) => ({
@@ -562,7 +696,7 @@ export class SalesService {
         totalAmount: Number(s.totalAmount),
         status: s.status,
         createdAt: s.createdAt.toISOString(),
-        customerName: s.customer?.name || 'Walk-in Customer',
+        customerName: s.customer?.name || auditNameMap.get(s.id) || 'Walk-in Customer',
         cashierName: s.user?.name || 'Staff',
         itemsCount: s.saleItems.length,
         paymentMethod: s.payments[0]?.method || 'CASH',

@@ -205,15 +205,11 @@ export function POSTerminal() {
       // 2. If online, sync barcode association to backend API catalog
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
       if (isOnline) {
-        try {
-          const updatedRes = await productsApi.updateProduct(product.id, {
-            barcode: code,
-          });
-          if (updatedRes?.data) {
-            updatedProduct = { ...updatedProduct, ...updatedRes.data, barcode: code };
-          }
-        } catch {
-          // Keep local link and notify user
+        const updatedRes = await productsApi.updateProduct(product.id, {
+          barcode: code,
+        });
+        if (updatedRes?.data) {
+          updatedProduct = { ...updatedProduct, ...updatedRes.data, barcode: code };
         }
       }
 

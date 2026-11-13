@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 
 export interface DraftPriceInputProps {
@@ -18,6 +18,7 @@ export interface DraftPriceInputProps {
  * 2. Allows clearing/backspacing without immediately snapping to 0 or reverting.
  * 3. Commits formatted decimal value on blur or Enter.
  * 4. Prevents mouse-wheel scrolling from modifying values.
+ * 5. Suppresses blur commit on Escape cancellation.
  */
 export function DraftPriceInput({
   value,
@@ -28,6 +29,7 @@ export function DraftPriceInput({
   disabled,
 }: DraftPriceInputProps) {
   const [draft, setDraft] = useState<string>(String(value));
+  const isCancelledRef = useRef(false);
 
   // Sync draft when external value changes
   useEffect(() => {
@@ -52,6 +54,14 @@ export function DraftPriceInput({
     }
   };
 
+  const handleBlur = () => {
+    if (isCancelledRef.current) {
+      isCancelledRef.current = false;
+      return;
+    }
+    commitValue(draft);
+  };
+
   return (
     <Input
       type="text"
@@ -59,7 +69,10 @@ export function DraftPriceInput({
       disabled={disabled}
       title={title}
       value={draft}
-      onFocus={(e) => e.target.select()}
+      onFocus={(e) => {
+        isCancelledRef.current = false;
+        e.target.select();
+      }}
       onChange={(e) => {
         const val = e.target.value;
         // Accept empty string or valid decimal numbers (digits with optional single decimal point)
@@ -67,7 +80,7 @@ export function DraftPriceInput({
           setDraft(val);
         }
       }}
-      onBlur={() => commitValue(draft)}
+      onBlur={handleBlur}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -75,6 +88,7 @@ export function DraftPriceInput({
           e.currentTarget.blur();
         } else if (e.key === 'Escape') {
           e.preventDefault();
+          isCancelledRef.current = true;
           setDraft(String(value));
           e.currentTarget.blur();
         }

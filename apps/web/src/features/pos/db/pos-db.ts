@@ -36,6 +36,7 @@ export interface OfflineSaleRecord {
     taxTotal: number;
     grandTotal: number;
   };
+  deductions?: Record<string, number>;
   status: 'pending_sync' | 'synced' | 'conflict';
   errorReason?: string;
   conflictDetails?: {

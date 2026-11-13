@@ -45,7 +45,7 @@ export function PosLinkBarcodeModal({
 }: PosLinkBarcodeModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-1.5rem)] sm:max-w-md p-4 sm:p-5 rounded-2xl border-border shadow-2xl overflow-hidden">
+      <DialogContent className="w-[calc(100%-1.5rem)] sm:max-w-md p-4 sm:p-5 rounded-2xl border-border shadow-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-1.5 text-left pr-8">
           <DialogTitle className="flex items-center gap-2 text-sm sm:text-base font-bold text-foreground">
             <Tag className="size-4 text-primary shrink-0" />
@@ -164,7 +164,7 @@ export function PosLinkBarcodeModal({
                 if (query.trim()) {
                   params.set('name', query.trim());
                 }
-                window.location.href = `/inventory/new?${params.toString()}`;
+                window.open(`/inventory/new?${params.toString()}`, '_blank', 'noopener,noreferrer');
               }}
               className="h-8 text-xs gap-1.5 font-semibold border-primary/30 text-primary hover:bg-primary/5 shrink-0 cursor-pointer"
             >

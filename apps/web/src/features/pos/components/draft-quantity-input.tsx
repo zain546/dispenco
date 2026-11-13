@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 
 export interface DraftQuantityInputProps {
@@ -19,6 +19,7 @@ export interface DraftQuantityInputProps {
  * 2. Allows clearing/backspacing without immediately resetting to 1 or deleting the row.
  * 3. Commits clamped value on blur or Enter.
  * 4. Prevents mouse-wheel scrolling from accidentally modifying numbers.
+ * 5. Suppresses blur commit on Escape cancellation and strictly enforces max <= 0 ceilings.
  */
 export function DraftQuantityInput({
   value,
@@ -30,6 +31,7 @@ export function DraftQuantityInput({
   disabled,
 }: DraftQuantityInputProps) {
   const [draft, setDraft] = useState<string>(String(value));
+  const isCancelledRef = useRef(false);
 
   // Sync draft when external value changes (e.g. from +/- buttons)
   useEffect(() => {
@@ -47,9 +49,16 @@ export function DraftQuantityInput({
       setDraft(String(value));
       return;
     }
-    if (parsed < min) parsed = min;
-    if (max !== undefined && max > 0 && parsed > max) {
-      parsed = max;
+    const effectiveMax = max !== undefined ? max : Infinity;
+    if (effectiveMax <= 0) {
+      setDraft(String(value));
+      return;
+    }
+    if (parsed > effectiveMax) {
+      parsed = effectiveMax;
+    }
+    if (parsed < min) {
+      parsed = min;
     }
     setDraft(String(parsed));
     if (parsed !== value) {
@@ -57,15 +66,28 @@ export function DraftQuantityInput({
     }
   };
 
+  const handleBlur = () => {
+    if (isCancelledRef.current) {
+      isCancelledRef.current = false;
+      return;
+    }
+    commitValue(draft);
+  };
+
+  const isInputDisabled = disabled || (max !== undefined && max <= 0);
+
   return (
     <Input
       type="text"
       inputMode="numeric"
       pattern="[0-9]*"
-      disabled={disabled}
+      disabled={isInputDisabled}
       title={title}
       value={draft}
-      onFocus={(e) => e.target.select()}
+      onFocus={(e) => {
+        isCancelledRef.current = false;
+        e.target.select();
+      }}
       onChange={(e) => {
         const val = e.target.value;
         // Accept empty string or numeric digits only
@@ -73,7 +95,7 @@ export function DraftQuantityInput({
           setDraft(val);
         }
       }}
-      onBlur={() => commitValue(draft)}
+      onBlur={handleBlur}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -81,6 +103,7 @@ export function DraftQuantityInput({
           e.currentTarget.blur();
         } else if (e.key === 'Escape') {
           e.preventDefault();
+          isCancelledRef.current = true;
           setDraft(String(value));
           e.currentTarget.blur();
         }

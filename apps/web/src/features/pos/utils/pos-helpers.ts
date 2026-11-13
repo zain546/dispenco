@@ -28,6 +28,7 @@ export const getProductExpiryStatus = (dateStr?: string | null): ExpiryBadgeInfo
 
   const now = new Date();
   const diffTime = expiry.getTime() - now.getTime();
+  const isPast = diffTime <= 0;
   const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   const formattedDate = expiry.toLocaleDateString('en-GB', {
@@ -35,8 +36,8 @@ export const getProductExpiryStatus = (dateStr?: string | null): ExpiryBadgeInfo
     year: '2-digit',
   });
 
-  if (daysRemaining < 0) {
-    return { isExpired: true, isNearExpiry: false, formattedDate, daysRemaining };
+  if (isPast || daysRemaining < 0) {
+    return { isExpired: true, isNearExpiry: false, formattedDate, daysRemaining: Math.min(0, daysRemaining) };
   }
 
   if (daysRemaining <= 30) {
