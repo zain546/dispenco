@@ -187,15 +187,25 @@ export const posLocalDataService = {
       async () => {
         const recordId = await posDb.offlineSales.add(record);
 
+        // Group items by productId to accurately calculate combined BOX + UNIT deductions
+        const productDeductions = new Map<string, { unitTypeUnits: number; boxTypeBoxes: number }>();
         for (const item of payload.items) {
-          const prod = await posDb.localProducts.get(item.productId);
+          const current = productDeductions.get(item.productId) || { unitTypeUnits: 0, boxTypeBoxes: 0 };
+          if (item.unitType === 'UNIT') {
+            current.unitTypeUnits += item.quantity;
+          } else {
+            current.boxTypeBoxes += item.quantity;
+          }
+          productDeductions.set(item.productId, current);
+        }
+
+        for (const [productId, totalsDeduct] of productDeductions.entries()) {
+          const prod = await posDb.localProducts.get(productId);
           if (prod) {
             const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
-            const deduct = item.unitType === 'UNIT'
-              ? Math.max(1, Math.ceil(item.quantity / packSize))
-              : item.quantity;
-            const newStock = Math.max(0, prod.totalStock - deduct);
-            await posDb.localProducts.update(item.productId, { totalStock: newStock });
+            const totalBoxesDeducted = totalsDeduct.boxTypeBoxes + (totalsDeduct.unitTypeUnits > 0 ? Math.ceil(totalsDeduct.unitTypeUnits / packSize) : 0);
+            const newStock = Math.max(0, prod.totalStock - totalBoxesDeducted);
+            await posDb.localProducts.update(productId, { totalStock: newStock });
           }
         }
 
@@ -316,16 +326,25 @@ export const posLocalDataService = {
     if (!record) return false;
 
     if (resolution === 'CANCEL') {
-      // Restore local stock that was decremented
+      // Restore local stock that was decremented (grouped by productId for combined BOX + UNIT lines)
+      const productRestorations = new Map<string, { unitTypeUnits: number; boxTypeBoxes: number }>();
       for (const item of record.payload.items) {
-        const prod = await posDb.localProducts.get(item.productId);
+        const current = productRestorations.get(item.productId) || { unitTypeUnits: 0, boxTypeBoxes: 0 };
+        if (item.unitType === 'UNIT') {
+          current.unitTypeUnits += item.quantity;
+        } else {
+          current.boxTypeBoxes += item.quantity;
+        }
+        productRestorations.set(item.productId, current);
+      }
+
+      for (const [productId, totalsRestore] of productRestorations.entries()) {
+        const prod = await posDb.localProducts.get(productId);
         if (prod) {
           const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
-          const packsToRestore = item.unitType === 'UNIT'
-            ? Math.max(1, Math.ceil(item.quantity / packSize))
-            : item.quantity;
-          await posDb.localProducts.update(item.productId, {
-            totalStock: prod.totalStock + packsToRestore,
+          const totalBoxesToRestore = totalsRestore.boxTypeBoxes + (totalsRestore.unitTypeUnits > 0 ? Math.ceil(totalsRestore.unitTypeUnits / packSize) : 0);
+          await posDb.localProducts.update(productId, {
+            totalStock: prod.totalStock + totalBoxesToRestore,
           });
         }
       }
