@@ -14,6 +14,8 @@ export interface OfflineSaleItemPayload {
 }
 
 export interface OfflineSalePayload {
+  clientTxId?: string;
+  storeId?: string;
   customerName?: string;
   customerPhone?: string;
   doctorName?: string;
@@ -34,6 +36,7 @@ export interface OfflineSaleRecord {
     taxTotal: number;
     grandTotal: number;
   };
+  deductions?: Record<string, number>;
   status: 'pending_sync' | 'synced' | 'conflict';
   errorReason?: string;
   conflictDetails?: {

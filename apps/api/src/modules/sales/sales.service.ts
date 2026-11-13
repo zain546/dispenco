@@ -22,6 +22,23 @@ export class SalesService {
       throw new BadRequestException('Sale cart must contain at least one medicine item');
     }
 
+    const paymentMethod = dto.paymentMethod || PaymentMethod.CASH;
+    const isOnCredit = paymentMethod === PaymentMethod.CREDIT;
+
+    // Strict Khata check: Credit transactions require an explicitly selected registered customer ID
+    if (isOnCredit && !dto.customerId) {
+      throw new BadRequestException('Customer account required for Khata credit sale.');
+    }
+
+    // Idempotency check: if clientTxId was already processed within last 24h, return cached result immediately
+    if (dto.clientTxId) {
+      const idempotencyKey = `idempotency:sale:${tenantId}:${dto.clientTxId}`;
+      const cachedResult = await this.cache.get<any>(idempotencyKey);
+      if (cachedResult) {
+        return cachedResult;
+      }
+    }
+
     // Determine target store
     let targetStoreId = dto.storeId;
     if (targetStoreId) {
@@ -43,23 +60,92 @@ export class SalesService {
 
     // Execute atomic transaction
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Customer linkage / creation if customer details provided
+      // 0. Durable DB Idempotency check: if clientTxId was already committed, recover and return recorded sale
+      if (dto.clientTxId) {
+        const existingPayment = await tx.payment.findFirst({
+          where: {
+            tenantId,
+            gatewayRef: dto.clientTxId,
+            status: PaymentStatus.COMPLETED,
+          },
+          include: {
+            sale: {
+              include: {
+                saleItems: {
+                  include: {
+                    product: true,
+                    batch: true,
+                  },
+                },
+                customer: true,
+                store: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (existingPayment?.sale) {
+          const s = existingPayment.sale;
+          return {
+            success: true,
+            message: `Sale already processed (recovered from transaction record). Receipt: ${s.receiptNumber}`,
+            sale: {
+              id: s.id,
+              receiptNumber: s.receiptNumber,
+              totalAmount: Number(s.totalAmount),
+              discountAmount: Number(s.discountAmount),
+              taxAmount: Number(s.taxAmount),
+              subtotal: Number(s.totalAmount) + Number(s.discountAmount) - Number(s.taxAmount),
+              status: s.status,
+              createdAt: s.createdAt.toISOString(),
+              customerName: s.customer?.name || dto.customerName?.trim() || 'Walk-in Customer',
+              customer: s.customer,
+              doctorName: s.doctorName || 'Self',
+              cashierName: s.user?.name || 'Staff',
+              itemsCount: s.saleItems.length,
+              items: s.saleItems.map((si) => ({
+                id: si.id,
+                productId: si.productId,
+                productName: si.product.name,
+                unit: si.product.unit,
+                batchNumber: si.batch.batchNumber,
+                expiryDate: si.batch.expiryDate.toISOString(),
+                quantity: si.quantity,
+                unitPrice: Number(si.unitPrice),
+                discount: Number(si.discount),
+                discountAmount: Number(si.discount),
+                taxApplied: Number(si.taxApplied),
+                taxAmount: Number(si.taxApplied),
+                lineTotal: Number(si.unitPrice) * si.quantity - Number(si.discount),
+              })),
+            },
+          };
+        }
+      }
+
+      // 1. Customer linkage: only link or auto-create a Customer ledger row if customerId was provided OR a valid phone is supplied
       let customerId = dto.customerId;
-      if (!customerId && dto.customerName) {
-        let existingCustomer = dto.customerPhone
-          ? await tx.customer.findFirst({
-              where: { tenantId, phone: dto.customerPhone.trim() },
-            })
-          : null;
+      if (!customerId && dto.customerPhone?.trim()) {
+        const cleanPhone = dto.customerPhone.trim();
+        const existingCustomer = await tx.customer.findFirst({
+          where: { tenantId, phone: cleanPhone },
+        });
 
         if (existingCustomer) {
           customerId = existingCustomer.id;
-        } else {
+        } else if (dto.customerName?.trim()) {
           const newCust = await tx.customer.create({
             data: {
               tenantId,
               name: dto.customerName.trim(),
-              phone: dto.customerPhone?.trim() || null,
+              phone: cleanPhone,
             },
           });
           customerId = newCust.id;
@@ -111,6 +197,16 @@ export class SalesService {
           throw new NotFoundException(`Medicine product with ID "${item.productId}" not found`);
         }
 
+        if (product.isControlledSubstance) {
+          const doc = (dto.doctorName || '').trim();
+          const withoutPrefix = doc.replace(/^(dr\.?|doctor)\s*/i, '').trim();
+          if (!doc || doc.toLowerCase() === 'self' || withoutPrefix.length < 2) {
+            throw new BadRequestException(
+              `Prescribing doctor name required for controlled medicine "${product.name}".`,
+            );
+          }
+        }
+
         // Determine effective tax rate percent for product from taxCode or item override
         let effectiveTaxRatePercent = item.taxRatePercent ?? 0;
         if (effectiveTaxRatePercent === 0 && product.taxCode) {
@@ -138,6 +234,12 @@ export class SalesService {
                 effectiveTaxRatePercent = 0;
             }
           }
+        }
+
+        if (item.unitPrice !== undefined && item.unitPrice <= 0) {
+          throw new BadRequestException(
+            `Unit price for "${product.name}" must be greater than 0. Use discount for free items.`,
+          );
         }
 
         const packSize = Number((product.attributes as Record<string, unknown>)?.packSize) || 1;
@@ -191,11 +293,12 @@ export class SalesService {
 
           const itemSubtotal = unitPrice * allocQuantity;
 
-          // Item-level discount calculation
+          // Item-level discount calculation (clamped to 100% or line subtotal)
           let itemDiscount = 0;
           if (item.discount && item.discount > 0) {
             if (item.discountType === DiscountType.PERCENT) {
-              itemDiscount = (itemSubtotal * item.discount) / 100;
+              const clampedPercent = Math.min(100, Math.max(0, item.discount));
+              itemDiscount = (itemSubtotal * clampedPercent) / 100;
             } else {
               // Flat discount split proportionally across allocations
               itemDiscount = Math.min(itemSubtotal, (item.discount / item.quantity) * allocQuantity);
@@ -228,14 +331,34 @@ export class SalesService {
         }
       }
 
-      // Overall Sale level discount
-      if (dto.overallDiscount && dto.overallDiscount > 0) {
+      // Overall Sale level discount (strictly calculated against net remaining subtotal)
+      let overallDiscAmount = 0;
+      const remainingSubtotal = Math.max(0, runningSubtotal - runningDiscountTotal);
+
+      if (dto.overallDiscount && dto.overallDiscount > 0 && remainingSubtotal > 0) {
         if (dto.overallDiscountType === DiscountType.PERCENT) {
-          const addlDiscount = (runningSubtotal * dto.overallDiscount) / 100;
-          runningDiscountTotal += addlDiscount;
+          const clampedPercent = Math.min(100, Math.max(0, dto.overallDiscount));
+          overallDiscAmount = (remainingSubtotal * clampedPercent) / 100;
         } else {
-          runningDiscountTotal += dto.overallDiscount;
+          overallDiscAmount = Math.min(remainingSubtotal, dto.overallDiscount);
         }
+        runningDiscountTotal += overallDiscAmount;
+      }
+
+      // Proportionally adjust tax when overall discount is applied
+      if (runningTaxTotal > 0 && remainingSubtotal > 0 && overallDiscAmount > 0) {
+        const taxAdjustmentRatio = Math.max(0, 1 - overallDiscAmount / remainingSubtotal);
+        let adjustedTotal = 0;
+
+        // Scale taxApplied in preparedSaleItems proportionally
+        preparedSaleItems.forEach((si) => {
+          const adjustedItemTax = Math.round(Number(si.taxApplied) * taxAdjustmentRatio * 100) / 100;
+          si.taxApplied = new Prisma.Decimal(adjustedItemTax);
+          adjustedTotal += adjustedItemTax;
+        });
+
+        // Set runningTaxTotal exactly to the sum of the rounded item taxes to ensure 100% reconciliation
+        runningTaxTotal = Math.round(adjustedTotal * 100) / 100;
       }
 
       const totalAmount = Math.max(0, runningSubtotal - runningDiscountTotal + runningTaxTotal);
@@ -244,7 +367,7 @@ export class SalesService {
       const isOnCredit = paymentMethod === PaymentMethod.CREDIT;
 
       if (isOnCredit && !customerId) {
-        throw new BadRequestException('A registered customer must be selected to complete a sale on credit (Khata).');
+        throw new BadRequestException('Customer account required for Khata credit sale.');
       }
 
       // 4. Create Sale Record
@@ -299,7 +422,24 @@ export class SalesService {
           customerId,
           amount: new Prisma.Decimal(totalAmount),
           method: paymentMethod,
+          gatewayRef: dto.clientTxId || null,
           status: PaymentStatus.COMPLETED,
+        },
+      });
+
+      // 7. Record durable transaction audit log with customer snapshot
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: 'SALE_CREATE',
+          entityType: 'Sale',
+          entityId: sale.id,
+          metadata: {
+            customerName: dto.customerName?.trim() || null,
+            customerPhone: dto.customerPhone?.trim() || null,
+            clientTxId: dto.clientTxId || null,
+          },
         },
       });
 
@@ -315,7 +455,12 @@ export class SalesService {
           subtotal: Number(runningSubtotal),
           status: sale.status,
         createdAt: sale.createdAt.toISOString(),
-          customerName: sale.customer?.name || null,
+          customerName: sale.customer?.name || dto.customerName?.trim() || null,
+          customer: sale.customer
+            ? { id: sale.customer.id, name: sale.customer.name, phone: sale.customer.phone }
+            : dto.customerName?.trim()
+            ? { id: 'walkin', name: dto.customerName.trim(), phone: dto.customerPhone?.trim() || null }
+            : null,
           doctorName: sale.doctorName || 'Self',
           paymentMethod,
           itemsCount: sale.saleItems.length,
@@ -338,6 +483,12 @@ export class SalesService {
     });
 
     await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+
+    // Cache idempotent response for 24 hours to prevent duplicate sale creation on network retry
+    if (dto.clientTxId) {
+      const idempotencyKey = `idempotency:sale:${tenantId}:${dto.clientTxId}`;
+      await this.cache.set(idempotencyKey, result, 86400);
+    }
 
     return result;
   }
@@ -389,6 +540,21 @@ export class SalesService {
       throw new NotFoundException(`Sale with ID/Receipt "${saleId}" not found`);
     }
 
+    let walkInCustomer: { name: string; phone?: string } | null = null;
+    if (!sale.customer) {
+      const audit = await this.prisma.auditLog.findFirst({
+        where: { tenantId, entityType: 'Sale', entityId: sale.id, action: 'SALE_CREATE' },
+        select: { metadata: true },
+      });
+      const meta = audit?.metadata as Record<string, unknown> | null;
+      if (meta?.customerName && typeof meta.customerName === 'string') {
+        walkInCustomer = {
+          name: meta.customerName,
+          phone: typeof meta.customerPhone === 'string' ? meta.customerPhone : undefined,
+        };
+      }
+    }
+
     return {
       success: true,
       sale: {
@@ -408,7 +574,15 @@ export class SalesService {
               address: sale.customer.address,
               creditBalance: Number(sale.customer.creditBalance),
             }
-          : null,
+          : walkInCustomer
+            ? {
+                id: null,
+                name: walkInCustomer.name,
+                phone: walkInCustomer.phone || null,
+                address: null,
+                creditBalance: 0,
+              }
+            : null,
         user: sale.user,
         cashierName: sale.user?.name || 'Staff',
         store: {
@@ -493,6 +667,26 @@ export class SalesService {
       },
     });
 
+    const salesWithoutCustomer = sales.filter((s) => !s.customer).map((s) => s.id);
+    const auditNameMap = new Map<string, string>();
+    if (salesWithoutCustomer.length > 0) {
+      const audits = await this.prisma.auditLog.findMany({
+        where: {
+          tenantId,
+          entityType: 'Sale',
+          entityId: { in: salesWithoutCustomer },
+          action: 'SALE_CREATE',
+        },
+        select: { entityId: true, metadata: true },
+      });
+      for (const a of audits) {
+        const meta = a.metadata as Record<string, unknown> | null;
+        if (meta?.customerName && typeof meta.customerName === 'string') {
+          auditNameMap.set(a.entityId, meta.customerName);
+        }
+      }
+    }
+
     return {
       success: true,
       data: sales.map((s) => ({
@@ -502,7 +696,7 @@ export class SalesService {
         totalAmount: Number(s.totalAmount),
         status: s.status,
         createdAt: s.createdAt.toISOString(),
-        customerName: s.customer?.name || 'Walk-in Customer',
+        customerName: s.customer?.name || auditNameMap.get(s.id) || 'Walk-in Customer',
         cashierName: s.user?.name || 'Staff',
         itemsCount: s.saleItems.length,
         paymentMethod: s.payments[0]?.method || 'CASH',

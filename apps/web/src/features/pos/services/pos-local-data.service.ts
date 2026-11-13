@@ -38,6 +38,15 @@ export const posLocalDataService = {
       const products: ProductData[] = productsRes?.data || [];
       const customers = customersRes?.data || [];
 
+      // Preserve local barcodes that may have been linked offline
+      const existingLocalProducts = await posDb.localProducts.toArray();
+      const localBarcodeMap = new Map<string, string>();
+      for (const lp of existingLocalProducts) {
+        if (lp.barcode) {
+          localBarcodeMap.set(lp.id, lp.barcode);
+        }
+      }
+
       // Map to LocalProductRecord
       const localProductRecords: LocalProductRecord[] = products.map((p) => ({
         id: p.id,
@@ -46,7 +55,7 @@ export const posLocalDataService = {
         genericName: p.genericName || null,
         category: p.category,
         unit: p.unit,
-        barcode: p.barcode || null,
+        barcode: p.barcode || localBarcodeMap.get(p.id) || null,
         isControlledSubstance: Boolean(p.isControlledSubstance),
         isActive: p.isActive,
         lowStockThreshold: p.lowStockThreshold || 10,
@@ -148,6 +157,25 @@ export const posLocalDataService = {
   },
 
   /**
+   * 3b. Update or link a barcode to a local product in IndexedDB for immediate offline scans
+   */
+  async updateLocalProductBarcode(productId: string, barcode: string): Promise<ProductData | null> {
+    const posDb = getPosDatabase();
+    const clean = barcode.trim();
+    if (!clean) return null;
+
+    return await posDb.transaction('rw', posDb.localProducts, async () => {
+      const prod = await posDb.localProducts.get(productId);
+      if (!prod) return null;
+      await posDb.localProducts.update(productId, {
+        barcode: clean,
+        updatedAt: new Date().toISOString(),
+      });
+      return { ...prod, barcode: clean } as unknown as ProductData;
+    });
+  },
+
+  /**
    * 4. Save local-first sale: saves queue record AND immediately decrements local stock
    */
   async recordLocalSale(
@@ -156,14 +184,28 @@ export const posLocalDataService = {
   ): Promise<{ sale: SaleResponse; isOffline: boolean }> {
     const posDb = getPosDatabase();
     const localReceiptNumber = generateLocalReceiptNumber();
-    const clientTxId = generateClientTxId();
+    const clientTxId = payload.clientTxId || generateClientTxId();
     const createdAt = new Date().toISOString();
+
+    // Calculate deductions per line item matching backend SalesService.createSale
+    const deductions: Record<string, number> = {};
+    for (const item of payload.items) {
+      const prod = await posDb.localProducts.get(item.productId);
+      if (prod) {
+        const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
+        const deduct = item.unitType === 'UNIT'
+          ? Math.max(1, Math.ceil(item.quantity / packSize))
+          : Math.max(1, Math.ceil(item.quantity));
+        deductions[item.productId] = (deductions[item.productId] || 0) + deduct;
+      }
+    }
 
     const record: OfflineSaleRecord = {
       localReceiptNumber,
       clientTxId,
-      payload,
+      payload: { ...payload, clientTxId },
       totals,
+      deductions,
       status: 'pending_sync',
       createdAt,
     };
@@ -175,15 +217,11 @@ export const posLocalDataService = {
       async () => {
         const recordId = await posDb.offlineSales.add(record);
 
-        for (const item of payload.items) {
-          const prod = await posDb.localProducts.get(item.productId);
+        for (const [productId, deduct] of Object.entries(deductions)) {
+          const prod = await posDb.localProducts.get(productId);
           if (prod) {
-            const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
-            const deduct = item.unitType === 'UNIT'
-              ? Math.max(1, Math.ceil(item.quantity / packSize))
-              : item.quantity;
             const newStock = Math.max(0, prod.totalStock - deduct);
-            await posDb.localProducts.update(item.productId, { totalStock: newStock });
+            await posDb.localProducts.update(productId, { totalStock: newStock });
           }
         }
 
@@ -304,17 +342,28 @@ export const posLocalDataService = {
     if (!record) return false;
 
     if (resolution === 'CANCEL') {
-      // Restore local stock that was decremented
-      for (const item of record.payload.items) {
-        const prod = await posDb.localProducts.get(item.productId);
-        if (prod) {
-          const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
-          const packsToRestore = item.unitType === 'UNIT'
-            ? Math.max(1, Math.ceil(item.quantity / packSize))
-            : item.quantity;
-          await posDb.localProducts.update(item.productId, {
-            totalStock: prod.totalStock + packsToRestore,
-          });
+      // Restore local stock using recorded deductions, or per-line fallback for older records
+      if (record.deductions && Object.keys(record.deductions).length > 0) {
+        for (const [productId, packsToRestore] of Object.entries(record.deductions)) {
+          const prod = await posDb.localProducts.get(productId);
+          if (prod) {
+            await posDb.localProducts.update(productId, {
+              totalStock: prod.totalStock + packsToRestore,
+            });
+          }
+        }
+      } else {
+        for (const item of record.payload.items) {
+          const prod = await posDb.localProducts.get(item.productId);
+          if (prod) {
+            const packSize = Number((prod.attributes as Record<string, unknown>)?.packSize) || 1;
+            const packsToRestore = item.unitType === 'UNIT'
+              ? Math.max(1, Math.ceil(item.quantity / packSize))
+              : Math.max(1, Math.ceil(item.quantity));
+            await posDb.localProducts.update(item.productId, {
+              totalStock: prod.totalStock + packsToRestore,
+            });
+          }
         }
       }
       await posDb.offlineSales.delete(recordId);

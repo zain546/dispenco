@@ -7,24 +7,15 @@ import {
   Search,
   Plus,
   Minus,
-  Trash2,
   CheckCircle2,
-  Printer,
-  CreditCard,
-  Banknote,
   Receipt,
-  User,
-  Phone,
   Zap,
   ArrowRight,
   RotateCcw,
   Loader2,
   Sparkles,
-  Percent,
-  DollarSign,
   AlertCircle,
   Tag,
-  Download,
   Star,
   History,
   Ban,
@@ -33,23 +24,8 @@ import {
   WifiOff,
   Database,
   Pill,
-  Package,
-  UserPlus,
-  Stethoscope,
-  UserCheck,
-  X,
-  BookOpen,
-  AlertTriangle,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,37 +40,36 @@ import { posLocalDataService } from '../services/pos-local-data.service';
 import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
 import { RecentSalesModal } from './recent-sales-modal';
+import { DraftQuantityInput } from './draft-quantity-input';
+import { PosPackSizeModal } from './pos-pack-size-modal';
+import { PosLinkBarcodeModal } from './pos-link-barcode-modal';
+import { PosCartSection } from './pos-cart-section';
+import { PosPaymentSidebar } from './pos-payment-sidebar';
+import type { CartItem, CartTotals, PaymentMethod, UnitType, DiscountType } from '../types/pos-types';
+import {
+  getPackSize,
+  getSingleUnitPrice,
+  isValidDoctorName,
+  getProductExpiryStatus,
+  getCommittedUnitsInCart,
+  getMaxAllowedQuantity,
+  getKhataBalanceBadge,
+} from '../utils/pos-helpers';
+import { playScanSuccess, playScanError } from '../utils/pos-audio';
 import { formatCurrency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
 import { useAuth } from '@/context/auth-context';
+import { usePermissions } from '@/hooks/use-permissions';
 import { toast } from 'sonner';
 
-export interface CartItem {
-  product: ProductData;
-  quantity: number;
-  unitPrice: number;
-  unitType: 'BOX' | 'UNIT';
-  discount: number;
-  discountType: 'FLAT' | 'PERCENT';
-  taxRatePercent: number;
-}
-
-const getPackSize = (product: ProductData): number => {
-  const attrs = (product.attributes || {}) as Record<string, unknown>;
-  return Math.max(1, Number(attrs.packSize) || 1);
-};
-
-const getSingleUnitPrice = (product: ProductData): number => {
-  const boxPrice = product.latestSellPrice ?? 0;
-  const packSize = getPackSize(product);
-  return packSize > 0 ? Number((boxPrice / packSize).toFixed(2)) : boxPrice;
-};
+export type { CartItem };
 
 export function POSTerminal() {
   const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
   const { user: currentUser } = useAuth();
+  const { isOwner, isManager, canManageInventory } = usePermissions();
 
   // Cart & Search State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -114,12 +89,15 @@ export function POSTerminal() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [doctorName, setDoctorName] = useState('Self');
   const [isSelfDoctor, setIsSelfDoctor] = useState(true);
+  // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
+  const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
   const [overallDiscountType, setOverallDiscountType] = useState<'FLAT' | 'PERCENT'>('FLAT');
   const customerSearchRef = useRef<HTMLDivElement>(null);
   const cashInputRef = useRef<HTMLInputElement>(null);
+  const doctorInputRef = useRef<HTMLInputElement>(null);
   const productSearchContainerRef = useRef<HTMLDivElement>(null);
 
   // Checkout State
@@ -175,15 +153,31 @@ export function POSTerminal() {
     const timer = setTimeout(async () => {
       setLinkCodeModal((prev) => ({ ...prev, isSearching: true }));
       try {
-        const res = await productsApi.getProducts({
-          search: term,
-          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-          limit: 10,
-        });
+        let results: ProductData[] = [];
+        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+        if (isOnline) {
+          try {
+            const res = await productsApi.getProducts({
+              search: term,
+              storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+              limit: 10,
+            });
+            results = res?.data || [];
+          } catch {
+            // Online search failed; proceed to offline fallback
+          }
+        }
+
+        // Offline or fallback to local IndexedDB catalog
+        if (results.length === 0) {
+          results = await posLocalDataService.searchLocalProducts(term);
+        }
+
         if (!cancelled) {
           setLinkCodeModal((prev) => ({
             ...prev,
-            results: res?.data || [],
+            results,
             isSearching: false,
           }));
         }
@@ -204,14 +198,25 @@ export function POSTerminal() {
     if (!code) return;
     setLinkCodeModal((prev) => ({ ...prev, isLinking: true }));
     try {
-      const updatedRes = await productsApi.updateProduct(product.id, {
-        barcode: code,
-      });
-      const updatedProduct: ProductData = updatedRes?.data
-        ? { ...product, ...updatedRes.data, barcode: code }
-        : { ...product, barcode: code };
+      // 1. Immediately update IndexedDB local cache so future offline scans match instantly
+      const localUpdated = await posLocalDataService.updateLocalProductBarcode(product.id, code);
+      let updatedProduct: ProductData = localUpdated || { ...product, barcode: code };
 
-      toast.success(`Linked QR/Barcode "${code}" to "${product.name}"!`);
+      // 2. If online, sync barcode association to backend API catalog
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      if (isOnline) {
+        const updatedRes = await productsApi.updateProduct(product.id, {
+          barcode: code,
+        });
+        if (updatedRes?.data) {
+          updatedProduct = { ...updatedProduct, ...updatedRes.data, barcode: code };
+        }
+      }
+
+      toast.success(
+        `Linked QR/Barcode "${code}" to "${product.name}"${!isOnline ? ' (saved locally for offline use)' : ''}!`
+      );
+      playScanSuccess();
       setLinkCodeModal({
         isOpen: false,
         scannedCode: '',
@@ -224,6 +229,7 @@ export function POSTerminal() {
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
       posLocalDataService.syncCatalogToLocal(targetStore).catch(() => {});
     } catch (err) {
+      playScanError();
       toast.error(getErrorMessage(err, 'Failed to link QR/barcode to medicine'));
       setLinkCodeModal((prev) => ({ ...prev, isLinking: false }));
     }
@@ -240,12 +246,16 @@ export function POSTerminal() {
 
   const handleSavePackSize = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!isOwner && !isManager && !canManageInventory) {
+      toast.error('Manager approval required to change pack size.');
+      setPackSizeModal((prev) => ({ ...prev, isOpen: false }));
+      return;
+    }
     const parsed = parseInt(packSizeModal.packSize, 10);
     if (!isNaN(parsed) && parsed > 0 && packSizeModal.itemIndex >= 0) {
       updatePackSize(packSizeModal.itemIndex, parsed);
-      toast.success(`Pack size for "${packSizeModal.productName}" updated to ${parsed} units/box`);
     } else {
-      toast.error('Please enter a valid positive number for pack size.');
+      toast.error('Please enter a valid pack size (e.g. 10 or 100).');
     }
     setPackSizeModal((prev) => ({ ...prev, isOpen: false }));
   };
@@ -455,6 +465,10 @@ export function POSTerminal() {
         e.preventDefault();
         const selected = searchResults[selectedResultIndex] || searchResults[0];
         if (selected) {
+          if ((selected.totalStock ?? 0) <= 0) {
+            toast.warning(`Cannot add "${selected.name}" — Out of stock.`);
+            return;
+          }
           addToCart(selected, 'UNIT');
           clearSearch(true);
         }
@@ -462,30 +476,77 @@ export function POSTerminal() {
     }
   };
 
+  const isAnyModalOpen = Boolean(
+    isReceiptOpen ||
+    isRecentSalesOpen ||
+    isOfflineModalOpen ||
+    isAddCustomerModalOpen ||
+    packSizeModal.isOpen ||
+    linkCodeModal.isOpen
+  );
+
+  // Keep a stable ref to latest POS state to avoid recreating the global listener on every keystroke
+  const stateRef = useRef({
+    cart,
+    isSubmitting,
+    isAnyModalOpen,
+    paymentMethod,
+    selectedCustomer,
+    hasControlledMedicine,
+    doctorName,
+    searchResults,
+    searchQuery,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      cart,
+      isSubmitting,
+      isAnyModalOpen,
+      paymentMethod,
+      selectedCustomer,
+      hasControlledMedicine,
+      doctorName,
+      searchResults,
+      searchQuery,
+    };
+  });
+
   // Global Keyboard Shortcuts (F2: Search, F4: Payment Mode, F8: Cash Tendered, F9: Checkout, Esc: Clear)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const state = stateRef.current;
+      // Isolate shortcuts: do not intercept keys if any modal dialog is open
+      if (state.isAnyModalOpen) return;
+
       if (e.key === 'F2') {
         e.preventDefault();
         focusSearchInput();
       } else if (e.key === 'F4') {
         e.preventDefault();
-        setPaymentMethod((prev) => {
-          if (prev === 'CASH') return 'DIGITAL';
-          if (prev === 'DIGITAL') return 'CREDIT';
-          return 'CASH';
-        });
+        // Cycle safely between immediate payment methods (CASH <-> DIGITAL)
+        // CREDIT (Khata) requires explicit cashier selection to prevent accidental credit booking
+        setPaymentMethod((prev) => (prev === 'CASH' ? 'DIGITAL' : 'CASH'));
       } else if (e.key === 'F8') {
         e.preventDefault();
-        if (paymentMethod !== 'CASH') setPaymentMethod('CASH');
+        if (state.paymentMethod !== 'CASH') setPaymentMethod('CASH');
         setTimeout(() => cashInputRef.current?.focus(), 60);
       } else if (e.key === 'F9') {
         e.preventDefault();
-        if (cart.length > 0 && !isSubmitting && !isReceiptOpen) {
+        if (state.cart.length > 0 && !state.isSubmitting) {
+          if (state.paymentMethod === 'CREDIT' && !state.selectedCustomer) {
+            toast.error('Please select a customer for Khata credit.');
+            return;
+          }
+          if (state.hasControlledMedicine && !isValidDoctorName(state.doctorName)) {
+            toast.error("Please enter doctor's name for Rx controlled medicine.");
+            setTimeout(() => doctorInputRef.current?.focus(), 60);
+            return;
+          }
           handleCheckout();
         }
       } else if (e.key === 'Escape') {
-        if (searchResults.length > 0 || searchQuery) {
+        if (state.searchResults.length > 0 || state.searchQuery) {
           e.preventDefault();
           clearSearch(false);
         }
@@ -494,7 +555,7 @@ export function POSTerminal() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, isSubmitting, isReceiptOpen, searchResults, searchQuery, paymentMethod]);
+  }, []);
 
   // Live product search effect with instantaneous local-first read (<5ms)
   useEffect(() => {
@@ -571,27 +632,49 @@ export function POSTerminal() {
     const defaultPrice = initialUnitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
 
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id && item.unitType === initialUnitType
+    );
+
+    const { maxAllowed, totalAvailableUnits, committedUnits } = getMaxAllowedQuantity(
+      cart,
+      product,
+      initialUnitType,
+      existingIndex
+    );
+
+    if (maxAllowed <= 0) {
+      playScanError();
+      if (committedUnits > 0) {
+        toast.warning(
+          `Cannot add more "${product.name}" (${initialUnitType === 'UNIT' ? 'Tablet/Unit' : 'Box'}) — All available stock (${totalAvailableUnits} units) is already in the cart.`
+        );
+      } else {
+        toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+      }
+      return;
+    }
+
     setCart((prev) => {
-      const existingIndex = prev.findIndex(
+      const idx = prev.findIndex(
         (item) => item.product.id === product.id && item.unitType === initialUnitType
       );
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        const currentQty = updated[existingIndex].quantity;
-        const availableStock = product.totalStock ?? 999;
-        const maxStockAllowed = initialUnitType === 'UNIT' ? availableStock * packSize : availableStock;
+      if (idx > -1) {
+        const currentQty = prev[idx].quantity;
 
-        if (currentQty + 1 > maxStockAllowed) {
+        if (currentQty + 1 > maxAllowed) {
+          playScanError();
           toast.warning(
-            `Maximum available stock reached for ${product.name} (${maxStockAllowed} ${
+            `Maximum available stock reached for ${product.name} (${maxAllowed} ${
               initialUnitType === 'UNIT' ? 'tablet/unit' : product.unit
             }s)`
           );
           return prev;
         }
 
-        updated[existingIndex] = {
-          ...updated[existingIndex],
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
           quantity: currentQty + 1,
         };
         return updated;
@@ -611,6 +694,7 @@ export function POSTerminal() {
       }
     });
 
+    playScanSuccess();
     setSearchQuery('');
     setSearchResults([]);
     toast.success(
@@ -628,25 +712,45 @@ export function POSTerminal() {
     const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
 
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id && item.unitType === unitType
+    );
+
+    const { maxAllowed, totalAvailableUnits, committedUnits } = getMaxAllowedQuantity(
+      cart,
+      product,
+      unitType,
+      existingIndex
+    );
+
+    if (maxAllowed <= 0) {
+      if (committedUnits > 0) {
+        toast.warning(
+          `Cannot add more ${product.name} (${unitType === 'UNIT' ? 'Unit' : 'Box'}) — All available stock (${totalAvailableUnits} units) is already in the cart.`
+        );
+      } else {
+        toast.warning(`Cannot add "${product.name}" — Out of stock (0 available).`);
+      }
+      return;
+    }
+
     setCart((prev) => {
-      const existingIndex = prev.findIndex(
+      const idx = prev.findIndex(
         (item) => item.product.id === product.id && item.unitType === unitType
       );
-      if (existingIndex > -1) {
-        const updated = [...prev];
-        const currentQty = updated[existingIndex].quantity;
-        const availableStock = product.totalStock ?? 999;
-        const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
+      if (idx > -1) {
+        const currentQty = prev[idx].quantity;
 
-        if (currentQty + 1 > maxStockAllowed) {
+        if (currentQty + 1 > maxAllowed) {
           toast.warning(
-            `Max stock reached for ${product.name} (${maxStockAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s)`
+            `Max stock reached for ${product.name} (${maxAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s)`
           );
           return prev;
         }
 
-        updated[existingIndex] = {
-          ...updated[existingIndex],
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
           quantity: currentQty + 1,
         };
         return updated;
@@ -699,24 +803,46 @@ export function POSTerminal() {
     const singleUnitPrice = getSingleUnitPrice(product);
     const defaultPrice = unitType === 'UNIT' ? singleUnitPrice : boxPrice;
     const defaultTaxRate = resolveTaxRateFromCode(product.taxCode);
-    const availableStock = product.totalStock ?? 999;
-    const maxStockAllowed = unitType === 'UNIT' ? availableStock * packSize : availableStock;
-    const clampedQty = Math.min(newQty, maxStockAllowed);
 
-    if (newQty > maxStockAllowed) {
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id && item.unitType === unitType
+    );
+
+    const { maxAllowed, committedUnits } = getMaxAllowedQuantity(
+      cart,
+      product,
+      unitType,
+      existingIndex
+    );
+
+    if (maxAllowed <= 0) {
+      if (committedUnits > 0) {
+        toast.warning(
+          `Cannot allocate ${product.name} (${unitType === 'UNIT' ? 'Unit' : 'Box'}) — All available stock is already in the cart.`
+        );
+      } else {
+        toast.warning(`"${product.name}" is out of stock.`);
+      }
+      setCart((prev) => prev.filter((item) => !(item.product.id === product.id && item.unitType === unitType)));
+      return;
+    }
+
+    const clampedQty = Math.min(newQty, maxAllowed);
+
+    if (newQty > maxAllowed) {
       toast.warning(
-        `Max available stock is ${maxStockAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s`
+        `Max available stock is ${maxAllowed} ${unitType === 'UNIT' ? 'tablet/unit' : product.unit}s`
       );
     }
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex(
+      const idx = prev.findIndex(
         (item) => item.product.id === product.id && item.unitType === unitType
       );
-      if (existingIndex > -1) {
+      if (idx > -1) {
         const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
+        updated[idx] = {
+          ...updated[idx],
           quantity: clampedQty,
         };
         return updated;
@@ -740,33 +866,62 @@ export function POSTerminal() {
   // Toggle cart line item unit type (Box vs Single Unit)
   const toggleUnitType = (index: number, targetUnitType: 'BOX' | 'UNIT') => {
     setCart((prev) => {
-      const updated = [...prev];
-      const item = updated[index];
-      if (item.unitType === targetUnitType) return prev;
+      const item = prev[index];
+      if (!item || item.unitType === targetUnitType) return prev;
 
       const packSize = getPackSize(item.product);
       const boxPrice = item.product.latestSellPrice ?? 0;
       const singleUnitPrice = getSingleUnitPrice(item.product);
 
+      const existingTargetIdx = prev.findIndex(
+        (it, idx) => idx !== index && it.product.id === item.product.id && it.unitType === targetUnitType
+      );
+
+      let requestedTargetQty: number;
       if (targetUnitType === 'UNIT') {
-        updated[index] = {
-          ...item,
-          unitType: 'UNIT',
-          unitPrice: singleUnitPrice,
-          quantity: item.quantity === 1 ? 1 : item.quantity,
-        };
-        toast.info(`Switched ${item.product.name} to Single Tablet/Unit (${singleUnitPrice.toFixed(2)} PKR/unit)`);
+        requestedTargetQty = item.quantity * packSize;
       } else {
-        updated[index] = {
-          ...item,
-          unitType: 'BOX',
-          unitPrice: boxPrice,
-          quantity: Math.max(1, Math.round(item.quantity / packSize)),
-        };
-        toast.info(`Switched ${item.product.name} to Full ${item.product.unit} (${boxPrice.toFixed(2)} PKR/box)`);
+        requestedTargetQty = Math.max(1, Math.floor(item.quantity / packSize));
       }
 
-      return updated;
+      const { maxAllowed } = getMaxAllowedQuantity(
+        prev,
+        item.product,
+        targetUnitType,
+        existingTargetIdx > -1 ? undefined : index
+      );
+
+      if (existingTargetIdx > -1) {
+        const existingItem = prev[existingTargetIdx];
+        const combinedQty = Math.min(existingItem.quantity + requestedTargetQty, existingItem.quantity + maxAllowed);
+        const updated = prev.filter((_, idx) => idx !== index);
+        const adjustedTargetIdx = existingTargetIdx > index ? existingTargetIdx - 1 : existingTargetIdx;
+        updated[adjustedTargetIdx] = {
+          ...existingItem,
+          quantity: Math.max(1, combinedQty),
+        };
+        toast.info(
+          `Merged into ${targetUnitType === 'UNIT' ? 'Single Tablets' : 'Boxes'} (Total: ${Math.max(1, combinedQty)})`
+        );
+        return updated;
+      } else {
+        const updated = [...prev];
+        const clampedQty = Math.max(1, Math.min(requestedTargetQty, maxAllowed));
+        updated[index] = {
+          ...item,
+          unitType: targetUnitType,
+          unitPrice: targetUnitType === 'UNIT' ? singleUnitPrice : boxPrice,
+          quantity: clampedQty,
+        };
+        toast.info(
+          `Switched ${item.product.name} to ${
+            targetUnitType === 'UNIT'
+              ? `Single Tablet/Unit (${singleUnitPrice.toFixed(2)} PKR/unit)`
+              : `Full Box (${boxPrice.toFixed(0)} PKR/box)`
+          }`
+        );
+        return updated;
+      }
     });
   };
 
@@ -775,6 +930,11 @@ export function POSTerminal() {
     if (newPackSize <= 0) return;
     const item = cart[index];
     if (!item) return;
+
+    if (!isOwner && !isManager && !canManageInventory) {
+      toast.error('Manager approval required to change pack size.');
+      return;
+    }
 
     const existingAttrs = (item.product.attributes || {}) as Record<string, unknown>;
     const updatedAttrs = { ...existingAttrs, packSize: newPackSize };
@@ -823,8 +983,10 @@ export function POSTerminal() {
         return;
       }
 
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
       // 2. Fallback to online API lookup if online
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
+      if (isOnline) {
         try {
           const res = await productsApi.lookupByBarcode(
             code,
@@ -837,41 +999,57 @@ export function POSTerminal() {
             return;
           }
         } catch {
-          // Not found by exact barcode; check if QR text matches a medicine name or offer 1-click link
+          // Not found by exact barcode online
         }
+      }
 
-        // 3. If QR code contains medicine name/text, check catalog search
-        if (/[a-zA-Z]{3,}/.test(code) && !/^https?:/i.test(code)) {
+      // 3. If QR code contains medicine name/text, check catalog search (online or local)
+      if (/[a-zA-Z]{3,}/.test(code) && !/^https?:/i.test(code)) {
+        let matchedItems: ProductData[] = [];
+        if (isOnline) {
           try {
             const searchRes = await productsApi.getProducts({
               search: code,
               storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
               limit: 5,
             });
-            const matchedItems = searchRes?.data || [];
-            if (matchedItems.length === 1) {
-              addToCart(matchedItems[0]);
-              setSearchQuery('');
-              focusSearchInput();
-              return;
-            }
+            matchedItems = searchRes?.data || [];
           } catch {
-            // Ignore search error and open link modal
+            // Online search error; will fallback to local search
           }
         }
+        if (matchedItems.length === 0) {
+          matchedItems = await posLocalDataService.searchLocalProducts(code);
+        }
+        if (matchedItems.length === 1) {
+          addToCart(matchedItems[0]);
+          setSearchQuery('');
+          focusSearchInput();
+          return;
+        }
+      }
 
-        // 4. Unregistered QR / Barcode: Open clean Link or Create Medicine modal
-        setLinkCodeModal({
-          isOpen: true,
-          scannedCode: code,
-          parsedData,
-          query: '',
-          results: [],
-          isSearching: false,
-          isLinking: false,
-        });
-      } else {
-        toast.error(`QR/Barcode "${code}" not found in local offline cache`);
+      // 4. Unregistered QR / Barcode: Play error alert & open Link or Create Medicine modal
+      playScanError();
+
+      const seedQuery =
+        parsedData?.gtin ||
+        (/[a-zA-Z]{3,}/.test(code) && !/^https?:/i.test(code) ? code : '');
+
+      setLinkCodeModal({
+        isOpen: true,
+        scannedCode: code,
+        parsedData,
+        query: seedQuery,
+        results: [],
+        isSearching: false,
+        isLinking: false,
+      });
+
+      if (!isOnline) {
+        toast.info(
+          `QR/Barcode "${code}" not registered. Match with a cached medicine to link for offline billing.`
+        );
       }
     } finally {
       setSearchQuery('');
@@ -887,15 +1065,27 @@ export function POSTerminal() {
     setCart((prev) => {
       const updated = [...prev];
       const item = updated[index];
-      const packSize = getPackSize(item.product);
-      const availableStockBoxes = item.product.totalStock ?? 999;
-      const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
+      if (!item) return prev;
 
-      if (newQty > maxStock) {
+      const { maxAllowed, totalAvailableUnits, committedUnits } = getMaxAllowedQuantity(
+        prev,
+        item.product,
+        item.unitType,
+        index
+      );
+
+      if (maxAllowed <= 0) {
         toast.warning(
-          `Cannot exceed available stock of ${maxStock} ${item.unitType === 'UNIT' ? 'tablet/unit' : item.product.unit}(s)`
+          `"${item.product.name}" has no additional stock available (${committedUnits}/${totalAvailableUnits} units allocated).`
         );
-        updated[index].quantity = maxStock;
+        return prev;
+      }
+
+      if (newQty > maxAllowed) {
+        toast.warning(
+          `Cannot exceed available stock of ${maxAllowed} ${item.unitType === 'UNIT' ? 'tablet/unit' : item.product.unit}(s)`
+        );
+        updated[index].quantity = maxAllowed;
       } else {
         updated[index].quantity = newQty;
       }
@@ -904,9 +1094,41 @@ export function POSTerminal() {
   };
 
   const updateUnitPrice = (index: number, newPrice: number) => {
+    const item = cart[index];
+    if (!item) return;
+
+    if (newPrice <= 0) {
+      toast.error('Price must be greater than 0. Use discount for free items.');
+      return;
+    }
+
+    const packSize = getPackSize(item.product);
+    const unitCostPrice =
+      item.unitType === 'BOX'
+        ? (item.product.latestCostPrice ?? 0)
+        : packSize > 0
+          ? (item.product.latestCostPrice ?? 0) / packSize
+          : (item.product.latestCostPrice ?? 0);
+
+    if (unitCostPrice > 0 && newPrice < unitCostPrice) {
+      if (!isOwner && !isManager && !canManageInventory) {
+        toast.error(
+          `Manager approval needed to sell ${item.product.name} below cost (${formatCurrency(unitCostPrice)}).`
+        );
+        return;
+      }
+      toast.warning(
+        `Selling below cost price (${formatCurrency(unitCostPrice)}).`
+      );
+    }
+
     setCart((prev) => {
       const updated = [...prev];
-      updated[index].unitPrice = Math.max(0, newPrice);
+      if (!updated[index]) return prev;
+      updated[index] = {
+        ...updated[index],
+        unitPrice: Math.max(0.01, Number(newPrice.toFixed(2))),
+      };
       return updated;
     });
   };
@@ -914,8 +1136,24 @@ export function POSTerminal() {
   const updateItemDiscount = (index: number, val: number, type?: 'FLAT' | 'PERCENT') => {
     setCart((prev) => {
       const updated = [...prev];
-      updated[index].discount = Math.max(0, val);
-      if (type) updated[index].discountType = type;
+      const item = updated[index];
+      if (!item) return prev;
+
+      const targetType = type || item.discountType;
+      const lineSubtotal = item.unitPrice * item.quantity;
+      let clampedVal = Math.max(0, val);
+
+      if (targetType === 'PERCENT') {
+        clampedVal = Math.min(100, clampedVal);
+      } else {
+        clampedVal = Math.min(lineSubtotal, clampedVal);
+      }
+
+      updated[index] = {
+        ...item,
+        discount: clampedVal,
+        discountType: targetType,
+      };
       return updated;
     });
   };
@@ -936,11 +1174,11 @@ export function POSTerminal() {
     toast.info('Cart cleared');
   };
 
-  // Calculations
+  // Calculations: strictly sequential discount calculation & proportional tax adjustment
   const calculateCartTotals = () => {
     let subtotal = 0;
     let itemDiscounts = 0;
-    let taxTotal = 0;
+    let unadjustedTaxTotal = 0;
 
     cart.forEach((item) => {
       const lineSubtotal = item.unitPrice * item.quantity;
@@ -948,28 +1186,37 @@ export function POSTerminal() {
 
       if (item.discount > 0) {
         if (item.discountType === 'PERCENT') {
-          lineDiscount = (lineSubtotal * item.discount) / 100;
+          const clampedPercent = Math.min(100, Math.max(0, item.discount));
+          lineDiscount = (lineSubtotal * clampedPercent) / 100;
         } else {
           lineDiscount = Math.min(lineSubtotal, item.discount);
         }
       }
 
       const taxableAmount = Math.max(0, lineSubtotal - lineDiscount);
-      const lineTax = (taxableAmount * item.taxRatePercent) / 100;
+      const lineTax = (taxableAmount * (item.taxRatePercent || 0)) / 100;
 
       subtotal += lineSubtotal;
       itemDiscounts += lineDiscount;
-      taxTotal += lineTax;
+      unadjustedTaxTotal += lineTax;
     });
 
+    // Order-level discount strictly applies to remaining post-item-discount balance
+    const remainingSubtotal = Math.max(0, subtotal - itemDiscounts);
     let overallDiscAmount = 0;
-    if (overallDiscount > 0) {
+
+    if (overallDiscount > 0 && remainingSubtotal > 0) {
       if (overallDiscountType === 'PERCENT') {
-        overallDiscAmount = (subtotal * overallDiscount) / 100;
+        const clampedPercent = Math.min(100, Math.max(0, overallDiscount));
+        overallDiscAmount = (remainingSubtotal * clampedPercent) / 100;
       } else {
-        overallDiscAmount = Math.min(subtotal, overallDiscount);
+        overallDiscAmount = Math.min(remainingSubtotal, overallDiscount);
       }
     }
+
+    // Proportionally scale tax when order-level discount is applied
+    const taxAdjustmentRatio = remainingSubtotal > 0 ? Math.max(0, 1 - overallDiscAmount / remainingSubtotal) : 0;
+    const taxTotal = Math.round(unadjustedTaxTotal * taxAdjustmentRatio * 100) / 100;
 
     const totalDiscount = itemDiscounts + overallDiscAmount;
     const grandTotal = Math.max(0, subtotal - totalDiscount + taxTotal);
@@ -988,41 +1235,77 @@ export function POSTerminal() {
   const tenderedNum = Number(cashTendered) || 0;
   const changeDue = Math.max(0, tenderedNum - totals.grandTotal);
 
+  // Automatically select Doctor prescriber mode when a controlled medicine is added to the cart
+  useEffect(() => {
+    if (hasControlledMedicine && isSelfDoctor) {
+      setIsSelfDoctor(false);
+      if (doctorName === 'Self' || !doctorName) {
+        setDoctorName('Dr. ');
+      }
+    }
+  }, [hasControlledMedicine, isSelfDoctor, doctorName]);
+
   // Handle Checkout submission
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      toast.error('Cart is empty. Scan or search medicines to add.');
+      toast.error('Cart is empty. Add a medicine first.');
       return;
     }
 
     if (paymentMethod === 'CASH' && cashTendered && tenderedNum < totals.grandTotal) {
-      toast.error(`Cash tendered (${formatCurrency(tenderedNum)}) is less than total amount (${formatCurrency(totals.grandTotal)})`);
+      toast.error(`Cash received is less than total bill (${formatCurrency(totals.grandTotal)}).`);
       return;
     }
 
     if (stores.length === 0) {
-      toast.error('No active store branch found. Please add a store branch in settings before processing sales.');
+      toast.error('No store branch found. Please add one in settings.');
       return;
     }
 
     if (isAllStores) {
-      toast.error('Please select a specific store branch from the header switcher to process sales.');
+      toast.error('Please select a specific store branch from the header.');
       return;
     }
 
     const currentBranchId = activeStoreId || stores[0]?.id;
     if (!currentBranchId) {
-      toast.error('No valid store branch selected. Please select a branch to process sales.');
+      toast.error('Please select a store branch to process sales.');
       return;
     }
 
     if (paymentMethod === 'CREDIT' && !selectedCustomer) {
-      toast.error('A registered customer must be selected from the ledger to complete a sale on credit (Khata).');
+      toast.error('Please select a customer for Khata credit.');
       return;
     }
 
+    if (hasControlledMedicine && !isValidDoctorName(doctorName)) {
+      toast.error("Please enter doctor's name for Rx controlled medicine.");
+      setTimeout(() => doctorInputRef.current?.focus(), 60);
+      return;
+    }
+
+    const zeroPriceItem = cart.find((i) => i.unitPrice <= 0);
+    if (zeroPriceItem) {
+      toast.error(`"${zeroPriceItem.product.name}" price cannot be 0. Use discount instead.`);
+      return;
+    }
+
+    if (!selectedCustomer && customerPhone.trim()) {
+      const cleanPhone = customerPhone.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^\d{7,15}$/.test(cleanPhone)) {
+        toast.error('Enter a valid phone number (7–15 digits) or leave blank.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
+    const clientTxId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
     const payload = {
+      clientTxId,
       storeId: currentBranchId || undefined,
       customerId: selectedCustomer?.id || undefined,
       customerName: (selectedCustomer ? selectedCustomer.name : customerName.trim()) || undefined,
@@ -1033,6 +1316,8 @@ export function POSTerminal() {
       paymentMethod,
       items: cart.map((item) => ({
         productId: item.product.id,
+        productName: item.product.name,
+        unit: item.unitType === 'UNIT' ? (formatUnitPlural(item.product.unit, 1) || 'Tablet') : item.product.unit,
         quantity: item.quantity,
         unitType: item.unitType,
         unitPrice: item.unitPrice,
@@ -1199,24 +1484,53 @@ export function POSTerminal() {
           </Button>
 
           <div className="hidden lg:flex items-center gap-1.5 flex-wrap">
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            <button
+              type="button"
+              onClick={focusSearchInput}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Focus product search (F2)"
+            >
               F2 Search
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </button>
+            <span className="px-2 py-1 bg-muted/60 border border-border/80 rounded-md text-micro font-mono font-medium text-muted-foreground/80 shadow-2xs select-none">
               ↑↓ / ↵ Select
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </span>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod((prev) => (prev === 'CASH' ? 'DIGITAL' : 'CASH'))}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Toggle Payment Mode (F4)"
+            >
               F4 Payment Mode
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (paymentMethod !== 'CASH') setPaymentMethod('CASH');
+                setTimeout(() => cashInputRef.current?.focus(), 60);
+              }}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Tender Cash (F8)"
+            >
               F8 Tender Cash
-            </kbd>
-            <kbd className="px-2 py-1 bg-primary/10 border border-primary/20 text-primary rounded-md text-micro font-mono font-semibold shadow-2xs">
+            </button>
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={cart.length === 0 || isSubmitting}
+              className="px-2 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-md text-micro font-mono font-semibold shadow-2xs cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Complete Sale (F9)"
+            >
               F9 Complete Sale
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </button>
+            <button
+              type="button"
+              onClick={() => clearSearch(false)}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Dismiss search (Esc)"
+            >
               Esc Dismiss
-            </kbd>
+            </button>
           </div>
         </div>
       </div>
@@ -1280,24 +1594,38 @@ export function POSTerminal() {
                       <span>Top Seller Speed Dial:</span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {topSellers.map((prod) => (
-                        <Button
-                          key={prod.id}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addToCart(prod)}
-                          className="h-7 text-xs gap-1.5 bg-warning/10 hover:bg-warning/20 border-warning/30 text-warning font-semibold rounded-lg shadow-2xs"
-                        >
-                          <Star className="size-3 fill-warning text-warning" />
-                          <span>{prod.name}</span>
-                          {prod.latestSellPrice !== null && prod.latestSellPrice !== undefined && (
-                            <span className="text-micro text-warning font-bold">
-                              ({prod.latestSellPrice.toFixed(0)} PKR)
-                            </span>
-                          )}
-                        </Button>
-                      ))}
+                      {topSellers.map((prod) => {
+                        const isOutOfStock = (prod.totalStock ?? 0) <= 0;
+                        return (
+                          <Button
+                            key={prod.id}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isOutOfStock}
+                            onClick={() => addToCart(prod)}
+                            className={`h-7 text-xs gap-1.5 font-semibold rounded-lg shadow-2xs ${
+                              isOutOfStock
+                                ? 'opacity-50 border-destructive/30 text-destructive cursor-not-allowed'
+                                : 'bg-warning/10 hover:bg-warning/20 border-warning/30 text-warning'
+                            }`}
+                          >
+                            <Star className="size-3 fill-warning text-warning" />
+                            <span>{prod.name}</span>
+                            {isOutOfStock ? (
+                              <span className="text-micro font-bold text-destructive">
+                                (Out of stock)
+                              </span>
+                            ) : (
+                              prod.latestSellPrice !== null && prod.latestSellPrice !== undefined && (
+                                <span className="text-micro text-warning font-bold">
+                                  ({prod.latestSellPrice.toFixed(0)} PKR)
+                                </span>
+                              )
+                            )}
+                          </Button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1338,19 +1666,42 @@ export function POSTerminal() {
                     const boxQty = boxItem ? boxItem.quantity : 0;
                     const inCartTotal = unitQty + boxQty;
 
+                    const { maxAllowed: unitsAddable, remainingUnits, totalAvailableUnits } = getMaxAllowedQuantity(
+                      cart,
+                      prod,
+                      'UNIT',
+                      unitItem ? cart.indexOf(unitItem) : -1
+                    );
+                    const { maxAllowed: boxesAddable } = getMaxAllowedQuantity(
+                      cart,
+                      prod,
+                      'BOX',
+                      boxItem ? cart.indexOf(boxItem) : -1
+                    );
+
                     return (
                       <div
                         key={prod.id}
-                        className={`p-3 hover:bg-primary/5 transition-colors text-xs sm:text-sm ${
+                        className={`p-3 transition-colors text-xs sm:text-sm ${
                           idx === selectedResultIndex ? 'bg-primary/10' : ''
-                        }`}
+                        } ${stock <= 0 ? 'opacity-70 hover:bg-destructive/5' : 'hover:bg-primary/5'}`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
                           {/* Product Info Column - Clicking row adds/increments default unit */}
                           <div
-                            onClick={() => handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX')}
-                            className="flex items-start sm:items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
-                            title="Click to add to cart"
+                            onClick={() => {
+                              if (stock <= 0) return;
+                              const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
+                              if (expiry?.isExpired) {
+                                toast.error(`"${prod.name}" is expired (${expiry.formattedDate}). Cannot dispense expired stock.`);
+                                return;
+                              }
+                              handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX');
+                            }}
+                            className={`flex items-start sm:items-center gap-2.5 min-w-0 flex-1 ${
+                              stock <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
+                            }`}
+                            title={stock <= 0 ? 'Out of stock' : 'Click to add to cart'}
                           >
                             <div className={`size-8 sm:size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
                               <ItemIcon className="size-4" />
@@ -1360,6 +1711,11 @@ export function POSTerminal() {
                                 <span className="font-bold text-foreground leading-snug break-words">
                                   {prod.name}
                                 </span>
+                                {prod.isControlledSubstance && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                                    Rx
+                                  </span>
+                                )}
                                 {isPriority && <Star className="size-3 fill-warning text-warning shrink-0" />}
                                 {prod.genericName && (
                                   <span className="text-micro text-muted-foreground truncate">({prod.genericName})</span>
@@ -1367,6 +1723,22 @@ export function POSTerminal() {
                                 <Badge variant="outline" className="text-micro px-1.5 py-0 font-medium shrink-0">
                                   {prod.category}
                                 </Badge>
+                                {(() => {
+                                  const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
+                                  if (!expiry) return null;
+                                  return (
+                                    <Badge
+                                      variant={expiry.isExpired ? 'destructive' : 'outline'}
+                                      className={`text-micro px-1.5 py-0 font-bold shrink-0 ${
+                                        expiry.isExpired
+                                          ? 'bg-destructive/15 text-destructive border-destructive/30'
+                                          : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                                      }`}
+                                    >
+                                      {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate} (${expiry.daysRemaining}d)`}
+                                    </Badge>
+                                  );
+                                })()}
                                 {inCartTotal > 0 && (
                                   <Badge className="bg-success/15 text-success border-success/30 text-micro px-1.5 py-0 font-bold shrink-0">
                                     ✓ In Cart: {unitQty > 0 && `${unitQty} ${packSize > 1 ? 'Unit' : prod.unit}${unitQty > 1 ? 's' : ''}`}{unitQty > 0 && boxQty > 0 && ' + '}{boxQty > 0 && `${boxQty} Box${boxQty > 1 ? 'es' : ''}`}
@@ -1374,9 +1746,13 @@ export function POSTerminal() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2 text-micro text-muted-foreground flex-wrap">
-                                {packSize > 1 ? (
+                                {stock <= 0 ? (
+                                  <span className="text-destructive font-semibold flex items-center gap-1">
+                                    Stock: {formatUnitPlural(prod.unit, 0)} • Out of stock
+                                  </span>
+                                ) : packSize > 1 ? (
                                   <span className="text-success font-medium">
-                                    {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit
+                                    {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit • Stock: {formatUnitPlural('Box', stock)}
                                   </span>
                                 ) : (
                                   <span>Stock: {formatUnitPlural(prod.unit, stock)}</span>
@@ -1390,169 +1766,218 @@ export function POSTerminal() {
                             onClick={(e) => e.stopPropagation()}
                             className="flex items-center gap-1.5 shrink-0 flex-nowrap"
                           >
-                            {/* Tablet/Unit Control (if packSize > 1) */}
-                            {packSize > 1 && (
-                              unitQty > 0 ? (
-                                /* Compact Active Stepper when in cart */
-                                <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownDecrement(prod, 'UNIT')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title="Decrease unit quantity (-1)"
-                                  >
-                                    <Minus className="size-3" />
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={unitQty}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value, 10);
-                                      handleDropdownSetQuantity(prod, 'UNIT', isNaN(val) ? 1 : val);
-                                    }}
-                                    className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
-                                    title="Type unit quantity"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownIncrement(prod, 'UNIT')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title="Increase unit quantity (+1)"
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
-                                  <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
-                                    Unit
-                                  </span>
-                                </div>
-                              ) : (
-                                /* Clean Add Button (Single + icon only) */
-                                <Button
-                                  type="button"
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => handleDropdownIncrement(prod, 'UNIT')}
-                                  className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-                                  title={`Add 1 Unit (${singlePrice.toFixed(0)} PKR)`}
-                                >
-                                  <Plus className="size-3.5" />
-                                  <span>Unit ({singlePrice.toFixed(0)} PKR)</span>
-                                </Button>
-                              )
-                            )}
-
-                            {/* Box / Main Unit Control */}
-                            {packSize > 1 ? (
-                              boxQty > 0 ? (
-                                /* Compact Active Box Stepper when in cart */
-                                <div className="flex items-center rounded-lg border border-border/80 bg-muted/60 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownDecrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
-                                    title="Decrease box quantity (-1)"
-                                  >
-                                    <Minus className="size-3" />
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={boxQty}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value, 10);
-                                      handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
-                                    }}
-                                    className="h-7.5 w-9 text-center font-bold text-xs text-foreground bg-card border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
-                                    title="Type box quantity"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
-                                    title="Increase box quantity (+1)"
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
-                                  <span className="text-[10px] font-semibold text-muted-foreground px-1.5 whitespace-nowrap">
-                                    Box
-                                  </span>
-                                </div>
-                              ) : (
-                                /* Clean Box Add Button (Single + icon only) */
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                  className="h-7.5 px-2.5 text-xs font-semibold gap-1 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap shrink-0 cursor-pointer"
-                                  title={`Add full Box (${boxPrice.toFixed(0)} PKR)`}
-                                >
-                                  <Plus className="size-3.5" />
-                                  <span>Box ({boxPrice.toFixed(0)} PKR)</span>
-                                </Button>
-                              )
+                            {stock <= 0 ? (
+                              <div
+                                className="h-7.5 px-2.5 rounded-lg text-xs font-bold gap-1 inline-flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/30 whitespace-nowrap shrink-0 shadow-2xs select-none"
+                              >
+                                <Ban className="size-3.5" />
+                                <span>Out of Stock</span>
+                              </div>
                             ) : (
-                              /* Single-Unit Item (Syrups, Injections, Drops, etc.) */
-                              boxQty > 0 ? (
-                                <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownDecrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title={`Decrease ${prod.unit} quantity (-1)`}
-                                  >
-                                    <Minus className="size-3" />
-                                  </Button>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={boxQty}
-                                    onChange={(e) => {
-                                      const val = parseInt(e.target.value, 10);
-                                      handleDropdownSetQuantity(prod, 'BOX', isNaN(val) ? 1 : val);
-                                    }}
-                                    className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
-                                    title={`Type ${prod.unit} quantity`}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                    className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                    title={`Increase ${prod.unit} quantity (+1)`}
-                                  >
-                                    <Plus className="size-3" />
-                                  </Button>
-                                  <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
-                                    {prod.unit}
-                                  </span>
-                                </div>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                  className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-                                  title={`Add 1 ${prod.unit} (${boxPrice.toFixed(0)} PKR)`}
-                                >
-                                  <Plus className="size-3.5" />
-                                  <span>{prod.unit} ({boxPrice.toFixed(0)} PKR)</span>
-                                </Button>
-                              )
-                            )}                          </div>
+                              <>
+                                {/* Tablet/Unit Control (if packSize > 1) */}
+                                {packSize > 1 && (
+                                  unitQty > 0 ? (
+                                    /* Compact Active Stepper when in cart */
+                                    <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownDecrement(prod, 'UNIT')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                        title="Decrease unit quantity (-1)"
+                                      >
+                                        <Minus className="size-3" />
+                                      </Button>
+                                      <DraftQuantityInput
+                                        value={unitQty}
+                                        min={1}
+                                        max={unitsAddable}
+                                        onChange={(val) => handleDropdownSetQuantity(prod, 'UNIT', val)}
+                                        className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
+                                        title="Type unit quantity"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        disabled={unitQty >= unitsAddable}
+                                        onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={unitQty >= unitsAddable ? `All ${totalAvailableUnits} units allocated in cart` : "Increase unit quantity (+1)"}
+                                      >
+                                        <Plus className="size-3" />
+                                      </Button>
+                                      <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
+                                        Unit
+                                      </span>
+                                    </div>
+                                  ) : unitsAddable <= 0 ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                      title={`All ${totalAvailableUnits} units allocated in cart`}
+                                    >
+                                      <span>Unit (Max in Cart)</span>
+                                    </Button>
+                                  ) : (
+                                    /* Clean Add Button (Single + icon only) */
+                                    <Button
+                                      type="button"
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                      className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                      title={`Add 1 Unit (${singlePrice.toFixed(0)} PKR)`}
+                                    >
+                                      <Plus className="size-3.5" />
+                                      <span>Unit ({singlePrice.toFixed(0)} PKR)</span>
+                                    </Button>
+                                  )
+                                )}
+
+                                {/* Box / Main Unit Control */}
+                                {packSize > 1 ? (
+                                  boxQty > 0 ? (
+                                    /* Compact Active Box Stepper when in cart */
+                                    <div className="flex items-center rounded-lg border border-border/80 bg-muted/60 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
+                                        title="Decrease box quantity (-1)"
+                                      >
+                                        <Minus className="size-3" />
+                                      </Button>
+                                      <DraftQuantityInput
+                                        value={boxQty}
+                                        min={1}
+                                        max={boxesAddable}
+                                        onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
+                                        className="h-7.5 w-9 text-center font-bold text-xs text-foreground bg-card border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
+                                        title="Type box quantity"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        disabled={boxQty >= boxesAddable}
+                                        onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={
+                                          boxQty >= boxesAddable
+                                            ? remainingUnits < packSize
+                                              ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
+                                              : 'Max boxes in cart'
+                                            : "Increase box quantity (+1)"
+                                        }
+                                      >
+                                        <Plus className="size-3" />
+                                      </Button>
+                                      <span className="text-[10px] font-semibold text-muted-foreground px-1.5 whitespace-nowrap">
+                                        Box
+                                      </span>
+                                    </div>
+                                  ) : boxesAddable <= 0 ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                      title={
+                                        remainingUnits < packSize
+                                          ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
+                                          : 'Max boxes in cart'
+                                      }
+                                    >
+                                      <span>Box (Max in Cart)</span>
+                                    </Button>
+                                  ) : (
+                                    /* Clean Box Add Button (Single + icon only) */
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap shrink-0 cursor-pointer"
+                                      title={`Add full Box (${boxPrice.toFixed(0)} PKR)`}
+                                    >
+                                      <Plus className="size-3.5" />
+                                      <span>Box ({boxPrice.toFixed(0)} PKR)</span>
+                                    </Button>
+                                  )
+                                ) : (
+                                  /* Single-Unit Item (Syrups, Injections, Drops, etc.) */
+                                  boxQty > 0 ? (
+                                    <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
+                                        title={`Decrease ${prod.unit} quantity (-1)`}
+                                      >
+                                        <Minus className="size-3" />
+                                      </Button>
+                                      <DraftQuantityInput
+                                        value={boxQty}
+                                        min={1}
+                                        max={boxesAddable}
+                                        onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
+                                        className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
+                                        title={`Type ${prod.unit} quantity`}
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        disabled={boxQty >= boxesAddable}
+                                        onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={boxQty >= boxesAddable ? `All ${totalAvailableUnits} ${prod.unit}s allocated in cart` : `Increase ${prod.unit} quantity (+1)`}
+                                      >
+                                        <Plus className="size-3" />
+                                      </Button>
+                                      <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
+                                        {prod.unit}
+                                      </span>
+                                    </div>
+                                  ) : boxesAddable <= 0 ? (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      disabled
+                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                      title={`All ${totalAvailableUnits} ${prod.unit}s allocated in cart`}
+                                    >
+                                      <span>{prod.unit} (Max in Cart)</span>
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      type="button"
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                      className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                      title={`Add 1 ${prod.unit} (${boxPrice.toFixed(0)} PKR)`}
+                                    >
+                                      <Plus className="size-3.5" />
+                                      <span>{prod.unit} ({boxPrice.toFixed(0)} PKR)</span>
+                                    </Button>
+                                  )
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1562,878 +1987,62 @@ export function POSTerminal() {
             </CardContent>
           </Card>
 
-          {/* Running Cart Table */}
-          <Card className="shadow-2xs border-border/80 bg-card overflow-hidden">
-            <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between border-b border-border/60">
-              <div>
-                <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
-                  <Receipt className="size-4 text-primary shrink-0" />
-                  <span>Running Cart ({cart.length} item{cart.length === 1 ? '' : 's'})</span>
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  Adjust quantities, apply discounts, or remove items before final receipt checkout.
-                </CardDescription>
-              </div>
-
-              {cart.length > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearCart}
-                  className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <RotateCcw className="size-3.5 mr-1" /> Clear Cart
-                </Button>
-              )}
-            </CardHeader>
-
-            <CardContent className="p-0">
-              {cart.length === 0 ? (
-                /* Empty Cart Placeholder */
-                <div className="p-8 sm:p-12 text-center text-muted-foreground space-y-3">
-                  <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground/60 border border-border">
-                    <ShoppingCart className="size-6" />
-                  </div>
-                  <div className="space-y-1 max-w-xs mx-auto">
-                    <p className="text-sm font-semibold text-foreground">Cart is currently empty</p>
-                    <p className="text-xs text-muted-foreground">
-                      Use your barcode scanner or the search bar above to add medicines to this transaction.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                /* Active Cart List */
-                <div>
-                  {/* Mobile Touch Cards (Visible on screens < md) */}
-                  <div className="block md:hidden divide-y divide-border/60">
-                    {cart.map((item, idx) => {
-                      const lineSub = item.unitPrice * item.quantity;
-                      let lineDisc = 0;
-                      if (item.discount > 0) {
-                        lineDisc =
-                          item.discountType === 'PERCENT'
-                            ? (lineSub * item.discount) / 100
-                            : Math.min(lineSub, item.discount);
-                      }
-                      const lineTotal = Math.max(0, lineSub - lineDisc);
-                      const packSize = getPackSize(item.product);
-                      const boxPrice = item.product.latestSellPrice ?? 0;
-                      const singleUnitPrice = getSingleUnitPrice(item.product);
-                      const availableStockBoxes = item.product.totalStock ?? 999;
-                      const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
-
-                      return (
-                        <div key={`${item.product.id}-${item.unitType}`} className="p-3.5 space-y-2.5 bg-card hover:bg-muted/20 transition-colors">
-                          {/* Card Header: Product Name, Unit Mode Toggle & Trash Button */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="space-y-1 min-w-0">
-                              <p className="font-bold text-sm text-foreground leading-snug break-words">
-                                {item.product.name}
-                              </p>
-
-                              {/* Minimal Glassmorphic Segmented Toggle Control */}
-                              <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleUnitType(idx, 'BOX')}
-                                  className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
-                                    item.unitType === 'BOX'
-                                      ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                                      : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
-                                  }`}
-                                >
-                                  📦 Box
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleUnitType(idx, 'UNIT')}
-                                  className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
-                                    item.unitType === 'UNIT'
-                                      ? 'bg-success/15 text-success border border-success/30 shadow-2xs'
-                                      : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
-                                  }`}
-                                >
-                                  💊 Tablet / Unit
-                                </button>
-                              </div>
-
-                              {/* Minimal Single-Line Subtext */}
-                              <div className="text-micro pt-0.5 truncate">
-                                {item.unitType === 'UNIT' ? (
-                                  <span className="text-success font-medium flex items-center gap-1.5 flex-wrap">
-                                    <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
-                                    {packSize === 1 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleOpenPackSizeModal(idx, item.product.name, packSize)}
-                                        className="text-micro underline font-bold text-warning hover:underline"
-                                      >
-                                        ⚙️ Set Pack Size
-                                      </button>
-                                    )}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">
-                                    {packSize} units/box • Stock: {availableStockBoxes}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeFromCart(idx)}
-                              className="size-8 shrink-0 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 -mr-1 -mt-1"
-                              title="Remove item"
-                              aria-label="Remove item from cart"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-
-                          {/* Controls Row: Qty, Unit Price, Discount & Line Total */}
-                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40 text-xs">
-                            {/* Quantity Controls */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-micro text-muted-foreground font-medium">Qty ({item.unitType === 'UNIT' ? 'Units' : 'Boxes'}):</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => updateQuantity(idx, item.quantity - 1)}
-                                  className="size-8 shrink-0 text-muted-foreground"
-                                  aria-label="Decrease quantity"
-                                >
-                                  <Minus className="size-3.5" />
-                                </Button>
-
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  max={maxStock}
-                                  value={item.quantity}
-                                  onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
-                                  className="h-8 w-14 text-xs text-center font-bold px-1"
-                                />
-
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => updateQuantity(idx, item.quantity + 1)}
-                                  disabled={item.quantity >= maxStock}
-                                  className="size-8 shrink-0 text-muted-foreground"
-                                  aria-label="Increase quantity"
-                                >
-                                  <Plus className="size-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Unit Price */}
-                            <div className="space-y-1 text-right">
-                              <span className="text-micro text-muted-foreground font-medium">Unit Price (PKR):</span>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.unitPrice}
-                                onChange={(e) => updateUnitPrice(idx, parseFloat(e.target.value) || 0)}
-                                className="h-8 text-xs text-right font-semibold ml-auto max-w-[100px]"
-                              />
-                            </div>
-
-                            {/* Discount Input */}
-                            <div className="space-y-1">
-                              <span className="text-micro text-muted-foreground font-medium">Discount:</span>
-                              <div className="flex items-center gap-1">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={item.discount || ''}
-                                  placeholder="0"
-                                  onChange={(e) => updateItemDiscount(idx, parseFloat(e.target.value) || 0)}
-                                  className="h-8 text-xs text-center font-medium max-w-[70px]"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    updateItemDiscount(
-                                      idx,
-                                      item.discount,
-                                      item.discountType === 'FLAT' ? 'PERCENT' : 'FLAT',
-                                    )
-                                  }
-                                  className="h-8 text-micro px-1.5 font-bold text-muted-foreground hover:text-primary"
-                                >
-                                  {item.discountType === 'PERCENT' ? '%' : 'PKR'}
-                                </Button>
-                              </div>
-                            </div>
-
-                            {/* Line Total */}
-                            <div className="space-y-1 text-right flex flex-col justify-end">
-                              <span className="text-micro text-muted-foreground font-medium">Line Total:</span>
-                              <p className="font-extrabold text-sm text-primary">
-                                {lineTotal.toFixed(2)} PKR
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Desktop Table (Visible on screens >= md) */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-left text-xs sm:text-sm">
-                      <thead className="bg-muted/40 text-muted-foreground text-micro font-semibold uppercase tracking-wider">
-                        <tr>
-                          <th className="p-3 pl-4">Item & Unit Type</th>
-                          <th className="p-3 w-28 text-center">Unit Price</th>
-                          <th className="p-3 w-36 text-center">Quantity</th>
-                          <th className="p-3 w-32 text-center">Discount</th>
-                          <th className="p-3 pr-4 text-right">Line Total</th>
-                          <th className="p-3 w-10"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {cart.map((item, idx) => {
-                          const lineSub = item.unitPrice * item.quantity;
-                          let lineDisc = 0;
-                          if (item.discount > 0) {
-                            lineDisc =
-                              item.discountType === 'PERCENT'
-                                ? (lineSub * item.discount) / 100
-                                : Math.min(lineSub, item.discount);
-                          }
-                          const lineTotal = Math.max(0, lineSub - lineDisc);
-                          const packSize = getPackSize(item.product);
-                          const boxPrice = item.product.latestSellPrice ?? 0;
-                          const singleUnitPrice = getSingleUnitPrice(item.product);
-                          const availableStockBoxes = item.product.totalStock ?? 999;
-                          const maxStock = item.unitType === 'UNIT' ? availableStockBoxes * packSize : availableStockBoxes;
-
-                          return (
-                            <tr key={`${item.product.id}-${item.unitType}`} className="hover:bg-muted/30 transition-colors">
-                              {/* Medicine Name & Unit Mode Toggle */}
-                              <td className="p-3 pl-4 align-middle min-w-[240px]">
-                                <div className="space-y-1">
-                                  <p className="font-bold text-foreground leading-snug break-words">
-                                    {item.product.name}
-                                  </p>
-
-                                  {/* Minimal Glassmorphic Segmented Toggle Control */}
-                                  <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleUnitType(idx, 'BOX')}
-                                      className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
-                                        item.unitType === 'BOX'
-                                          ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                                          : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
-                                      }`}
-                                    >
-                                      📦 Box
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleUnitType(idx, 'UNIT')}
-                                      className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap ${
-                                        item.unitType === 'UNIT'
-                                          ? 'bg-success/15 text-success border border-success/30 shadow-2xs'
-                                          : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
-                                      }`}
-                                    >
-                                      💊 Tablet / Unit
-                                    </button>
-                                  </div>
-
-                                  {/* Minimal Single-Line Subtext */}
-                                  <div className="text-micro pt-0.5 truncate">
-                                    {item.unitType === 'UNIT' ? (
-                                      <span className="text-success font-medium flex items-center gap-1.5 flex-wrap">
-                                        <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
-                                        {packSize === 1 && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleOpenPackSizeModal(idx, item.product.name, packSize)}
-                                            className="text-micro underline font-bold text-warning hover:underline"
-                                          >
-                                            ⚙️ Set Pack Size
-                                          </button>
-                                        )}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-foreground">
-                                        {packSize} units/box • Stock: {availableStockBoxes}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Unit Price */}
-                              <td className="p-3 align-middle text-center">
-                                <div className="relative inline-block w-20">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={item.unitPrice}
-                                    onChange={(e) => updateUnitPrice(idx, parseFloat(e.target.value) || 0)}
-                                    className="h-8 text-xs text-center font-semibold focus-visible:ring-1"
-                                  />
-                                </div>
-                              </td>
-
-                              {/* Quantity Controls */}
-                              <td className="p-3 align-middle text-center">
-                                <div className="space-y-1">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => updateQuantity(idx, item.quantity - 1)}
-                                      className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                                    >
-                                      <Minus className="size-3" />
-                                    </Button>
-
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max={maxStock}
-                                      value={item.quantity}
-                                      onChange={(e) => updateQuantity(idx, parseInt(e.target.value, 10) || 1)}
-                                      className="h-8 w-14 text-xs text-center font-bold px-1 focus-visible:ring-1"
-                                    />
-
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => updateQuantity(idx, item.quantity + 1)}
-                                      disabled={item.quantity >= maxStock}
-                                      className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
-                                    >
-                                      <Plus className="size-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Per-Item Discount */}
-                              <td className="p-3 align-middle text-center">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={item.discount || ''}
-                                    placeholder="0"
-                                    onChange={(e) => updateItemDiscount(idx, parseFloat(e.target.value) || 0)}
-                                    className="h-8 w-16 text-xs text-center font-medium px-1 focus-visible:ring-1"
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      updateItemDiscount(
-                                        idx,
-                                        item.discount,
-                                        item.discountType === 'FLAT' ? 'PERCENT' : 'FLAT',
-                                      )
-                                    }
-                                    className="size-7 shrink-0 text-xs font-bold text-muted-foreground hover:text-primary"
-                                    title="Toggle Flat ($) vs Percent (%) discount"
-                                  >
-                                    {item.discountType === 'PERCENT' ? '%' : 'PKR'}
-                                  </Button>
-                                </div>
-                              </td>
-
-                              {/* Line Total */}
-                              <td className="p-3 pr-4 align-middle text-right font-bold text-foreground">
-                                {lineTotal.toFixed(2)} PKR
-                              </td>
-
-                              {/* Remove Item */}
-                              <td className="p-3 align-middle text-center">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeFromCart(idx)}
-                                  className="size-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
-                                  title="Remove item (Delete)"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Running Cart Section */}
+          <PosCartSection
+            cart={cart}
+            onClearCart={clearCart}
+            onRemoveItem={removeFromCart}
+            onUpdateQuantity={updateQuantity}
+            onUpdateUnitPrice={updateUnitPrice}
+            onUpdateDiscount={updateItemDiscount}
+            onToggleUnitType={toggleUnitType}
+            onOpenPackSizeModal={handleOpenPackSizeModal}
+          />
         </div>
 
         {/* Right Column: Checkout Sidebar (4-5 cols) */}
-        <div className="lg:col-span-5 xl:col-span-4 space-y-4">
-          {/* Billing & Payment Details Card */}
-          <Card id="payment-summary-card" className="shadow-xs border-border/80 bg-card overflow-hidden scroll-mt-20">
-            <CardHeader className="p-4 pb-3 border-b border-border/60">
-              <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
-                <Banknote className="size-4 text-primary shrink-0" />
-                <span>Payment Summary</span>
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Select payment method and complete customer checkout.
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="p-4 space-y-4">
-              {/* Customer Account & Khata Credit Section */}
-              <div className="space-y-2" ref={customerSearchRef}>
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <User className="size-3.5 text-primary" />
-                    <span>Customer Account</span>
-                    {paymentMethod === 'CREDIT' && (
-                      <span className="text-micro text-destructive font-bold">* Required for Khata</span>
-                    )}
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsAddCustomerModalOpen(true)}
-                    className="h-6 px-2 text-micro gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer font-medium"
-                  >
-                    <UserPlus className="size-3" />
-                    <span>+ New Customer</span>
-                  </Button>
-                </div>
-
-                {selectedCustomer ? (
-                  /* Selected Customer Card */
-                  <div className="p-2.5 rounded-xl border border-primary/30 bg-primary/5 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                        {selectedCustomer.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-bold text-foreground truncate">{selectedCustomer.name}</p>
-                          <Badge
-                            variant={selectedCustomer.creditBalance > 0 ? 'destructive' : 'secondary'}
-                            className="text-micro py-0 px-1.5 h-4.5 font-semibold shrink-0"
-                          >
-                            {selectedCustomer.creditBalance > 0
-                              ? `Debt: ${Number(selectedCustomer.creditBalance).toLocaleString('en-PK')} PKR`
-                              : 'Khata: 0 PKR'}
-                          </Badge>
-                        </div>
-                        {selectedCustomer.phone && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Phone className="size-2.5" />
-                            <span>{selectedCustomer.phone}</span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedCustomer(null);
-                        setCustomerName('');
-                        setCustomerPhone('');
-                      }}
-                      className="size-7 p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
-                      title="Deselect Customer"
-                      aria-label="Deselect Customer"
-                    >
-                      <X className="size-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                  /* Customer Search & Manual Input */
-                  <div className="space-y-2 relative">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-                      <Input
-                        placeholder="Search customer by name or phone..."
-                        value={customerSearchQuery}
-                        onChange={(e) => {
-                          setCustomerSearchQuery(e.target.value);
-                          if (!e.target.value) {
-                            setIsCustomerDropdownOpen(false);
-                          }
-                        }}
-                        onFocus={() => {
-                          if (customerSearchResults.length > 0) {
-                            setIsCustomerDropdownOpen(true);
-                          }
-                        }}
-                        className="h-9 pl-8 pr-8 text-xs"
-                      />
-                      {isCustomerSearching && (
-                        <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground animate-spin" />
-                      )}
-                      {!isCustomerSearching && customerSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCustomerSearchQuery('');
-                            setCustomerSearchResults([]);
-                            setIsCustomerDropdownOpen(false);
-                          }}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                          aria-label="Clear customer search"
-                        >
-                          <X className="size-3" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Customer Search Dropdown Results */}
-                    {isCustomerDropdownOpen && customerSearchResults.length > 0 && (
-                      <div className="absolute z-30 left-0 right-0 top-10 bg-popover/95 backdrop-blur-md border border-border rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto">
-                        <div className="p-1">
-                          {customerSearchResults.map((cust) => (
-                            <button
-                              key={cust.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCustomer(cust);
-                                setCustomerName(cust.name);
-                                setCustomerPhone(cust.phone || '');
-                                setCustomerSearchQuery('');
-                                setIsCustomerDropdownOpen(false);
-                              }}
-                              className="w-full text-left p-2 rounded-lg hover:bg-muted/80 transition-colors flex items-center justify-between gap-2 cursor-pointer"
-                            >
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-foreground truncate">{cust.name}</p>
-                                <p className="text-xs text-muted-foreground">{cust.phone || 'No phone'}</p>
-                              </div>
-                              <Badge
-                                variant={cust.creditBalance > 0 ? 'destructive' : 'outline'}
-                                className="text-micro py-0 px-1.5 h-4.5 font-semibold shrink-0"
-                              >
-                                {cust.creditBalance > 0 ? `${cust.creditBalance} PKR debt` : '0 PKR debt'}
-                              </Badge>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Walk-in Customer Fallback Inputs */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                      <Input
-                        placeholder="Or walk-in name"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        className="h-8 text-xs bg-muted/20"
-                      />
-                      <Input
-                        placeholder="Walk-in phone"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        className="h-8 text-xs bg-muted/20"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Prescribing Doctor / Self OTC Section */}
-              <div className="space-y-1.5 pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Stethoscope className="size-3.5 text-primary" />
-                    <span>Prescriber / Doctor</span>
-                  </Label>
-                  <div className="flex items-center gap-1 p-0.5 bg-muted/40 border border-border/60 rounded-lg">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSelfDoctor(true);
-                        setDoctorName('Self');
-                      }}
-                      className={`h-5.5 px-2 text-micro font-bold rounded-md transition-all cursor-pointer ${
-                        isSelfDoctor
-                          ? 'bg-primary text-primary-foreground shadow-2xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Self (OTC)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSelfDoctor(false);
-                        if (doctorName === 'Self' || !doctorName) {
-                          setDoctorName('Dr. ');
-                        }
-                      }}
-                      className={`h-5.5 px-2 text-micro font-bold rounded-md transition-all cursor-pointer ${
-                        !isSelfDoctor
-                          ? 'bg-primary text-primary-foreground shadow-2xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      Doctor
-                    </button>
-                  </div>
-                </div>
-
-                {isSelfDoctor ? (
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/50 text-xs">
-                    <span className="text-muted-foreground">Sale Reference:</span>
-                    <Badge variant="outline" className="text-micro font-semibold text-primary border-primary/30 bg-primary/5">
-                      Self / Counter Sale
-                    </Badge>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <Input
-                      placeholder="Enter Dr. Name (e.g. Dr. Asif)"
-                      value={doctorName}
-                      onChange={(e) => setDoctorName(e.target.value)}
-                      className="h-8 text-xs pr-14"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsSelfDoctor(true);
-                        setDoctorName('Self');
-                      }}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 text-micro text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded bg-muted/50 cursor-pointer font-medium"
-                    >
-                      Self
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Overall Discount Toggle */}
-              <div className="space-y-1.5 pt-2 border-t border-border/60">
-                <div className="flex items-center justify-between text-xs">
-                  <Label className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Tag className="size-3.5 text-muted-foreground" /> Order Discount
-                  </Label>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant={overallDiscountType === 'FLAT' ? 'secondary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setOverallDiscountType('FLAT')}
-                      className="h-6 text-micro px-2"
-                    >
-                      Flat PKR
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={overallDiscountType === 'PERCENT' ? 'secondary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setOverallDiscountType('PERCENT')}
-                      className="h-6 text-micro px-2"
-                    >
-                      Percent %
-                    </Button>
-                  </div>
-                </div>
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={overallDiscount || ''}
-                  onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
-                  className="h-9 text-xs"
-                />
-              </div>
-
-              {/* Payment Method Selector */}
-              <div className="space-y-2 pt-2 border-t border-border/60">
-                <Label className="text-xs font-semibold text-foreground">Payment Method</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'CASH', label: 'Cash', icon: Banknote },
-                    { id: 'DIGITAL', label: 'Digital', icon: CreditCard },
-                    { id: 'CREDIT', label: 'Credit', icon: Receipt },
-                  ].map((method) => {
-                    const Icon = method.icon;
-                    const isActive = paymentMethod === method.id;
-                    return (
-                      <button
-                        key={method.id}
-                        type="button"
-                        onClick={() => setPaymentMethod(method.id as 'CASH' | 'DIGITAL' | 'CREDIT')}
-                        className={`h-11 rounded-lg border text-xs flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${isActive
-                            ? 'bg-primary/10 border-primary text-primary font-bold shadow-2xs ring-1 ring-primary/30'
-                            : 'bg-card border-border/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground font-medium'
-                          }`}
-                      >
-                        <Icon className={`size-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span>{method.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Credit / Khata Validation Notice */}
-              {paymentMethod === 'CREDIT' && (
-                <div className={`p-3 rounded-xl border text-xs space-y-2 ${
-                  selectedCustomer
-                    ? 'bg-warning/10 border-warning/30 text-foreground'
-                    : 'bg-destructive/10 border-destructive/30 text-destructive'
-                }`}>
-                  <div className="flex items-center gap-2 font-bold">
-                    <BookOpen className="size-4 shrink-0" />
-                    <span>Khata (Customer Credit Ledger)</span>
-                  </div>
-                  {selectedCustomer ? (
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Current Outstanding Debt:</span>
-                        <span className="font-semibold text-destructive">{Number(selectedCustomer.creditBalance).toFixed(2)} PKR</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">+ This Purchase:</span>
-                        <span className="font-semibold text-foreground">{totals.grandTotal.toFixed(2)} PKR</span>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-border/40 font-bold">
-                        <span>New Outstanding Balance:</span>
-                        <span className="text-destructive">
-                          {(Number(selectedCustomer.creditBalance) + totals.grandTotal).toFixed(2)} PKR
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-xs leading-relaxed">
-                      ⚠️ Khata credit sales require a registered customer. Please search or register a customer above before completing this transaction.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Cash Tendered & Change Due Calculator */}
-              {paymentMethod === 'CASH' && (
-                <div className="p-3 rounded-xl bg-muted/40 border border-border/80 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-foreground">Cash Received:</span>
-                    <Input
-                      ref={cashInputRef}
-                      type="number"
-                      placeholder="0.00"
-                      value={cashTendered}
-                      onChange={(e) => setCashTendered(e.target.value)}
-                      className="h-8 w-28 text-xs text-right font-bold"
-                    />
-                  </div>
-
-                  {/* Quick Cash Buttons */}
-                  <div className="flex items-center gap-1 justify-end pt-1">
-                    {[500, 1000, 5000].map((amt) => (
-                      <Button
-                        key={amt}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCashTendered(amt.toString())}
-                        className="h-6 text-micro px-1.5 font-medium"
-                      >
-                        {amt}
-                      </Button>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCashTendered(Math.ceil(totals.grandTotal).toString())}
-                      className="h-6 text-micro px-1.5 font-bold text-primary"
-                    >
-                      Exact
-                    </Button>
-                  </div>
-
-                  {tenderedNum > 0 && (
-                    <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 font-bold">
-                      <span className="text-muted-foreground">Change Due:</span>
-                      <span className={changeDue >= 0 ? 'text-success' : 'text-destructive'}>
-                        {changeDue.toFixed(2)} PKR
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Financial Totals Breakdown */}
-              <div className="space-y-1.5 pt-3 border-t border-border/80 text-xs">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal:</span>
-                  <span className="font-medium text-foreground">{totals.subtotal.toFixed(2)} PKR</span>
-                </div>
-                {totals.totalDiscount > 0 && (
-                  <div className="flex justify-between text-success">
-                    <span>Discount:</span>
-                    <span className="font-semibold">-{totals.totalDiscount.toFixed(2)} PKR</span>
-                  </div>
-                )}
-                {totals.taxTotal > 0 && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Tax:</span>
-                    <span className="font-medium text-foreground">+{totals.taxTotal.toFixed(2)} PKR</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-base font-extrabold pt-2 border-t border-border/80 text-foreground">
-                  <span>Grand Total:</span>
-                  <span className="text-primary">{totals.grandTotal.toFixed(2)} PKR</span>
-                </div>
-              </div>
-
-              {/* Complete Checkout Action Button */}
-              <Button
-                type="button"
-                onClick={handleCheckout}
-                disabled={cart.length === 0 || isSubmitting}
-                className="w-full h-12 text-sm font-bold shadow-md gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Processing Sale...
-                  </>
-                ) : (
-                  <>
-                    <span>Complete Sale <span className="hidden md:inline">(F9)</span></span>
-                    <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <PosPaymentSidebar
+          cart={cart}
+          totals={totals}
+          selectedCustomer={selectedCustomer}
+          onSelectCustomer={setSelectedCustomer}
+          customerSearchQuery={customerSearchQuery}
+          onCustomerSearchChange={setCustomerSearchQuery}
+          customerSearchResults={customerSearchResults}
+          isCustomerSearching={isCustomerSearching}
+          isCustomerDropdownOpen={isCustomerDropdownOpen}
+          onCustomerDropdownOpenChange={setIsCustomerDropdownOpen}
+          onClearCustomerSearch={() => {
+            setCustomerSearchQuery('');
+            setCustomerSearchResults([]);
+            setIsCustomerDropdownOpen(false);
+          }}
+          customerSearchRef={customerSearchRef}
+          customerName={customerName}
+          onCustomerNameChange={setCustomerName}
+          customerPhone={customerPhone}
+          onCustomerPhoneChange={setCustomerPhone}
+          onOpenAddCustomerModal={() => setIsAddCustomerModalOpen(true)}
+          hasControlledMedicine={hasControlledMedicine}
+          isSelfDoctor={isSelfDoctor}
+          onIsSelfDoctorChange={setIsSelfDoctor}
+          doctorName={doctorName}
+          onDoctorNameChange={setDoctorName}
+          doctorInputRef={doctorInputRef}
+          overallDiscount={overallDiscount}
+          onOverallDiscountChange={setOverallDiscount}
+          overallDiscountType={overallDiscountType}
+          onOverallDiscountTypeChange={setOverallDiscountType}
+          paymentMethod={paymentMethod}
+          onPaymentMethodChange={setPaymentMethod}
+          cashTendered={cashTendered}
+          onCashTenderedChange={setCashTendered}
+          cashInputRef={cashInputRef}
+          tenderedNum={tenderedNum}
+          changeDue={changeDue}
+          isSubmitting={isSubmitting}
+          onCheckout={handleCheckout}
+        />
       </div>
 
       {/* Post-Checkout Receipt Success Modal Dialog */}
@@ -2481,290 +2090,29 @@ export function POSTerminal() {
       />
 
       {/* Pack Size Configuration Dialog Modal */}
-      <Dialog
-        open={packSizeModal.isOpen}
+      <PosPackSizeModal
+        isOpen={packSizeModal.isOpen}
         onOpenChange={(open) => setPackSizeModal((prev) => ({ ...prev, isOpen: open }))}
-      >
-        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-md rounded-2xl p-4 sm:p-5 border border-border/80 shadow-2xl bg-card">
-          <DialogHeader className="space-y-2 text-left pb-1">
-            <div className="flex items-center gap-2.5">
-              <div className="size-9 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0">
-                <Package className="size-4.5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1 pr-6">
-                <DialogTitle className="text-sm sm:text-base font-bold text-foreground leading-tight">
-                  Configure Medicine Pack Size
-                </DialogTitle>
-                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5">
-                  Set single units or tablets per retail box
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          {/* Product Identification Card */}
-          <div className="p-3 rounded-xl bg-muted/40 border border-border/70 flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
-              <Pill className="size-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                Selected Medicine
-              </span>
-              <p className="text-xs sm:text-sm font-bold text-foreground truncate">
-                {packSizeModal.productName}
-              </p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSavePackSize} className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <Label htmlFor="pos-pack-size-input" className="font-semibold text-foreground">
-                  Units / Tablets per Box:
-                </Label>
-                <span className="font-mono text-micro text-primary font-semibold">
-                  1 Box = {packSizeModal.packSize || 0} Units
-                </span>
-              </div>
-
-              {/* Touch Stepper & Input: Clean Icon-Only +/- Buttons */}
-              <div className="flex items-center gap-2.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="size-11 rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0 flex items-center justify-center p-0 cursor-pointer"
-                  onClick={() => {
-                    const current = parseInt(packSizeModal.packSize, 10) || 10;
-                    const next = Math.max(1, current - (current > 20 ? 10 : 1));
-                    setPackSizeModal((prev) => ({ ...prev, packSize: String(next) }));
-                  }}
-                  title="Decrease pack size"
-                >
-                  <Minus className="size-5 text-foreground" />
-                </Button>
-
-                <div className="relative flex-1">
-                  <Input
-                    id="pos-pack-size-input"
-                    type="number"
-                    min="1"
-                    step="1"
-                    autoFocus
-                    value={packSizeModal.packSize}
-                    onChange={(e) => setPackSizeModal((prev) => ({ ...prev, packSize: e.target.value }))}
-                    placeholder="e.g. 100"
-                    className="h-11 text-center text-xl font-extrabold tracking-tight rounded-xl bg-background border-border/80 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
-                  />
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="size-11 rounded-xl border-border/80 hover:bg-muted active:scale-95 shrink-0 flex items-center justify-center p-0 cursor-pointer"
-                  onClick={() => {
-                    const current = parseInt(packSizeModal.packSize, 10) || 0;
-                    const next = current + (current >= 20 ? 10 : 1);
-                    setPackSizeModal((prev) => ({ ...prev, packSize: String(next) }));
-                  }}
-                  title="Increase pack size"
-                >
-                  <Plus className="size-5 text-foreground" />
-                </Button>
-              </div>
-
-              {/* Quick Pharmacy Presets */}
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[10px] font-medium text-muted-foreground block">
-                  Quick Standard Presets:
-                </span>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {[10, 20, 30, 50, 100, 120].map((preset) => {
-                    const isSelected = parseInt(packSizeModal.packSize, 10) === preset;
-                    return (
-                      <Button
-                        key={preset}
-                        type="button"
-                        variant={isSelected ? 'default' : 'outline'}
-                        size="sm"
-                        className={`h-7 px-1 text-xs rounded-lg font-semibold transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-primary text-primary-foreground shadow-2xs font-bold'
-                            : 'bg-muted/40 hover:bg-muted text-foreground border-border/60'
-                        }`}
-                        onClick={() => setPackSizeModal((prev) => ({ ...prev, packSize: String(preset) }))}
-                      >
-                        {preset}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <p className="text-micro text-muted-foreground leading-relaxed pt-1">
-                Enables loose-strip and single tablet POS dispensing with automatic FEFO fractional box deductions.
-              </p>
-            </div>
-
-            {/* Action Buttons: Clean, well-spaced, never overlapping */}
-            <div className="flex items-center gap-2.5 pt-2 border-t border-border/60">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 px-5 rounded-xl font-semibold text-xs border-border/80 hover:bg-muted active:scale-98 shrink-0 cursor-pointer"
-                onClick={() => setPackSizeModal((prev) => ({ ...prev, isOpen: false }))}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 h-11 px-4 rounded-xl font-bold text-xs sm:text-sm bg-primary hover:bg-primary/95 text-primary-foreground gap-2 shadow-xs active:scale-98 cursor-pointer"
-              >
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="whitespace-nowrap">Save Pack Size</span>
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+        productName={packSizeModal.productName}
+        packSize={packSizeModal.packSize}
+        onPackSizeChange={(size) => setPackSizeModal((prev) => ({ ...prev, packSize: size }))}
+        onSave={handleSavePackSize}
+        canEdit={Boolean(isOwner || isManager || canManageInventory)}
+      />
 
       {/* Link Unregistered QR Code / Barcode to Medicine Dialog */}
-      <Dialog
-        open={linkCodeModal.isOpen}
+      <PosLinkBarcodeModal
+        isOpen={linkCodeModal.isOpen}
         onOpenChange={(open) => setLinkCodeModal((prev) => ({ ...prev, isOpen: open }))}
-      >
-        <DialogContent className="w-[calc(100%-1.5rem)] sm:max-w-md p-4 sm:p-5 rounded-2xl border-border shadow-2xl overflow-hidden">
-          <DialogHeader className="space-y-1.5 text-left pr-8">
-            <DialogTitle className="flex items-center gap-2 text-sm sm:text-base font-bold text-foreground">
-              <Tag className="size-4 text-primary shrink-0" />
-              <span className="truncate">New Medicine Barcode Scanned</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-              This box&apos;s barcode isn&apos;t linked to a medicine in your catalog yet. Link it once below so future scans add it to the cart automatically:
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Scanned GS1 / Barcode Details Badge Card */}
-          <div className="bg-muted/40 border border-border/80 rounded-xl p-2.5 space-y-1.5 text-xs">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground font-medium">GTIN / Barcode:</span>
-              <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md truncate">
-                {linkCodeModal.scannedCode}
-              </span>
-            </div>
-            {(linkCodeModal.parsedData?.batchNumber ||
-              linkCodeModal.parsedData?.expiryDate ||
-              linkCodeModal.parsedData?.mfgDate) && (
-              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/60 text-micro">
-                {linkCodeModal.parsedData?.batchNumber && (
-                  <Badge variant="outline" className="font-mono text-micro">
-                    Batch: {linkCodeModal.parsedData.batchNumber}
-                  </Badge>
-                )}
-                {linkCodeModal.parsedData?.expiryDate && (
-                  <Badge variant="outline" className="font-mono text-micro">
-                    Exp: {linkCodeModal.parsedData.expiryDate}
-                  </Badge>
-                )}
-                {linkCodeModal.parsedData?.mfgDate && (
-                  <Badge variant="outline" className="font-mono text-micro">
-                    Mfg: {linkCodeModal.parsedData.mfgDate}
-                  </Badge>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3 min-w-0">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Type medicine name on box (e.g. Avsar, Panadol)..."
-                value={linkCodeModal.query}
-                onChange={(e) => setLinkCodeModal((prev) => ({ ...prev, query: e.target.value }))}
-                autoFocus
-                className="pl-9 h-10 text-xs sm:text-sm"
-              />
-              {linkCodeModal.isSearching && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin" />
-              )}
-            </div>
-
-            <div className="max-h-56 overflow-y-auto overflow-x-hidden divide-y divide-border/60 border border-border rounded-xl bg-muted/20">
-              {!linkCodeModal.query.trim() ? (
-                <div className="p-5 text-center space-y-1">
-                  <Pill className="size-6 text-primary/60 mx-auto mb-1" />
-                  <p className="text-xs font-medium text-foreground">
-                    Search the medicine name printed on the box
-                  </p>
-                  <p className="text-micro text-muted-foreground">
-                    Type a few letters above (e.g. &ldquo;Avsar&rdquo;) and tap Link &amp; Add.
-                  </p>
-                </div>
-              ) : linkCodeModal.results.length === 0 ? (
-                <div className="p-5 text-center text-xs text-muted-foreground">
-                  No matching medicine found for &ldquo;{linkCodeModal.query}&rdquo;. You can add it as a new medicine below.
-                </div>
-              ) : (
-                linkCodeModal.results.map((prod) => (
-                  <div
-                    key={prod.id}
-                    className="p-2.5 flex items-center justify-between gap-2 hover:bg-primary/5 transition-colors min-w-0"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-sm font-semibold text-foreground truncate">{prod.name}</p>
-                      <p className="text-micro text-muted-foreground truncate">
-                        {prod.genericName || prod.category} • Stock: {prod.totalStock ?? 0} • {(prod.latestSellPrice ?? 0).toFixed(2)} PKR
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={linkCodeModal.isLinking}
-                      onClick={() => handleLinkCodeToProduct(prod)}
-                      className="h-8 px-2.5 text-xs font-semibold shrink-0"
-                    >
-                      Link &amp; Add
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* 1-Click Create New Medicine in Inventory with Scanned Box Data */}
-            <div className="pt-1 border-t border-border/60 flex items-center justify-between gap-2">
-              <span className="text-micro text-muted-foreground">Not in your catalog yet?</span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const params = new URLSearchParams();
-                  params.set('barcode', linkCodeModal.scannedCode);
-                  if (linkCodeModal.parsedData?.batchNumber) {
-                    params.set('batchNumber', linkCodeModal.parsedData.batchNumber);
-                  }
-                  if (linkCodeModal.parsedData?.expiryDate) {
-                    params.set('expiryDate', linkCodeModal.parsedData.expiryDate);
-                  }
-                  if (linkCodeModal.parsedData?.mfgDate) {
-                    params.set('mfgDate', linkCodeModal.parsedData.mfgDate);
-                  }
-                  if (linkCodeModal.query.trim()) {
-                    params.set('name', linkCodeModal.query.trim());
-                  }
-                  window.location.href = `/inventory/new?${params.toString()}`;
-                }}
-                className="h-8 text-xs gap-1.5 font-semibold border-primary/30 text-primary hover:bg-primary/5 shrink-0"
-              >
-                <Plus className="size-3.5" />
-                <span>Add New Medicine from Scan</span>
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        scannedCode={linkCodeModal.scannedCode}
+        parsedData={linkCodeModal.parsedData}
+        query={linkCodeModal.query}
+        onQueryChange={(query) => setLinkCodeModal((prev) => ({ ...prev, query }))}
+        results={linkCodeModal.results}
+        isSearching={linkCodeModal.isSearching}
+        isLinking={linkCodeModal.isLinking}
+        onLinkProduct={handleLinkCodeToProduct}
+      />
 
       {/* Mobile Sticky Checkout Bar (Screens < lg) */}
       {cart.length > 0 && (

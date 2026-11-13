@@ -8,9 +8,12 @@ export interface CartItemInput {
   discount?: number;
   discountType?: 'FLAT' | 'PERCENT';
   taxRatePercent?: number;
+  productName?: string;
+  unit?: string;
 }
 
 export interface CreateSaleInput {
+  clientTxId?: string;
   storeId?: string;
   customerId?: string;
   customerName?: string;

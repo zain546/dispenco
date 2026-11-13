@@ -117,6 +117,32 @@ describe('SalesService - Transactional Sale Creation (createSale)', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('should return cached sale immediately if clientTxId was already processed (idempotency)', async () => {
+    const cachedResponse = {
+      sale: { id: 'sale-cached', receiptNumber: 'REC-CACHED' },
+      message: 'Sale created successfully',
+    };
+    mockRedisCacheService.get.mockResolvedValue(cachedResponse);
+
+    const result = await service.createSale('tenant-1', 'user-1', {
+      clientTxId: 'tx-duplicate-123',
+      items: [{ productId: 'prod-1', quantity: 1 }],
+    });
+
+    expect(result).toEqual(cachedResponse);
+    expect(mockPrismaService.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException if sale is on credit but no registered customerId is provided', async () => {
+    await expect(
+      service.createSale('tenant-1', 'user-1', {
+        paymentMethod: PaymentMethod.CREDIT,
+        customerName: 'Anonymous Walk-in',
+        items: [{ productId: 'prod-1', quantity: 1 }],
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
   it('should throw NotFoundException if no active store is found', async () => {
     mockPrismaService.store.findFirst.mockResolvedValue(null);
 
