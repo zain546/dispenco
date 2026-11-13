@@ -19,10 +19,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }, [isLoading, sessionError, user, pathname, router]);
 
   if (sessionError) {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center bg-background">
         <p className="text-sm text-muted-foreground" role="alert">
-          We couldn’t verify your session. Please try again.
+          {isOffline
+            ? 'You are currently offline. Please reconnect to the internet and try again.'
+            : 'We couldn’t verify your session. Please try again.'}
         </p>
         <Button onClick={() => void refreshSession()}>Try again</Button>
       </div>
