@@ -109,6 +109,7 @@ export function POSTerminal() {
   const [isOnline, setIsOnline] = useState(true);
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
+  const isSyncingRef = useRef(false);
 
   // Pack Size Edit Dialog State (replaces native prompt)
   const [packSizeModal, setPackSizeModal] = useState<{
@@ -264,10 +265,52 @@ export function POSTerminal() {
     try {
       const status = await posLocalDataService.getStatus();
       setPendingOfflineCount(status.pendingSalesCount + status.conflictSalesCount);
+      return status;
     } catch (err) {
       console.error('Failed to check pending offline sales count:', err);
+      return null;
     }
   }, []);
+
+  const triggerAutoSync = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    try {
+      isSyncingRef.current = true;
+      const status = await posLocalDataService.getStatus();
+      if (status.pendingSalesCount === 0) {
+        setPendingOfflineCount(status.conflictSalesCount);
+        return;
+      }
+
+      setIsOnline(true);
+      const res = await posLocalDataService.syncPendingSales();
+      if (res.successCount > 0) {
+        toast.success(`Auto-synced ${res.successCount} offline transaction(s)!`);
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['sales'] });
+        queryClient.invalidateQueries({ queryKey: ['reports'] });
+      }
+      if (res.conflictCount > 0) {
+        toast.warning(`${res.conflictCount} sale(s) have inventory conflicts.`);
+      }
+      await checkPendingOfflineSales();
+    } catch (err) {
+      console.warn('Auto-sync deferred; backend server unreachable:', err);
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [checkPendingOfflineSales, queryClient]);
+
+  // Background opportunistic sync heartbeat: checks every 10 seconds while pending sales exist
+  useEffect(() => {
+    if (pendingOfflineCount === 0) return;
+    const interval = setInterval(() => {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        void triggerAutoSync();
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [pendingOfflineCount, triggerAutoSync]);
 
   // Background catalog cache sync on mount or branch change
   useEffect(() => {
@@ -301,22 +344,16 @@ export function POSTerminal() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsOnline(navigator.onLine);
-      checkPendingOfflineSales();
+      checkPendingOfflineSales().then((st) => {
+        if (st && st.pendingSalesCount > 0 && navigator.onLine) {
+          void triggerAutoSync();
+        }
+      });
 
       const handleOnline = async () => {
         setIsOnline(true);
         toast.success('Internet reconnected! Syncing offline sales queue...');
-        const res = await posLocalDataService.syncPendingSales();
-        if (res.successCount > 0) {
-          toast.success(`Auto-synced ${res.successCount} offline transaction(s)!`);
-          queryClient.invalidateQueries({ queryKey: ['inventory'] });
-          queryClient.invalidateQueries({ queryKey: ['sales'] });
-          queryClient.invalidateQueries({ queryKey: ['reports'] });
-        }
-        if (res.conflictCount > 0) {
-          toast.warning(`${res.conflictCount} sale(s) have inventory conflicts.`);
-        }
-        checkPendingOfflineSales();
+        await triggerAutoSync();
       };
 
       const handleOffline = () => {
@@ -324,15 +361,25 @@ export function POSTerminal() {
         toast.warning('Internet connection lost. Switched to Local-First Offline POS Mode.', { duration: 4000 });
       };
 
+      const handleFocus = () => {
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          void triggerAutoSync();
+        }
+      };
+
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
+      window.addEventListener('dispenco:network-offline', handleOffline);
+      window.addEventListener('focus', handleFocus);
 
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('dispenco:network-offline', handleOffline);
+        window.removeEventListener('focus', handleFocus);
       };
     }
-  }, [checkPendingOfflineSales, queryClient]);
+  }, [checkPendingOfflineSales, triggerAutoSync]);
 
   // Live Customer Search for POS & Outside Click Handler
   useEffect(() => {
@@ -1392,6 +1439,10 @@ export function POSTerminal() {
       const isNetworkError = !err?.response || err.code === 'ERR_NETWORK' || err.message === 'Network Error';
 
       if (isNetworkError) {
+        setIsOnline(false);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('dispenco:network-offline'));
+        }
         try {
           const { sale } = await posLocalDataService.recordLocalSale(payload, totals);
           const enrichedSale: SaleResponse = {
@@ -2073,6 +2124,7 @@ export function POSTerminal() {
         open={isOfflineModalOpen}
         onOpenChange={setIsOfflineModalOpen}
         onSyncComplete={checkPendingOfflineSales}
+        isOnline={isOnline}
       />
 
       {/* Quick Customer Registration Modal */}
