@@ -337,6 +337,10 @@ export const posLocalDataService = {
       }
     }
 
+    if (successCount > 0) {
+      void this.autoPruneSyncedRecords();
+    }
+
     return { successCount, conflictCount, errorCount };
   },
 
@@ -438,5 +442,39 @@ export const posLocalDataService = {
     const syncedRecords = await posDb.offlineSales.where('status').equals('synced').toArray();
     const ids = syncedRecords.map((r) => r.id!).filter(Boolean);
     await posDb.offlineSales.bulkDelete(ids);
+  },
+
+  /**
+   * 11. Rolling auto-prune for synced records older than 24 hours (caps at 50 max)
+   */
+  async autoPruneSyncedRecords(): Promise<void> {
+    try {
+      const posDb = getPosDatabase();
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oldSynced = await posDb.offlineSales
+        .where('status')
+        .equals('synced')
+        .and((r) => r.createdAt < oneDayAgo)
+        .toArray();
+
+      if (oldSynced.length > 0) {
+        const ids = oldSynced.map((r) => r.id!).filter(Boolean);
+        await posDb.offlineSales.bulkDelete(ids);
+      }
+
+      // Cap synced records at 50 max to keep IndexedDB lean
+      const allSynced = await posDb.offlineSales
+        .where('status')
+        .equals('synced')
+        .sortBy('createdAt');
+
+      if (allSynced.length > 50) {
+        const excessCount = allSynced.length - 50;
+        const excessIds = allSynced.slice(0, excessCount).map((r) => r.id!).filter(Boolean);
+        await posDb.offlineSales.bulkDelete(excessIds);
+      }
+    } catch (err) {
+      console.warn('Auto-pruning synced offline sales skipped:', err);
+    }
   },
 };
