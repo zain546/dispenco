@@ -22,6 +22,7 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const ACTIVE_STORE_STORAGE_KEY = 'dispenco_active_store_id';
+const CACHED_STORES_STORAGE_KEY = 'dispenco_cached_stores';
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoading: authLoading } = useAuth();
@@ -43,6 +44,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (res && res.data) {
         const activeList = res.data.filter((s) => s.isActive);
         setStores(activeList);
+        try {
+          localStorage.setItem(CACHED_STORES_STORAGE_KEY, JSON.stringify(activeList));
+        } catch {
+          /* Storage is optional */
+        }
 
         // Determine active store ID
         const storedId = localStorage.getItem(ACTIVE_STORE_STORAGE_KEY);
@@ -61,7 +67,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch stores list:', err);
+      console.error('Failed to fetch stores list (attempting offline fallback):', err);
+      // Offline fallback: load cached stores from localStorage
+      try {
+        const cached = localStorage.getItem(CACHED_STORES_STORAGE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as StoreData[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setStores(parsed);
+            const storedId = localStorage.getItem(ACTIVE_STORE_STORAGE_KEY);
+            if (storedId && (storedId === 'all' || parsed.some((s) => s.id === storedId))) {
+              setActiveStoreIdState(storedId);
+            } else if (user.storeId && parsed.some((s) => s.id === user.storeId)) {
+              setActiveStoreIdState(user.storeId);
+            } else {
+              setActiveStoreIdState(parsed[0].id);
+            }
+          }
+        }
+      } catch {
+        /* Storage is optional */
+      }
     } finally {
       setIsLoading(false);
     }
@@ -73,13 +99,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authLoading, fetchStores]);
 
+  // Re-fetch stores automatically when reconnected
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOnline = () => {
+      void fetchStores();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [fetchStores]);
+
   // Safeguard: if activeStoreId is set to an ID that no longer exists in stores, fall back
   useEffect(() => {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     if (!isLoading && stores.length > 0 && activeStoreId !== 'all' && !stores.some((s) => s.id === activeStoreId)) {
       const fallbackId = stores[0].id;
       setActiveStoreIdState(fallbackId);
       localStorage.setItem(ACTIVE_STORE_STORAGE_KEY, fallbackId);
-    } else if (!isLoading && stores.length === 0 && activeStoreId !== '') {
+    } else if (!isLoading && stores.length === 0 && activeStoreId !== '' && !isOffline) {
+      // Do not wipe activeStoreId when merely offline
       setActiveStoreIdState('');
       localStorage.removeItem(ACTIVE_STORE_STORAGE_KEY);
     }

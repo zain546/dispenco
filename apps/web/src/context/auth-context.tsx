@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const requestVersion = useRef(0);
+  const userRef = useRef<UserSession | null>(null);
   const currentAuthority = useRef<string | null>(null);
   const invalidateSessionRequest = useCallback(() => {
     ++requestVersion.current;
@@ -51,16 +52,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const applyUser = useCallback(
     (next: UserSession | null) => {
+      userRef.current = next;
       setSessionIdentity(next);
       const authority = sessionAuthorityKey(next);
       if (currentAuthority.current !== authority) queryClient.clear();
       currentAuthority.current = authority;
       setUser(next);
+      if (typeof window !== 'undefined') {
+        try {
+          if (next) {
+            localStorage.setItem(
+              'dispenco_offline_session',
+              JSON.stringify({ user: next, timestamp: Date.now() }),
+            );
+          } else {
+            localStorage.removeItem('dispenco_offline_session');
+          }
+        } catch {
+          /* Storage is optional */
+        }
+      }
     },
     [queryClient],
   );
 
   const refreshSession = useCallback(async () => {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      if (userRef.current) {
+        // Active session already in memory; retain it during offline state
+        setSessionError(false);
+        setIsLoading(false);
+        return;
+      }
+      // Check offline session snapshot
+      if (typeof window !== 'undefined') {
+        try {
+          const cached = localStorage.getItem('dispenco_offline_session');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (
+              parsed?.user?.id &&
+              parsed?.user?.tenantId &&
+              Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000
+            ) {
+              applyUser(parsed.user);
+              setSessionError(false);
+              setIsLoading(false);
+              return;
+            }
+          }
+        } catch {
+          /* Storage is optional */
+        }
+      }
+      if (!userRef.current) {
+        setSessionError(true);
+        setIsLoading(false);
+      }
+      return;
+    }
+
     const version = ++requestVersion.current;
     try {
       const response = await fetch('/api/backend/auth/me', {
@@ -84,10 +136,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (version !== requestVersion.current) return;
       if (!data.user?.id || !data.user?.tenantId) throw new Error('Invalid session');
       applyUser(data.user);
-    } catch {
+    } catch (err) {
       if (version === requestVersion.current) {
-        applyUser(null);
-        setSessionError(true);
+        const isNetworkFailure =
+          typeof navigator !== 'undefined' && (!navigator.onLine || err instanceof TypeError);
+
+        if (isNetworkFailure && userRef.current) {
+          // Preserve in-memory user session during network disconnects (especially on POS)
+          setSessionError(false);
+        } else if (isNetworkFailure && typeof window !== 'undefined') {
+          try {
+            const cached = localStorage.getItem('dispenco_offline_session');
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (
+                parsed?.user?.id &&
+                parsed?.user?.tenantId &&
+                Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000
+              ) {
+                applyUser(parsed.user);
+                setSessionError(false);
+                return;
+              }
+            }
+          } catch {
+            /* Storage is optional */
+          }
+          applyUser(null);
+          setSessionError(true);
+        } else {
+          applyUser(null);
+          setSessionError(true);
+        }
       }
     } finally {
       if (version === requestVersion.current) {
@@ -107,20 +187,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Synchronize session state on mount and tab focus
     void refreshSession();
     const recheck = () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       if (document.visibilityState === 'visible') void refreshSession();
     };
     const storage = (event: StorageEvent) => {
       if (event.key === SESSION_SIGNAL) void refreshSession();
     };
 
+    const handleOnline = () => {
+      void refreshSession();
+    };
+
     // Periodic silent keep-alive check every 15 minutes to guarantee uninterrupted session
     const keepAlive = setInterval(() => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       if (document.visibilityState === 'visible') void refreshSession();
     }, 15 * 60 * 1000);
 
     window.addEventListener('dispenco:session-expired', recheck);
     window.addEventListener('focus', recheck);
     window.addEventListener('storage', storage);
+    window.addEventListener('online', handleOnline);
     document.addEventListener('visibilitychange', recheck);
     return () => {
       invalidateSessionRequest();
@@ -128,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('dispenco:session-expired', recheck);
       window.removeEventListener('focus', recheck);
       window.removeEventListener('storage', storage);
+      window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', recheck);
     };
   }, [refreshSession, invalidateSessionRequest]);
@@ -140,11 +228,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     notifySessionChanged();
   };
   const logout = async () => {
-    await authApi.logout();
+    try {
+      await authApi.logout();
+    } catch {
+      /* Ignore network failures during logout */
+    }
     ++requestVersion.current;
     applyUser(null);
     try {
       localStorage.removeItem('dispenco_active_store_id');
+      localStorage.removeItem('dispenco_offline_session');
     } catch {
       /* Storage is optional. */
     }
