@@ -48,7 +48,22 @@ export function RecentSalesModal({
   const handleDownload = async (sale: SaleResponse) => {
     setDownloadingSaleId(sale.id);
     try {
-      await downloadThermalReceiptPdf(sale, storeName);
+      let fullSale: any = sale;
+      // Fetch full detailed receipt data (batches, taxes, store info) if missing
+      if (!sale.items || sale.items.length === 0 || !(sale.items[0] as any)?.batchNumber) {
+        try {
+          const res = await salesApi.getSaleById(sale.id);
+          if (res?.sale) {
+            fullSale = res.sale;
+          }
+        } catch {
+          /* Fall back to current sale object */
+        }
+      }
+      await downloadThermalReceiptPdf(fullSale, storeName);
+    } catch (err) {
+      console.error('Thermal PDF generation error:', err);
+      toast.error('Failed to generate thermal receipt PDF.');
     } finally {
       setDownloadingSaleId(null);
     }
@@ -132,7 +147,10 @@ export function RecentSalesModal({
                           Customer: <strong className="text-foreground">{sale.customerName || 'Walk-in Customer'}</strong> • Dr: <strong className="text-foreground">{(sale as any).doctorName || 'Self'}</strong> • Cashier: <strong className="text-foreground">{sale.cashierName || 'Staff'}</strong>
                         </p>
                         <p className="text-xs text-muted-foreground truncate max-w-xl">
-                          Items ({sale.itemsCount}): {sale.items?.map((i) => `${i.productName} (${i.quantity})`).join(', ')}
+                          Items ({sale.itemsCount})
+                          {sale.items && sale.items.length > 0 ? (
+                            <>: {sale.items.map((i: any) => `${i.productName} (${i.quantity})`).join(', ')}</>
+                          ) : null}
                         </p>
                       </div>
 
