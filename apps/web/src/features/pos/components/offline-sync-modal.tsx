@@ -40,9 +40,15 @@ interface OfflineSyncModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSyncComplete?: () => void;
+  isOnline?: boolean;
 }
 
-export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: OfflineSyncModalProps) {
+export function OfflineSyncModal({
+  open,
+  onOpenChange,
+  onSyncComplete,
+  isOnline: externalIsOnline,
+}: OfflineSyncModalProps) {
   const queryClient = useQueryClient();
   const { activeStoreId, isAllStores } = useStore();
   const [records, setRecords] = useState<OfflineSaleRecord[]>([]);
@@ -50,23 +56,54 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCatalogSyncing, setIsCatalogSyncing] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
+  const [internalIsOnline, setInternalIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
+
+  const isOnline = externalIsOnline !== undefined ? externalIsOnline : internalIsOnline;
+
+  const checkConnectivity = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setInternalIsOnline(false);
+      return false;
+    }
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch('/api/backend/auth/me', {
+        method: 'HEAD',
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+      clearTimeout(timeout);
+      const online = res.status < 500;
+      setInternalIsOnline(online);
+      return online;
+    } catch {
+      setInternalIsOnline(false);
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIsOnline(navigator.onLine);
-      const handleOnline = () => setIsOnline(true);
-      const handleOffline = () => setIsOnline(false);
+      const handleOnline = () => {
+        setInternalIsOnline(true);
+        void checkConnectivity();
+      };
+      const handleOffline = () => setInternalIsOnline(false);
 
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
+      window.addEventListener('dispenco:network-offline', handleOffline);
 
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
+        window.removeEventListener('dispenco:network-offline', handleOffline);
       };
     }
-  }, []);
+  }, [checkConnectivity]);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -84,12 +121,6 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
     }
   }, []);
 
-  useEffect(() => {
-    if (open) {
-      loadData();
-    }
-  }, [open, loadData]);
-
   const handleSyncCatalog = async () => {
     if (!isOnline) {
       toast.error('Network connection required to refresh local catalog cache.');
@@ -101,15 +132,17 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
       const res = await posLocalDataService.syncCatalogToLocal(targetStore);
       toast.success(`Local catalog cache updated! (${res.count} products cached)`);
+      setInternalIsOnline(true);
       await loadData();
     } catch {
-      toast.error('Failed to sync catalog to local database.');
+      setInternalIsOnline(false);
+      toast.error('Failed to sync catalog to local database. Server is unreachable.');
     } finally {
       setIsCatalogSyncing(false);
     }
   };
 
-  const handleSyncAllSales = async () => {
+  const handleSyncAllSales = useCallback(async () => {
     if (!isOnline) {
       toast.error('Network connection required to sync offline transactions.');
       return;
@@ -120,6 +153,7 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
       const res = await posLocalDataService.syncPendingSales();
       if (res.successCount > 0) {
         toast.success(`Successfully synced ${res.successCount} offline transaction(s)!`);
+        setInternalIsOnline(true);
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         queryClient.invalidateQueries({ queryKey: ['sales'] });
         queryClient.invalidateQueries({ queryKey: ['reports'] });
@@ -128,16 +162,33 @@ export function OfflineSyncModal({ open, onOpenChange, onSyncComplete }: Offline
         toast.warning(`${res.conflictCount} sale(s) encountered inventory conflicts during sync.`);
       }
       if (res.errorCount > 0 && res.successCount === 0) {
+        setInternalIsOnline(false);
         toast.error('Could not reach backend API server. Will retry when connection stabilizes.');
       }
       await loadData();
       if (onSyncComplete) onSyncComplete();
     } catch {
-      toast.error('Failed to execute offline sales sync.');
+      setInternalIsOnline(false);
+      toast.error('Failed to execute offline sales sync. Device appears offline.');
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [isOnline, queryClient, loadData, onSyncComplete]);
+
+  useEffect(() => {
+    if (open) {
+      loadData();
+      void checkConnectivity().then((online) => {
+        if (online) {
+          posLocalDataService.getStatus().then((st) => {
+            if (st.pendingSalesCount > 0) {
+              void handleSyncAllSales();
+            }
+          });
+        }
+      });
+    }
+  }, [open, loadData, checkConnectivity, handleSyncAllSales]);
 
   const handleResolveConflict = async (id: number, resolution: 'OVERRIDE_ADJUST' | 'CANCEL') => {
     const success = await posLocalDataService.resolveConflict(id, resolution);
