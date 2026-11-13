@@ -2163,33 +2163,6 @@ export function POSTerminal() {
         isLinking={linkCodeModal.isLinking}
         onLinkProduct={handleLinkCodeToProduct}
       />
-
-      {/* Mobile Sticky Checkout Bar (Screens < lg) */}
-      {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border p-3 flex lg:hidden items-center justify-between shadow-xl gap-3">
-          <div className="min-w-0">
-            <span className="text-micro text-muted-foreground uppercase tracking-wider block font-semibold truncate">
-              {cart.reduce((acc, it) => acc + it.quantity, 0)} item{cart.length > 1 ? 's' : ''} in Cart
-            </span>
-            <span className="text-base font-extrabold text-foreground tracking-tight">
-              {totals.grandTotal.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">PKR</span>
-            </span>
-          </div>
-          <Button
-            type="button"
-            onClick={() => {
-              const paySection = document.getElementById('payment-summary-card');
-              if (paySection) {
-                paySection.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            className="h-9 sm:h-10 px-3.5 text-xs font-bold gap-1.5 shadow-xs shrink-0"
-          >
-            <span>Review & Pay</span>
-            <ArrowRight className="size-3.5" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
