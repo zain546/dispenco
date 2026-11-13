@@ -307,7 +307,8 @@ export const posLocalDataService = {
       } catch (err: any) {
         console.error(`Local sync error for ${record.localReceiptNumber}:`, err);
         const status = err?.response?.status;
-        const errMsg = err?.response?.data?.message || err?.message || 'Server sync error';
+        const rawMsg = err?.response?.data?.message || err?.message || 'Server sync error';
+        const errMsg = Array.isArray(rawMsg) ? rawMsg.join(', ') : String(rawMsg);
 
         if (status === 400 || status === 409 || status === 422) {
           // Concurrent conflict: inventory was exhausted by another device while offline

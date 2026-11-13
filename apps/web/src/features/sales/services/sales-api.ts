@@ -217,10 +217,60 @@ export interface ReturnsListResponse {
   };
 }
 
+export function sanitizeSalePayload(payload: CreateSaleInput): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {
+    storeId: payload.storeId,
+    customerId: payload.customerId,
+    customerName: payload.customerName,
+    customerPhone: payload.customerPhone,
+    doctorName: payload.doctorName,
+    overallDiscount: payload.overallDiscount,
+    overallDiscountType: payload.overallDiscountType,
+    paymentMethod: payload.paymentMethod,
+    notes: payload.notes,
+    items: payload.items.map((item) => {
+      const lineItem: Record<string, unknown> = {
+        productId: item.productId,
+        quantity: item.quantity,
+      };
+      if (item.unitPrice !== undefined) lineItem.unitPrice = item.unitPrice;
+      if (item.unitType !== undefined) lineItem.unitType = item.unitType;
+      if (item.discount !== undefined) lineItem.discount = item.discount;
+      if (item.discountType !== undefined) lineItem.discountType = item.discountType;
+      if (item.taxRatePercent !== undefined) lineItem.taxRatePercent = item.taxRatePercent;
+      return lineItem;
+    }),
+  };
+
+  if (payload.clientTxId) {
+    sanitized.clientTxId = payload.clientTxId;
+  }
+
+  return sanitized;
+}
+
 export const salesApi = {
   createSale: async (payload: CreateSaleInput) => {
-    const response = await apiClient.post('/sales', payload);
-    return response.data;
+    const cleanPayload = sanitizeSalePayload(payload);
+    try {
+      const response = await apiClient.post('/sales', cleanPayload);
+      return response.data;
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.message;
+      const isClientTxIdError =
+        err?.response?.status === 400 &&
+        (typeof errMsg === 'string'
+          ? errMsg.includes('clientTxId')
+          : Array.isArray(errMsg) && errMsg.some((m: string) => typeof m === 'string' && m.includes('clientTxId')));
+
+      if (isClientTxIdError) {
+        // Backward-compatibility fallback for older server versions that don't whitelist clientTxId
+        const { clientTxId: _, ...legacyPayload } = cleanPayload;
+        const response = await apiClient.post('/sales', legacyPayload);
+        return response.data;
+      }
+      throw err;
+    }
   },
 
   getRecentSales: async (limit: number = 20, storeId?: string) => {
