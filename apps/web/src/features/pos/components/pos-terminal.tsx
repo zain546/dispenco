@@ -104,6 +104,38 @@ const isValidDoctorName = (name?: string | null): boolean => {
   return withoutPrefix.length >= 2;
 };
 
+interface ExpiryBadgeInfo {
+  isExpired: boolean;
+  isNearExpiry: boolean;
+  formattedDate: string;
+  daysRemaining: number;
+}
+
+const getProductExpiryStatus = (dateStr?: string | null): ExpiryBadgeInfo | null => {
+  if (!dateStr) return null;
+  const expiry = new Date(dateStr);
+  if (isNaN(expiry.getTime())) return null;
+
+  const now = new Date();
+  const diffTime = expiry.getTime() - now.getTime();
+  const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const formattedDate = expiry.toLocaleDateString('en-GB', {
+    month: 'short',
+    year: '2-digit',
+  });
+
+  if (daysRemaining < 0) {
+    return { isExpired: true, isNearExpiry: false, formattedDate, daysRemaining };
+  }
+
+  if (daysRemaining <= 30) {
+    return { isExpired: false, isNearExpiry: true, formattedDate, daysRemaining };
+  }
+
+  return null;
+};
+
 // Calculate total single units (tablets) already committed in cart for a product
 const getCommittedUnitsInCart = (
   cartItems: CartItem[],
@@ -183,6 +215,8 @@ export function POSTerminal() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [doctorName, setDoctorName] = useState('Self');
   const [isSelfDoctor, setIsSelfDoctor] = useState(true);
+  // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
+  const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
@@ -572,9 +606,49 @@ export function POSTerminal() {
     }
   };
 
+  const isAnyModalOpen = Boolean(
+    isReceiptOpen ||
+    isRecentSalesOpen ||
+    isOfflineModalOpen ||
+    isAddCustomerModalOpen ||
+    packSizeModal.isOpen ||
+    linkCodeModal.isOpen
+  );
+
+  // Keep a stable ref to latest POS state to avoid recreating the global listener on every keystroke
+  const stateRef = useRef({
+    cart,
+    isSubmitting,
+    isAnyModalOpen,
+    paymentMethod,
+    selectedCustomer,
+    hasControlledMedicine,
+    doctorName,
+    searchResults,
+    searchQuery,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      cart,
+      isSubmitting,
+      isAnyModalOpen,
+      paymentMethod,
+      selectedCustomer,
+      hasControlledMedicine,
+      doctorName,
+      searchResults,
+      searchQuery,
+    };
+  });
+
   // Global Keyboard Shortcuts (F2: Search, F4: Payment Mode, F8: Cash Tendered, F9: Checkout, Esc: Clear)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const state = stateRef.current;
+      // Isolate shortcuts: do not intercept keys if any modal dialog is open
+      if (state.isAnyModalOpen) return;
+
       if (e.key === 'F2') {
         e.preventDefault();
         focusSearchInput();
@@ -585,16 +659,16 @@ export function POSTerminal() {
         setPaymentMethod((prev) => (prev === 'CASH' ? 'DIGITAL' : 'CASH'));
       } else if (e.key === 'F8') {
         e.preventDefault();
-        if (paymentMethod !== 'CASH') setPaymentMethod('CASH');
+        if (state.paymentMethod !== 'CASH') setPaymentMethod('CASH');
         setTimeout(() => cashInputRef.current?.focus(), 60);
       } else if (e.key === 'F9') {
         e.preventDefault();
-        if (cart.length > 0 && !isSubmitting && !isReceiptOpen) {
-          if (paymentMethod === 'CREDIT' && !selectedCustomer) {
+        if (state.cart.length > 0 && !state.isSubmitting) {
+          if (state.paymentMethod === 'CREDIT' && !state.selectedCustomer) {
             toast.error('Please select a customer for Khata credit.');
             return;
           }
-          if (hasControlledMedicine && !isValidDoctorName(doctorName)) {
+          if (state.hasControlledMedicine && !isValidDoctorName(state.doctorName)) {
             toast.error("Please enter doctor's name for Rx controlled medicine.");
             setTimeout(() => doctorInputRef.current?.focus(), 60);
             return;
@@ -602,7 +676,7 @@ export function POSTerminal() {
           handleCheckout();
         }
       } else if (e.key === 'Escape') {
-        if (searchResults.length > 0 || searchQuery) {
+        if (state.searchResults.length > 0 || state.searchQuery) {
           e.preventDefault();
           clearSearch(false);
         }
@@ -611,7 +685,7 @@ export function POSTerminal() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, isSubmitting, isReceiptOpen, searchResults, searchQuery, paymentMethod]);
+  }, []);
 
   // Live product search effect with instantaneous local-first read (<5ms)
   useEffect(() => {
@@ -1291,9 +1365,6 @@ export function POSTerminal() {
   const tenderedNum = Number(cashTendered) || 0;
   const changeDue = Math.max(0, tenderedNum - totals.grandTotal);
 
-  // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
-  const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
-
   // Automatically select Doctor prescriber mode when a controlled medicine is added to the cart
   useEffect(() => {
     if (hasControlledMedicine && isSelfDoctor) {
@@ -1543,24 +1614,53 @@ export function POSTerminal() {
           </Button>
 
           <div className="hidden lg:flex items-center gap-1.5 flex-wrap">
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            <button
+              type="button"
+              onClick={focusSearchInput}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Focus product search (F2)"
+            >
               F2 Search
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </button>
+            <span className="px-2 py-1 bg-muted/60 border border-border/80 rounded-md text-micro font-mono font-medium text-muted-foreground/80 shadow-2xs select-none">
               ↑↓ / ↵ Select
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </span>
+            <button
+              type="button"
+              onClick={() => setPaymentMethod((prev) => (prev === 'CASH' ? 'DIGITAL' : 'CASH'))}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Toggle Payment Mode (F4)"
+            >
               F4 Payment Mode
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (paymentMethod !== 'CASH') setPaymentMethod('CASH');
+                setTimeout(() => cashInputRef.current?.focus(), 60);
+              }}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Tender Cash (F8)"
+            >
               F8 Tender Cash
-            </kbd>
-            <kbd className="px-2 py-1 bg-primary/10 border border-primary/20 text-primary rounded-md text-micro font-mono font-semibold shadow-2xs">
+            </button>
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={cart.length === 0 || isSubmitting}
+              className="px-2 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-md text-micro font-mono font-semibold shadow-2xs cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Complete Sale (F9)"
+            >
               F9 Complete Sale
-            </kbd>
-            <kbd className="px-2 py-1 bg-muted border border-border rounded-md text-micro font-mono font-medium text-muted-foreground shadow-2xs">
+            </button>
+            <button
+              type="button"
+              onClick={() => clearSearch(false)}
+              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              title="Dismiss search (Esc)"
+            >
               Esc Dismiss
-            </kbd>
+            </button>
           </div>
         </div>
       </div>
@@ -1721,6 +1821,11 @@ export function POSTerminal() {
                           <div
                             onClick={() => {
                               if (stock <= 0) return;
+                              const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
+                              if (expiry?.isExpired) {
+                                toast.error(`"${prod.name}" is expired (${expiry.formattedDate}). Cannot dispense expired stock.`);
+                                return;
+                              }
                               handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX');
                             }}
                             className={`flex items-start sm:items-center gap-2.5 min-w-0 flex-1 ${
@@ -1748,6 +1853,22 @@ export function POSTerminal() {
                                 <Badge variant="outline" className="text-micro px-1.5 py-0 font-medium shrink-0">
                                   {prod.category}
                                 </Badge>
+                                {(() => {
+                                  const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
+                                  if (!expiry) return null;
+                                  return (
+                                    <Badge
+                                      variant={expiry.isExpired ? 'destructive' : 'outline'}
+                                      className={`text-micro px-1.5 py-0 font-bold shrink-0 ${
+                                        expiry.isExpired
+                                          ? 'bg-destructive/15 text-destructive border-destructive/30'
+                                          : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                                      }`}
+                                    >
+                                      {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate} (${expiry.daysRemaining}d)`}
+                                    </Badge>
+                                  );
+                                })()}
                                 {inCartTotal > 0 && (
                                   <Badge className="bg-success/15 text-success border-success/30 text-micro px-1.5 py-0 font-bold shrink-0">
                                     ✓ In Cart: {unitQty > 0 && `${unitQty} ${packSize > 1 ? 'Unit' : prod.unit}${unitQty > 1 ? 's' : ''}`}{unitQty > 0 && boxQty > 0 && ' + '}{boxQty > 0 && `${boxQty} Box${boxQty > 1 ? 'es' : ''}`}
@@ -2071,6 +2192,22 @@ export function POSTerminal() {
                                     Rx
                                   </span>
                                 )}
+                                {(() => {
+                                  const expiry = getProductExpiryStatus(item.product.nearestExpiryDate);
+                                  if (!expiry) return null;
+                                  return (
+                                    <Badge
+                                      variant={expiry.isExpired ? 'destructive' : 'outline'}
+                                      className={`text-[10px] px-1.5 py-0 font-bold shrink-0 ${
+                                        expiry.isExpired
+                                          ? 'bg-destructive/15 text-destructive border-destructive/30'
+                                          : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                                      }`}
+                                    >
+                                      {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate}`}
+                                    </Badge>
+                                  );
+                                })()}
                               </div>
 
                               {/* Minimal Glassmorphic Segmented Toggle Control */}
@@ -2275,6 +2412,22 @@ export function POSTerminal() {
                                         Rx Controlled
                                       </span>
                                     )}
+                                    {(() => {
+                                      const expiry = getProductExpiryStatus(item.product.nearestExpiryDate);
+                                      if (!expiry) return null;
+                                      return (
+                                        <Badge
+                                          variant={expiry.isExpired ? 'destructive' : 'outline'}
+                                          className={`text-[10px] px-1.5 py-0 font-bold shrink-0 ${
+                                            expiry.isExpired
+                                              ? 'bg-destructive/15 text-destructive border-destructive/30'
+                                              : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                                          }`}
+                                        >
+                                          {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate}`}
+                                        </Badge>
+                                      );
+                                    })()}
                                   </div>
 
                                   {/* Minimal Glassmorphic Segmented Toggle Control */}
@@ -2437,10 +2590,10 @@ export function POSTerminal() {
         </div>
 
         {/* Right Column: Checkout Sidebar (4-5 cols) */}
-        <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+        <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-4 self-start">
           {/* Billing & Payment Details Card */}
-          <Card id="payment-summary-card" className="shadow-xs border-border/80 bg-card overflow-hidden scroll-mt-20">
-            <CardHeader className="p-4 pb-3 border-b border-border/60">
+          <Card id="payment-summary-card" className="shadow-xs border-border/80 bg-card overflow-hidden scroll-mt-20 flex flex-col max-h-[calc(100vh-2rem)]">
+            <CardHeader className="p-3.5 pb-2.5 border-b border-border/60 shrink-0">
               <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
                 <Banknote className="size-4 text-primary shrink-0" />
                 <span>Payment Summary</span>
@@ -2450,7 +2603,7 @@ export function POSTerminal() {
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="p-4 space-y-4">
+            <CardContent className="p-3.5 space-y-3 overflow-y-auto flex-1 min-h-0">
               {/* Customer Account & Khata Credit Section */}
               <div className="space-y-2" ref={customerSearchRef}>
                 <div className="flex items-center justify-between gap-1.5">
@@ -2876,26 +3029,30 @@ export function POSTerminal() {
                 </div>
               )}
 
+            </CardContent>
+
+            {/* Pinned Bottom Financial Totals & Primary Action CTA */}
+            <div className="p-3.5 pt-2.5 border-t border-border/80 bg-card/95 backdrop-blur-xs shrink-0 space-y-2.5">
               {/* Financial Totals Breakdown */}
-              <div className="space-y-1.5 pt-3 border-t border-border/80 text-xs">
-                <div className="flex justify-between text-muted-foreground">
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between text-muted-foreground text-micro">
                   <span>Subtotal:</span>
                   <span className="font-medium text-foreground">{totals.subtotal.toFixed(2)} PKR</span>
                 </div>
                 {totals.totalDiscount > 0 && (
-                  <div className="flex justify-between text-success">
+                  <div className="flex justify-between text-success text-micro">
                     <span>Discount:</span>
                     <span className="font-semibold">-{totals.totalDiscount.toFixed(2)} PKR</span>
                   </div>
                 )}
                 {totals.taxTotal > 0 && (
-                  <div className="flex justify-between text-muted-foreground">
+                  <div className="flex justify-between text-muted-foreground text-micro">
                     <span>Tax:</span>
                     <span className="font-medium text-foreground">+{totals.taxTotal.toFixed(2)} PKR</span>
                   </div>
                 )}
 
-                <div className="flex justify-between text-base font-extrabold pt-2 border-t border-border/80 text-foreground">
+                <div className="flex justify-between text-base font-extrabold pt-1.5 border-t border-border/80 text-foreground">
                   <span>Grand Total:</span>
                   <span className="text-primary">{totals.grandTotal.toFixed(2)} PKR</span>
                 </div>
@@ -2911,7 +3068,7 @@ export function POSTerminal() {
                     type="button"
                     onClick={handleCheckout}
                     disabled={isBlocked}
-                    className={`w-full h-12 text-sm font-bold shadow-md gap-2 ${
+                    className={`w-full h-11 text-sm font-bold shadow-md gap-2 ${
                       isKhataBlocked
                         ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30 cursor-not-allowed hover:bg-amber-500/15'
                         : ''
@@ -2935,7 +3092,7 @@ export function POSTerminal() {
                   </Button>
                 );
               })()}
-            </CardContent>
+            </div>
           </Card>
         </div>
       </div>
