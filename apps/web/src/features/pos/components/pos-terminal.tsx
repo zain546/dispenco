@@ -1363,8 +1363,6 @@ export function POSTerminal() {
       paymentMethod,
       items: cart.map((item) => ({
         productId: item.product.id,
-        productName: item.product.name,
-        unit: item.unitType === 'UNIT' ? (formatUnitPlural(item.product.unit, 1) || 'Tablet') : item.product.unit,
         quantity: item.quantity,
         unitType: item.unitType,
         unitPrice: item.unitPrice,

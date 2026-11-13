@@ -230,6 +230,14 @@ export const posLocalDataService = {
     );
 
     // Generate synthetic sale response for receipt printing
+    const productMap = new Map<string, { name: string; unit: string }>();
+    for (const item of payload.items) {
+      const prod = await posDb.localProducts.get(item.productId);
+      if (prod) {
+        productMap.set(item.productId, { name: prod.name, unit: prod.unit });
+      }
+    }
+
     const syntheticSale: SaleResponse = {
       id: `local-${id}`,
       receiptNumber: localReceiptNumber,
@@ -248,13 +256,14 @@ export const posLocalDataService = {
       createdAt,
       itemsCount: payload.items.length,
       items: payload.items.map((item, idx) => {
+        const prod = productMap.get(item.productId);
         const taxApplied = ((item.taxRatePercent || 0) * item.unitPrice * item.quantity) / 100;
         const discountAmount = item.discount || 0;
         return {
           id: `local-item-${idx}`,
           productId: item.productId,
-          productName: item.productName || 'Medicine Item',
-          unit: item.unit || 'Unit',
+          productName: prod?.name || item.productName || 'Medicine Item',
+          unit: prod?.unit || item.unit || 'Unit',
           batchNumber: 'LOCAL-FEFO',
           quantity: item.quantity,
           unitPrice: item.unitPrice,
