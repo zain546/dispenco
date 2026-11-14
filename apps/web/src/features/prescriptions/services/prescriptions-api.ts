@@ -66,6 +66,25 @@ export interface PrescriptionData {
   };
 }
 
+export interface PrescriptionsSummary {
+  totalPrescriptions: number;
+  activeCount: number;
+  controlledCount: number;
+  dispensedCount: number;
+}
+
+export interface GetPrescriptionsResponse {
+  success: boolean;
+  data: PrescriptionData[];
+  summary?: PrescriptionsSummary;
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export interface CreatePrescriptionItemPayload {
   productId: string;
   dosage?: string;
@@ -161,7 +180,7 @@ export const prescriptionsApi = {
     isControlledOnly?: boolean;
     page?: number;
     limit?: number;
-  }) => {
+  }): Promise<GetPrescriptionsResponse> => {
     const q = new URLSearchParams();
     if (params?.storeId) q.append('storeId', params.storeId);
     if (params?.status) q.append('status', params.status);

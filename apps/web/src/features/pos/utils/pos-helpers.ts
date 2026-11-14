@@ -92,7 +92,7 @@ export const getKhataBalanceBadge = (creditBalance: number) => {
     return {
       label: `Advance: ${Math.abs(num).toLocaleString('en-PK')} PKR`,
       variant: 'secondary' as const,
-      className: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 font-semibold',
+      className: 'bg-success/15 text-success border-success/30 font-semibold',
     };
   }
   return {
@@ -100,4 +100,23 @@ export const getKhataBalanceBadge = (creditBalance: number) => {
     variant: 'secondary' as const,
     className: 'bg-muted text-muted-foreground font-medium',
   };
+};
+
+export const resolveTaxRateFromCode = (taxCode?: string | null): number => {
+  if (!taxCode) return 0;
+  const clean = taxCode.toUpperCase().trim();
+  switch (clean) {
+    case 'EXEMPT':
+    case 'ZERO':
+      return 0;
+    case 'REDUCED_5':
+    case 'REDUCED':
+      return 5;
+    case 'STANDARD':
+    case 'GST_18':
+    case 'DEFAULT':
+      return 18;
+    default:
+      return 0;
+  }
 };

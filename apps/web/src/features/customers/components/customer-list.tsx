@@ -43,7 +43,7 @@ export function CustomerList() {
   const [data, setData] = useState<CustomerListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [hasBalanceFilter, setHasBalanceFilter] = useState<'all' | 'debt' | 'settled'>('all');
+  const [hasBalanceFilter, setHasBalanceFilter] = useState<'all' | 'debt' | 'advance' | 'settled'>('all');
   const [page, setPage] = useState(1);
   const [, startTransition] = useTransition();
 
@@ -68,14 +68,27 @@ export function CustomerList() {
         search: search.trim() || undefined,
         hasBalance:
           hasBalanceFilter === 'debt'
-            ? 'true'
+            ? 'debt'
+            : hasBalanceFilter === 'advance'
+            ? 'advance'
             : hasBalanceFilter === 'settled'
-            ? 'false'
+            ? 'settled'
             : undefined,
         page,
         limit: 20,
       });
-      setData(res);
+
+      // Guarantee consistent client-side presentation
+      let filteredData = res.data;
+      if (hasBalanceFilter === 'settled') {
+        filteredData = filteredData.filter((c) => Number(c.creditBalance) === 0);
+      } else if (hasBalanceFilter === 'advance') {
+        filteredData = filteredData.filter((c) => Number(c.creditBalance) < 0);
+      } else if (hasBalanceFilter === 'debt') {
+        filteredData = filteredData.filter((c) => Number(c.creditBalance) > 0);
+      }
+
+      setData({ ...res, data: filteredData });
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to load customers'));
     } finally {
@@ -111,9 +124,10 @@ export function CustomerList() {
   };
 
   const promptDelete = (customer: CustomerItem) => {
-    if (customer.creditBalance > 0) {
+    if (customer.creditBalance !== 0) {
+      const isDebt = customer.creditBalance > 0;
       toast.error(
-        `Cannot delete ${customer.name}: Account has an active Khata balance of ${formatCurrency(customer.creditBalance)}. Settle the balance first.`,
+        `Cannot delete ${customer.name}: Account has an active ${isDebt ? 'debt' : 'advance deposit'} of ${formatCurrency(Math.abs(customer.creditBalance))}. Settle the account first.`,
       );
       return;
     }
@@ -173,7 +187,7 @@ export function CustomerList() {
       />
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           label="Total Registered"
           value={summary.totalCustomers}
@@ -187,6 +201,13 @@ export function CustomerList() {
           caption="Total store credit owed"
           icon={CreditCard}
           variant={summary.totalCreditOutstanding > 0 ? 'destructive' : 'default'}
+        />
+        <StatCard
+          label="Customer Advance Deposits"
+          value={formatCurrency(summary.totalAdvanceDeposits || 0)}
+          caption="Advance credit held on file"
+          icon={Banknote}
+          variant={(summary.totalAdvanceDeposits || 0) > 0 ? 'success' : 'default'}
         />
         <StatCard
           label="Active Debtors"
@@ -214,7 +235,7 @@ export function CustomerList() {
         </div>
 
         {/* Status Segmented Filter */}
-        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border/60 text-xs self-start sm:self-auto">
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border/60 text-xs self-start sm:self-auto flex-wrap">
           <button
             type="button"
             onClick={() => {
@@ -245,10 +266,31 @@ export function CustomerList() {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <span>Has Balance</span>
+            <span>Debt</span>
             <span className="font-mono text-micro px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive font-semibold">
               {summary.customersWithBalanceCount}
             </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              startTransition(() => {
+                setHasBalanceFilter('advance');
+                setPage(1);
+              });
+            }}
+            className={`px-3 py-1 rounded-md transition-all font-medium cursor-pointer flex items-center gap-1.5 ${
+              hasBalanceFilter === 'advance'
+                ? 'bg-background text-emerald-500 shadow-xs font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <span>Advance</span>
+            {Boolean(summary.advanceCustomersCount) && (
+              <span className="font-mono text-micro px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold">
+                {summary.advanceCustomersCount}
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -373,12 +415,19 @@ export function CustomerList() {
 
                         {/* Khata Balance */}
                         <td className="py-3 px-4 whitespace-nowrap">
-                          {hasDebt ? (
+                          {balance > 0 ? (
                             <Badge variant="destructive" className="tabular-nums font-mono font-semibold">
-                              {formatCurrency(balance)}
+                              Debt: {formatCurrency(balance)}
+                            </Badge>
+                          ) : balance < 0 ? (
+                            <Badge
+                              variant="secondary"
+                              className="tabular-nums font-mono font-semibold bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                            >
+                              Advance: {formatCurrency(Math.abs(balance))}
                             </Badge>
                           ) : (
-                            <Badge variant="success" className="font-medium">
+                            <Badge variant="outline" className="font-medium text-muted-foreground bg-muted/30">
                               Settled
                             </Badge>
                           )}

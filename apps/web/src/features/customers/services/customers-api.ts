@@ -24,6 +24,8 @@ export interface CustomerListResponse {
     totalCustomers: number;
     totalCreditOutstanding: number;
     customersWithBalanceCount: number;
+    totalAdvanceDeposits?: number;
+    advanceCustomersCount?: number;
   };
 }
 

@@ -245,7 +245,6 @@ export function sanitizeSalePayload(payload: CreateSaleInput): Record<string, un
   if (payload.clientTxId) {
     sanitized.clientTxId = payload.clientTxId;
   }
-
   return sanitized;
 }
 

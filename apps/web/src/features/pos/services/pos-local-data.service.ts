@@ -176,6 +176,62 @@ export const posLocalDataService = {
   },
 
   /**
+   * 3c. Local-First Customer Search: instantaneous query directly from IndexedDB (<2ms latency)
+   */
+  async searchLocalCustomers(query: string): Promise<LocalCustomerRecord[]> {
+    const posDb = getPosDatabase();
+    const q = (query || '').trim().toLowerCase();
+    if (!q) {
+      return await posDb.localCustomers.limit(10).toArray();
+    }
+
+    // 1. Phone match (exact or prefix match via index)
+    const phoneMatches = await posDb.localCustomers
+      .where('phone')
+      .startsWithIgnoreCase(q)
+      .toArray();
+
+    // 2. Name or phone substring search
+    const textMatches = await posDb.localCustomers
+      .filter((c) => {
+        const name = c.name?.toLowerCase() || '';
+        const phone = c.phone?.toLowerCase() || '';
+        return name.includes(q) || phone.includes(q);
+      })
+      .limit(20)
+      .toArray();
+
+    // Merge and deduplicate
+    const combined = Array.from(
+      new Map([...phoneMatches, ...textMatches].map((c) => [c.id, c])).values(),
+    );
+
+    return combined.slice(0, 15);
+  },
+
+  /**
+   * 3d. Cache or update local customer record in IndexedDB
+   */
+  async saveLocalCustomer(customer: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    creditBalance?: number;
+  }): Promise<void> {
+    try {
+      const posDb = getPosDatabase();
+      await posDb.localCustomers.put({
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone || null,
+        creditBalance: Number(customer.creditBalance) || 0,
+      });
+    } catch (err) {
+      console.warn('Failed to save local customer to IndexedDB:', err);
+    }
+  },
+
+  /**
    * 4. Save local-first sale: saves queue record AND immediately decrements local stock
    */
   async recordLocalSale(
@@ -337,6 +393,10 @@ export const posLocalDataService = {
       }
     }
 
+    if (successCount > 0) {
+      void this.autoPruneSyncedRecords();
+    }
+
     return { successCount, conflictCount, errorCount };
   },
 
@@ -438,5 +498,39 @@ export const posLocalDataService = {
     const syncedRecords = await posDb.offlineSales.where('status').equals('synced').toArray();
     const ids = syncedRecords.map((r) => r.id!).filter(Boolean);
     await posDb.offlineSales.bulkDelete(ids);
+  },
+
+  /**
+   * 11. Rolling auto-prune for synced records older than 24 hours (caps at 50 max)
+   */
+  async autoPruneSyncedRecords(): Promise<void> {
+    try {
+      const posDb = getPosDatabase();
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oldSynced = await posDb.offlineSales
+        .where('status')
+        .equals('synced')
+        .and((r) => r.createdAt < oneDayAgo)
+        .toArray();
+
+      if (oldSynced.length > 0) {
+        const ids = oldSynced.map((r) => r.id!).filter(Boolean);
+        await posDb.offlineSales.bulkDelete(ids);
+      }
+
+      // Cap synced records at 50 max to keep IndexedDB lean
+      const allSynced = await posDb.offlineSales
+        .where('status')
+        .equals('synced')
+        .sortBy('createdAt');
+
+      if (allSynced.length > 50) {
+        const excessCount = allSynced.length - 50;
+        const excessIds = allSynced.slice(0, excessCount).map((r) => r.id!).filter(Boolean);
+        await posDb.offlineSales.bulkDelete(excessIds);
+      }
+    } catch (err) {
+      console.warn('Auto-pruning synced offline sales skipped:', err);
+    }
   },
 };

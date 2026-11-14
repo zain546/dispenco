@@ -662,7 +662,13 @@ export class SalesService {
       include: {
         customer: true,
         user: { select: { name: true } },
-        saleItems: { select: { id: true } },
+        saleItems: {
+          select: {
+            id: true,
+            quantity: true,
+            product: { select: { name: true } },
+          },
+        },
         payments: { select: { method: true } },
       },
     });
@@ -699,6 +705,10 @@ export class SalesService {
         customerName: s.customer?.name || auditNameMap.get(s.id) || 'Walk-in Customer',
         cashierName: s.user?.name || 'Staff',
         itemsCount: s.saleItems.length,
+        items: s.saleItems.map((si) => ({
+          productName: si.product?.name || 'Item',
+          quantity: si.quantity,
+        })),
         paymentMethod: s.payments[0]?.method || 'CASH',
       })),
     };

@@ -285,40 +285,40 @@ export function OfflineSyncModal({
           {/* Summary Badges */}
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {/* Pending Sync */}
-            <div className="relative overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-card to-amber-500/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
+            <div className="relative overflow-hidden rounded-xl border border-warning/25 bg-gradient-to-br from-card to-warning/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-amber-500 leading-tight">
+                <span className="text-[11px] sm:text-xs font-semibold text-warning leading-tight">
                   Pending Sync
                 </span>
-                <Clock className="size-3.5 text-amber-500 shrink-0 hidden xs:block" />
+                <Clock className="size-3.5 text-warning shrink-0 hidden xs:block" />
               </div>
-              <strong className="text-xl sm:text-2xl font-extrabold text-amber-500 mt-1 block tabular-nums">
+              <strong className="text-xl sm:text-2xl font-extrabold text-warning mt-1 block tabular-nums">
                 {pendingCount}
               </strong>
             </div>
 
             {/* Stock Conflicts */}
-            <div className="relative overflow-hidden rounded-xl border border-rose-500/25 bg-gradient-to-br from-card to-rose-500/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
+            <div className="relative overflow-hidden rounded-xl border border-destructive/25 bg-gradient-to-br from-card to-destructive/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-rose-500 leading-tight">
+                <span className="text-[11px] sm:text-xs font-semibold text-destructive leading-tight">
                   Conflicts
                 </span>
-                <ShieldAlert className="size-3.5 text-rose-500 shrink-0 hidden xs:block" />
+                <ShieldAlert className="size-3.5 text-destructive shrink-0 hidden xs:block" />
               </div>
-              <strong className="text-xl sm:text-2xl font-extrabold text-rose-500 mt-1 block tabular-nums">
+              <strong className="text-xl sm:text-2xl font-extrabold text-destructive mt-1 block tabular-nums">
                 {conflictCount}
               </strong>
             </div>
 
             {/* Synced */}
-            <div className="relative overflow-hidden rounded-xl border border-emerald-500/25 bg-gradient-to-br from-card to-emerald-500/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
+            <div className="relative overflow-hidden rounded-xl border border-success/25 bg-gradient-to-br from-card to-success/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
               <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-emerald-500 leading-tight">
+                <span className="text-[11px] sm:text-xs font-semibold text-success leading-tight">
                   Synced
                 </span>
-                <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0 hidden xs:block" />
+                <CheckCircle2 className="size-3.5 text-success shrink-0 hidden xs:block" />
               </div>
-              <strong className="text-xl sm:text-2xl font-extrabold text-emerald-500 mt-1 block tabular-nums">
+              <strong className="text-xl sm:text-2xl font-extrabold text-success mt-1 block tabular-nums">
                 {syncedCount}
               </strong>
             </div>
@@ -333,7 +333,7 @@ export function OfflineSyncModal({
               </div>
             ) : records.length === 0 ? (
               <div className="py-6 sm:py-8 text-center text-muted-foreground space-y-2 flex flex-col items-center justify-center">
-                <div className="size-11 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                <div className="size-11 rounded-full bg-success/10 text-success flex items-center justify-center">
                   <CheckCircle2 className="size-5" />
                 </div>
                 <div>

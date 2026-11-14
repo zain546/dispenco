@@ -62,10 +62,12 @@ export class CustomersService {
       ];
     }
 
-    if (query.hasBalance === 'true') {
+    if (query.hasBalance === 'true' || query.hasBalance === 'debt') {
       where.creditBalance = { gt: new Prisma.Decimal(0) };
-    } else if (query.hasBalance === 'false') {
-      where.creditBalance = { lte: new Prisma.Decimal(0) };
+    } else if (query.hasBalance === 'advance') {
+      where.creditBalance = { lt: new Prisma.Decimal(0) };
+    } else if (query.hasBalance === 'false' || query.hasBalance === 'settled') {
+      where.creditBalance = { equals: new Prisma.Decimal(0) };
     }
 
     const [customers, total] = await Promise.all([
@@ -84,7 +86,7 @@ export class CustomersService {
     ]);
 
     // Aggregate summary metrics across all tenant customers
-    const [allCustomersCount, creditSumResult, debtorsCount] = await Promise.all([
+    const [allCustomersCount, creditSumResult, debtorsCount, advanceSumResult, advanceCount] = await Promise.all([
       this.prisma.customer.count({ where: { tenantId } }),
       this.prisma.customer.aggregate({
         where: { tenantId, creditBalance: { gt: new Prisma.Decimal(0) } },
@@ -92,6 +94,13 @@ export class CustomersService {
       }),
       this.prisma.customer.count({
         where: { tenantId, creditBalance: { gt: new Prisma.Decimal(0) } },
+      }),
+      this.prisma.customer.aggregate({
+        where: { tenantId, creditBalance: { lt: new Prisma.Decimal(0) } },
+        _sum: { creditBalance: true },
+      }),
+      this.prisma.customer.count({
+        where: { tenantId, creditBalance: { lt: new Prisma.Decimal(0) } },
       }),
     ]);
 
@@ -117,6 +126,8 @@ export class CustomersService {
         totalCustomers: allCustomersCount,
         totalCreditOutstanding: Number(creditSumResult._sum.creditBalance || 0),
         customersWithBalanceCount: debtorsCount,
+        totalAdvanceDeposits: Math.abs(Number(advanceSumResult?._sum?.creditBalance || 0)),
+        advanceCustomersCount: advanceCount,
       },
     };
   }

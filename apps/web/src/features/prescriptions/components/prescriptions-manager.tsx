@@ -25,6 +25,7 @@ import {
   ShoppingCart,
   Layers,
   Stethoscope,
+  X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,10 +48,12 @@ import {
 } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
+import { StatCard } from '@/components/ui/stat-card';
 import {
   prescriptionsApi,
   PrescriptionData,
   PrescriptionStatus,
+  PrescriptionsSummary,
 } from '../services/prescriptions-api';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { useStore } from '@/context/store-context';
@@ -62,6 +65,7 @@ export function PrescriptionsManager() {
   const { stores, activeStoreId, isAllStores } = useStore();
   const [prescriptions, setPrescriptions] = useState<PrescriptionData[]>([]);
   const [products, setProducts] = useState<ProductData[]>([]);
+  const [summary, setSummary] = useState<PrescriptionsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -71,12 +75,21 @@ export function PrescriptionsManager() {
 
   // Modals
   const [ocrModalOpen, setOcrModalOpen] = useState(false);
+  const [ocrModalMode, setOcrModalMode] = useState<'ocr' | 'manual'>('ocr');
   const [selectedRx, setSelectedRx] = useState<PrescriptionData | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [dispenseModalOpen, setDispenseModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(false);
 
   const effectiveStoreId = !isAllStores && activeStoreId ? activeStoreId : (stores[0]?.id || '');
+
+  const isPrescriptionExpired = (rx: PrescriptionData) => {
+    if (!rx.expiryDate) return false;
+    const exp = new Date(rx.expiryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return exp.getTime() < today.getTime();
+  };
 
   const fetchDependencies = async () => {
     try {
@@ -101,6 +114,9 @@ export function PrescriptionsManager() {
 
       if (res && res.success) {
         setPrescriptions(res.data || []);
+        if (res.summary) {
+          setSummary(res.summary);
+        }
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to load prescriptions'));
@@ -148,16 +164,19 @@ export function PrescriptionsManager() {
     }
   };
 
-  // Metrics
-  const activeCount = prescriptions.filter((p) => p.status === 'ACTIVE').length;
-  const controlledCount = prescriptions.filter((p) =>
-    p.items.some((it) => it.product?.isControlledSubstance),
-  ).length;
-  const dispensedCount = prescriptions.filter((p) => p.status === 'DISPENSED').length;
+  // Metrics (prioritizes store-wide server aggregates to avoid client filter skew)
+  const activeCount = summary ? summary.activeCount : prescriptions.filter((p) => p.status === 'ACTIVE').length;
+  const controlledCount = summary
+    ? summary.controlledCount
+    : prescriptions.filter((p) => p.items.some((it) => it.product?.isControlledSubstance)).length;
+  const dispensedCount = summary
+    ? summary.dispensedCount
+    : prescriptions.filter((p) => p.status === 'DISPENSED').length;
+  const totalCount = summary ? summary.totalPrescriptions : prescriptions.length;
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
-      {/* Header Banner */}
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Standardized Page Header */}
       <PageHeader
         title="Prescription Management & Compliance"
         description="Verify physician prescriptions, inspect clinical directions, and manage controlled narcotic schedules."
@@ -165,166 +184,130 @@ export function PrescriptionsManager() {
         actions={
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <Button
-              onClick={() => setOcrModalOpen(true)}
-              className="gap-2 font-bold shadow-xs h-9.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto justify-center"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setOcrModalMode('manual');
+                setOcrModalOpen(true);
+              }}
+              className="h-9 gap-1.5 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
             >
-              <Camera className="size-4" />
+              <Plus className="size-3.5" />
+              <span>Enter Manually</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setOcrModalMode('ocr');
+                setOcrModalOpen(true);
+              }}
+              className="h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-xs"
+            >
+              <Camera className="size-3.5" />
               <span>Scan Doctor Slip (OCR Assist)</span>
             </Button>
           </div>
         }
       />
 
-      {/* Summary Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Active Prescriptions */}
-        <Card className="relative overflow-hidden border border-emerald-500/20 bg-gradient-to-br from-card via-card to-emerald-500/[0.04] shadow-xs hover:border-emerald-500/40 transition-colors">
-          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold text-foreground/85 leading-snug">
-                Active Prescriptions
-              </span>
-              <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="size-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between gap-2">
-              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
-                {activeCount}
-              </strong>
-              <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                Active
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Controlled Substance Rx */}
-        <Card className="relative overflow-hidden border border-rose-500/25 bg-gradient-to-br from-card via-card to-rose-500/[0.06] shadow-xs hover:border-rose-500/45 transition-colors">
-          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold text-foreground/85 leading-snug">
-                Controlled Drugs
-              </span>
-              <div className="size-8 rounded-lg bg-rose-500/10 text-rose-500 ring-1 ring-rose-500/20 flex items-center justify-center shrink-0">
-                <ShieldAlert className="size-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between gap-2">
-              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-rose-500 tabular-nums">
-                {controlledCount}
-              </strong>
-              <span className="text-[10px] font-semibold text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded-md">
-                Schedule II-V
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Fully Dispensed */}
-        <Card className="relative overflow-hidden border border-sky-500/20 bg-gradient-to-br from-card via-card to-sky-500/[0.04] shadow-xs hover:border-sky-500/40 transition-colors">
-          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold text-foreground/85 leading-snug">
-                Fully Dispensed
-              </span>
-              <div className="size-8 rounded-lg bg-sky-500/10 text-sky-500 ring-1 ring-sky-500/20 flex items-center justify-center shrink-0">
-                <ShieldCheck className="size-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between gap-2">
-              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
-                {dispensedCount}
-              </strong>
-              <span className="text-[10px] font-semibold text-sky-500 bg-sky-500/10 px-1.5 py-0.5 rounded-md">
-                Fulfilled
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Total Recorded */}
-        <Card className="relative overflow-hidden border border-border/70 bg-gradient-to-br from-card via-card to-muted/30 shadow-xs hover:border-primary/40 transition-colors">
-          <CardContent className="p-3.5 sm:p-4 flex flex-col justify-between h-full">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold text-foreground/85 leading-snug">
-                Total Prescriptions
-              </span>
-              <div className="size-8 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center shrink-0">
-                <Layers className="size-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between gap-2">
-              <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
-                {prescriptions.length}
-              </strong>
-              <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
-                Recorded
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <StatCard
+          label="Active Prescriptions"
+          value={activeCount}
+          caption="Awaiting fulfillment"
+          icon={CheckCircle2}
+          variant={activeCount > 0 ? 'success' : 'default'}
+        />
+        <StatCard
+          label="Controlled Drugs"
+          value={controlledCount}
+          caption="Schedule II-V regulated"
+          icon={ShieldAlert}
+          variant={controlledCount > 0 ? 'warning' : 'default'}
+        />
+        <StatCard
+          label="Fully Dispensed"
+          value={dispensedCount}
+          caption="Fulfilled at counter"
+          icon={ShieldCheck}
+          variant="default"
+        />
+        <StatCard
+          label="Total Recorded"
+          value={totalCount}
+          caption="Prescriptions on record"
+          icon={Layers}
+          variant="default"
+        />
       </div>
 
       {/* Filter & Search Bar */}
-      <Card className="border-border/70 shadow-2xs">
-        <CardContent className="p-3 sm:p-4 space-y-2.5 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-3">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search patient, doctor, Rx #..."
-              className="pl-9 pr-4 h-9 text-xs w-full"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 text-xs flex-1 sm:w-36 sm:flex-initial">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL" className="text-xs">All Statuses</SelectItem>
-                <SelectItem value="ACTIVE" className="text-xs">Active</SelectItem>
-                <SelectItem value="DISPENSED" className="text-xs">Dispensed</SelectItem>
-                <SelectItem value="PARTIALLY_DISPENSED" className="text-xs">Partial</SelectItem>
-                <SelectItem value="EXPIRED" className="text-xs">Expired</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant={controlledOnly ? 'destructive' : 'outline'}
-              size="sm"
-              onClick={() => setControlledOnly(!controlledOnly)}
-              className="h-9 gap-1.5 text-xs font-semibold shrink-0 px-2.5 sm:px-3"
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/80 shadow-2xs">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search patient, doctor, Rx #..."
+            className="pl-9 pr-8 h-9 text-xs w-full bg-background"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md transition-colors cursor-pointer"
+              title="Clear search"
             >
-              <ShieldAlert className="size-3.5" />
-              <span className="hidden xs:inline">Controlled Only</span>
-              <span className="xs:hidden">Controlled</span>
-            </Button>
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchPrescriptions}
-              disabled={loading}
-              className="h-9 px-2.5 sm:px-3 gap-1.5 text-xs shrink-0"
-              title="Refresh Prescriptions"
-            >
-              <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 text-xs w-full sm:w-36 bg-background">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL" className="text-xs">All Statuses</SelectItem>
+              <SelectItem value="ACTIVE" className="text-xs">Active</SelectItem>
+              <SelectItem value="DISPENSED" className="text-xs">Dispensed</SelectItem>
+              <SelectItem value="PARTIALLY_DISPENSED" className="text-xs">Partial</SelectItem>
+              <SelectItem value="EXPIRED" className="text-xs">Expired</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button
+            variant={controlledOnly ? 'destructive' : 'outline'}
+            size="sm"
+            onClick={() => setControlledOnly(!controlledOnly)}
+            className="h-9 gap-1.5 text-xs font-medium shrink-0 px-3 cursor-pointer"
+          >
+            <ShieldAlert className="size-3.5" />
+            <span>Controlled Only</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchPrescriptions}
+            disabled={loading}
+            className="h-9 px-3 gap-1.5 text-xs shrink-0 cursor-pointer"
+            title="Refresh Prescriptions"
+          >
+            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Prescriptions List */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="animate-pulse h-48 border-border" />
+            <div key={i} className="animate-pulse h-48 rounded-xl border border-border/80 bg-card p-5" />
           ))}
         </div>
       ) : prescriptions.length === 0 ? (
@@ -334,8 +317,11 @@ export function PrescriptionsManager() {
           action={
             <Button
               size="sm"
-              onClick={() => setOcrModalOpen(true)}
-              className="gap-2 font-bold text-xs"
+              onClick={() => {
+                setOcrModalMode('ocr');
+                setOcrModalOpen(true);
+              }}
+              className="gap-2 font-medium text-xs cursor-pointer shadow-xs"
             >
               <Camera className="size-3.5" />
               <span>Scan Doctor Slip</span>
@@ -345,106 +331,107 @@ export function PrescriptionsManager() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {prescriptions.map((rx) => {
+            const isExpired = rx.status === 'ACTIVE' && isPrescriptionExpired(rx);
             const hasControlled = rx.items.some((it) => it.product?.isControlledSubstance);
+
             return (
-              <Card
+              <div
                 key={rx.id}
-                className={`border transition-all hover:border-primary/40 shadow-xs ${
-                  hasControlled ? 'border-destructive/30 bg-destructive/2' : 'border-border'
-                }`}
+                className="border border-border/80 hover:border-border transition-colors bg-card rounded-xl p-4 sm:p-5 shadow-2xs flex flex-col justify-between space-y-4"
               >
-                <CardHeader className="p-3.5 sm:p-4 pb-3 border-b border-border/50 space-y-2">
-                  {/* Top Bar: Rx Number, Badges, Dates */}
+                {/* Header & Badges */}
+                <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-xs sm:text-sm font-bold text-primary">
+                      <span className="font-mono text-xs font-semibold text-foreground tracking-tight">
                         {rx.prescriptionNumber}
                       </span>
                       <Badge
-                        variant={
+                        variant="outline"
+                        className={`text-xs font-medium h-5 px-1.5 ${
                           rx.status === 'ACTIVE'
-                            ? 'default'
+                            ? 'text-success bg-success/10 border-success/20'
                             : rx.status === 'DISPENSED'
-                            ? 'secondary'
-                            : 'outline'
-                        }
-                        className="text-[11px] font-semibold h-5 px-1.5"
+                            ? 'text-muted-foreground bg-muted border-border'
+                            : rx.status === 'PARTIALLY_DISPENSED'
+                            ? 'text-warning bg-warning/10 border-warning/20'
+                            : 'text-destructive bg-destructive/10 border-destructive/20'
+                        }`}
                       >
                         {rx.status}
                       </Badge>
+                      {isExpired && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-medium text-warning bg-warning/10 border-warning/20 gap-1 h-5 px-1.5"
+                        >
+                          <AlertTriangle className="size-3" />
+                          <span>Expired</span>
+                        </Badge>
+                      )}
                       {hasControlled && (
                         <Badge
-                          variant="destructive"
-                          className="text-[11px] font-bold gap-1 h-5 px-1.5 py-0"
+                          variant="outline"
+                          className="text-xs font-medium text-destructive bg-destructive/10 border-destructive/20 gap-1 h-5 px-1.5"
                         >
                           <ShieldAlert className="size-3" />
-                          <span>Controlled Rx</span>
+                          <span>Controlled</span>
                         </Badge>
                       )}
                     </div>
-                    <div className="text-right text-micro text-muted-foreground shrink-0 flex items-center gap-1.5 ml-auto">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="size-3 text-muted-foreground/70" />
-                        <span>{formatDate(rx.prescriptionDate)}</span>
-                      </span>
-                      {rx.expiryDate && (
-                        <span className="hidden xs:inline text-muted-foreground/70">
-                          • Exp: {formatDate(rx.expiryDate)}
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums flex items-center gap-1.5 ml-auto">
+                      <Calendar className="size-3 text-muted-foreground" />
+                      <span>{formatDate(rx.prescriptionDate)}</span>
+                    </span>
                   </div>
 
-                  {/* Patient Line with Avatar */}
-                  <div className="flex items-center justify-between gap-2 pt-0.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="size-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                        <User className="size-3.5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5 flex-wrap">
-                          <span className="truncate">{rx.patientName}</span>
-                          {rx.patientAge && (
-                            <span className="text-xs text-muted-foreground font-normal shrink-0">
-                              ({rx.patientAge}y{rx.patientGender ? `, ${rx.patientGender}` : ''})
-                            </span>
-                          )}
-                        </h4>
-                      </div>
+                  {/* Patient & Validity */}
+                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 pt-1 border-t border-border/50">
+                    <div>
+                      <h4 className="text-sm font-semibold text-foreground">
+                        {rx.patientName}{' '}
+                        {rx.patientAge && (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            ({rx.patientAge}y{rx.patientGender ? `, ${rx.patientGender}` : ''})
+                          </span>
+                        )}
+                      </h4>
+                      {(rx.patientPhone || rx.patientCnic) && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {rx.patientPhone || 'No phone'}
+                          {rx.patientCnic && ` • CNIC: ${rx.patientCnic}`}
+                        </p>
+                      )}
                     </div>
                     {rx.expiryDate && (
-                      <span className="xs:hidden text-[10px] text-muted-foreground shrink-0">
-                        Exp: {formatDate(rx.expiryDate)}
+                      <span
+                        className={`text-xs tabular-nums shrink-0 ${
+                          isExpired ? 'text-destructive font-medium' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {isExpired ? 'Expired: ' : 'Valid until: '}
+                        {formatDate(rx.expiryDate)}
                       </span>
                     )}
                   </div>
-                </CardHeader>
 
-                <CardContent className="p-3.5 sm:p-4 space-y-3">
-                  {/* Doctor Info */}
-                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Stethoscope className="size-3.5 text-primary shrink-0" />
-                      <span className="text-foreground font-semibold truncate">{rx.doctorName}</span>
-                      {rx.doctorHospital && (
-                        <span className="truncate hidden xs:inline">• {rx.doctorHospital}</span>
-                      )}
-                    </div>
+                  {/* Prescriber Line (Clean inline) */}
+                  <div className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1 border-t border-border/40 truncate">
+                    <Stethoscope className="size-3.5 text-primary shrink-0" />
+                    <span className="text-foreground font-medium truncate">
+                      {rx.doctorName.toLowerCase().startsWith('dr') ? rx.doctorName : `Dr. ${rx.doctorName}`}
+                    </span>
+                    {rx.doctorHospital && <span className="truncate">• {rx.doctorHospital}</span>}
                     {rx.doctorLicenseNumber && (
-                      <Badge variant="outline" className="text-[10px] font-mono shrink-0 h-5 px-1.5">
-                        {rx.doctorLicenseNumber}
-                      </Badge>
+                      <span className="font-mono text-muted-foreground/80 shrink-0">
+                        ({rx.doctorLicenseNumber})
+                      </span>
                     )}
                   </div>
-                  {rx.doctorHospital && (
-                    <div className="xs:hidden text-micro text-muted-foreground -mt-2 pl-5 truncate">
-                      {rx.doctorHospital}
-                    </div>
-                  )}
 
-                  {/* Medicines Summary */}
+                  {/* Prescribed Medicines */}
                   <div className="space-y-1.5 pt-1">
-                    <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
                       Prescribed Medicines ({rx.items.length})
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -452,15 +439,15 @@ export function PrescriptionsManager() {
                         <Badge
                           key={it.id}
                           variant="secondary"
-                          className={`text-xs gap-1.5 py-1 px-2 rounded-lg border ${
-                            it.product?.isControlledSubstance
-                              ? 'border-destructive/30 bg-destructive/10 text-destructive font-semibold'
-                              : 'border-border/60 bg-muted/50 text-foreground'
-                          }`}
+                          className="text-xs font-normal gap-1.5 py-1 px-2.5 rounded-lg border border-border/60 bg-muted/60 text-foreground"
                         >
-                          <Pill className="size-3 text-primary shrink-0" />
+                          <Pill
+                            className={`size-3 shrink-0 ${
+                              it.product?.isControlledSubstance ? 'text-destructive' : 'text-primary'
+                            }`}
+                          />
                           <span className="font-medium">{it.product?.name || 'Medicine'}</span>
-                          <span className="text-muted-foreground text-micro">
+                          <span className="text-muted-foreground font-normal">
                             ({it.quantityPrescribed} {it.product?.unit || 'Units'})
                           </span>
                         </Badge>
@@ -468,73 +455,93 @@ export function PrescriptionsManager() {
                     </div>
                   </div>
 
-                  {/* Diagnosis / Instructions */}
+                  {/* Diagnosis */}
                   {rx.diagnosis && (
-                    <div className="text-xs text-muted-foreground italic line-clamp-2 bg-muted/20 rounded-md p-2 border border-border/40">
-                      <span className="font-medium not-italic text-foreground/80">Diagnosis: </span>
+                    <p className="text-xs text-muted-foreground italic bg-muted/30 p-2.5 rounded-lg border border-border/50">
+                      <span className="font-medium not-italic text-foreground">Diagnosis: </span>
                       {rx.diagnosis}
+                    </p>
+                  )}
+                </div>
+
+                {/* Footer Action Buttons */}
+                <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedRx(rx);
+                      setDetailModalOpen(true);
+                    }}
+                    className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
+                  >
+                    <Eye className="size-3.5 text-muted-foreground" />
+                    <span>Inspect Details</span>
+                  </Button>
+
+                  {rx.status === 'ACTIVE' && (
+                    <div className="flex items-center gap-2">
+                      {isExpired ? (
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-medium text-warning border-warning/30 bg-warning/10 gap-1 h-8 px-2.5"
+                        >
+                          <AlertTriangle className="size-3.5" />
+                          <span>Expired (DRAP Locked)</span>
+                        </Badge>
+                      ) : (
+                        <>
+                          <Button
+                            asChild
+                            size="sm"
+                            className="gap-1.5 text-xs h-8 font-medium cursor-pointer shadow-xs whitespace-nowrap px-3"
+                          >
+                            <Link
+                              href={`/pos?prescriptionId=${rx.id}&customerName=${encodeURIComponent(rx.patientName || '')}&customerPhone=${encodeURIComponent(rx.patientPhone || '')}&doctorName=${encodeURIComponent(rx.doctorName || '')}`}
+                            >
+                              <ShoppingCart className="size-3.5 shrink-0" />
+                              <span>Bill in POS</span>
+                            </Link>
+                          </Button>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDispense(rx.id)}
+                            disabled={isDispensing}
+                            className="gap-1.5 text-xs h-8 font-medium text-success border-success/30 hover:bg-success/10 cursor-pointer whitespace-nowrap px-3"
+                          >
+                            <CheckCircle2 className="size-3.5 shrink-0" />
+                            <span>Dispense</span>
+                          </Button>
+                        </>
+                      )}
                     </div>
                   )}
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedRx(rx);
-                        setDetailModalOpen(true);
-                      }}
-                      className={`gap-1.5 text-xs h-8.5 font-semibold ${
-                        rx.status === 'ACTIVE' ? 'flex-1 sm:flex-initial' : 'w-full sm:w-auto'
-                      }`}
-                    >
-                      <Eye className="size-3.5 text-primary" />
-                      <span>Inspect Details</span>
-                    </Button>
-
-                    {rx.status === 'ACTIVE' && (
-                      <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="secondary"
-                          className="gap-1.5 text-xs h-8.5 font-semibold text-primary hover:text-primary flex-1 sm:flex-initial"
-                        >
-                          <Link
-                            href={`/pos?customerName=${encodeURIComponent(rx.patientName || '')}&customerPhone=${encodeURIComponent(rx.patientPhone || '')}`}
-                          >
-                            <ShoppingCart className="size-3.5 text-primary" />
-                            <span>Bill in POS</span>
-                          </Link>
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          onClick={() => handleDispense(rx.id)}
-                          disabled={isDispensing}
-                          className="gap-1.5 text-xs h-8.5 font-bold flex-1 sm:flex-initial"
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                          <span>Dispense</span>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                  {rx.status === 'DISPENSED' && (
+                    <span className="text-xs font-medium text-success flex items-center gap-1.5">
+                      <CheckCircle2 className="size-3.5 shrink-0" />
+                      <span>Dispensed</span>
+                    </span>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
       )}
 
-      {/* OCR Prescription Modal */}
+      {/* OCR & Prescription Entry Modal */}
       <OcrPrescriptionModal
         open={ocrModalOpen}
         onOpenChange={setOcrModalOpen}
         products={products}
         defaultStoreId={effectiveStoreId}
         onSuccess={fetchPrescriptions}
+        initialMode={ocrModalMode}
       />
 
       {/* Prescription Detail Modal */}
@@ -551,7 +558,7 @@ export function PrescriptionsManager() {
                       {selectedRx.status}
                     </Badge>
                   </DialogTitle>
-                  <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5">
+                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                     Recorded on {formatDate(selectedRx.prescriptionDate)} for store {selectedRx.store?.name}
                   </DialogDescription>
                 </div>
@@ -562,10 +569,10 @@ export function PrescriptionsManager() {
               {/* Patient & Doctor Sub-Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-muted/30 border border-border">
                 <div className="space-y-0.5">
-                  <span className="text-micro text-muted-foreground uppercase font-bold tracking-wider block">
+                  <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider block">
                     Patient Information
                   </span>
-                  <strong className="text-sm font-bold text-foreground block pt-0.5">
+                  <strong className="text-sm font-semibold text-foreground block pt-0.5">
                     {selectedRx.patientName}
                   </strong>
                   <p className="text-muted-foreground">Phone: {selectedRx.patientPhone || 'N/A'}</p>
@@ -578,10 +585,10 @@ export function PrescriptionsManager() {
                 </div>
 
                 <div className="space-y-0.5 border-t sm:border-t-0 sm:border-l border-border/60 pt-2.5 sm:pt-0 sm:pl-3">
-                  <span className="text-micro text-muted-foreground uppercase font-bold tracking-wider block">
+                  <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider block">
                     Prescribing Doctor
                   </span>
-                  <strong className="text-sm font-bold text-foreground block pt-0.5">
+                  <strong className="text-sm font-semibold text-foreground block pt-0.5">
                     {selectedRx.doctorName}
                   </strong>
                   <p className="text-muted-foreground">License: {selectedRx.doctorLicenseNumber || 'N/A'}</p>
@@ -596,7 +603,7 @@ export function PrescriptionsManager() {
                 </span>
                 <div className="border border-border rounded-xl overflow-x-auto">
                   <table className="w-full min-w-[460px] text-left text-xs">
-                    <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro">
+                    <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-xs">
                       <tr>
                         <th className="py-2.5 px-3">Medicine</th>
                         <th className="py-2.5 px-3">Dosage & Frequency</th>
@@ -608,9 +615,16 @@ export function PrescriptionsManager() {
                       {selectedRx.items.map((it) => (
                         <tr key={it.id}>
                           <td className="py-2.5 px-3">
-                            <div className="font-semibold text-foreground">{it.product?.name}</div>
+                            <div className="font-semibold text-foreground flex items-center gap-1.5">
+                              <span>{it.product?.name}</span>
+                              {it.product?.isControlledSubstance && (
+                                <Badge variant="destructive" className="text-xs px-1 py-0">
+                                  Controlled
+                                </Badge>
+                              )}
+                            </div>
                             {it.instructions && (
-                              <div className="text-micro text-muted-foreground italic">
+                              <div className="text-xs text-muted-foreground italic">
                                 &quot;{it.instructions}&quot;
                               </div>
                             )}
@@ -618,7 +632,7 @@ export function PrescriptionsManager() {
                           <td className="py-2.5 px-3">
                             <div>{it.dosage || '1 unit'} • {it.frequency || 'Daily'}</div>
                             {it.durationDays && (
-                              <div className="text-micro text-muted-foreground">
+                              <div className="text-xs text-muted-foreground">
                                 Duration: {it.durationDays} days
                               </div>
                             )}
@@ -636,8 +650,40 @@ export function PrescriptionsManager() {
                 </div>
               </div>
 
+              {/* Compliance Warning for Controlled Drugs missing CNIC */}
+              {selectedRx.items.some((it) => it.product?.isControlledSubstance) && !selectedRx.patientCnic && (
+                <div className="p-3 rounded-xl border border-warning/30 bg-warning/10 flex items-start gap-2.5">
+                  <AlertTriangle className="size-4 text-warning shrink-0 mt-0.5" />
+                  <p className="text-xs text-warning font-medium leading-relaxed">
+                    <strong>Regulatory Notice:</strong> Patient CNIC is missing. DRAP guidelines require patient National ID / CNIC for controlled Schedule II–V dispensing records.
+                  </p>
+                </div>
+              )}
+
+              {/* Dispensing Audit Link if Dispensed */}
+              {selectedRx.sale && (
+                <div className="p-3 rounded-xl bg-success/10 border border-success/30 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-lg bg-success/20 text-success flex items-center justify-center shrink-0">
+                      <ShieldCheck className="size-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">
+                        Dispensed at POS Counter (Receipt #{selectedRx.sale.receiptNumber})
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Billed Amount: {Number(selectedRx.sale.totalAmount).toLocaleString()} PKR • Dispensing Audit Verified
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-success/40 text-success text-xs shrink-0">
+                    Fulfilled
+                  </Badge>
+                </div>
+              )}
+
               {selectedRx.notes && (
-                <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-muted-foreground text-micro">
+                <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-muted-foreground text-xs">
                   <strong>Clinical Notes:</strong> {selectedRx.notes}
                 </div>
               )}
@@ -654,28 +700,46 @@ export function PrescriptionsManager() {
               </Button>
               {selectedRx.status === 'ACTIVE' && (
                 <>
-                  <Button
-                    asChild
-                    size="sm"
-                    variant="secondary"
-                    className="text-xs font-semibold gap-1.5 text-primary hover:text-primary"
-                  >
-                    <Link
-                      href={`/pos?customerName=${encodeURIComponent(selectedRx.patientName || '')}&customerPhone=${encodeURIComponent(selectedRx.patientPhone || '')}`}
+                  {isPrescriptionExpired(selectedRx) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        toast.error(
+                          `Prescription expired on ${selectedRx.expiryDate ? formatDate(selectedRx.expiryDate) : 'due date'}. Under DRAP regulations, expired prescriptions require physician re-authorization.`
+                        )
+                      }
+                      className="text-xs font-medium gap-1.5 text-warning border-warning/30 hover:bg-warning/10 cursor-pointer"
                     >
-                      <ShoppingCart className="size-3.5 text-primary" />
-                      <span>Transfer to POS Counter</span>
-                    </Link>
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleDispense(selectedRx.id)}
-                    disabled={isDispensing}
-                    className="text-xs font-bold gap-1.5"
-                  >
-                    <CheckCircle2 className="size-3.5" />
-                    <span>Mark as Dispensed</span>
-                  </Button>
+                      <AlertTriangle className="size-3.5" />
+                      <span>Prescription Expired (Locked)</span>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="text-xs font-medium gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <Link
+                          href={`/pos?prescriptionId=${selectedRx.id}&customerName=${encodeURIComponent(selectedRx.patientName || '')}&customerPhone=${encodeURIComponent(selectedRx.patientPhone || '')}&doctorName=${encodeURIComponent(selectedRx.doctorName || '')}`}
+                        >
+                          <ShoppingCart className="size-3.5 shrink-0" />
+                          <span>Transfer to POS Counter</span>
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDispense(selectedRx.id)}
+                        disabled={isDispensing}
+                        className="text-xs font-medium gap-1.5 text-success border-success/30 hover:bg-success/10 cursor-pointer"
+                      >
+                        <CheckCircle2 className="size-3.5 shrink-0" />
+                        <span>Mark as Dispensed</span>
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
             </DialogFooter>

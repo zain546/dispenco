@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   prescriptionsApi,
   PrescriptionOcrResponse,
@@ -55,6 +54,7 @@ interface OcrPrescriptionModalProps {
   products: ProductData[];
   defaultStoreId: string;
   onSuccess: () => void;
+  initialMode?: 'ocr' | 'manual';
 }
 
 export function OcrPrescriptionModal({
@@ -63,6 +63,7 @@ export function OcrPrescriptionModal({
   products,
   defaultStoreId,
   onSuccess,
+  initialMode = 'ocr',
 }: OcrPrescriptionModalProps) {
   const [step, setStep] = useState<'upload' | 'review'>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -113,6 +114,37 @@ export function OcrPrescriptionModal({
     setNotes('');
     setItems([]);
   };
+
+  const switchToManualEntry = () => {
+    setStep('review');
+    setPrescriptionDate(new Date().toISOString().split('T')[0]);
+    setExpiryDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    if (items.length === 0) {
+      const firstProd = products[0];
+      setItems([
+        {
+          id: `rx-item-${Date.now()}`,
+          rawMedicineName: firstProd ? firstProd.name : 'Prescribed Medicine',
+          matchedProductId: firstProd ? firstProd.id : null,
+          matchedProductName: firstProd ? firstProd.name : '',
+          dosage: '1 Tablet',
+          frequency: 'Twice daily (BD)',
+          durationDays: 5,
+          quantityPrescribed: 10,
+          instructions: 'After meals',
+          confidence: 1.0,
+          isControlledSubstance: Boolean(firstProd?.isControlledSubstance),
+          isNewProduct: false,
+        },
+      ]);
+    }
+  };
+
+  React.useEffect(() => {
+    if (open && initialMode === 'manual') {
+      switchToManualEntry();
+    }
+  }, [open, initialMode]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -182,13 +214,6 @@ export function OcrPrescriptionModal({
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleSimulateSampleRx = () => {
-    const dummyImage =
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    setFileName('sample_doctor_prescription_slip.png');
-    runOcr(dummyImage, 'image/png', 'sample_doctor_prescription_slip.png');
   };
 
   const handleUpdateItem = (
@@ -320,7 +345,9 @@ export function OcrPrescriptionModal({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <DialogTitle className="text-sm sm:text-lg font-bold text-foreground">
-                    Prescription OCR & Verification
+                    {initialMode === 'manual' && step === 'review'
+                      ? 'Create New Clinical Prescription'
+                      : 'Prescription OCR & Verification'}
                   </DialogTitle>
                   <Badge
                     variant="outline"
@@ -330,7 +357,9 @@ export function OcrPrescriptionModal({
                   </Badge>
                 </div>
                 <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
-                  Scan doctor slips to automatically extract patient details, dosage directions, and cross-reference controlled substances.
+                  {initialMode === 'manual' && step === 'review'
+                    ? 'Enter verified patient clinical details, prescribing physician credentials, and medication schedule.'
+                    : 'Scan doctor slips to automatically extract patient details, dosage directions, and cross-reference controlled substances.'}
                 </DialogDescription>
               </div>
             </div>
@@ -342,7 +371,7 @@ export function OcrPrescriptionModal({
                 className="gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 h-8"
               >
                 <RefreshCw className="size-3.5" />
-                <span className="hidden sm:inline">Re-scan</span>
+                <span className="hidden sm:inline">Upload Slip</span>
               </Button>
             )}
           </div>
@@ -395,7 +424,7 @@ export function OcrPrescriptionModal({
                         Supports photographed medical receipts, clinical hospital slips, and PDF prescriptions (PNG, JPG, WebP, PDF).
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 pt-1 sm:pt-2 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 sm:pt-2 w-full sm:w-auto">
                       <Button
                         type="button"
                         variant="outline"
@@ -407,42 +436,26 @@ export function OcrPrescriptionModal({
                         }}
                       >
                         <Camera className="size-3.5" />
-                        <span>Select Photo / Camera Capture</span>
+                        <span>Select Photo / Camera</span>
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="gap-2 text-xs font-semibold w-full sm:w-auto h-9 justify-center text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          switchToManualEntry();
+                        }}
+                      >
+                        <Plus className="size-3.5" />
+                        <span>Enter Manually (Skip OCR)</span>
                       </Button>
                     </div>
                   </>
                 )}
               </div>
-
-              {/* Demo 1-Click Sandbox Test */}
-              <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-8 sm:size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                      <FileText className="size-4 sm:size-5" />
-                    </div>
-                    <div>
-                      <h5 className="font-semibold text-xs text-foreground">
-                        Don&apos;t have a paper prescription right now?
-                      </h5>
-                      <p className="text-micro text-muted-foreground mt-0.5">
-                        Test the prescription OCR extractor, clinical directions, and controlled substance matching with verified sample data.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isProcessing}
-                    onClick={handleSimulateSampleRx}
-                    className="gap-1.5 shrink-0 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 h-8.5 w-full sm:w-auto justify-center"
-                  >
-                    <Sparkles className="size-3.5" />
-                    <span>Try Sample Prescription Slip</span>
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
           ) : (
             /* Review & Edit Step */
@@ -615,22 +628,22 @@ export function OcrPrescriptionModal({
                 <div className="border border-border rounded-xl overflow-hidden shadow-2xs">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro tracking-wider">
+                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-xs tracking-wider">
                         <tr>
-                          <th className="py-2.5 px-3">#</th>
-                          <th className="py-2.5 px-3 min-w-[200px]">Catalog Match</th>
-                          <th className="py-2.5 px-3 w-28">Dosage</th>
-                          <th className="py-2.5 px-3 min-w-[130px]">Frequency</th>
-                          <th className="py-2.5 px-3 w-20">Days</th>
-                          <th className="py-2.5 px-3 w-20">Qty</th>
-                          <th className="py-2.5 px-3 min-w-[150px]">Instructions</th>
+                          <th className="py-2.5 px-3 w-10 text-center">#</th>
+                          <th className="py-2.5 px-3 min-w-[220px]">Catalog Match</th>
+                          <th className="py-2.5 px-3 min-w-[130px]">Dosage</th>
+                          <th className="py-2.5 px-3 min-w-[160px]">Frequency</th>
+                          <th className="py-2.5 px-3 w-24 min-w-[85px] text-center">Days</th>
+                          <th className="py-2.5 px-3 w-24 min-w-[85px] text-center">Qty</th>
+                          <th className="py-2.5 px-3 min-w-[160px]">Instructions</th>
                           <th className="py-2.5 px-2 text-center w-10"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
                         {items.map((item, idx) => (
                           <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-2.5 px-3 text-muted-foreground font-mono text-micro">
+                            <td className="py-2.5 px-3 text-muted-foreground font-mono text-center">
                               {idx + 1}
                             </td>
 
@@ -643,7 +656,7 @@ export function OcrPrescriptionModal({
                                     handleUpdateItem(idx, 'matchedProductId', val)
                                   }
                                 >
-                                  <SelectTrigger className="h-8 text-xs">
+                                  <SelectTrigger className="h-8 text-xs bg-background">
                                     <SelectValue placeholder="Select catalog medicine..." />
                                   </SelectTrigger>
                                   <SelectContent className="max-h-56">
@@ -652,7 +665,7 @@ export function OcrPrescriptionModal({
                                         <div className="flex items-center gap-1.5">
                                           <span>{p.name} ({p.unit})</span>
                                           {p.isControlledSubstance && (
-                                            <Badge variant="destructive" className="text-micro px-1 py-0">
+                                            <Badge variant="destructive" className="text-xs px-1 py-0">
                                               Rx Schedule
                                             </Badge>
                                           )}
@@ -661,10 +674,10 @@ export function OcrPrescriptionModal({
                                     ))}
                                   </SelectContent>
                                 </Select>
-                                <div className="flex items-center gap-1.5 text-micro text-muted-foreground">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                   <span>OCR: &quot;{item.rawMedicineName}&quot;</span>
                                   {item.isControlledSubstance && (
-                                    <Badge variant="destructive" className="text-micro px-1 py-0">
+                                    <Badge variant="destructive" className="text-xs px-1 py-0">
                                       Controlled
                                     </Badge>
                                   )}
@@ -680,8 +693,8 @@ export function OcrPrescriptionModal({
                                 onChange={(e) =>
                                   handleUpdateItem(idx, 'dosage', e.target.value)
                                 }
-                                placeholder="e.g. 500mg"
-                                className="h-8 text-xs"
+                                placeholder="e.g. 1 Tablet"
+                                className="h-8 text-xs px-2.5 bg-background"
                               />
                             </td>
 
@@ -694,33 +707,49 @@ export function OcrPrescriptionModal({
                                   handleUpdateItem(idx, 'frequency', e.target.value)
                                 }
                                 placeholder="e.g. Twice daily"
-                                className="h-8 text-xs"
+                                className="h-8 text-xs px-2.5 bg-background"
                               />
                             </td>
 
                             {/* Duration Days */}
-                            <td className="py-2.5 px-3">
+                            <td className="py-2.5 px-3 text-center">
                               <Input
-                                type="number"
-                                min="1"
-                                value={item.durationDays || 5}
-                                onChange={(e) =>
-                                  handleUpdateItem(idx, 'durationDays', Number(e.target.value))
-                                }
-                                className="h-8 text-xs"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={item.durationDays !== undefined && item.durationDays !== null ? String(item.durationDays) : '5'}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  handleUpdateItem(idx, 'durationDays', val ? Number(val) : '');
+                                }}
+                                onBlur={(e) => {
+                                  if (!e.target.value || Number(e.target.value) <= 0) {
+                                    handleUpdateItem(idx, 'durationDays', 1);
+                                  }
+                                }}
+                                placeholder="Days"
+                                className="h-8 text-xs text-center font-medium px-2 tabular-nums bg-background"
                               />
                             </td>
 
                             {/* Qty */}
-                            <td className="py-2.5 px-3">
+                            <td className="py-2.5 px-3 text-center">
                               <Input
-                                type="number"
-                                min="1"
-                                value={item.quantityPrescribed}
-                                onChange={(e) =>
-                                  handleUpdateItem(idx, 'quantityPrescribed', Number(e.target.value))
-                                }
-                                className="h-8 text-xs font-semibold"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={item.quantityPrescribed !== undefined && item.quantityPrescribed !== null ? String(item.quantityPrescribed) : '10'}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  handleUpdateItem(idx, 'quantityPrescribed', val ? Number(val) : '');
+                                }}
+                                onBlur={(e) => {
+                                  if (!e.target.value || Number(e.target.value) <= 0) {
+                                    handleUpdateItem(idx, 'quantityPrescribed', 1);
+                                  }
+                                }}
+                                placeholder="Qty"
+                                className="h-8 text-xs text-center font-semibold px-2 tabular-nums bg-background"
                               />
                             </td>
 
@@ -733,7 +762,7 @@ export function OcrPrescriptionModal({
                                   handleUpdateItem(idx, 'instructions', e.target.value)
                                 }
                                 placeholder="Directions..."
-                                className="h-8 text-xs"
+                                className="h-8 text-xs px-2.5 bg-background"
                               />
                             </td>
 
@@ -744,7 +773,7 @@ export function OcrPrescriptionModal({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleRemoveItem(idx)}
-                                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                               >
                                 <Trash2 className="size-3.5" />
                               </Button>
