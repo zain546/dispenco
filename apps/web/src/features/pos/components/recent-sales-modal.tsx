@@ -53,11 +53,14 @@ export function RecentSalesModal({
       if (!sale.items || sale.items.length === 0 || !(sale.items[0] as any)?.batchNumber) {
         try {
           const res = await salesApi.getSaleById(sale.id);
-          if (res?.sale) {
-            fullSale = res.sale;
+          if (!res?.sale) {
+            toast.error('Could not load full receipt details. Please retry.');
+            return;
           }
+          fullSale = res.sale;
         } catch {
-          /* Fall back to current sale object */
+          toast.error('Could not load full receipt details. Please retry.');
+          return;
         }
       }
       await downloadThermalReceiptPdf(fullSale, storeName);

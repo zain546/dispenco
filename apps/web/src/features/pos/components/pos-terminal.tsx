@@ -404,21 +404,31 @@ export function POSTerminal() {
     }
 
     let isCancelled = false;
+    let cloudFinished = false;
+    let hadLocalMatches = false;
+
+    // Reset previous search results on new search query
+    setCustomerSearchResults([]);
 
     // 1. Instant local IndexedDB query (<2ms latency) - shows results on the very first character
     posLocalDataService
       .searchLocalCustomers(term)
       .then((localMatches) => {
-        if (!isCancelled && localMatches.length > 0) {
-          const mapped: CustomerItem[] = localMatches.map((c) => ({
-            id: c.id,
-            name: c.name,
-            phone: c.phone || undefined,
-            creditBalance: c.creditBalance ?? 0,
-            createdAt: '',
-          }));
-          setCustomerSearchResults(mapped);
-          setIsCustomerDropdownOpen(true);
+        if (!isCancelled && !cloudFinished) {
+          if (localMatches.length > 0) {
+            hadLocalMatches = true;
+            const mapped: CustomerItem[] = localMatches.map((c) => ({
+              id: c.id,
+              name: c.name,
+              phone: c.phone || undefined,
+              creditBalance: c.creditBalance ?? 0,
+              createdAt: '',
+            }));
+            setCustomerSearchResults(mapped);
+            setIsCustomerDropdownOpen(true);
+          } else {
+            setCustomerSearchResults([]);
+          }
         }
       })
       .catch(() => {});
@@ -429,12 +439,18 @@ export function POSTerminal() {
       setIsCustomerSearching(true);
       try {
         const results = await customersApi.searchCustomers(term);
-        if (!isCancelled && results && results.length > 0) {
-          setCustomerSearchResults(results as CustomerItem[]);
-          setIsCustomerDropdownOpen(true);
-          // Asynchronously persist fetched customers to IndexedDB for future instant queries
-          for (const c of results) {
-            void posLocalDataService.saveLocalCustomer(c);
+        if (!isCancelled) {
+          cloudFinished = true;
+          const cloudItems = (results || []) as CustomerItem[];
+          if (cloudItems.length > 0) {
+            setCustomerSearchResults(cloudItems);
+            setIsCustomerDropdownOpen(true);
+            // Asynchronously persist fetched customers to IndexedDB for future instant queries
+            for (const c of cloudItems) {
+              void posLocalDataService.saveLocalCustomer(c);
+            }
+          } else if (!hadLocalMatches) {
+            setCustomerSearchResults([]);
           }
         }
       } catch (err) {
