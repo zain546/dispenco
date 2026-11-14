@@ -1947,7 +1947,7 @@ export function POSTerminal() {
                                       className={`text-micro px-1.5 py-0 font-bold shrink-0 ${
                                         expiry.isExpired
                                           ? 'bg-destructive/15 text-destructive border-destructive/30'
-                                          : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                                          : 'bg-warning/15 text-warning border-warning/30'
                                       }`}
                                     >
                                       {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate} (${expiry.daysRemaining}d)`}

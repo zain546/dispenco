@@ -66,7 +66,7 @@ export function PosPackSizeModal({
 
         {/* Authorization Guard Notice */}
         {!canEdit && (
-          <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500 text-xs flex items-center gap-2">
+          <div className="p-2.5 rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs flex items-center gap-2">
             <AlertTriangle className="size-4 shrink-0" />
             <span className="text-micro font-medium">
               Manager approval required to change pack size.

@@ -92,7 +92,7 @@ export const getKhataBalanceBadge = (creditBalance: number) => {
     return {
       label: `Advance: ${Math.abs(num).toLocaleString('en-PK')} PKR`,
       variant: 'secondary' as const,
-      className: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30 font-semibold',
+      className: 'bg-success/15 text-success border-success/30 font-semibold',
     };
   }
   return {

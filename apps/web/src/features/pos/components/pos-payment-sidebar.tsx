@@ -132,7 +132,7 @@ export function PosPaymentSidebar({
                   Customer
                 </Label>
                 {paymentMethod === 'CREDIT' && !selectedCustomer && (
-                  <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-sm whitespace-nowrap">
+                  <span className="text-micro font-semibold text-warning bg-warning/10 border border-warning/20 px-1.5 py-0.5 rounded-sm whitespace-nowrap">
                     Required
                   </span>
                 )}
@@ -463,12 +463,12 @@ export function PosPaymentSidebar({
                     className={`h-10 rounded-lg border text-xs flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
                       isActive
                         ? hasAdvance
-                          ? 'bg-emerald-500/10 border-emerald-500/60 text-emerald-500 font-bold shadow-2xs ring-1 ring-emerald-500/30'
+                          ? 'bg-success/10 border-success/60 text-success font-bold shadow-2xs ring-1 ring-success/30'
                           : isCredit
-                          ? 'bg-amber-500/10 border-amber-500/60 text-amber-500 font-bold shadow-2xs ring-1 ring-amber-500/30'
+                          ? 'bg-warning/10 border-warning/60 text-warning font-bold shadow-2xs ring-1 ring-warning/30'
                           : 'bg-primary/10 border-primary text-primary font-bold shadow-2xs ring-1 ring-primary/30'
                         : hasAdvance
-                        ? 'bg-emerald-500/5 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10 font-medium'
+                        ? 'bg-success/5 border-success/30 text-success hover:bg-success/10 font-medium'
                         : 'bg-card border-border/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground font-medium'
                     }`}
                   >
@@ -476,12 +476,12 @@ export function PosPaymentSidebar({
                       className={`size-3.5 ${
                         isActive
                           ? hasAdvance
-                            ? 'text-emerald-500'
+                            ? 'text-success'
                             : isCredit
-                            ? 'text-amber-500'
+                            ? 'text-warning'
                             : 'text-primary'
                           : hasAdvance
-                          ? 'text-emerald-500'
+                          ? 'text-success'
                           : 'text-muted-foreground'
                       }`}
                     />
@@ -498,13 +498,13 @@ export function PosPaymentSidebar({
               <div
                 className={`p-2.5 rounded-lg border space-y-1.5 text-xs ${
                   Number(selectedCustomer.creditBalance) < 0
-                    ? 'border-emerald-500/30 bg-emerald-500/5'
-                    : 'border-amber-500/30 bg-amber-500/5'
+                    ? 'border-success/30 bg-success/5'
+                    : 'border-warning/30 bg-warning/5'
                 }`}
               >
                 <div
                   className={`flex items-center justify-between font-semibold text-micro ${
-                    Number(selectedCustomer.creditBalance) < 0 ? 'text-emerald-500' : 'text-amber-500'
+                    Number(selectedCustomer.creditBalance) < 0 ? 'text-success' : 'text-warning'
                   }`}
                 >
                   <span className="flex items-center gap-1.5">
@@ -527,7 +527,7 @@ export function PosPaymentSidebar({
                         <span>{curBal < 0 ? 'Available Advance Credit:' : 'Current Debt:'}</span>
                         <span
                           className={`font-semibold ${
-                            curBal < 0 ? 'text-emerald-500' : curBal > 0 ? 'text-destructive' : 'text-foreground'
+                            curBal < 0 ? 'text-success' : curBal > 0 ? 'text-destructive' : 'text-foreground'
                           }`}
                         >
                           {Math.abs(curBal).toLocaleString()} PKR
@@ -535,7 +535,7 @@ export function PosPaymentSidebar({
                       </div>
                       <div className="flex justify-between font-semibold text-foreground">
                         <span>{newBal < 0 ? 'Remaining Advance:' : 'New Total Debt:'}</span>
-                        <span className={`font-bold ${newBal < 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        <span className={`font-bold ${newBal < 0 ? 'text-success' : 'text-warning'}`}>
                           {Math.abs(newBal).toLocaleString()} PKR
                         </span>
                       </div>
@@ -609,23 +609,23 @@ export function PosPaymentSidebar({
                 <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 font-bold">
                   {tenderedNum < totals.grandTotal ? (
                     <>
-                      <span className="text-amber-500 flex items-center gap-1 text-micro">
+                      <span className="text-warning flex items-center gap-1 text-micro">
                         <AlertCircle className="size-3 shrink-0" />
                         <span>Shortage / Remaining:</span>
                       </span>
-                      <span className="text-amber-500 font-mono">
+                      <span className="text-warning font-mono">
                         {(totals.grandTotal - tenderedNum).toFixed(2)} PKR
                       </span>
                     </>
                   ) : tenderedNum === totals.grandTotal ? (
                     <>
-                      <span className="text-emerald-500 text-micro">Exact Cash Tendered:</span>
-                      <span className="text-emerald-500 font-mono">0.00 PKR</span>
+                      <span className="text-success text-micro">Exact Cash Tendered:</span>
+                      <span className="text-success font-mono">0.00 PKR</span>
                     </>
                   ) : (
                     <>
                       <span className="text-muted-foreground text-micro">Change Due:</span>
-                      <span className="text-emerald-500 font-mono text-sm font-extrabold">
+                      <span className="text-success font-mono text-sm font-extrabold">
                         {changeDue.toFixed(2)} PKR
                       </span>
                     </>
@@ -672,7 +672,7 @@ export function PosPaymentSidebar({
               cart.length === 0
                 ? 'opacity-60 cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted'
                 : isKhataBlocked
-                ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30 cursor-not-allowed hover:bg-amber-500/15'
+                ? 'bg-warning/15 text-warning border border-warning/30 cursor-not-allowed hover:bg-warning/15'
                 : 'bg-primary hover:bg-primary/90 text-primary-foreground'
             }`}
           >

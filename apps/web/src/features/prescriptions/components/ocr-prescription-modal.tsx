@@ -353,7 +353,9 @@ export function OcrPrescriptionModal({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <DialogTitle className="text-sm sm:text-lg font-bold text-foreground">
-                    Prescription OCR & Verification
+                    {initialMode === 'manual' && step === 'review'
+                      ? 'Create New Clinical Prescription'
+                      : 'Prescription OCR & Verification'}
                   </DialogTitle>
                   <Badge
                     variant="outline"
@@ -363,7 +365,9 @@ export function OcrPrescriptionModal({
                   </Badge>
                 </div>
                 <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
-                  Scan doctor slips to automatically extract patient details, dosage directions, and cross-reference controlled substances.
+                  {initialMode === 'manual' && step === 'review'
+                    ? 'Enter verified patient clinical details, prescribing physician credentials, and medication schedule.'
+                    : 'Scan doctor slips to automatically extract patient details, dosage directions, and cross-reference controlled substances.'}
                 </DialogDescription>
               </div>
             </div>
@@ -375,7 +379,7 @@ export function OcrPrescriptionModal({
                 className="gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 h-8"
               >
                 <RefreshCw className="size-3.5" />
-                <span className="hidden sm:inline">Re-scan</span>
+                <span className="hidden sm:inline">Upload Slip</span>
               </Button>
             )}
           </div>
@@ -662,22 +666,22 @@ export function OcrPrescriptionModal({
                 <div className="border border-border rounded-xl overflow-hidden shadow-2xs">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro tracking-wider">
+                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-xs tracking-wider">
                         <tr>
-                          <th className="py-2.5 px-3">#</th>
-                          <th className="py-2.5 px-3 min-w-[200px]">Catalog Match</th>
-                          <th className="py-2.5 px-3 w-28">Dosage</th>
-                          <th className="py-2.5 px-3 min-w-[130px]">Frequency</th>
-                          <th className="py-2.5 px-3 w-20">Days</th>
-                          <th className="py-2.5 px-3 w-20">Qty</th>
-                          <th className="py-2.5 px-3 min-w-[150px]">Instructions</th>
+                          <th className="py-2.5 px-3 w-10 text-center">#</th>
+                          <th className="py-2.5 px-3 min-w-[220px]">Catalog Match</th>
+                          <th className="py-2.5 px-3 min-w-[130px]">Dosage</th>
+                          <th className="py-2.5 px-3 min-w-[160px]">Frequency</th>
+                          <th className="py-2.5 px-3 w-24 min-w-[85px] text-center">Days</th>
+                          <th className="py-2.5 px-3 w-24 min-w-[85px] text-center">Qty</th>
+                          <th className="py-2.5 px-3 min-w-[160px]">Instructions</th>
                           <th className="py-2.5 px-2 text-center w-10"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
                         {items.map((item, idx) => (
                           <tr key={item.id} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-2.5 px-3 text-muted-foreground font-mono text-micro">
+                            <td className="py-2.5 px-3 text-muted-foreground font-mono text-center">
                               {idx + 1}
                             </td>
 
@@ -690,7 +694,7 @@ export function OcrPrescriptionModal({
                                     handleUpdateItem(idx, 'matchedProductId', val)
                                   }
                                 >
-                                  <SelectTrigger className="h-8 text-xs">
+                                  <SelectTrigger className="h-8 text-xs bg-background">
                                     <SelectValue placeholder="Select catalog medicine..." />
                                   </SelectTrigger>
                                   <SelectContent className="max-h-56">
@@ -699,7 +703,7 @@ export function OcrPrescriptionModal({
                                         <div className="flex items-center gap-1.5">
                                           <span>{p.name} ({p.unit})</span>
                                           {p.isControlledSubstance && (
-                                            <Badge variant="destructive" className="text-micro px-1 py-0">
+                                            <Badge variant="destructive" className="text-xs px-1 py-0">
                                               Rx Schedule
                                             </Badge>
                                           )}
@@ -708,10 +712,10 @@ export function OcrPrescriptionModal({
                                     ))}
                                   </SelectContent>
                                 </Select>
-                                <div className="flex items-center gap-1.5 text-micro text-muted-foreground">
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                   <span>OCR: &quot;{item.rawMedicineName}&quot;</span>
                                   {item.isControlledSubstance && (
-                                    <Badge variant="destructive" className="text-micro px-1 py-0">
+                                    <Badge variant="destructive" className="text-xs px-1 py-0">
                                       Controlled
                                     </Badge>
                                   )}
@@ -727,8 +731,8 @@ export function OcrPrescriptionModal({
                                 onChange={(e) =>
                                   handleUpdateItem(idx, 'dosage', e.target.value)
                                 }
-                                placeholder="e.g. 500mg"
-                                className="h-8 text-xs"
+                                placeholder="e.g. 1 Tablet"
+                                className="h-8 text-xs px-2.5 bg-background"
                               />
                             </td>
 
@@ -741,33 +745,49 @@ export function OcrPrescriptionModal({
                                   handleUpdateItem(idx, 'frequency', e.target.value)
                                 }
                                 placeholder="e.g. Twice daily"
-                                className="h-8 text-xs"
+                                className="h-8 text-xs px-2.5 bg-background"
                               />
                             </td>
 
                             {/* Duration Days */}
-                            <td className="py-2.5 px-3">
+                            <td className="py-2.5 px-3 text-center">
                               <Input
-                                type="number"
-                                min="1"
-                                value={item.durationDays || 5}
-                                onChange={(e) =>
-                                  handleUpdateItem(idx, 'durationDays', Number(e.target.value))
-                                }
-                                className="h-8 text-xs"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={item.durationDays !== undefined && item.durationDays !== null ? String(item.durationDays) : '5'}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  handleUpdateItem(idx, 'durationDays', val ? Number(val) : '');
+                                }}
+                                onBlur={(e) => {
+                                  if (!e.target.value || Number(e.target.value) <= 0) {
+                                    handleUpdateItem(idx, 'durationDays', 1);
+                                  }
+                                }}
+                                placeholder="Days"
+                                className="h-8 text-xs text-center font-medium px-2 tabular-nums bg-background"
                               />
                             </td>
 
                             {/* Qty */}
-                            <td className="py-2.5 px-3">
+                            <td className="py-2.5 px-3 text-center">
                               <Input
-                                type="number"
-                                min="1"
-                                value={item.quantityPrescribed}
-                                onChange={(e) =>
-                                  handleUpdateItem(idx, 'quantityPrescribed', Number(e.target.value))
-                                }
-                                className="h-8 text-xs font-semibold"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={item.quantityPrescribed !== undefined && item.quantityPrescribed !== null ? String(item.quantityPrescribed) : '10'}
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  handleUpdateItem(idx, 'quantityPrescribed', val ? Number(val) : '');
+                                }}
+                                onBlur={(e) => {
+                                  if (!e.target.value || Number(e.target.value) <= 0) {
+                                    handleUpdateItem(idx, 'quantityPrescribed', 1);
+                                  }
+                                }}
+                                placeholder="Qty"
+                                className="h-8 text-xs text-center font-semibold px-2 tabular-nums bg-background"
                               />
                             </td>
 
@@ -780,7 +800,7 @@ export function OcrPrescriptionModal({
                                   handleUpdateItem(idx, 'instructions', e.target.value)
                                 }
                                 placeholder="Directions..."
-                                className="h-8 text-xs"
+                                className="h-8 text-xs px-2.5 bg-background"
                               />
                             </td>
 
@@ -791,7 +811,7 @@ export function OcrPrescriptionModal({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleRemoveItem(idx)}
-                                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                               >
                                 <Trash2 className="size-3.5" />
                               </Button>
