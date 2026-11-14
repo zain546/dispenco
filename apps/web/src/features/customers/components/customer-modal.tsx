@@ -189,7 +189,6 @@ export function CustomerModal({
                   <Input
                     id="cust-init-balance"
                     type="number"
-                    min="0"
                     step="1"
                     placeholder="0"
                     value={initialBalance}
@@ -201,7 +200,7 @@ export function CustomerModal({
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  If migrating from an existing paper Khata ledger, enter their current balance.
+                  Positive for existing debt owed by customer (e.g. 500), negative for advance deposit (e.g. -500).
                 </p>
               </div>
             )}
