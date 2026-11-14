@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   prescriptionsApi,
   PrescriptionOcrResponse,
@@ -215,13 +214,6 @@ export function OcrPrescriptionModal({
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleSimulateSampleRx = () => {
-    const dummyImage =
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-    setFileName('sample_doctor_prescription_slip.png');
-    runOcr(dummyImage, 'image/png', 'sample_doctor_prescription_slip.png');
   };
 
   const handleUpdateItem = (
@@ -464,36 +456,6 @@ export function OcrPrescriptionModal({
                   </>
                 )}
               </div>
-
-              {/* Demo 1-Click Sandbox Test */}
-              <Card className="border-primary/20 bg-primary/5">
-                <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-8 sm:size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                      <FileText className="size-4 sm:size-5" />
-                    </div>
-                    <div>
-                      <h5 className="font-semibold text-xs text-foreground">
-                        Don&apos;t have a paper prescription right now?
-                      </h5>
-                      <p className="text-micro text-muted-foreground mt-0.5">
-                        Test the prescription OCR extractor, clinical directions, and controlled substance matching with verified sample data.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={isProcessing}
-                    onClick={handleSimulateSampleRx}
-                    className="gap-1.5 shrink-0 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10 h-8.5 w-full sm:w-auto justify-center"
-                  >
-                    <Sparkles className="size-3.5" />
-                    <span>Try Sample Prescription Slip</span>
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
           ) : (
             /* Review & Edit Step */
