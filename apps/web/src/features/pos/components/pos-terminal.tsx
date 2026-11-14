@@ -24,6 +24,8 @@ import {
   WifiOff,
   Database,
   Pill,
+  FileText,
+  X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,7 @@ import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
 import { CustomerModal } from '@/features/customers/components/customer-modal';
 import { getMedicineIconConfig, formatUnitPlural } from '@/features/inventory/components/product-list';
+import { prescriptionsApi, PrescriptionData } from '@/features/prescriptions/services/prescriptions-api';
 import { posLocalDataService } from '../services/pos-local-data.service';
 import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
@@ -54,6 +57,7 @@ import {
   getCommittedUnitsInCart,
   getMaxAllowedQuantity,
   getKhataBalanceBadge,
+  resolveTaxRateFromCode,
 } from '../utils/pos-helpers';
 import { playScanSuccess, playScanError } from '../utils/pos-audio';
 import { formatCurrency } from '@/lib/format';
@@ -89,6 +93,7 @@ export function POSTerminal() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [doctorName, setDoctorName] = useState('Self');
   const [isSelfDoctor, setIsSelfDoctor] = useState(true);
+  const [loadedPrescription, setLoadedPrescription] = useState<PrescriptionData | null>(null);
   // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
   const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
@@ -326,17 +331,70 @@ export function POSTerminal() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      const rxId = params.get('prescriptionId') || params.get('rxId');
       const custName = params.get('customerName');
       const custPhone = params.get('customerPhone');
+      const docName = params.get('doctorName') || params.get('dr');
+
       if (custName) {
         setCustomerName(custName);
-        toast.info(`Loaded patient "${custName}" for POS billing.`);
+        if (!rxId) toast.info(`Loaded patient "${custName}" for POS billing.`);
       }
       if (custPhone) setCustomerPhone(custPhone);
-      const docName = params.get('doctorName') || params.get('dr');
       if (docName) {
         setDoctorName(docName);
         setIsSelfDoctor(docName.toLowerCase() === 'self');
+      }
+
+      if (rxId) {
+        prescriptionsApi
+          .getPrescriptionById(rxId)
+          .then(async (res) => {
+            if (res && res.data) {
+              const rx: PrescriptionData = res.data;
+              setLoadedPrescription(rx);
+              if (rx.patientName) setCustomerName(rx.patientName);
+              if (rx.patientPhone) setCustomerPhone(rx.patientPhone);
+              if (rx.doctorName) {
+                setDoctorName(rx.doctorName);
+                setIsSelfDoctor(false);
+              }
+
+              // Pre-populate items in cart
+              if (rx.items && rx.items.length > 0) {
+                const newCartItems: CartItem[] = [];
+                for (const it of rx.items) {
+                  if (it.product) {
+                    const prod = it.product as ProductData;
+                    const boxPrice = prod.latestSellPrice ?? 0;
+                    const singleUnitPrice = getSingleUnitPrice(prod);
+                    const defaultTaxRate = resolveTaxRateFromCode(prod.taxCode);
+                    const qtyPrescribed = it.quantityPrescribed || 1;
+
+                    newCartItems.push({
+                      product: prod,
+                      quantity: qtyPrescribed,
+                      unitType: 'UNIT',
+                      unitPrice: singleUnitPrice > 0 ? singleUnitPrice : boxPrice,
+                      discount: 0,
+                      discountType: 'FLAT',
+                      taxRatePercent: defaultTaxRate,
+                    });
+                  }
+                }
+                if (newCartItems.length > 0) {
+                  setCart(newCartItems);
+                  toast.success(
+                    `Prescription ${rx.prescriptionNumber} loaded: ${newCartItems.length} prescribed items added to cart.`,
+                    { duration: 4000 }
+                  );
+                }
+              }
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to load prescription for POS billing:', err);
+          });
       }
     }
   }, []);
@@ -1474,6 +1532,20 @@ export function POSTerminal() {
         setIsSelfDoctor(true);
         toast.success(`Sale completed! Receipt #${res.sale.receiptNumber}`);
 
+        // Automatically dispense prescription and link to sale receipt
+        if (loadedPrescription) {
+          try {
+            await prescriptionsApi.dispensePrescription(loadedPrescription.id, {
+              saleId: res.sale.id,
+              notes: `Fulfilled at POS Counter (Receipt #${res.sale.receiptNumber})`,
+            });
+            queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+          } catch (rxErr) {
+            console.error('Failed to update prescription status after sale:', rxErr);
+          }
+          setLoadedPrescription(null);
+        }
+
         // Invalidate TanStack query cache for inventory, sales, and reports
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         queryClient.invalidateQueries({ queryKey: ['sales'] });
@@ -1653,6 +1725,50 @@ export function POSTerminal() {
               <strong>Org Overview Active:</strong> Sales must be linked to a physical store branch for FEFO batch deductions. Please select a specific branch from the header to transact.
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Active Prescription Linked Banner */}
+      {loadedPrescription && (
+        <div className="p-3 sm:p-3.5 rounded-xl border border-primary/40 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-9 rounded-lg bg-primary/20 text-primary flex items-center justify-center shrink-0">
+              <FileText className="size-4.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-foreground">
+                  Prescription {loadedPrescription.prescriptionNumber}
+                </span>
+                <Badge variant="outline" className="text-micro font-semibold bg-primary/15 text-primary border-primary/30">
+                  Clinical Regimen Active
+                </Badge>
+                {loadedPrescription.items.some((i) => i.product?.isControlledSubstance) && (
+                  <Badge variant="destructive" className="text-micro font-bold py-0 px-1.5">
+                    Controlled Schedule
+                  </Badge>
+                )}
+              </div>
+              <p className="text-micro sm:text-xs text-muted-foreground mt-0.5 truncate">
+                Patient: <strong className="text-foreground">{loadedPrescription.patientName}</strong> • Prescribing Doctor: <strong className="text-foreground">{loadedPrescription.doctorName}</strong>
+                {loadedPrescription.doctorLicenseNumber ? ` (${loadedPrescription.doctorLicenseNumber})` : ''}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setLoadedPrescription(null);
+              toast.info('Unlinked prescription from this POS cart.');
+            }}
+            className="text-xs text-muted-foreground hover:text-destructive h-8 px-2.5 shrink-0 gap-1.5"
+            title="Unlink prescription from this transaction"
+          >
+            <X className="size-3.5" />
+            <span className="hidden sm:inline">Unlink Rx</span>
+          </Button>
         </div>
       )}
 

@@ -25,6 +25,7 @@ import {
   ShoppingCart,
   Layers,
   Stethoscope,
+  X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ import {
   prescriptionsApi,
   PrescriptionData,
   PrescriptionStatus,
+  PrescriptionsSummary,
 } from '../services/prescriptions-api';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { useStore } from '@/context/store-context';
@@ -62,6 +64,7 @@ export function PrescriptionsManager() {
   const { stores, activeStoreId, isAllStores } = useStore();
   const [prescriptions, setPrescriptions] = useState<PrescriptionData[]>([]);
   const [products, setProducts] = useState<ProductData[]>([]);
+  const [summary, setSummary] = useState<PrescriptionsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -71,12 +74,21 @@ export function PrescriptionsManager() {
 
   // Modals
   const [ocrModalOpen, setOcrModalOpen] = useState(false);
+  const [ocrModalMode, setOcrModalMode] = useState<'ocr' | 'manual'>('ocr');
   const [selectedRx, setSelectedRx] = useState<PrescriptionData | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [dispenseModalOpen, setDispenseModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(false);
 
   const effectiveStoreId = !isAllStores && activeStoreId ? activeStoreId : (stores[0]?.id || '');
+
+  const isPrescriptionExpired = (rx: PrescriptionData) => {
+    if (!rx.expiryDate) return false;
+    const exp = new Date(rx.expiryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return exp.getTime() < today.getTime();
+  };
 
   const fetchDependencies = async () => {
     try {
@@ -101,6 +113,9 @@ export function PrescriptionsManager() {
 
       if (res && res.success) {
         setPrescriptions(res.data || []);
+        if (res.summary) {
+          setSummary(res.summary);
+        }
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to load prescriptions'));
@@ -148,12 +163,15 @@ export function PrescriptionsManager() {
     }
   };
 
-  // Metrics
-  const activeCount = prescriptions.filter((p) => p.status === 'ACTIVE').length;
-  const controlledCount = prescriptions.filter((p) =>
-    p.items.some((it) => it.product?.isControlledSubstance),
-  ).length;
-  const dispensedCount = prescriptions.filter((p) => p.status === 'DISPENSED').length;
+  // Metrics (prioritizes store-wide server aggregates to avoid client filter skew)
+  const activeCount = summary ? summary.activeCount : prescriptions.filter((p) => p.status === 'ACTIVE').length;
+  const controlledCount = summary
+    ? summary.controlledCount
+    : prescriptions.filter((p) => p.items.some((it) => it.product?.isControlledSubstance)).length;
+  const dispensedCount = summary
+    ? summary.dispensedCount
+    : prescriptions.filter((p) => p.status === 'DISPENSED').length;
+  const totalCount = summary ? summary.totalPrescriptions : prescriptions.length;
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
@@ -165,7 +183,21 @@ export function PrescriptionsManager() {
         actions={
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <Button
-              onClick={() => setOcrModalOpen(true)}
+              variant="outline"
+              onClick={() => {
+                setOcrModalMode('manual');
+                setOcrModalOpen(true);
+              }}
+              className="gap-2 font-semibold shadow-xs h-9.5 px-3.5 border-border hover:bg-muted text-foreground w-full sm:w-auto justify-center"
+            >
+              <Plus className="size-4" />
+              <span>Enter Manually</span>
+            </Button>
+            <Button
+              onClick={() => {
+                setOcrModalMode('ocr');
+                setOcrModalOpen(true);
+              }}
               className="gap-2 font-bold shadow-xs h-9.5 px-4 bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto justify-center"
             >
               <Camera className="size-4" />
@@ -256,7 +288,7 @@ export function PrescriptionsManager() {
             </div>
             <div className="mt-3 flex items-baseline justify-between gap-2">
               <strong className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
-                {prescriptions.length}
+                {totalCount}
               </strong>
               <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
                 Recorded
@@ -276,8 +308,18 @@ export function PrescriptionsManager() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search patient, doctor, Rx #..."
-              className="pl-9 pr-4 h-9 text-xs w-full"
+              className="pl-9 pr-8 h-9 text-xs w-full"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md"
+                title="Clear search"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -372,6 +414,15 @@ export function PrescriptionsManager() {
                       >
                         {rx.status}
                       </Badge>
+                      {rx.status === 'ACTIVE' && isPrescriptionExpired(rx) && (
+                        <Badge
+                          variant="outline"
+                          className="text-[11px] font-bold gap-1 h-5 px-1.5 py-0 border-amber-500/40 bg-amber-500/10 text-amber-500"
+                        >
+                          <AlertTriangle className="size-3" />
+                          <span>Expired Rx</span>
+                        </Badge>
+                      )}
                       {hasControlled && (
                         <Badge
                           variant="destructive"
@@ -495,29 +546,47 @@ export function PrescriptionsManager() {
 
                     {rx.status === 'ACTIVE' && (
                       <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-                        <Button
-                          asChild
-                          size="sm"
-                          variant="secondary"
-                          className="gap-1.5 text-xs h-8.5 font-semibold text-primary hover:text-primary flex-1 sm:flex-initial"
-                        >
-                          <Link
-                            href={`/pos?customerName=${encodeURIComponent(rx.patientName || '')}&customerPhone=${encodeURIComponent(rx.patientPhone || '')}`}
+                        {isPrescriptionExpired(rx) ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              toast.error(
+                                `Prescription expired on ${rx.expiryDate ? formatDate(rx.expiryDate) : 'due date'}. Under DRAP regulations, expired prescriptions require physician re-authorization.`
+                              )
+                            }
+                            className="gap-1.5 text-xs h-8.5 font-semibold text-amber-500 border-amber-500/30 hover:bg-amber-500/10 flex-1 sm:flex-initial"
                           >
-                            <ShoppingCart className="size-3.5 text-primary" />
-                            <span>Bill in POS</span>
-                          </Link>
-                        </Button>
+                            <AlertTriangle className="size-3.5" />
+                            <span>Expired (Locked)</span>
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              asChild
+                              size="sm"
+                              variant="secondary"
+                              className="gap-1.5 text-xs h-8.5 font-semibold text-primary hover:text-primary flex-1 sm:flex-initial"
+                            >
+                              <Link
+                                href={`/pos?prescriptionId=${rx.id}&customerName=${encodeURIComponent(rx.patientName || '')}&customerPhone=${encodeURIComponent(rx.patientPhone || '')}&doctorName=${encodeURIComponent(rx.doctorName || '')}`}
+                              >
+                                <ShoppingCart className="size-3.5 text-primary" />
+                                <span>Bill in POS</span>
+                              </Link>
+                            </Button>
 
-                        <Button
-                          size="sm"
-                          onClick={() => handleDispense(rx.id)}
-                          disabled={isDispensing}
-                          className="gap-1.5 text-xs h-8.5 font-bold flex-1 sm:flex-initial"
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                          <span>Dispense</span>
-                        </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleDispense(rx.id)}
+                              disabled={isDispensing}
+                              className="gap-1.5 text-xs h-8.5 font-bold flex-1 sm:flex-initial"
+                            >
+                              <CheckCircle2 className="size-3.5" />
+                              <span>Dispense</span>
+                            </Button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -528,13 +597,14 @@ export function PrescriptionsManager() {
         </div>
       )}
 
-      {/* OCR Prescription Modal */}
+      {/* OCR & Prescription Entry Modal */}
       <OcrPrescriptionModal
         open={ocrModalOpen}
         onOpenChange={setOcrModalOpen}
         products={products}
         defaultStoreId={effectiveStoreId}
         onSuccess={fetchPrescriptions}
+        initialMode={ocrModalMode}
       />
 
       {/* Prescription Detail Modal */}
@@ -608,7 +678,14 @@ export function PrescriptionsManager() {
                       {selectedRx.items.map((it) => (
                         <tr key={it.id}>
                           <td className="py-2.5 px-3">
-                            <div className="font-semibold text-foreground">{it.product?.name}</div>
+                            <div className="font-semibold text-foreground flex items-center gap-1.5">
+                              <span>{it.product?.name}</span>
+                              {it.product?.isControlledSubstance && (
+                                <Badge variant="destructive" className="text-micro px-1 py-0">
+                                  Controlled
+                                </Badge>
+                              )}
+                            </div>
                             {it.instructions && (
                               <div className="text-micro text-muted-foreground italic">
                                 &quot;{it.instructions}&quot;
@@ -636,6 +713,38 @@ export function PrescriptionsManager() {
                 </div>
               </div>
 
+              {/* Compliance Warning for Controlled Drugs missing CNIC */}
+              {selectedRx.items.some((it) => it.product?.isControlledSubstance) && !selectedRx.patientCnic && (
+                <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 flex items-start gap-2.5">
+                  <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-micro text-amber-500 font-medium leading-relaxed">
+                    <strong>Regulatory Notice:</strong> Patient CNIC is missing. DRAP guidelines require patient National ID / CNIC for controlled Schedule II–V dispensing records.
+                  </p>
+                </div>
+              )}
+
+              {/* Dispensing Audit Link if Dispensed */}
+              {selectedRx.sale && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-lg bg-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="size-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">
+                        Dispensed at POS Counter (Receipt #{selectedRx.sale.receiptNumber})
+                      </p>
+                      <p className="text-micro text-muted-foreground">
+                        Billed Amount: {Number(selectedRx.sale.totalAmount).toLocaleString()} PKR • Regulated Dispensing Audit Verified
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="border-emerald-500/40 text-emerald-500 text-micro shrink-0">
+                    Fulfilled
+                  </Badge>
+                </div>
+              )}
+
               {selectedRx.notes && (
                 <div className="p-2.5 rounded-lg bg-muted/40 border border-border text-muted-foreground text-micro">
                   <strong>Clinical Notes:</strong> {selectedRx.notes}
@@ -654,28 +763,46 @@ export function PrescriptionsManager() {
               </Button>
               {selectedRx.status === 'ACTIVE' && (
                 <>
-                  <Button
-                    asChild
-                    size="sm"
-                    variant="secondary"
-                    className="text-xs font-semibold gap-1.5 text-primary hover:text-primary"
-                  >
-                    <Link
-                      href={`/pos?customerName=${encodeURIComponent(selectedRx.patientName || '')}&customerPhone=${encodeURIComponent(selectedRx.patientPhone || '')}`}
+                  {isPrescriptionExpired(selectedRx) ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        toast.error(
+                          `Prescription expired on ${selectedRx.expiryDate ? formatDate(selectedRx.expiryDate) : 'due date'}. Under DRAP regulations, expired prescriptions require physician re-authorization.`
+                        )
+                      }
+                      className="text-xs font-semibold gap-1.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
                     >
-                      <ShoppingCart className="size-3.5 text-primary" />
-                      <span>Transfer to POS Counter</span>
-                    </Link>
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleDispense(selectedRx.id)}
-                    disabled={isDispensing}
-                    className="text-xs font-bold gap-1.5"
-                  >
-                    <CheckCircle2 className="size-3.5" />
-                    <span>Mark as Dispensed</span>
-                  </Button>
+                      <AlertTriangle className="size-3.5" />
+                      <span>Prescription Expired (Locked)</span>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="secondary"
+                        className="text-xs font-semibold gap-1.5 text-primary hover:text-primary"
+                      >
+                        <Link
+                          href={`/pos?prescriptionId=${selectedRx.id}&customerName=${encodeURIComponent(selectedRx.patientName || '')}&customerPhone=${encodeURIComponent(selectedRx.patientPhone || '')}&doctorName=${encodeURIComponent(selectedRx.doctorName || '')}`}
+                        >
+                          <ShoppingCart className="size-3.5 text-primary" />
+                          <span>Transfer to POS Counter</span>
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleDispense(selectedRx.id)}
+                        disabled={isDispensing}
+                        className="text-xs font-bold gap-1.5"
+                      >
+                        <CheckCircle2 className="size-3.5" />
+                        <span>Mark as Dispensed</span>
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
             </DialogFooter>

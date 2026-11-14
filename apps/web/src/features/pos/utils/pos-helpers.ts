@@ -101,3 +101,22 @@ export const getKhataBalanceBadge = (creditBalance: number) => {
     className: 'bg-muted text-muted-foreground font-medium',
   };
 };
+
+export const resolveTaxRateFromCode = (taxCode?: string | null): number => {
+  if (!taxCode) return 0;
+  const clean = taxCode.toUpperCase().trim();
+  switch (clean) {
+    case 'EXEMPT':
+    case 'ZERO':
+      return 0;
+    case 'REDUCED_5':
+    case 'REDUCED':
+      return 5;
+    case 'STANDARD':
+    case 'GST_18':
+    case 'DEFAULT':
+      return 18;
+    default:
+      return 0;
+  }
+};

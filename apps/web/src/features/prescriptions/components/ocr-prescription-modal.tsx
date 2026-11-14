@@ -55,6 +55,7 @@ interface OcrPrescriptionModalProps {
   products: ProductData[];
   defaultStoreId: string;
   onSuccess: () => void;
+  initialMode?: 'ocr' | 'manual';
 }
 
 export function OcrPrescriptionModal({
@@ -63,6 +64,7 @@ export function OcrPrescriptionModal({
   products,
   defaultStoreId,
   onSuccess,
+  initialMode = 'ocr',
 }: OcrPrescriptionModalProps) {
   const [step, setStep] = useState<'upload' | 'review'>('upload');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -113,6 +115,37 @@ export function OcrPrescriptionModal({
     setNotes('');
     setItems([]);
   };
+
+  const switchToManualEntry = () => {
+    setStep('review');
+    setPrescriptionDate(new Date().toISOString().split('T')[0]);
+    setExpiryDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    if (items.length === 0) {
+      const firstProd = products[0];
+      setItems([
+        {
+          id: `rx-item-${Date.now()}`,
+          rawMedicineName: firstProd ? firstProd.name : 'Prescribed Medicine',
+          matchedProductId: firstProd ? firstProd.id : null,
+          matchedProductName: firstProd ? firstProd.name : '',
+          dosage: '1 Tablet',
+          frequency: 'Twice daily (BD)',
+          durationDays: 5,
+          quantityPrescribed: 10,
+          instructions: 'After meals',
+          confidence: 1.0,
+          isControlledSubstance: Boolean(firstProd?.isControlledSubstance),
+          isNewProduct: false,
+        },
+      ]);
+    }
+  };
+
+  React.useEffect(() => {
+    if (open && initialMode === 'manual') {
+      switchToManualEntry();
+    }
+  }, [open, initialMode]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -395,7 +428,7 @@ export function OcrPrescriptionModal({
                         Supports photographed medical receipts, clinical hospital slips, and PDF prescriptions (PNG, JPG, WebP, PDF).
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 pt-1 sm:pt-2 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 sm:pt-2 w-full sm:w-auto">
                       <Button
                         type="button"
                         variant="outline"
@@ -407,7 +440,21 @@ export function OcrPrescriptionModal({
                         }}
                       >
                         <Camera className="size-3.5" />
-                        <span>Select Photo / Camera Capture</span>
+                        <span>Select Photo / Camera</span>
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="gap-2 text-xs font-semibold w-full sm:w-auto h-9 justify-center text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          switchToManualEntry();
+                        }}
+                      >
+                        <Plus className="size-3.5" />
+                        <span>Enter Manually (Skip OCR)</span>
                       </Button>
                     </div>
                   </>

@@ -148,7 +148,10 @@ export class PrescriptionsService {
       };
     }
 
-    const [total, items] = await Promise.all([
+    const baseScope: any = { tenantId };
+    if (params.storeId) baseScope.storeId = params.storeId;
+
+    const [total, items, storeTotal, activeCount, controlledCount, dispensedCount] = await Promise.all([
       this.prisma.prescription.count({ where }),
       this.prisma.prescription.findMany({
         where,
@@ -174,11 +177,26 @@ export class PrescriptionsService {
           sale: { select: { id: true, receiptNumber: true, totalAmount: true } },
         },
       }),
+      this.prisma.prescription.count({ where: baseScope }),
+      this.prisma.prescription.count({ where: { ...baseScope, status: PrescriptionStatus.ACTIVE } }),
+      this.prisma.prescription.count({
+        where: {
+          ...baseScope,
+          items: { some: { product: { isControlledSubstance: true } } },
+        },
+      }),
+      this.prisma.prescription.count({ where: { ...baseScope, status: PrescriptionStatus.DISPENSED } }),
     ]);
 
     return {
       success: true,
       data: items,
+      summary: {
+        totalPrescriptions: storeTotal,
+        activeCount,
+        controlledCount,
+        dispensedCount,
+      },
       meta: {
         total,
         page,
