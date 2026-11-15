@@ -10,21 +10,25 @@ import {
   Calendar,
   DollarSign,
   Package,
-  Receipt,
   FileText,
-  User,
-  ArrowUpDown,
-  Filter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useStore } from '@/context/store-context';
 import {
   salesApi,
   ReturnRecord,
+  ReturnsSummaryMetrics,
   QueryReturnsParams,
 } from '../services/sales-api';
 import { formatCurrency, formatDateTime } from '@/lib/format';
@@ -36,10 +40,12 @@ import { toast } from 'sonner';
 export function ReturnsManager() {
   const { activeStore, isAllStores } = useStore();
   const [returns, setReturns] = useState<ReturnRecord[]>([]);
+  const [summary, setSummary] = useState<ReturnsSummaryMetrics | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [methodFilter, setMethodFilter] = useState<string>('ALL');
   const [isLoading, setIsLoading] = useState(true);
 
   // Modals state
@@ -54,10 +60,14 @@ export function ReturnsManager() {
         limit: 15,
         storeId: !isAllStores && activeStore?.id ? activeStore.id : undefined,
         search: search.trim() || undefined,
+        refundMethod: methodFilter !== 'ALL' ? methodFilter : undefined,
       };
 
       const res = await salesApi.getReturns(params);
       setReturns(res.data || []);
+      if (res.summary) {
+        setSummary(res.summary);
+      }
       setTotalCount(res.meta?.total || 0);
       setTotalPages(res.meta?.totalPages || 1);
     } catch (err) {
@@ -65,7 +75,7 @@ export function ReturnsManager() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeStore?.id, isAllStores, page, search]);
+  }, [activeStore?.id, isAllStores, page, search, methodFilter]);
 
   useEffect(() => {
     fetchReturns();
@@ -77,14 +87,21 @@ export function ReturnsManager() {
     setSelectedReturnForSlip(newReturn);
   };
 
-  // Compute stats
-  const totalRefundValue = returns.reduce((sum, r) => sum + Number(r.refundAmount), 0);
-  const totalUnitsRestocked = returns.reduce(
-    (sum, r) => sum + r.returnItems.reduce((acc, ri) => acc + ri.quantity, 0),
-    0,
-  );
+  // Compute store-wide stats (with page fallback if backend summary is absent)
+  const totalReturnsMetric = summary?.totalReturns ?? totalCount;
+  const totalRefundValue =
+    summary?.totalRefundAmount ??
+    returns.reduce((sum, r) => sum + Number(r.refundAmount), 0);
+  const totalUnitsRestocked =
+    summary?.totalUnitsRestocked ??
+    returns.reduce(
+      (sum, r) => sum + r.returnItems.reduce((acc, ri) => acc + ri.quantity, 0),
+      0,
+    );
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayReturnsCount = returns.filter((r) => r.createdAt.slice(0, 10) === todayStr).length;
+  const todayReturnsCount =
+    summary?.todayReturnsCount ??
+    returns.filter((r) => r.createdAt.slice(0, 10) === todayStr).length;
 
   return (
     <div className="space-y-6">
@@ -100,14 +117,14 @@ export function ReturnsManager() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={fetchReturns}
             disabled={isLoading}
-            className="h-9 gap-1.5 text-xs font-medium cursor-pointer"
+            className="h-9 gap-1.5 text-xs font-medium cursor-pointer whitespace-nowrap"
           >
             <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -118,7 +135,7 @@ export function ReturnsManager() {
             variant="default"
             size="sm"
             onClick={() => setIsCreateOpen(true)}
-            className="h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-xs"
+            className="h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-xs whitespace-nowrap"
           >
             <Plus className="size-4" />
             <span>Process Return</span>
@@ -130,7 +147,7 @@ export function ReturnsManager() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Returns"
-          value={totalCount}
+          value={totalReturnsMetric}
           caption="Logged returns across ledger"
           icon={RotateCcw}
           variant="default"
@@ -159,24 +176,52 @@ export function ReturnsManager() {
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by Return #, Receipt #, Customer, or Reason..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+      <div className="p-3 rounded-xl border border-border/80 bg-card shadow-2xs flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by Return #, Receipt #, Customer, or Reason..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9 h-9 text-xs bg-background"
+            />
+          </div>
+
+          <Select
+            value={methodFilter}
+            onValueChange={(val) => {
+              setMethodFilter(val);
               setPage(1);
             }}
-            className="pl-9 h-9 text-xs"
-          />
+          >
+            <SelectTrigger className="w-full sm:w-44 h-9 text-xs bg-background">
+              <SelectValue placeholder="All Refund Methods" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL" className="text-xs">
+                All Refund Methods
+              </SelectItem>
+              <SelectItem value="CASH" className="text-xs">
+                Cash Refunds
+              </SelectItem>
+              <SelectItem value="CREDIT" className="text-xs">
+                Khata / Credit Adjustments
+              </SelectItem>
+              <SelectItem value="DIGITAL" className="text-xs">
+                Digital Reversals
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-end shrink-0">
           <span>
-            Showing <strong className="text-foreground">{returns.length}</strong> of{' '}
-            <strong className="text-foreground">{totalCount}</strong> records
+            Showing <strong className="text-foreground tabular-nums">{returns.length}</strong> of{' '}
+            <strong className="text-foreground tabular-nums">{totalCount}</strong> records
           </span>
         </div>
       </div>
@@ -285,21 +330,21 @@ export function ReturnsManager() {
                       </td>
 
                       {/* Refund Amount */}
-                      <td className="py-3.5 px-4 text-right font-bold tabular-nums text-foreground">
+                      <td className="py-3.5 px-4 text-right font-bold tabular-nums text-foreground whitespace-nowrap">
                         {formatCurrency(Number(ret.refundAmount))}
                       </td>
 
                       {/* Method */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <Badge
-                          variant={
+                          variant="outline"
+                          className={`text-micro font-semibold uppercase ${
                             ret.refundMethod === 'CREDIT'
-                              ? 'secondary'
+                              ? 'bg-warning/10 text-warning border-warning/20'
                               : ret.refundMethod === 'DIGITAL'
-                              ? 'default'
-                              : 'outline'
-                          }
-                          className="text-micro font-semibold uppercase"
+                              ? 'bg-primary/10 text-primary border-primary/20'
+                              : 'bg-success/10 text-success border-success/20'
+                          }`}
                         >
                           {ret.refundMethod}
                         </Badge>
@@ -318,13 +363,13 @@ export function ReturnsManager() {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedReturnForSlip(ret)}
-                          className="h-7 text-micro gap-1 font-medium cursor-pointer"
+                          className="h-7 text-micro gap-1 font-medium cursor-pointer whitespace-nowrap"
                         >
                           <FileText className="size-3 text-primary" />
                           <span>Slip</span>

@@ -203,12 +203,21 @@ export interface ReturnRecord {
 export interface QueryReturnsParams {
   storeId?: string;
   search?: string;
+  refundMethod?: string;
   page?: number;
   limit?: number;
 }
 
+export interface ReturnsSummaryMetrics {
+  totalReturns: number;
+  totalRefundAmount: number;
+  totalUnitsRestocked: number;
+  todayReturnsCount: number;
+}
+
 export interface ReturnsListResponse {
   data: ReturnRecord[];
+  summary?: ReturnsSummaryMetrics;
   meta: {
     total: number;
     page: number;
@@ -298,6 +307,9 @@ export const salesApi = {
     const query = new URLSearchParams();
     if (params?.storeId) query.append('storeId', params.storeId);
     if (params?.search) query.append('search', params.search);
+    if (params?.refundMethod && params.refundMethod !== 'ALL') {
+      query.append('refundMethod', params.refundMethod);
+    }
     if (params?.page) query.append('page', String(params.page));
     if (params?.limit) query.append('limit', String(params.limit));
 

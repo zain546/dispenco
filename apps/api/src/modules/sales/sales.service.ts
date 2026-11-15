@@ -720,11 +720,18 @@ export class SalesService {
         where: { id: saleId, tenantId },
         include: {
           saleItems: true,
+          returns: { select: { id: true, returnNumber: true } },
         },
       });
 
       if (!sale) {
         throw new NotFoundException(`Sale with ID "${saleId}" not found`);
+      }
+
+      if (sale.returns && sale.returns.length > 0) {
+        throw new BadRequestException(
+          `Cannot void sale #${sale.receiptNumber} because it already has processed returns (${sale.returns.map((r) => r.returnNumber).join(', ')}). Process a return for any remaining items instead.`,
+        );
       }
 
       // Atomically claim the sale void before restoring stock.
@@ -850,6 +857,43 @@ export class SalesService {
         throw new BadRequestException('Cannot process returns against a voided sale');
       }
 
+      const refundMethod =
+        dto.refundMethod?.toUpperCase().trim() ||
+        (sale.status === SaleStatus.ON_CREDIT ? 'CREDIT' : 'CASH');
+
+      if (!['CASH', 'CREDIT', 'DIGITAL'].includes(refundMethod)) {
+        throw new BadRequestException(`Invalid refund method "${refundMethod}". Allowed: CASH, CREDIT, DIGITAL.`);
+      }
+
+      if (refundMethod === 'CREDIT' && !sale.customerId) {
+        throw new BadRequestException(
+          'Cannot issue a Khata credit adjustment for a walk-in sale without a registered customer account.',
+        );
+      }
+
+      // Consolidate duplicate saleItemId entries in the request payload to prevent bypassing remainingReturnable
+      const consolidatedItemsMap = new Map<string, number>();
+      for (const reqItem of dto.items) {
+        if (!reqItem.saleItemId || reqItem.quantity <= 0) {
+          throw new BadRequestException('Each return item must specify a valid saleItemId and positive quantity');
+        }
+        consolidatedItemsMap.set(
+          reqItem.saleItemId,
+          (consolidatedItemsMap.get(reqItem.saleItemId) || 0) + reqItem.quantity,
+        );
+      }
+
+      // Compute overall sale-level discount (beyond item-level discounts) so proportional refunds never exceed what the customer actually paid
+      let totalItemNetBeforeOverall = 0;
+      let totalItemDiscounts = 0;
+      for (const si of sale.saleItems) {
+        const gross = Number(si.unitPrice) * si.quantity;
+        const itemDisc = Number(si.discount);
+        totalItemDiscounts += itemDisc;
+        totalItemNetBeforeOverall += Math.max(0, gross - itemDisc);
+      }
+      const overallSaleDiscount = Math.max(0, Number(sale.discountAmount || 0) - totalItemDiscounts);
+
       // 2. Validate return quantities and calculate proportional refund per item
       let totalRefund = 0;
       const preparedReturnItems: {
@@ -861,11 +905,11 @@ export class SalesService {
         refundAmount: number;
       }[] = [];
 
-      for (const reqItem of dto.items) {
-        const saleItem = sale.saleItems.find((si) => si.id === reqItem.saleItemId);
+      for (const [saleItemId, requestedQty] of consolidatedItemsMap.entries()) {
+        const saleItem = sale.saleItems.find((si) => si.id === saleItemId);
         if (!saleItem) {
           throw new BadRequestException(
-            `Item "${reqItem.saleItemId}" does not belong to receipt #${sale.receiptNumber}`,
+            `Item "${saleItemId}" does not belong to receipt #${sale.receiptNumber}`,
           );
         }
 
@@ -875,32 +919,40 @@ export class SalesService {
         );
         const remainingReturnable = saleItem.quantity - previouslyReturned;
 
-        if (reqItem.quantity > remainingReturnable) {
+        if (requestedQty > remainingReturnable) {
           throw new BadRequestException(
-            `Cannot return ${reqItem.quantity} units of ${saleItem.product.name}. Max returnable: ${remainingReturnable} (Purchased: ${saleItem.quantity}, Already returned: ${previouslyReturned})`,
+            `Cannot return ${requestedQty} units of ${saleItem.product.name}. Max returnable: ${remainingReturnable} (Purchased: ${saleItem.quantity}, Already returned: ${previouslyReturned})`,
           );
         }
 
-        // Proportional refund math: (unitPrice * quantity - discount + taxApplied) * (reqItem.quantity / originalQuantity)
+        // Proportional refund math accounting for both item-level discount and proportional share of overall bill discount
         const lineGross = Number(saleItem.unitPrice) * saleItem.quantity;
         const lineDiscount = Number(saleItem.discount);
+        const lineNetBeforeOverall = Math.max(0, lineGross - lineDiscount);
+        const lineOverallDiscountShare =
+          totalItemNetBeforeOverall > 0 && overallSaleDiscount > 0
+            ? overallSaleDiscount * (lineNetBeforeOverall / totalItemNetBeforeOverall)
+            : 0;
         const lineTax = Number(saleItem.taxApplied);
-        const lineEffectiveTotal = Math.max(0, lineGross - lineDiscount + lineTax);
+        const lineEffectiveTotal = Math.max(
+          0,
+          lineNetBeforeOverall - lineOverallDiscountShare + lineTax,
+        );
 
         const refundAmount =
-          Math.round((lineEffectiveTotal * (reqItem.quantity / saleItem.quantity)) * 100) / 100;
+          Math.round((lineEffectiveTotal * (requestedQty / saleItem.quantity)) * 100) / 100;
         const unitRefund =
-          reqItem.quantity > 0
-            ? Math.round((refundAmount / reqItem.quantity) * 100) / 100
+          requestedQty > 0
+            ? Math.round((refundAmount / requestedQty) * 100) / 100
             : 0;
 
         totalRefund += refundAmount;
 
-        let packsToRestore = reqItem.quantity;
+        let packsToRestore = requestedQty;
         if (saleItem.stockDeducted && saleItem.stockDeducted > 0) {
           // Compute packs to restore from cumulative target minus already-restored packs
           // to ensure multiple partial returns never permanently lose loose units/packs.
-          const newCumulativeReturned = previouslyReturned + reqItem.quantity;
+          const newCumulativeReturned = previouslyReturned + requestedQty;
           const cumulativeTarget = Math.floor(
             (saleItem.stockDeducted * newCumulativeReturned) / saleItem.quantity,
           );
@@ -913,7 +965,7 @@ export class SalesService {
         preparedReturnItems.push({
           saleItemId: saleItem.id,
           batchId: saleItem.batchId,
-          quantity: reqItem.quantity,
+          quantity: requestedQty,
           packsToRestore,
           unitPrice: unitRefund,
           refundAmount,
@@ -924,10 +976,6 @@ export class SalesService {
 
       // 3. Generate human-readable Return number atomically
       const { formatted: returnNumber } = await this.prisma.nextSequence(tenantId, 'RETURN', undefined, tx);
-
-      const refundMethod =
-        dto.refundMethod?.toUpperCase().trim() ||
-        (sale.status === SaleStatus.ON_CREDIT ? 'CREDIT' : 'CASH');
 
       // 4. Create Return and ReturnItems
       const createdReturn = await tx.return.create({
@@ -964,9 +1012,16 @@ export class SalesService {
             select: {
               id: true,
               receiptNumber: true,
+              totalAmount: true,
+              createdAt: true,
               storeId: true,
               customerId: true,
-              customer: true,
+              customer: {
+                select: { id: true, name: true, phone: true },
+              },
+              store: {
+                select: { id: true, name: true },
+              },
             },
           },
           processedByUser: {
@@ -993,11 +1048,8 @@ export class SalesService {
         }
       }
 
-      // 6. Adjust customer credit balance if sale was on credit or refundMethod is CREDIT
-      if (
-        (sale.status === SaleStatus.ON_CREDIT || refundMethod === 'CREDIT') &&
-        sale.customerId
-      ) {
+      // 6. Adjust customer credit balance strictly when refundMethod is CREDIT and customer exists
+      if (refundMethod === 'CREDIT' && sale.customerId) {
         await tx.customer.update({
           where: { id: sale.customerId },
           data: {
@@ -1040,15 +1092,22 @@ export class SalesService {
    * Query return transactions with pagination, store filter, and search
    */
   async getReturns(tenantId: string, query: QueryReturnsDto) {
-    const { storeId, search, page = 1, limit = 20 } = query;
+    const { storeId, search, refundMethod, page = 1, limit = 20 } = query;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.ReturnWhereInput = {
+    const baseStoreWhere: Prisma.ReturnWhereInput = {
       tenantId,
       ...(storeId && {
         sale: {
           storeId,
         },
+      }),
+    };
+
+    const where: Prisma.ReturnWhereInput = {
+      ...baseStoreWhere,
+      ...(refundMethod && refundMethod !== 'ALL' && {
+        refundMethod: refundMethod.toUpperCase().trim(),
       }),
       ...(search && {
         OR: [
@@ -1061,7 +1120,10 @@ export class SalesService {
       }),
     };
 
-    const [returns, total] = await Promise.all([
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [returns, total, storeTotals, storeUnitsAggregate, todayReturnsCount] = await Promise.all([
       this.prisma.return.findMany({
         where,
         skip,
@@ -1098,10 +1160,77 @@ export class SalesService {
         },
       }),
       this.prisma.return.count({ where }),
+      this.prisma.return.aggregate({
+        where: baseStoreWhere,
+        _count: { id: true },
+        _sum: { refundAmount: true },
+      }),
+      this.prisma.returnItem.aggregate({
+        where: {
+          return: baseStoreWhere,
+        },
+        _sum: { quantity: true },
+      }),
+      this.prisma.return.count({
+        where: {
+          ...baseStoreWhere,
+          createdAt: { gte: startOfToday },
+        },
+      }),
     ]);
 
+    // Resolve walk-in customer names recorded in SALE_CREATE audit logs for sales without a Customer entity
+    const saleIdsWithoutCustomer = Array.from(
+      new Set(returns.filter((r) => !r.sale.customer).map((r) => r.sale.id)),
+    );
+    const walkInAuditMap = new Map<string, { name: string; phone?: string | null }>();
+    if (saleIdsWithoutCustomer.length > 0) {
+      const audits = await this.prisma.auditLog.findMany({
+        where: {
+          tenantId,
+          entityType: 'Sale',
+          entityId: { in: saleIdsWithoutCustomer },
+          action: 'SALE_CREATE',
+        },
+        select: { entityId: true, metadata: true },
+      });
+      for (const a of audits) {
+        const meta = a.metadata as Record<string, unknown> | null;
+        if (meta?.customerName && typeof meta.customerName === 'string') {
+          walkInAuditMap.set(a.entityId, {
+            name: meta.customerName,
+            phone: typeof meta.customerPhone === 'string' ? meta.customerPhone : null,
+          });
+        }
+      }
+    }
+
+    const enrichedReturns = returns.map((r) => {
+      if (!r.sale.customer && walkInAuditMap.has(r.sale.id)) {
+        const walkIn = walkInAuditMap.get(r.sale.id)!;
+        return {
+          ...r,
+          sale: {
+            ...r.sale,
+            customer: {
+              id: 'walkin',
+              name: walkIn.name,
+              phone: walkIn.phone || null,
+            },
+          },
+        };
+      }
+      return r;
+    });
+
     return {
-      data: returns,
+      data: enrichedReturns,
+      summary: {
+        totalReturns: storeTotals._count.id || 0,
+        totalRefundAmount: Number(storeTotals._sum.refundAmount || 0),
+        totalUnitsRestocked: Number(storeUnitsAggregate._sum.quantity || 0),
+        todayReturnsCount,
+      },
       meta: {
         total,
         page,
