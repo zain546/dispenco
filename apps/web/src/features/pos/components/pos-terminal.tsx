@@ -640,7 +640,8 @@ export function POSTerminal() {
     linkCodeModal.isOpen
   );
 
-  // Keep a stable ref to latest POS state to avoid recreating the global listener on every keystroke
+  // Keep a stable ref to latest POS state & checkout handler to avoid stale closures in global key listener
+  const handleCheckoutRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const stateRef = useRef({
     cart,
     isSubmitting,
@@ -688,17 +689,8 @@ export function POSTerminal() {
         setTimeout(() => cashInputRef.current?.focus(), 60);
       } else if (e.key === 'F9') {
         e.preventDefault();
-        if (state.cart.length > 0 && !state.isSubmitting) {
-          if (state.paymentMethod === 'CREDIT' && !state.selectedCustomer) {
-            toast.error('Please select a customer for Khata credit.');
-            return;
-          }
-          if (state.hasControlledMedicine && !isValidDoctorName(state.doctorName)) {
-            toast.error("Please enter doctor's name for Rx controlled medicine.");
-            setTimeout(() => doctorInputRef.current?.focus(), 60);
-            return;
-          }
-          handleCheckout();
+        if (!state.isSubmitting) {
+          void handleCheckoutRef.current();
         }
       } else if (e.key === 'Escape') {
         if (state.searchResults.length > 0 || state.searchQuery) {
@@ -1594,6 +1586,8 @@ export function POSTerminal() {
       setIsSubmitting(false);
     }
   };
+
+  handleCheckoutRef.current = handleCheckout;
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12 px-1 sm:px-0">
