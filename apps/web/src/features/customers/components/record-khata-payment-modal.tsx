@@ -54,7 +54,9 @@ export function RecordKhataPaymentModal({
 
   const currentBalance = Number(customer.creditBalance) || 0;
   const numAmount = Number(amount) || 0;
-  const remainingBalance = Math.max(0, currentBalance - numAmount);
+  const isDebt = currentBalance > 0;
+  const isAdvance = currentBalance < 0;
+  const projectedBalance = currentBalance - numAmount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,10 +94,16 @@ export function RecordKhataPaymentModal({
             </div>
             <div>
               <DialogTitle className="text-base font-bold text-foreground">
-                Record Khata Payment
+                {isDebt ? 'Record Debt Repayment' : isAdvance ? 'Record Advance Deposit' : 'Record Customer Payment'}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Settle outstanding credit balance for <span className="font-semibold text-foreground">{customer.name}</span>.
+                {isDebt ? (
+                  <>Settle outstanding credit balance for <span className="font-semibold text-foreground">{customer.name}</span>.</>
+                ) : isAdvance ? (
+                  <>Record additional advance deposit for <span className="font-semibold text-foreground">{customer.name}</span>.</>
+                ) : (
+                  <>Record store credit deposit or payment for <span className="font-semibold text-foreground">{customer.name}</span>.</>
+                )}
               </DialogDescription>
             </div>
           </div>
@@ -107,15 +115,29 @@ export function RecordKhataPaymentModal({
             {/* Balance Overview Card */}
             <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70 flex items-center justify-between">
               <div>
-                <p className="text-micro text-muted-foreground font-medium uppercase text-overline">Current Khata Debt</p>
-                <p className="text-lg font-bold tabular-nums text-foreground mt-0.5">
-                  {formatCurrency(currentBalance)}
+                <p className="text-micro text-muted-foreground font-medium uppercase text-overline">
+                  {isDebt ? 'Current Khata Debt' : isAdvance ? 'Current Advance' : 'Current Balance'}
+                </p>
+                <p className={`text-lg font-bold tabular-nums mt-0.5 ${
+                  isDebt ? 'text-destructive' : isAdvance ? 'text-emerald-500' : 'text-foreground'
+                }`}>
+                  {isAdvance ? `Advance: ${formatCurrency(Math.abs(currentBalance))}` : formatCurrency(currentBalance)}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-micro text-muted-foreground font-medium uppercase text-overline">After Payment</p>
-                <p className={`text-lg font-bold tabular-nums mt-0.5 ${remainingBalance === 0 ? 'text-success' : 'text-primary'}`}>
-                  {formatCurrency(remainingBalance)}
+                <p className={`text-lg font-bold tabular-nums mt-0.5 ${
+                  projectedBalance > 0
+                    ? 'text-destructive'
+                    : projectedBalance < 0
+                    ? 'text-emerald-500'
+                    : 'text-success'
+                }`}>
+                  {projectedBalance > 0
+                    ? `Debt: ${formatCurrency(projectedBalance)}`
+                    : projectedBalance < 0
+                    ? `Advance: ${formatCurrency(Math.abs(projectedBalance))}`
+                    : 'Fully Settled (0)'}
                 </p>
               </div>
             </div>
@@ -123,7 +145,7 @@ export function RecordKhataPaymentModal({
             {/* Payment Amount */}
             <div className="space-y-2">
               <Label htmlFor="pay-amount" className="text-xs font-semibold">
-                Repayment Amount (PKR) <span className="text-destructive">*</span>
+                {isDebt ? 'Repayment Amount (PKR)' : 'Payment / Deposit Amount (PKR)'} <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
                 <Input

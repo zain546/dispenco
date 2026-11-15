@@ -11,6 +11,10 @@ export class QueryReturnsDto {
   search?: string;
 
   @IsOptional()
+  @IsString()
+  refundMethod?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { RotateCcw, Printer, Download, CheckCircle2, Calendar, User, FileText, Store } from 'lucide-react';
+import { RotateCcw, Printer, CheckCircle2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,56 +29,142 @@ export function ReturnSlipModal({
 
   if (!returnRecord) return null;
 
-  const handlePrint = () => {
-    if (!printRef.current) return;
-    const printContent = printRef.current.innerHTML;
-    const originalContent = document.body.innerHTML;
-
-    const printWindow = window.open('', '', 'width=600,height=700');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Return Slip - ${returnRecord.returnNumber || 'Dispenco'}</title>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                margin: 20px;
-                color: #111;
-                font-size: 12px;
-                line-height: 1.4;
-              }
-              .header { text-align: center; border-bottom: 1px dashed #bbb; padding-bottom: 12px; margin-bottom: 12px; }
-              .header h2 { margin: 0; font-size: 16px; font-weight: bold; }
-              .meta-table { width: 100%; margin-bottom: 12px; font-size: 11px; }
-              .meta-table td { padding: 2px 0; }
-              .items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-              .items-table th, .items-table td { border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: left; }
-              .items-table th { font-weight: bold; font-size: 11px; background: #fafafa; }
-              .text-right { text-align: right; }
-              .totals-section { border-top: 1px dashed #bbb; padding-top: 8px; margin-top: 8px; }
-              .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; }
-              .footer { text-align: center; font-size: 10px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
-              @media print {
-                body { margin: 0; }
-              }
-            </style>
-          </head>
-          <body>
-            ${printContent}
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 300);
-    }
-  };
-
   const totalUnits = returnRecord.returnItems.reduce((acc, item) => acc + item.quantity, 0);
+
+  const escapeHtml = (value: unknown): string =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '', 'width=650,height=750');
+    if (!printWindow) return;
+
+    const rowsHtml = returnRecord.returnItems
+      .map(
+        (item) => `
+          <tr>
+            <td>
+              <strong>${escapeHtml(item.saleItem.product?.name || 'Medicine')}</strong>
+              ${item.saleItem.product?.genericName ? `<div style="font-size:10px;color:#555;">${escapeHtml(item.saleItem.product.genericName)}</div>` : ''}
+            </td>
+            <td style="font-family:monospace;font-size:11px;">${escapeHtml(item.saleItem.batch?.batchNumber || '-')}</td>
+            <td style="text-align:center;font-weight:bold;">${escapeHtml(item.quantity)}</td>
+            <td style="text-align:right;">${escapeHtml(formatCurrency(Number(item.unitPrice)))}</td>
+            <td style="text-align:right;font-weight:bold;">${escapeHtml(formatCurrency(Number(item.refundAmount)))}</td>
+          </tr>
+        `,
+      )
+      .join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Return Slip - ${escapeHtml(returnRecord.returnNumber || 'Dispenco')}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              margin: 24px;
+              color: #111;
+              font-size: 12px;
+              line-height: 1.45;
+            }
+            .header { text-align: center; border-bottom: 1px dashed #999; padding-bottom: 12px; margin-bottom: 14px; }
+            .badge { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 6px; }
+            .header h2 { margin: 2px 0; font-size: 18px; font-weight: 700; }
+            .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; font-size: 11px; }
+            .meta-label { color: #666; font-size: 10px; text-transform: uppercase; display: block; }
+            .meta-val { font-weight: 600; color: #111; }
+            .reason-box { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; font-size: 11px; }
+            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+            .items-table th, .items-table td { border-bottom: 1px solid #e5e7eb; padding: 7px 6px; text-align: left; }
+            .items-table th { font-weight: 700; font-size: 11px; background: #f3f4f6; text-transform: uppercase; }
+            .totals-section { border-top: 1px dashed #999; padding-top: 10px; margin-top: 8px; }
+            .total-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+            .total-row.grand { font-weight: 700; font-size: 15px; margin-top: 4px; }
+            .footer { text-align: center; font-size: 10px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+            @media print {
+              body { margin: 8px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <span class="badge">Stock Return & Refund Voucher</span>
+            <h2>${escapeHtml(returnRecord.sale.store?.name || 'Pharmacy Dispensary')}</h2>
+            <div>Return Memo #${escapeHtml(returnRecord.returnNumber || 'RET-RECORD')}</div>
+          </div>
+          <div class="meta-grid">
+            <div>
+              <span class="meta-label">Date & Time</span>
+              <span class="meta-val">${escapeHtml(formatDateTime(returnRecord.createdAt))}</span>
+            </div>
+            <div>
+              <span class="meta-label">Original Receipt #</span>
+              <span class="meta-val" style="font-family:monospace;">#${escapeHtml(returnRecord.sale.receiptNumber)}</span>
+            </div>
+            <div>
+              <span class="meta-label">Customer</span>
+              <span class="meta-val">${escapeHtml(returnRecord.sale.customer?.name || 'Walk-in Customer')}</span>
+            </div>
+            <div>
+              <span class="meta-label">Processed By</span>
+              <span class="meta-val">${escapeHtml(returnRecord.processedByUser?.name || 'Dispenser')}</span>
+            </div>
+          </div>
+          <div class="reason-box">
+            <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+              <span class="meta-label">Reason for Return</span>
+              <strong>${escapeHtml(returnRecord.refundMethod)} Refund</strong>
+            </div>
+            <div style="font-weight:600;">${escapeHtml(returnRecord.reason)}</div>
+            ${returnRecord.notes ? `<div style="font-style:italic;color:#555;margin-top:2px;">Note: ${escapeHtml(returnRecord.notes)}</div>` : ''}
+          </div>
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Medicine</th>
+                <th>Batch</th>
+                <th style="text-align:center;">Qty</th>
+                <th style="text-align:right;">Unit Refund</th>
+                <th style="text-align:right;">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          <div class="totals-section">
+            <div class="total-row">
+              <span>Returned Units:</span>
+              <strong>${escapeHtml(totalUnits)} Units</strong>
+            </div>
+            <div class="total-row">
+              <span>Refund Method:</span>
+              <strong>${escapeHtml(returnRecord.refundMethod)}</strong>
+            </div>
+            <div class="total-row grand">
+              <span>Total Refund Issued:</span>
+              <span>${escapeHtml(formatCurrency(Number(returnRecord.refundAmount)))}</span>
+            </div>
+          </div>
+          <div class="footer">
+            <div>Inventory batches have been restored to available stock.</div>
+            <div>Thank you for visiting our pharmacy.</div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -235,7 +321,7 @@ export function ReturnSlipModal({
 
         <div className="p-3 sm:p-4 border-t border-border bg-muted/20 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <CheckCircle2 className="size-4 text-emerald-600" />
+            <CheckCircle2 className="size-4 text-success" />
             <span>Transaction recorded & audited</span>
           </div>
           <Button

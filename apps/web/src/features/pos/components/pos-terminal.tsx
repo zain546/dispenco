@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useTransition, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useTransition, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingCart,
@@ -24,6 +24,8 @@ import {
   WifiOff,
   Database,
   Pill,
+  FileText,
+  X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,7 @@ import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
 import { CustomerModal } from '@/features/customers/components/customer-modal';
 import { getMedicineIconConfig, formatUnitPlural } from '@/features/inventory/components/product-list';
+import { prescriptionsApi, PrescriptionData } from '@/features/prescriptions/services/prescriptions-api';
 import { posLocalDataService } from '../services/pos-local-data.service';
 import { OfflineSyncModal } from './offline-sync-modal';
 import { ReceiptModal } from './receipt-modal';
@@ -54,6 +57,7 @@ import {
   getCommittedUnitsInCart,
   getMaxAllowedQuantity,
   getKhataBalanceBadge,
+  resolveTaxRateFromCode,
 } from '../utils/pos-helpers';
 import { playScanSuccess, playScanError } from '../utils/pos-audio';
 import { formatCurrency } from '@/lib/format';
@@ -89,6 +93,16 @@ export function POSTerminal() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [doctorName, setDoctorName] = useState('Self');
   const [isSelfDoctor, setIsSelfDoctor] = useState(true);
+  const [loadedPrescription, setLoadedPrescription] = useState<PrescriptionData | null>(null);
+  const [failedPrescriptionDispense, setFailedPrescriptionDispense] = useState<{
+    prescriptionId: string;
+    prescriptionNumber: string;
+    saleId: string;
+    receiptNumber: string;
+    notes: string;
+    items: Array<{ itemId: string; quantityDispensed: number }>;
+  } | null>(null);
+  const [isRetryingDispense, setIsRetryingDispense] = useState(false);
   // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
   const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
@@ -326,17 +340,86 @@ export function POSTerminal() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      const rxId = params.get('prescriptionId') || params.get('rxId');
       const custName = params.get('customerName');
       const custPhone = params.get('customerPhone');
+      const docName = params.get('doctorName') || params.get('dr');
+
       if (custName) {
         setCustomerName(custName);
-        toast.info(`Loaded patient "${custName}" for POS billing.`);
+        if (!rxId) toast.info(`Loaded patient "${custName}" for POS billing.`);
       }
       if (custPhone) setCustomerPhone(custPhone);
-      const docName = params.get('doctorName') || params.get('dr');
       if (docName) {
         setDoctorName(docName);
         setIsSelfDoctor(docName.toLowerCase() === 'self');
+      }
+
+      if (rxId) {
+        const initialCartLen = stateRef.current.cart.length;
+        prescriptionsApi
+          .getPrescriptionById(rxId)
+          .then(async (res) => {
+            if (res && res.data) {
+              const rx: PrescriptionData = res.data;
+              const transactionChanged = stateRef.current.cart.length !== initialCartLen;
+              if (transactionChanged) {
+                const confirmed = window.confirm(
+                  `Replace current POS cart and customer details with Prescription ${rx.prescriptionNumber}?`,
+                );
+                if (!confirmed) return;
+              }
+
+              setLoadedPrescription(rx);
+              setFailedPrescriptionDispense(null);
+              if (rx.patientName) setCustomerName(rx.patientName);
+              if (rx.patientPhone) setCustomerPhone(rx.patientPhone);
+              if (rx.doctorName) {
+                setDoctorName(rx.doctorName);
+                setIsSelfDoctor(false);
+              }
+
+              // Pre-populate items in cart (subtracting already dispensed units)
+              if (rx.items && rx.items.length > 0) {
+                const newCartItems: CartItem[] = [];
+                for (const it of rx.items) {
+                  if (it.product) {
+                    const qtyOutstanding = Math.max(
+                      0,
+                      (it.quantityPrescribed || 1) - (it.quantityDispensed ?? 0),
+                    );
+                    if (qtyOutstanding === 0) continue;
+
+                    const prod = it.product as ProductData;
+                    const boxPrice = prod.latestSellPrice ?? 0;
+                    const singleUnitPrice = getSingleUnitPrice(prod);
+                    const defaultTaxRate = resolveTaxRateFromCode(prod.taxCode);
+
+                    newCartItems.push({
+                      product: prod,
+                      quantity: qtyOutstanding,
+                      unitType: 'UNIT',
+                      unitPrice: singleUnitPrice > 0 ? singleUnitPrice : boxPrice,
+                      discount: 0,
+                      discountType: 'FLAT',
+                      taxRatePercent: defaultTaxRate,
+                      prescriptionItemId: it.id,
+                    });
+                  }
+                }
+                if (newCartItems.length > 0) {
+                  setCart(newCartItems);
+                  toast.success(
+                    `Prescription ${rx.prescriptionNumber} loaded: ${newCartItems.length} prescribed items added to cart.`,
+                    { duration: 4000 }
+                  );
+                }
+              }
+            }
+          })
+          .catch((err) => {
+            console.error('Failed to load prescription for POS billing:', err);
+          });
       }
     }
   }, []);
@@ -396,26 +479,76 @@ export function POSTerminal() {
   }, []);
 
   useEffect(() => {
-    if (!customerSearchQuery.trim() || customerSearchQuery.trim().length < 2) {
+    const term = customerSearchQuery.trim();
+    if (!term) {
       setCustomerSearchResults([]);
       setIsCustomerSearching(false);
       return;
     }
 
+    let isCancelled = false;
+    let cloudFinished = false;
+    let hadLocalMatches = false;
+
+    // Reset previous search results on new search query
+    setCustomerSearchResults([]);
+
+    // 1. Instant local IndexedDB query (<2ms latency) - shows results on the very first character
+    posLocalDataService
+      .searchLocalCustomers(term)
+      .then((localMatches) => {
+        if (!isCancelled && !cloudFinished) {
+          if (localMatches.length > 0) {
+            hadLocalMatches = true;
+            const mapped: CustomerItem[] = localMatches.map((c) => ({
+              id: c.id,
+              name: c.name,
+              phone: c.phone || undefined,
+              creditBalance: c.creditBalance ?? 0,
+              createdAt: '',
+            }));
+            setCustomerSearchResults(mapped);
+            setIsCustomerDropdownOpen(true);
+          } else {
+            setCustomerSearchResults([]);
+          }
+        }
+      })
+      .catch(() => {});
+
+    // 2. Debounced background cloud search (150ms) to ensure up-to-date khata balances and new cloud customers
     const timer = setTimeout(async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       setIsCustomerSearching(true);
       try {
-        const results = await customersApi.searchCustomers(customerSearchQuery.trim());
-        setCustomerSearchResults((results || []) as CustomerItem[]);
-        setIsCustomerDropdownOpen(true);
+        const results = await customersApi.searchCustomers(term);
+        if (!isCancelled) {
+          const cloudItems = (results || []) as CustomerItem[];
+          if (cloudItems.length > 0) {
+            cloudFinished = true;
+            setCustomerSearchResults(cloudItems);
+            setIsCustomerDropdownOpen(true);
+            // Asynchronously persist fetched customers to IndexedDB for future instant queries
+            for (const c of cloudItems) {
+              void posLocalDataService.saveLocalCustomer(c);
+            }
+          } else if (!hadLocalMatches) {
+            setCustomerSearchResults([]);
+          }
+        }
       } catch (err) {
-        console.error('Customer search error:', err);
+        console.error('Customer cloud search error:', err);
       } finally {
-        setIsCustomerSearching(false);
+        if (!isCancelled) {
+          setIsCustomerSearching(false);
+        }
       }
-    }, 250);
+    }, 150);
 
-    return () => clearTimeout(timer);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
   }, [customerSearchQuery]);
 
   // Recent Sales History State
@@ -532,7 +665,8 @@ export function POSTerminal() {
     linkCodeModal.isOpen
   );
 
-  // Keep a stable ref to latest POS state to avoid recreating the global listener on every keystroke
+  // Keep a stable ref to latest POS state & checkout handler to avoid stale closures in global key listener
+  const handleCheckoutRef = useRef<() => Promise<void>>(() => Promise.resolve());
   const stateRef = useRef({
     cart,
     isSubmitting,
@@ -580,17 +714,8 @@ export function POSTerminal() {
         setTimeout(() => cashInputRef.current?.focus(), 60);
       } else if (e.key === 'F9') {
         e.preventDefault();
-        if (state.cart.length > 0 && !state.isSubmitting) {
-          if (state.paymentMethod === 'CREDIT' && !state.selectedCustomer) {
-            toast.error('Please select a customer for Khata credit.');
-            return;
-          }
-          if (state.hasControlledMedicine && !isValidDoctorName(state.doctorName)) {
-            toast.error("Please enter doctor's name for Rx controlled medicine.");
-            setTimeout(() => doctorInputRef.current?.focus(), 60);
-            return;
-          }
-          handleCheckout();
+        if (!state.isSubmitting) {
+          void handleCheckoutRef.current();
         }
       } else if (e.key === 'Escape') {
         if (state.searchResults.length > 0 || state.searchQuery) {
@@ -1213,6 +1338,8 @@ export function POSTerminal() {
 
   const clearCart = () => {
     setCart([]);
+    setLoadedPrescription(null);
+    setFailedPrescriptionDispense(null);
     setCustomerName('');
     setCustomerPhone('');
     setCashTendered('');
@@ -1351,6 +1478,27 @@ export function POSTerminal() {
         ? crypto.randomUUID()
         : `tx-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
+    const prescriptionDispenseItems = loadedPrescription
+      ? loadedPrescription.items.map((rxItem) => {
+          const matchingCartLines = cart.filter((cartLine) =>
+            cartLine.prescriptionItemId
+              ? cartLine.prescriptionItemId === rxItem.id
+              : cartLine.product.id === rxItem.productId,
+          );
+          const soldUnits = matchingCartLines.reduce((sum, cartLine) => {
+            const units =
+              cartLine.unitType === 'BOX'
+                ? cartLine.quantity * getPackSize(cartLine.product)
+                : cartLine.quantity;
+            return sum + units;
+          }, 0);
+          return {
+            itemId: rxItem.id,
+            quantityDispensed: soldUnits > 0 ? (rxItem.quantityDispensed ?? 0) + soldUnits : 0,
+          };
+        })
+      : undefined;
+
     const payload = {
       clientTxId,
       storeId: currentBranchId || undefined,
@@ -1370,6 +1518,14 @@ export function POSTerminal() {
         discountType: item.discountType,
         taxRatePercent: item.taxRatePercent > 0 ? item.taxRatePercent : undefined,
       })),
+      prescriptionAssociation:
+        loadedPrescription && prescriptionDispenseItems
+          ? {
+              prescriptionId: loadedPrescription.id,
+              notes: `Fulfilled at POS Counter (Offline Queue)`,
+              items: prescriptionDispenseItems,
+            }
+          : undefined,
     };
 
     // If browser is offline, directly save locally to IndexedDB queue with instant local stock decrement
@@ -1384,6 +1540,8 @@ export function POSTerminal() {
         setCompletedSale(enrichedSale);
         setIsReceiptOpen(true);
         setCart([]);
+        setLoadedPrescription(null);
+        setFailedPrescriptionDispense(null);
         setSelectedCustomer(null);
         setCustomerName('');
         setCustomerPhone('');
@@ -1424,6 +1582,34 @@ export function POSTerminal() {
         setIsSelfDoctor(true);
         toast.success(`Sale completed! Receipt #${res.sale.receiptNumber}`);
 
+        // Automatically dispense prescription and link to sale receipt
+        if (loadedPrescription && prescriptionDispenseItems) {
+          const dispenseNotes = `Fulfilled at POS Counter (Receipt #${res.sale.receiptNumber})`;
+          try {
+            await prescriptionsApi.dispensePrescription(loadedPrescription.id, {
+              saleId: res.sale.id,
+              notes: dispenseNotes,
+              items: prescriptionDispenseItems,
+            });
+            setLoadedPrescription(null);
+            setFailedPrescriptionDispense(null);
+            queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+          } catch (rxErr) {
+            console.error('Failed to update prescription status after sale:', rxErr);
+            setFailedPrescriptionDispense({
+              prescriptionId: loadedPrescription.id,
+              prescriptionNumber: loadedPrescription.prescriptionNumber,
+              saleId: res.sale.id,
+              receiptNumber: res.sale.receiptNumber,
+              notes: dispenseNotes,
+              items: prescriptionDispenseItems,
+            });
+            toast.warning(
+              `Sale #${res.sale.receiptNumber} succeeded, but Prescription ${loadedPrescription.prescriptionNumber} status update failed. Click "Retry Prescription Sync" in the banner.`,
+            );
+          }
+        }
+
         // Invalidate TanStack query cache for inventory, sales, and reports
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         queryClient.invalidateQueries({ queryKey: ['sales'] });
@@ -1451,13 +1637,15 @@ export function POSTerminal() {
           setCompletedSale(enrichedSale);
           setIsReceiptOpen(true);
           setCart([]);
+          setLoadedPrescription(null);
+          setFailedPrescriptionDispense(null);
           setSelectedCustomer(null);
           setCustomerName('');
           setCustomerPhone('');
           setCashTendered('');
           setOverallDiscount(0);
           setDoctorName('Self');
-        setIsSelfDoctor(true);
+          setIsSelfDoctor(true);
           checkPendingOfflineSales();
           toast.warning(`Network disconnect. Sale saved locally to IndexedDB! #${sale.receiptNumber}`);
         } catch (saveErr) {
@@ -1472,6 +1660,32 @@ export function POSTerminal() {
       setIsSubmitting(false);
     }
   };
+
+  const handleRetryPrescriptionDispense = async () => {
+    if (!failedPrescriptionDispense) return;
+    setIsRetryingDispense(true);
+    try {
+      await prescriptionsApi.dispensePrescription(failedPrescriptionDispense.prescriptionId, {
+        saleId: failedPrescriptionDispense.saleId,
+        notes: failedPrescriptionDispense.notes,
+        items: failedPrescriptionDispense.items,
+      });
+      toast.success(
+        `Prescription ${failedPrescriptionDispense.prescriptionNumber} linked to Receipt #${failedPrescriptionDispense.receiptNumber} and marked dispensed!`,
+      );
+      setFailedPrescriptionDispense(null);
+      setLoadedPrescription(null);
+      queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to retry prescription dispense sync'));
+    } finally {
+      setIsRetryingDispense(false);
+    }
+  };
+
+  useLayoutEffect(() => {
+    handleCheckoutRef.current = handleCheckout;
+  });
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12 px-1 sm:px-0">
@@ -1602,6 +1816,70 @@ export function POSTerminal() {
             <span>
               <strong>Org Overview Active:</strong> Sales must be linked to a physical store branch for FEFO batch deductions. Please select a specific branch from the header to transact.
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Active Prescription Linked Banner */}
+      {loadedPrescription && (
+        <div className="p-3 sm:p-3.5 rounded-xl border border-primary/40 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="size-9 rounded-lg bg-primary/20 text-primary flex items-center justify-center shrink-0">
+              <FileText className="size-4.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-foreground">
+                  Prescription {loadedPrescription.prescriptionNumber}
+                </span>
+                <Badge variant="outline" className="text-micro font-semibold bg-primary/15 text-primary border-primary/30">
+                  Clinical Regimen Active
+                </Badge>
+                {loadedPrescription.items.some((i) => i.product?.isControlledSubstance) && (
+                  <Badge variant="destructive" className="text-micro font-bold py-0 px-1.5">
+                    Controlled Schedule
+                  </Badge>
+                )}
+              </div>
+              <p className="text-micro sm:text-xs text-muted-foreground mt-0.5 truncate">
+                Patient: <strong className="text-foreground">{loadedPrescription.patientName}</strong> • Prescribing Doctor: <strong className="text-foreground">{loadedPrescription.doctorName}</strong>
+                {loadedPrescription.doctorLicenseNumber ? ` (${loadedPrescription.doctorLicenseNumber})` : ''}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {failedPrescriptionDispense && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRetryPrescriptionDispense}
+                disabled={isRetryingDispense}
+                className="text-xs font-semibold h-8 px-3 border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 gap-1.5 cursor-pointer"
+              >
+                {isRetryingDispense ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-3.5" />
+                )}
+                <span>Retry Prescription Sync</span>
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setLoadedPrescription(null);
+                setFailedPrescriptionDispense(null);
+                toast.info('Unlinked prescription from this POS cart.');
+              }}
+              className="text-xs text-muted-foreground hover:text-destructive h-8 px-2.5 shrink-0 gap-1.5"
+              title="Unlink prescription from this transaction"
+            >
+              <X className="size-3.5" />
+              <span className="hidden sm:inline">Unlink Rx</span>
+            </Button>
           </div>
         </div>
       )}
@@ -1781,7 +2059,7 @@ export function POSTerminal() {
                                       className={`text-micro px-1.5 py-0 font-bold shrink-0 ${
                                         expiry.isExpired
                                           ? 'bg-destructive/15 text-destructive border-destructive/30'
-                                          : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                                          : 'bg-warning/15 text-warning border-warning/30'
                                       }`}
                                     >
                                       {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate} (${expiry.daysRemaining}d)`}
@@ -2134,6 +2412,7 @@ export function POSTerminal() {
             setSelectedCustomer(newCust);
             setCustomerName(newCust.name);
             setCustomerPhone(newCust.phone || '');
+            void posLocalDataService.saveLocalCustomer(newCust);
             toast.success(`Customer "${newCust.name}" selected.`);
           }
         }}

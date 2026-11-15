@@ -96,7 +96,8 @@ export function CustomerProfileDrawer({
   if (!isOpen) return null;
 
   const creditBalance = Number(customer?.creditBalance) || 0;
-  const hasDebt = creditBalance > 0;
+  const isDebt = creditBalance > 0;
+  const isAdvance = creditBalance < 0;
 
   return (
     <>
@@ -114,12 +115,19 @@ export function CustomerProfileDrawer({
                     <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
                       {customer?.name || 'Customer Profile'}
                     </DialogTitle>
-                    {hasDebt ? (
+                    {isDebt ? (
                       <Badge variant="destructive" className="tabular-nums font-mono font-semibold text-xs">
-                        {formatCurrency(creditBalance)} Balance
+                        Debt: {formatCurrency(creditBalance)}
+                      </Badge>
+                    ) : isAdvance ? (
+                      <Badge
+                        variant="secondary"
+                        className="tabular-nums font-mono font-semibold text-xs bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                      >
+                        Advance: {formatCurrency(Math.abs(creditBalance))}
                       </Badge>
                     ) : (
-                      <Badge variant="success" className="font-medium text-xs">
+                      <Badge variant="outline" className="font-medium text-xs text-muted-foreground bg-muted/30">
                         Settled
                       </Badge>
                     )}
@@ -197,32 +205,42 @@ export function CustomerProfileDrawer({
               <>
                 {/* Financial Summary KPI Row */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-                  {/* Khata Debt */}
+                  {/* Khata Balance Card */}
                   <div className={`relative overflow-hidden rounded-xl border p-3 sm:p-3.5 flex flex-col justify-between ${
-                    hasDebt
+                    isDebt
                       ? 'border-rose-500/25 bg-gradient-to-br from-card via-card to-rose-500/[0.06]'
-                      : 'border-emerald-500/20 bg-gradient-to-br from-card via-card to-emerald-500/[0.04]'
+                      : isAdvance
+                      ? 'border-emerald-500/25 bg-gradient-to-br from-card via-card to-emerald-500/[0.06]'
+                      : 'border-border/70 bg-gradient-to-br from-card via-card to-muted/20'
                   }`}>
                     <div className="flex items-start justify-between gap-1.5">
                       <span className="text-xs font-semibold text-foreground/80 leading-snug">
-                        Khata Debt
+                        {isDebt ? 'Khata Debt' : isAdvance ? 'Customer Advance' : 'Khata Balance'}
                       </span>
                       <div className={`size-7 rounded-lg flex items-center justify-center shrink-0 ${
-                        hasDebt ? 'bg-rose-500/10 text-rose-500 ring-1 ring-rose-500/20' : 'bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20'
+                        isDebt
+                          ? 'bg-rose-500/10 text-rose-500 ring-1 ring-rose-500/20'
+                          : isAdvance
+                          ? 'bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20'
+                          : 'bg-muted text-muted-foreground ring-1 ring-border'
                       }`}>
                         <CreditCard className="size-3.5" />
                       </div>
                     </div>
                     <div className="mt-2.5 flex items-baseline justify-between gap-1.5">
                       <strong className={`text-xl sm:text-2xl font-extrabold tracking-tight tabular-nums truncate ${
-                        hasDebt ? 'text-rose-500' : 'text-emerald-500'
+                        isDebt ? 'text-rose-500' : isAdvance ? 'text-emerald-500' : 'text-foreground'
                       }`}>
-                        {formatCurrency(creditBalance)}
+                        {formatCurrency(Math.abs(creditBalance))}
                       </strong>
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
-                        hasDebt ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-500'
+                        isDebt
+                          ? 'bg-rose-500/10 text-rose-500'
+                          : isAdvance
+                          ? 'bg-emerald-500/10 text-emerald-500'
+                          : 'bg-muted text-muted-foreground'
                       }`}>
-                        {hasDebt ? 'Outstanding' : 'Settled'}
+                        {isDebt ? 'Outstanding' : isAdvance ? 'Store Credit' : 'Settled'}
                       </span>
                     </div>
                   </div>
@@ -383,8 +401,18 @@ export function CustomerProfileDrawer({
                                         <span className="text-muted-foreground/40">—</span>
                                       )}
                                     </td>
-                                    <td className="py-2.5 px-3.5 text-right font-mono tabular-nums font-bold text-foreground whitespace-nowrap">
-                                      {formatCurrency(entry.balance)}
+                                    <td className="py-2.5 px-3.5 text-right font-mono tabular-nums font-bold whitespace-nowrap">
+                                      {entry.balance > 0 ? (
+                                        <span className="text-destructive font-semibold">
+                                          +{formatCurrency(entry.balance)}
+                                        </span>
+                                      ) : entry.balance < 0 ? (
+                                        <span className="text-emerald-500 font-semibold">
+                                          -{formatCurrency(Math.abs(entry.balance))} (Adv)
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">{formatCurrency(0)}</span>
+                                      )}
                                     </td>
                                   </tr>
                                 );

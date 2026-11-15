@@ -1,21 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   RotateCcw,
   Search,
   Loader2,
-  AlertCircle,
-  CheckCircle2,
-  HelpCircle,
-  Receipt,
-  User,
-  Calendar,
-  Package,
   Minus,
   Plus,
   ArrowRight,
-  ShieldAlert,
+  CheckCheck,
 } from 'lucide-react';
 import {
   Dialog,
@@ -36,8 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useStore } from '@/context/store-context';
 import {
   SaleDetailResponse,
+  SaleItemData,
   SaleResponse,
   ReturnRecord,
   salesApi,
@@ -64,12 +59,40 @@ const RETURN_REASONS = [
   'Other reason',
 ];
 
+function computeItemEffectiveTotal(
+  item: SaleItemData,
+  allItems: SaleItemData[],
+  saleDiscountAmount: number,
+): number {
+  let totalItemNetBeforeOverall = 0;
+  let totalItemDiscounts = 0;
+  for (const si of allItems) {
+    const gross = si.unitPrice * si.quantity;
+    const itemDisc = si.discount || 0;
+    totalItemDiscounts += itemDisc;
+    totalItemNetBeforeOverall += Math.max(0, gross - itemDisc);
+  }
+  const overallSaleDiscount = Math.max(0, (saleDiscountAmount || 0) - totalItemDiscounts);
+
+  const lineGross = item.unitPrice * item.quantity;
+  const lineDiscount = item.discount || 0;
+  const lineNetBeforeOverall = Math.max(0, lineGross - lineDiscount);
+  const lineOverallDiscountShare =
+    totalItemNetBeforeOverall > 0 && overallSaleDiscount > 0
+      ? overallSaleDiscount * (lineNetBeforeOverall / totalItemNetBeforeOverall)
+      : 0;
+  const lineTax = item.taxApplied || 0;
+
+  return Math.max(0, lineNetBeforeOverall - lineOverallDiscountShare + lineTax);
+}
+
 export function CreateReturnModal({
   open,
   onOpenChange,
   initialSaleId,
   onReturnSuccess,
 }: CreateReturnModalProps) {
+  const { activeStore, isAllStores } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [recentSales, setRecentSales] = useState<SaleResponse[]>([]);
@@ -83,6 +106,27 @@ export function CreateReturnModal({
   const [notes, setNotes] = useState('');
   const [refundMethod, setRefundMethod] = useState<'CASH' | 'CREDIT' | 'DIGITAL'>('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const recentReqSeqRef = React.useRef(0);
+
+  const fetchRecentSales = useCallback(async () => {
+    const reqId = ++recentReqSeqRef.current;
+    setLoadingRecent(true);
+    try {
+      const storeId = !isAllStores && activeStore?.id ? activeStore.id : undefined;
+      const res = await salesApi.getRecentSales(12, storeId);
+      if (reqId !== recentReqSeqRef.current) return;
+      if (res.data) {
+        setRecentSales(res.data.filter((s: SaleResponse) => s.status !== 'VOIDED'));
+      }
+    } catch (err) {
+      if (reqId !== recentReqSeqRef.current) return;
+      console.error('Failed to load recent sales:', err);
+    } finally {
+      if (reqId === recentReqSeqRef.current) {
+        setLoadingRecent(false);
+      }
+    }
+  }, [activeStore?.id, isAllStores]);
 
   // Load initial sale if provided or fetch recent sales for fast picking
   useEffect(() => {
@@ -100,21 +144,7 @@ export function CreateReturnModal({
       setNotes('');
       setCustomReason('');
     }
-  }, [open, initialSaleId]);
-
-  const fetchRecentSales = async () => {
-    setLoadingRecent(true);
-    try {
-      const res = await salesApi.getRecentSales(10);
-      if (res.data) {
-        setRecentSales(res.data.filter((s: SaleResponse) => s.status !== 'VOIDED'));
-      }
-    } catch (err) {
-      console.error('Failed to load recent sales:', err);
-    } finally {
-      setLoadingRecent(false);
-    }
-  };
+  }, [open, initialSaleId, fetchRecentSales]);
 
   const fetchSaleDetails = async (identifier: string) => {
     if (!identifier.trim()) return;
@@ -135,9 +165,17 @@ export function CreateReturnModal({
         });
         setReturnQuantities(initialQtys);
 
-        // Default refund method to CREDIT if original sale was on credit
-        if (res.sale.payment?.method === 'CREDIT' || (res.sale.customer && res.sale.status === 'ON_CREDIT')) {
+        // Default refund method to CREDIT only if original sale was on credit and has a registered customer
+        const hasRegisteredCustomer = Boolean(
+          res.sale.customer?.id && res.sale.customer.id !== 'walkin',
+        );
+        if (
+          hasRegisteredCustomer &&
+          (res.sale.payment?.method === 'CREDIT' || res.sale.status === 'ON_CREDIT')
+        ) {
           setRefundMethod('CREDIT');
+        } else if (res.sale.payment?.method === 'DIGITAL') {
+          setRefundMethod('DIGITAL');
         } else {
           setRefundMethod('CASH');
         }
@@ -165,12 +203,41 @@ export function CreateReturnModal({
   };
 
   const setDirectQuantity = (itemId: string, maxReturnable: number, value: string) => {
-    const parsed = parseInt(value, 10);
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      setReturnQuantities((prev) => ({ ...prev, [itemId]: 0 }));
+      return;
+    }
+    if (!/^\d+$/.test(trimmed)) {
+      return;
+    }
+    const parsed = parseInt(trimmed, 10);
     const validQty = isNaN(parsed) ? 0 : Math.max(0, Math.min(maxReturnable, parsed));
     setReturnQuantities((prev) => ({
       ...prev,
       [itemId]: validQty,
     }));
+  };
+
+  const handleToggleReturnAll = () => {
+    if (!selectedSale) return;
+    const allMaxSelected = selectedSale.items.every((item) => {
+      const maxRet =
+        item.maxReturnable !== undefined
+          ? item.maxReturnable
+          : Math.max(0, item.quantity - (item.returnedQuantity || 0));
+      return maxRet <= 0 || (returnQuantities[item.id] || 0) === maxRet;
+    });
+
+    const nextQtys: Record<string, number> = {};
+    selectedSale.items.forEach((item) => {
+      const maxRet =
+        item.maxReturnable !== undefined
+          ? item.maxReturnable
+          : Math.max(0, item.quantity - (item.returnedQuantity || 0));
+      nextQtys[item.id] = allMaxSelected ? 0 : Math.max(0, maxRet);
+    });
+    setReturnQuantities(nextQtys);
   };
 
   // Compute calculated refunds
@@ -192,11 +259,11 @@ export function CreateReturnModal({
     selectedSale.items.forEach((item) => {
       const qty = returnQuantities[item.id] || 0;
       if (qty > 0) {
-        // Line effective total in original sale
-        const lineGross = item.unitPrice * item.quantity;
-        const lineDiscount = item.discount || 0;
-        const lineTax = item.taxApplied || 0;
-        const lineEffective = Math.max(0, lineGross - lineDiscount + lineTax);
+        const lineEffective = computeItemEffectiveTotal(
+          item,
+          selectedSale.items,
+          selectedSale.discountAmount || 0,
+        );
 
         const lineRefund = Math.round((lineEffective * (qty / item.quantity)) * 100) / 100;
         const unitRefund = qty > 0 ? Math.round((lineRefund / qty) * 100) / 100 : 0;
@@ -403,12 +470,37 @@ export function CreateReturnModal({
               </div>
 
               {/* Items Table */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-semibold px-1">
-                  <span className="text-foreground">Select Medicines to Return</span>
-                  <span className="text-muted-foreground text-micro">
-                    Enter return quantity (batch inventory will be restored)
-                  </span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold px-1 gap-2 flex-wrap">
+                  <div>
+                    <span className="text-foreground">Select Medicines to Return</span>
+                    <span className="text-muted-foreground text-micro block sm:inline sm:ml-2 font-normal">
+                      Batch inventory will be restored automatically
+                    </span>
+                  </div>
+                  {selectedSale.items.some(
+                    (i) => (i.maxReturnable ?? i.quantity - (i.returnedQuantity || 0)) > 0,
+                  ) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleToggleReturnAll}
+                      className="h-7 px-2.5 text-micro font-medium gap-1 text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                    >
+                      <CheckCheck className="size-3.5" />
+                      <span>
+                        {selectedSale.items.every((item) => {
+                          const maxRet =
+                            item.maxReturnable ??
+                            Math.max(0, item.quantity - (item.returnedQuantity || 0));
+                          return maxRet <= 0 || (returnQuantities[item.id] || 0) === maxRet;
+                        })
+                          ? 'Clear Selection'
+                          : 'Return All Items'}
+                      </span>
+                    </Button>
+                  )}
                 </div>
 
                 <div className="border border-border/70 rounded-xl overflow-hidden bg-card">
@@ -419,9 +511,12 @@ export function CreateReturnModal({
                       const isFullyReturned = maxReturnable <= 0;
                       const selectedQty = returnQuantities[item.id] || 0;
 
-                      // Proportional refund preview for this item
-                      const lineGross = item.unitPrice * item.quantity;
-                      const lineEffective = Math.max(0, lineGross - (item.discount || 0) + (item.taxApplied || 0));
+                      // Proportional refund preview for this item (including overall sale discount share)
+                      const lineEffective = computeItemEffectiveTotal(
+                        item,
+                        selectedSale.items,
+                        selectedSale.discountAmount || 0,
+                      );
                       const itemRefundPreview = selectedQty > 0
                         ? Math.round((lineEffective * (selectedQty / item.quantity)) * 100) / 100
                         : 0;
@@ -438,7 +533,7 @@ export function CreateReturnModal({
                           }`}
                         >
                           <div className="min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-semibold text-xs text-foreground">
                                 {item.productName}
                               </p>
@@ -450,7 +545,7 @@ export function CreateReturnModal({
                               <span>Sold: <strong className="text-foreground">{item.quantity} {item.unit}</strong></span>
                               <span>Unit Price: <strong className="text-foreground">{formatCurrency(item.unitPrice)}</strong></span>
                               {returnedQty > 0 && (
-                                <span className="text-amber-600 font-medium">
+                                <span className="text-warning font-medium">
                                   Already Returned: {returnedQty}
                                 </span>
                               )}
@@ -487,12 +582,12 @@ export function CreateReturnModal({
                                   <Minus className="size-3.5" />
                                 </Button>
                                 <Input
-                                  type="number"
-                                  min={0}
-                                  max={maxReturnable}
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
                                   value={selectedQty}
                                   onChange={(e) => setDirectQuantity(item.id, maxReturnable, e.target.value)}
-                                  className="w-12 h-7 text-center font-bold text-xs p-0 border-0 bg-transparent focus-visible:ring-0 tabular-nums"
+                                  className="w-12 h-7 text-center font-bold text-xs px-1 border-0 bg-transparent focus-visible:ring-0 tabular-nums"
                                 />
                                 <Button
                                   type="button"
@@ -558,7 +653,11 @@ export function CreateReturnModal({
                       <SelectItem value="CASH" className="text-xs">
                         Cash Refund (Hand cash to customer)
                       </SelectItem>
-                      <SelectItem value="CREDIT" className="text-xs">
+                      <SelectItem
+                        value="CREDIT"
+                        disabled={!selectedSale.customer?.id || selectedSale.customer.id === 'walkin'}
+                        className="text-xs"
+                      >
                         Khata / Credit Adjustment (Reduce customer debt)
                       </SelectItem>
                       <SelectItem value="DIGITAL" className="text-xs">
@@ -568,7 +667,9 @@ export function CreateReturnModal({
                   </Select>
                   <p className="text-micro text-muted-foreground">
                     {refundMethod === 'CREDIT'
-                      ? "Automatically decreases customer's outstanding khata balance."
+                      ? "Automatically decreases customer's outstanding Khata balance."
+                      : !selectedSale.customer?.id || selectedSale.customer.id === 'walkin'
+                      ? 'Walk-in receipt — refund via counter cash or digital reversal.'
                       : 'Cashier pays refund from active counter register.'}
                   </p>
                 </div>

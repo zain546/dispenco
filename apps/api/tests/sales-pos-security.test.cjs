@@ -240,4 +240,159 @@ describe('SalesService - Security & Accounting Guardrails', () => {
       },
     );
   });
+
+  test('6. Returns: Proportionally deducts overall bill discount from item refund so refund never exceeds paid total', async () => {
+    let recordedReturnData = null;
+    const { service } = createMockService({
+      tx: {
+        sale: {
+          findFirst: async () => ({
+            id: 'sale-disc-1',
+            receiptNumber: 'REC-DISC-01',
+            status: 'COMPLETED',
+            totalAmount: 800,
+            discountAmount: 200, // Rs 200 overall bill discount on Rs 1000 gross
+            taxAmount: 0,
+            customerId: null,
+            customer: null,
+            saleItems: [
+              {
+                id: 'si-1',
+                batchId: 'batch-1',
+                quantity: 2,
+                stockDeducted: 2,
+                unitPrice: 500, // 2 * 500 = 1000 gross
+                discount: 0, // 0 item-level discount
+                taxApplied: 0,
+                returnItems: [],
+                product: { id: 'prod-1', name: 'Augmentin' },
+                batch: { id: 'batch-1', batchNumber: 'B-01' },
+              },
+            ],
+          }),
+        },
+        return: {
+          create: async (args) => {
+            recordedReturnData = args.data;
+            return {
+              id: 'ret-1',
+              returnNumber: 'RET-001',
+              ...args.data,
+              sale: { id: 'sale-disc-1', storeId: 'store-1' },
+            };
+          },
+        },
+      },
+    });
+
+    await service.createReturn('tenant-1', 'user-1', {
+      saleId: 'sale-disc-1',
+      reason: 'Customer changed mind',
+      refundMethod: 'CASH',
+      items: [{ saleItemId: 'si-1', quantity: 1 }], // Returning 1 of 2 units
+    });
+
+    assert.equal(
+      Number(recordedReturnData.refundAmount),
+      400,
+      'Returning 50% of a Rs. 800 net sale (Rs. 1000 gross - Rs. 200 overall discount) must refund Rs. 400, not Rs. 500',
+    );
+  });
+
+  test('7. Returns: Rejects CREDIT (Khata) refund method for a walk-in sale without a registered customer account', async () => {
+    const { service } = createMockService({
+      tx: {
+        sale: {
+          findFirst: async () => ({
+            id: 'sale-walkin-1',
+            receiptNumber: 'REC-WALKIN-01',
+            status: 'COMPLETED',
+            totalAmount: 500,
+            discountAmount: 0,
+            taxAmount: 0,
+            customerId: null,
+            customer: null,
+            saleItems: [
+              {
+                id: 'si-1',
+                batchId: 'batch-1',
+                quantity: 1,
+                stockDeducted: 1,
+                unitPrice: 500,
+                discount: 0,
+                taxApplied: 0,
+                returnItems: [],
+                product: { id: 'prod-1', name: 'Panadol' },
+                batch: { id: 'batch-1', batchNumber: 'B-01' },
+              },
+            ],
+          }),
+        },
+      },
+    });
+
+    await assert.rejects(
+      async () => {
+        await service.createReturn('tenant-1', 'user-1', {
+          saleId: 'sale-walkin-1',
+          reason: 'Defective',
+          refundMethod: 'CREDIT',
+          items: [{ saleItemId: 'si-1', quantity: 1 }],
+        });
+      },
+      {
+        name: 'BadRequestException',
+        message:
+          'Cannot issue a Khata credit adjustment for a walk-in sale without a registered customer account.',
+      },
+    );
+  });
+
+  test('8. Returns: Consolidates duplicate saleItemId entries in request payload to prevent exceeding max returnable', async () => {
+    const { service } = createMockService({
+      tx: {
+        sale: {
+          findFirst: async () => ({
+            id: 'sale-dup-1',
+            receiptNumber: 'REC-DUP-01',
+            status: 'COMPLETED',
+            totalAmount: 100,
+            discountAmount: 0,
+            taxAmount: 0,
+            customerId: null,
+            customer: null,
+            saleItems: [
+              {
+                id: 'si-1',
+                batchId: 'batch-1',
+                quantity: 1,
+                stockDeducted: 1,
+                unitPrice: 100,
+                discount: 0,
+                taxApplied: 0,
+                returnItems: [],
+                product: { id: 'prod-1', name: 'Panadol' },
+                batch: { id: 'batch-1', batchNumber: 'B-01' },
+              },
+            ],
+          }),
+        },
+      },
+    });
+
+    await assert.rejects(
+      async () => {
+        await service.createReturn('tenant-1', 'user-1', {
+          saleId: 'sale-dup-1',
+          reason: 'Duplicate payload test',
+          refundMethod: 'CASH',
+          items: [
+            { saleItemId: 'si-1', quantity: 1 },
+            { saleItemId: 'si-1', quantity: 1 },
+          ],
+        });
+      },
+      /Cannot return 2 units of Panadol\. Max returnable: 1/,
+    );
+  });
 });
