@@ -716,6 +716,14 @@ export class SalesService {
 
   async voidSale(tenantId: string, userId: string, saleId: string, reason?: string) {
     const result = await this.prisma.$transaction(async (tx) => {
+      if (typeof (tx as any).$queryRawUnsafe === 'function') {
+        await tx.$queryRawUnsafe(
+          `SELECT "id" FROM "Sale" WHERE "id" = $1 AND "tenantId" = $2 FOR UPDATE`,
+          saleId,
+          tenantId,
+        );
+      }
+
       const sale = await tx.sale.findFirst({
         where: { id: saleId, tenantId },
         include: {

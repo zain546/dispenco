@@ -13,9 +13,19 @@ export interface OfflineSaleItemPayload {
   unit?: string;
 }
 
+export interface OfflinePrescriptionAssociation {
+  prescriptionId: string;
+  notes: string;
+  items: Array<{
+    itemId: string;
+    quantityDispensed: number;
+  }>;
+}
+
 export interface OfflineSalePayload {
   clientTxId?: string;
   storeId?: string;
+  customerId?: string;
   customerName?: string;
   customerPhone?: string;
   doctorName?: string;
@@ -23,6 +33,7 @@ export interface OfflineSalePayload {
   overallDiscount?: number;
   overallDiscountType?: 'FLAT' | 'PERCENT';
   items: OfflineSaleItemPayload[];
+  prescriptionAssociation?: OfflinePrescriptionAssociation;
 }
 
 export interface OfflineSaleRecord {

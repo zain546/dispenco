@@ -94,8 +94,10 @@ export function OcrPrescriptionModal({
       }
     >
   >([]);
+  const sessionGenRef = React.useRef(0);
 
   const resetState = () => {
+    sessionGenRef.current += 1;
     setStep('upload');
     setIsProcessing(false);
     setIsSaving(false);
@@ -117,8 +119,11 @@ export function OcrPrescriptionModal({
 
   const switchToManualEntry = () => {
     setStep('review');
-    setPrescriptionDate(new Date().toISOString().split('T')[0]);
-    setExpiryDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    setPrescriptionDate((prev) => prev || new Date().toISOString().split('T')[0]);
+    setExpiryDate(
+      (prev) =>
+        prev || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    );
     if (items.length === 0) {
       const firstProd = products[0];
       setItems([
@@ -141,7 +146,11 @@ export function OcrPrescriptionModal({
   };
 
   React.useEffect(() => {
-    if (open && initialMode === 'manual') {
+    if (!open) {
+      sessionGenRef.current += 1;
+      return;
+    }
+    if (initialMode === 'manual') {
       switchToManualEntry();
     }
   }, [open, initialMode]);
@@ -169,6 +178,7 @@ export function OcrPrescriptionModal({
   };
 
   const runOcr = async (imageBase64: string, mimeType: string, name: string) => {
+    const gen = ++sessionGenRef.current;
     setIsProcessing(true);
     try {
       const res = await prescriptionsApi.scanPrescriptionOcr({
@@ -177,6 +187,8 @@ export function OcrPrescriptionModal({
         fileName: name,
         storeId: defaultStoreId,
       });
+
+      if (gen !== sessionGenRef.current) return;
 
       if (res && res.success) {
         setOcrConfidence(res.confidence);
@@ -210,9 +222,12 @@ export function OcrPrescriptionModal({
         toast.error('Could not extract details from prescription slip.');
       }
     } catch (err: unknown) {
+      if (gen !== sessionGenRef.current) return;
       toast.error(getErrorMessage(err, 'Failed to scan prescription slip'));
     } finally {
-      setIsProcessing(false);
+      if (gen === sessionGenRef.current) {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -717,13 +732,23 @@ export function OcrPrescriptionModal({
                                 type="text"
                                 inputMode="numeric"
                                 pattern="[0-9]*"
-                                value={item.durationDays !== undefined && item.durationDays !== null ? String(item.durationDays) : '5'}
+                                value={
+                                  item.durationDays !== undefined && item.durationDays !== null
+                                    ? String(item.durationDays)
+                                    : ''
+                                }
                                 onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, '');
-                                  handleUpdateItem(idx, 'durationDays', val ? Number(val) : '');
+                                  const raw = e.target.value.trim();
+                                  if (raw === '') {
+                                    handleUpdateItem(idx, 'durationDays', '');
+                                    return;
+                                  }
+                                  if (!/^\d+$/.test(raw)) return;
+                                  handleUpdateItem(idx, 'durationDays', Number(raw));
                                 }}
                                 onBlur={(e) => {
-                                  if (!e.target.value || Number(e.target.value) <= 0) {
+                                  const raw = e.target.value.trim();
+                                  if (raw !== '' && Number(raw) <= 0) {
                                     handleUpdateItem(idx, 'durationDays', 1);
                                   }
                                 }}
@@ -738,13 +763,23 @@ export function OcrPrescriptionModal({
                                 type="text"
                                 inputMode="numeric"
                                 pattern="[0-9]*"
-                                value={item.quantityPrescribed !== undefined && item.quantityPrescribed !== null ? String(item.quantityPrescribed) : '10'}
+                                value={
+                                  item.quantityPrescribed !== undefined &&
+                                  item.quantityPrescribed !== null
+                                    ? String(item.quantityPrescribed)
+                                    : '10'
+                                }
                                 onChange={(e) => {
-                                  const val = e.target.value.replace(/\D/g, '');
-                                  handleUpdateItem(idx, 'quantityPrescribed', val ? Number(val) : '');
+                                  const raw = e.target.value.trim();
+                                  if (raw === '') {
+                                    handleUpdateItem(idx, 'quantityPrescribed', '');
+                                    return;
+                                  }
+                                  if (!/^\d+$/.test(raw)) return;
+                                  handleUpdateItem(idx, 'quantityPrescribed', Number(raw));
                                 }}
                                 onBlur={(e) => {
-                                  if (!e.target.value || Number(e.target.value) <= 0) {
+                                  if (!e.target.value.trim() || Number(e.target.value) <= 0) {
                                     handleUpdateItem(idx, 'quantityPrescribed', 1);
                                   }
                                 }}

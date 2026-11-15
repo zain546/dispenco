@@ -106,19 +106,25 @@ export function CreateReturnModal({
   const [notes, setNotes] = useState('');
   const [refundMethod, setRefundMethod] = useState<'CASH' | 'CREDIT' | 'DIGITAL'>('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const recentReqSeqRef = React.useRef(0);
 
   const fetchRecentSales = useCallback(async () => {
+    const reqId = ++recentReqSeqRef.current;
     setLoadingRecent(true);
     try {
       const storeId = !isAllStores && activeStore?.id ? activeStore.id : undefined;
       const res = await salesApi.getRecentSales(12, storeId);
+      if (reqId !== recentReqSeqRef.current) return;
       if (res.data) {
         setRecentSales(res.data.filter((s: SaleResponse) => s.status !== 'VOIDED'));
       }
     } catch (err) {
+      if (reqId !== recentReqSeqRef.current) return;
       console.error('Failed to load recent sales:', err);
     } finally {
-      setLoadingRecent(false);
+      if (reqId === recentReqSeqRef.current) {
+        setLoadingRecent(false);
+      }
     }
   }, [activeStore?.id, isAllStores]);
 
@@ -197,8 +203,15 @@ export function CreateReturnModal({
   };
 
   const setDirectQuantity = (itemId: string, maxReturnable: number, value: string) => {
-    const cleanDigits = value.replace(/[^0-9]/g, '');
-    const parsed = parseInt(cleanDigits, 10);
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      setReturnQuantities((prev) => ({ ...prev, [itemId]: 0 }));
+      return;
+    }
+    if (!/^\d+$/.test(trimmed)) {
+      return;
+    }
+    const parsed = parseInt(trimmed, 10);
     const validQty = isNaN(parsed) ? 0 : Math.max(0, Math.min(maxReturnable, parsed));
     setReturnQuantities((prev) => ({
       ...prev,

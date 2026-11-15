@@ -80,15 +80,16 @@ export function PrescriptionsManager() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [dispenseModalOpen, setDispenseModalOpen] = useState(false);
   const [isDispensing, setIsDispensing] = useState(false);
+  const fetchReqSeqRef = React.useRef(0);
 
   const effectiveStoreId = !isAllStores && activeStoreId ? activeStoreId : (stores[0]?.id || '');
 
   const isPrescriptionExpired = (rx: PrescriptionData) => {
     if (!rx.expiryDate) return false;
-    const exp = new Date(rx.expiryDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return exp.getTime() < today.getTime();
+    const expiryDateStr = String(rx.expiryDate).slice(0, 10);
+    const now = new Date();
+    const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return expiryDateStr < todayLocalStr;
   };
 
   const fetchDependencies = async () => {
@@ -103,6 +104,7 @@ export function PrescriptionsManager() {
   };
 
   const fetchPrescriptions = useCallback(async () => {
+    const reqId = ++fetchReqSeqRef.current;
     try {
       setLoading(true);
       const res = await prescriptionsApi.getPrescriptions({
@@ -112,6 +114,7 @@ export function PrescriptionsManager() {
         isControlledOnly: controlledOnly ? true : undefined,
       });
 
+      if (reqId !== fetchReqSeqRef.current) return;
       if (res && res.success) {
         setPrescriptions(res.data || []);
         if (res.summary) {
@@ -119,9 +122,12 @@ export function PrescriptionsManager() {
         }
       }
     } catch (err: unknown) {
+      if (reqId !== fetchReqSeqRef.current) return;
       toast.error(getErrorMessage(err, 'Failed to load prescriptions'));
     } finally {
-      setLoading(false);
+      if (reqId === fetchReqSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [activeStoreId, isAllStores, statusFilter, search, controlledOnly]);
 
@@ -139,9 +145,17 @@ export function PrescriptionsManager() {
   // Dispense handler
   const handleDispense = async (rxId: string) => {
     try {
-      setIsDispensing(true);
-      const rx = prescriptions.find((p) => p.id === rxId);
+      const rx = prescriptions.find((p) => p.id === rxId) || (selectedRx?.id === rxId ? selectedRx : undefined);
       if (!rx) return;
+
+      if (isPrescriptionExpired(rx)) {
+        toast.error(
+          `Prescription ${rx.prescriptionNumber} expired on ${rx.expiryDate ? formatDate(rx.expiryDate) : 'due date'}. Under DRAP regulations, expired prescriptions cannot be dispensed.`,
+        );
+        return;
+      }
+
+      setIsDispensing(true);
 
       const itemsPayload = rx.items.map((it) => ({
         itemId: it.id,

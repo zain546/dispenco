@@ -11,6 +11,7 @@ import {
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { customersApi } from '@/features/customers/services/customers-api';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
+import { prescriptionsApi } from '@/features/prescriptions/services/prescriptions-api';
 import { toast } from 'sonner';
 
 export interface LocalSyncStatus {
@@ -361,6 +362,23 @@ export const posLocalDataService = {
         assertActivePosDatabase(posDb);
         const res = await salesApi.createSale(record.payload);
         if (res?.sale) {
+          if (record.payload.prescriptionAssociation) {
+            try {
+              await prescriptionsApi.dispensePrescription(
+                record.payload.prescriptionAssociation.prescriptionId,
+                {
+                  saleId: res.sale.id,
+                  notes: record.payload.prescriptionAssociation.notes,
+                  items: record.payload.prescriptionAssociation.items,
+                },
+              );
+            } catch (rxSyncErr) {
+              console.warn(
+                `Failed to dispense linked prescription during offline sync for ${record.localReceiptNumber}:`,
+                rxSyncErr,
+              );
+            }
+          }
           await posDb.offlineSales.update(record.id, {
             status: 'synced',
             syncedAt: new Date().toISOString(),

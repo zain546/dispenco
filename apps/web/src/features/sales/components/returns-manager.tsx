@@ -51,8 +51,10 @@ export function ReturnsManager() {
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedReturnForSlip, setSelectedReturnForSlip] = useState<ReturnRecord | null>(null);
+  const fetchSeqRef = React.useRef(0);
 
   const fetchReturns = useCallback(async () => {
+    const reqId = ++fetchSeqRef.current;
     setIsLoading(true);
     try {
       const params: QueryReturnsParams = {
@@ -64,6 +66,7 @@ export function ReturnsManager() {
       };
 
       const res = await salesApi.getReturns(params);
+      if (reqId !== fetchSeqRef.current) return;
       setReturns(res.data || []);
       if (res.summary) {
         setSummary(res.summary);
@@ -71,9 +74,12 @@ export function ReturnsManager() {
       setTotalCount(res.meta?.total || 0);
       setTotalPages(res.meta?.totalPages || 1);
     } catch (err) {
+      if (reqId !== fetchSeqRef.current) return;
       toast.error(getErrorMessage(err, 'Failed to fetch returns'));
     } finally {
-      setIsLoading(false);
+      if (reqId === fetchSeqRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [activeStore?.id, isAllStores, page, search, methodFilter]);
 

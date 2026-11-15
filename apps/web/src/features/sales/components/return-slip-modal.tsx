@@ -31,6 +31,14 @@ export function ReturnSlipModal({
 
   const totalUnits = returnRecord.returnItems.reduce((acc, item) => acc + item.quantity, 0);
 
+  const escapeHtml = (value: unknown): string =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
   const handlePrint = () => {
     const printWindow = window.open('', '', 'width=650,height=750');
     if (!printWindow) return;
@@ -40,13 +48,13 @@ export function ReturnSlipModal({
         (item) => `
           <tr>
             <td>
-              <strong>${item.saleItem.product?.name || 'Medicine'}</strong>
-              ${item.saleItem.product?.genericName ? `<div style="font-size:10px;color:#555;">${item.saleItem.product.genericName}</div>` : ''}
+              <strong>${escapeHtml(item.saleItem.product?.name || 'Medicine')}</strong>
+              ${item.saleItem.product?.genericName ? `<div style="font-size:10px;color:#555;">${escapeHtml(item.saleItem.product.genericName)}</div>` : ''}
             </td>
-            <td style="font-family:monospace;font-size:11px;">${item.saleItem.batch?.batchNumber || '-'}</td>
-            <td style="text-align:center;font-weight:bold;">${item.quantity}</td>
-            <td style="text-align:right;">${formatCurrency(Number(item.unitPrice))}</td>
-            <td style="text-align:right;font-weight:bold;">${formatCurrency(Number(item.refundAmount))}</td>
+            <td style="font-family:monospace;font-size:11px;">${escapeHtml(item.saleItem.batch?.batchNumber || '-')}</td>
+            <td style="text-align:center;font-weight:bold;">${escapeHtml(item.quantity)}</td>
+            <td style="text-align:right;">${escapeHtml(formatCurrency(Number(item.unitPrice)))}</td>
+            <td style="text-align:right;font-weight:bold;">${escapeHtml(formatCurrency(Number(item.refundAmount)))}</td>
           </tr>
         `,
       )
@@ -55,7 +63,7 @@ export function ReturnSlipModal({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Return Slip - ${returnRecord.returnNumber || 'Dispenco'}</title>
+          <title>Return Slip - ${escapeHtml(returnRecord.returnNumber || 'Dispenco')}</title>
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -86,34 +94,34 @@ export function ReturnSlipModal({
         <body>
           <div class="header">
             <span class="badge">Stock Return & Refund Voucher</span>
-            <h2>${returnRecord.sale.store?.name || 'Pharmacy Dispensary'}</h2>
-            <div>Return Memo #${returnRecord.returnNumber || 'RET-RECORD'}</div>
+            <h2>${escapeHtml(returnRecord.sale.store?.name || 'Pharmacy Dispensary')}</h2>
+            <div>Return Memo #${escapeHtml(returnRecord.returnNumber || 'RET-RECORD')}</div>
           </div>
           <div class="meta-grid">
             <div>
               <span class="meta-label">Date & Time</span>
-              <span class="meta-val">${formatDateTime(returnRecord.createdAt)}</span>
+              <span class="meta-val">${escapeHtml(formatDateTime(returnRecord.createdAt))}</span>
             </div>
             <div>
               <span class="meta-label">Original Receipt #</span>
-              <span class="meta-val" style="font-family:monospace;">#${returnRecord.sale.receiptNumber}</span>
+              <span class="meta-val" style="font-family:monospace;">#${escapeHtml(returnRecord.sale.receiptNumber)}</span>
             </div>
             <div>
               <span class="meta-label">Customer</span>
-              <span class="meta-val">${returnRecord.sale.customer?.name || 'Walk-in Customer'}</span>
+              <span class="meta-val">${escapeHtml(returnRecord.sale.customer?.name || 'Walk-in Customer')}</span>
             </div>
             <div>
               <span class="meta-label">Processed By</span>
-              <span class="meta-val">${returnRecord.processedByUser?.name || 'Dispenser'}</span>
+              <span class="meta-val">${escapeHtml(returnRecord.processedByUser?.name || 'Dispenser')}</span>
             </div>
           </div>
           <div class="reason-box">
             <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
               <span class="meta-label">Reason for Return</span>
-              <strong>${returnRecord.refundMethod} Refund</strong>
+              <strong>${escapeHtml(returnRecord.refundMethod)} Refund</strong>
             </div>
-            <div style="font-weight:600;">${returnRecord.reason}</div>
-            ${returnRecord.notes ? `<div style="font-style:italic;color:#555;margin-top:2px;">Note: ${returnRecord.notes}</div>` : ''}
+            <div style="font-weight:600;">${escapeHtml(returnRecord.reason)}</div>
+            ${returnRecord.notes ? `<div style="font-style:italic;color:#555;margin-top:2px;">Note: ${escapeHtml(returnRecord.notes)}</div>` : ''}
           </div>
           <table class="items-table">
             <thead>
@@ -132,15 +140,15 @@ export function ReturnSlipModal({
           <div class="totals-section">
             <div class="total-row">
               <span>Returned Units:</span>
-              <strong>${totalUnits} Units</strong>
+              <strong>${escapeHtml(totalUnits)} Units</strong>
             </div>
             <div class="total-row">
               <span>Refund Method:</span>
-              <strong>${returnRecord.refundMethod}</strong>
+              <strong>${escapeHtml(returnRecord.refundMethod)}</strong>
             </div>
             <div class="total-row grand">
               <span>Total Refund Issued:</span>
-              <span>${formatCurrency(Number(returnRecord.refundAmount))}</span>
+              <span>${escapeHtml(formatCurrency(Number(returnRecord.refundAmount)))}</span>
             </div>
           </div>
           <div class="footer">

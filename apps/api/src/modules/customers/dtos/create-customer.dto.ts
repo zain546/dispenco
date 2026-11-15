@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsEmail, IsNumber, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, IsNumber, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCustomerDto {
@@ -19,7 +19,8 @@ export class CreateCustomerDto {
   address?: string;
 
   @IsNumber()
-  @Min(0)
+  @Min(-10000000)
+  @Max(10000000)
   @IsOptional()
   @Type(() => Number)
   initialCreditBalance?: number;

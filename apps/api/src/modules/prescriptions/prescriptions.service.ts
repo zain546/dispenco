@@ -224,6 +224,21 @@ export class PrescriptionsService {
                 unit: true,
                 isControlledSubstance: true,
                 barcode: true,
+                taxCode: true,
+                attributes: true,
+                batches: {
+                  where: { quantityRemaining: { gt: 0 } },
+                  orderBy: { expiryDate: 'asc' },
+                  select: {
+                    id: true,
+                    batchNumber: true,
+                    expiryDate: true,
+                    sellPrice: true,
+                    costPrice: true,
+                    quantityRemaining: true,
+                    storeId: true,
+                  },
+                },
               },
             },
           },
@@ -244,9 +259,33 @@ export class PrescriptionsService {
       throw new NotFoundException(`Prescription not found`);
     }
 
+    const enrichedItems = prescription.items.map((item) => {
+      if (!item.product) return item;
+      const storeBatches = prescription.storeId
+        ? item.product.batches.filter((b) => !b.storeId || b.storeId === prescription.storeId)
+        : item.product.batches;
+      const activeBatches = storeBatches.length > 0 ? storeBatches : item.product.batches;
+      const totalStock = activeBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+      const firstBatch = activeBatches[0];
+
+      return {
+        ...item,
+        product: {
+          ...item.product,
+          totalStock,
+          latestSellPrice: firstBatch ? Number(firstBatch.sellPrice) : 0,
+          latestCostPrice: firstBatch ? Number(firstBatch.costPrice) : 0,
+          nearestExpiryDate: firstBatch ? firstBatch.expiryDate.toISOString() : null,
+        },
+      };
+    });
+
     return {
       success: true,
-      data: prescription,
+      data: {
+        ...prescription,
+        items: enrichedItems,
+      },
     };
   }
 
@@ -298,6 +337,17 @@ export class PrescriptionsService {
   async dispense(tenantId: string, id: string, dto: DispensePrescriptionDto) {
     const rx = await this.findOne(tenantId, id);
     const existing = rx.data;
+
+    if (existing.expiryDate) {
+      const expiryDateStr = new Date(existing.expiryDate).toISOString().slice(0, 10);
+      const now = new Date();
+      const todayLocalStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (expiryDateStr < todayLocalStr) {
+        throw new BadRequestException(
+          `Prescription ${existing.prescriptionNumber} expired on ${expiryDateStr} and cannot be dispensed (DRAP compliance lock).`,
+        );
+      }
+    }
 
     let allFullyDispensed = true;
     let anyDispensed = false;

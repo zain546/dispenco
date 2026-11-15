@@ -12,6 +12,7 @@ export interface CartItem {
   discount: number;
   discountType: DiscountType;
   taxRatePercent: number;
+  prescriptionItemId?: string;
 }
 
 export interface CartTotals {
