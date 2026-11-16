@@ -268,8 +268,8 @@ export class ProductsService {
       const latestBatch = activeStockBatches[0] || product.batches[0] || null;
 
       const batchCount = product.batches.length;
-      const expiredBatchCount = product.batches.filter((b) => new Date(b.expiryDate) <= now).length;
-      const nearExpiryBatchCount = product.batches.filter((b) => {
+      const expiredBatchCount = activeStockBatches.filter((b) => new Date(b.expiryDate) <= now).length;
+      const nearExpiryBatchCount = activeStockBatches.filter((b) => {
         const exp = new Date(b.expiryDate);
         return exp > now && exp <= hundredEightyDaysFromNow;
       }).length;

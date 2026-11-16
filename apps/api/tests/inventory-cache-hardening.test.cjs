@@ -83,3 +83,53 @@ test('InventoryDashboard uses declarative useInventoryAggregation and contains z
     `InventoryDashboard must not contain raw color classes, found: ${rawColors ? rawColors.join(', ') : 'none'}`
   );
 });
+
+const productBatchesModalPath = path.join(
+  __dirname,
+  '../../web/src/features/inventory/components/product-batches-modal.tsx'
+);
+
+test('ProductsService filters expiredBatchCount and nearExpiryBatchCount only from active stock batches', () => {
+  const source = fs.readFileSync(productsServicePath, 'utf8');
+
+  assert.match(
+    source,
+    /expiredBatchCount\s*=\s*activeStockBatches\.filter/,
+    'expiredBatchCount must be computed from activeStockBatches to avoid counting sold-out batches'
+  );
+  assert.match(
+    source,
+    /nearExpiryBatchCount\s*=\s*activeStockBatches\.filter/,
+    'nearExpiryBatchCount must be computed from activeStockBatches'
+  );
+});
+
+test('ProductBatchesModal implements active vs depleted tabs, instant search, table view, and pagination', () => {
+  const source = fs.readFileSync(productBatchesModalPath, 'utf8');
+
+  assert.match(
+    source,
+    /stockTab.*active.*depleted/,
+    'ProductBatchesModal must partition batches between active stock and depleted history'
+  );
+  assert.match(
+    source,
+    /viewMode.*cards.*table/,
+    'ProductBatchesModal must support dual view modes (cards and high-density table)'
+  );
+  assert.match(
+    source,
+    /searchQuery/,
+    'ProductBatchesModal must provide in-modal search across batch numbers, racks, and vendors'
+  );
+  assert.match(
+    source,
+    /pageSize\s*=\s*10/,
+    'ProductBatchesModal must paginate batches to handle high-volume inventory lots'
+  );
+  assert.match(
+    source,
+    /<EditBatchModal/,
+    'ProductBatchesModal must support inline batch editing without navigating away'
+  );
+});

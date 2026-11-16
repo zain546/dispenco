@@ -10,6 +10,7 @@ export interface BatchHealthStats {
   expiredCount: number;
   nearExpiryCount: number;
   healthyCount: number;
+  depletedCount: number;
   nearestExpiryDate: string | null;
 }
 
@@ -60,6 +61,7 @@ export function getBatchHealthStats<T extends { expiryDate?: string | Date; quan
       expiredCount: 0,
       nearExpiryCount: 0,
       healthyCount: 0,
+      depletedCount: 0,
       nearestExpiryDate: null,
     };
   }
@@ -69,8 +71,15 @@ export function getBatchHealthStats<T extends { expiryDate?: string | Date; quan
   let expiredCount = 0;
   let nearExpiryCount = 0;
   let healthyCount = 0;
+  let depletedCount = 0;
 
   batches.forEach((b) => {
+    const qty = b.quantityRemaining ?? 0;
+    if (qty <= 0) {
+      depletedCount++;
+      return;
+    }
+
     const details = getBatchExpiryDetails(b.expiryDate);
     if (details.isExpired) {
       expiredCount++;
@@ -82,7 +91,7 @@ export function getBatchHealthStats<T extends { expiryDate?: string | Date; quan
   });
 
   const validBatches = batches.filter((b) => {
-    if (!b.expiryDate) return false;
+    if (!b.expiryDate || (b.quantityRemaining ?? 0) <= 0) return false;
     const t = new Date(b.expiryDate).getTime();
     return !isNaN(t);
   });
@@ -104,6 +113,7 @@ export function getBatchHealthStats<T extends { expiryDate?: string | Date; quan
     expiredCount,
     nearExpiryCount,
     healthyCount,
+    depletedCount,
     nearestExpiryDate,
   };
 }
