@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
+import React, { useState } from 'react';
 import {
   User,
   Phone,
@@ -20,6 +19,7 @@ import {
   Clock,
   CreditCard,
   ShoppingBag,
+  Printer,
 } from 'lucide-react';
 import {
   Dialog,
@@ -30,15 +30,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { StatCard } from '@/components/ui/stat-card';
 import { formatCurrency, formatDate, formatDateTime, getInitials } from '@/lib/format';
-import { getErrorMessage } from '@/lib/errors';
 import {
-  customersApi,
   CustomerItem,
-  CustomerLedgerResponse,
-  CustomerDetailResponse,
 } from '../services/customers-api';
+import {
+  useCustomerDetail,
+  useCustomerLedger,
+} from '../hooks/use-customers-queries';
+import { useStore } from '@/context/store-context';
 import { RecordKhataPaymentModal } from './record-khata-payment-modal';
 
 interface CustomerProfileDrawerProps {
@@ -56,41 +56,163 @@ export function CustomerProfileDrawer({
   onEditCustomer,
   onBalanceUpdated,
 }: CustomerProfileDrawerProps) {
+  const { activeStore } = useStore();
   const [activeTab, setActiveTab] = useState<'ledger' | 'sales'>('ledger');
-  const [customer, setCustomer] = useState<CustomerDetailResponse | null>(null);
-  const [ledger, setLedger] = useState<CustomerLedgerResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
 
-  const fetchDetails = useCallback(async () => {
-    if (!customerId) return;
-    setIsLoading(true);
-    try {
-      const [custData, ledgerData] = await Promise.all([
-        customersApi.getCustomer(customerId),
-        customersApi.getLedger(customerId),
-      ]);
-      setCustomer(custData);
-      setLedger(ledgerData);
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to load customer profile and ledger'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [customerId]);
+  const {
+    data: customer,
+    isLoading: isCustLoading,
+    isFetching: isCustFetching,
+    refetch: refetchCust,
+  } = useCustomerDetail(isOpen ? customerId : null);
 
-  useEffect(() => {
-    if (isOpen && customerId) {
-      fetchDetails();
-    }
-  }, [isOpen, customerId, fetchDetails]);
+  const {
+    data: ledger,
+    isLoading: isLedgerLoading,
+    isFetching: isLedgerFetching,
+    refetch: refetchLedger,
+  } = useCustomerLedger(isOpen ? customerId : null);
 
-  const handlePaymentSuccess = (newBalance: number) => {
-    if (customer) {
-      setCustomer({ ...customer, creditBalance: newBalance });
-    }
-    fetchDetails();
+  const isLoading = isCustLoading || isLedgerLoading;
+  const isFetching = isCustFetching || isLedgerFetching;
+
+  const handleRefresh = () => {
+    void refetchCust();
+    void refetchLedger();
+  };
+
+  const handlePaymentSuccess = () => {
+    handleRefresh();
     onBalanceUpdated?.();
+  };
+
+  const escapeHtml = (value: unknown): string =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const handlePrintSlip = () => {
+    if (!customer || !ledger) return;
+
+    const printWindow = window.open('', '', 'width=420,height=680');
+    if (!printWindow) return;
+
+    const storeName = activeStore?.name || 'Pharmacy Counter';
+    const storeAddress = activeStore?.address || '';
+
+    const linesHtml = ledger.entries
+      .map((entry) => {
+        const isDebit = entry.type === 'DEBIT_SALE';
+        return `
+          <tr>
+            <td style="padding: 3px 0; border-bottom: 1px dotted #ccc;">
+              <div style="font-weight: 600;">${escapeHtml(formatDate(entry.date))} ${escapeHtml(entry.reference)}</div>
+              <div style="font-size: 9px; color: #555;">${escapeHtml(entry.description)}</div>
+            </td>
+            <td style="padding: 3px 0; text-align: right; border-bottom: 1px dotted #ccc; font-family: monospace;">
+              ${isDebit ? `+${entry.debit.toLocaleString()}` : `-${entry.credit.toLocaleString()}`}
+            </td>
+            <td style="padding: 3px 0; text-align: right; border-bottom: 1px dotted #ccc; font-family: monospace; font-weight: bold;">
+              ${entry.balance > 0 ? `+${entry.balance.toLocaleString()}` : `${entry.balance.toLocaleString()}`}
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const isCurrentDebt = ledger.summary.currentBalance > 0;
+    const isCurrentAdv = ledger.summary.currentBalance < 0;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Khata Statement - ${escapeHtml(customer.name)}</title>
+          <style>
+            @page { size: 80mm auto; margin: 3mm; }
+            body {
+              font-family: 'Courier New', Courier, monospace, -apple-system, BlinkMacSystemFont, sans-serif;
+              color: #000;
+              margin: 0;
+              padding: 6px;
+              width: 74mm;
+              font-size: 11px;
+              line-height: 1.35;
+            }
+            .center { text-align: center; }
+            .header { margin-bottom: 8px; }
+            .store-title { font-size: 15px; font-weight: bold; text-transform: uppercase; }
+            .divider { border-top: 1px dashed #000; margin: 6px 0; }
+            .double-divider { border-top: 2px dashed #000; margin: 8px 0; }
+            .row { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px; }
+            table { width: 100%; border-collapse: collapse; font-size: 10px; margin: 4px 0; }
+            th { text-align: left; border-bottom: 1px solid #000; padding: 3px 0; font-size: 9px; text-transform: uppercase; }
+            .totals-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
+            .balance-box {
+              border: 1px solid #000;
+              padding: 6px 8px;
+              margin: 8px 0;
+              text-align: center;
+              font-size: 13px;
+              font-weight: bold;
+            }
+            @media print {
+              body { width: 100%; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="center header">
+            <div class="store-title">${escapeHtml(storeName)}</div>
+            ${storeAddress ? `<div style="font-size:9px;">${escapeHtml(storeAddress)}</div>` : ''}
+            <div style="font-weight: bold; margin-top: 4px; font-size: 12px;">CUSTOMER KHATA STATEMENT</div>
+          </div>
+          <div class="divider"></div>
+          <div class="row"><span>Customer:</span><span style="font-weight:bold;">${escapeHtml(customer.name)}</span></div>
+          ${customer.phone ? `<div class="row"><span>Phone:</span><span>${escapeHtml(customer.phone)}</span></div>` : ''}
+          <div class="row"><span>Date:</span><span>${escapeHtml(formatDateTime(new Date().toISOString()))}</span></div>
+          <div class="divider"></div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 50%;">Date / Details</th>
+                <th style="width: 25%; text-align: right;">+/- (PKR)</th>
+                <th style="width: 25%; text-align: right;">Bal (PKR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linesHtml}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          <div class="totals-row">
+            <span>Total Debits (Purchases):</span>
+            <span style="font-family: monospace;">PKR ${(ledger.summary.totalDebits || 0).toLocaleString()}</span>
+          </div>
+          <div class="totals-row">
+            <span>Total Credits (Payments/Returns):</span>
+            <span style="font-family: monospace;">PKR ${(ledger.summary.totalCredits || 0).toLocaleString()}</span>
+          </div>
+          <div class="double-divider"></div>
+          <div class="balance-box">
+            ${isCurrentDebt ? `OUTSTANDING DEBT: PKR ${ledger.summary.currentBalance.toLocaleString()}` : isCurrentAdv ? `ADVANCE DEPOSIT: PKR ${Math.abs(ledger.summary.currentBalance).toLocaleString()}` : `ACCOUNT BALANCE: SETTLED (PKR 0)`}
+          </div>
+          <div class="center" style="font-size: 9px; color: #555; margin-top: 8px;">
+            Computer generated statement on ${escapeHtml(formatDate(new Date().toISOString()))}<br/>
+            Thank you for your business!
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   };
 
   if (!isOpen) return null;
@@ -122,7 +244,7 @@ export function CustomerProfileDrawer({
                     ) : isAdvance ? (
                       <Badge
                         variant="secondary"
-                        className="tabular-nums font-mono font-semibold text-xs bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                        className="tabular-nums font-mono font-semibold text-xs bg-success/15 text-success border-success/30"
                       >
                         Advance: {formatCurrency(Math.abs(creditBalance))}
                       </Badge>
@@ -160,13 +282,24 @@ export function CustomerProfileDrawer({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={fetchDetails}
-                  disabled={isLoading}
+                  onClick={handleRefresh}
+                  disabled={isLoading || isFetching}
                   className="h-8.5 px-2.5 sm:px-3 text-xs gap-1.5 shrink-0 cursor-pointer"
                   title="Refresh statement"
                 >
-                  <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline">Refresh</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handlePrintSlip}
+                  disabled={!ledger || ledger.entries.length === 0}
+                  className="h-8.5 px-2.5 sm:px-3 text-xs gap-1.5 shrink-0 cursor-pointer"
+                  title="Print 80mm thermal Khata slip"
+                >
+                  <Printer className="size-3.5 text-primary" />
+                  <span className="hidden sm:inline">Print Slip</span>
                 </Button>
                 {customer && onEditCustomer && (
                   <Button
@@ -208,9 +341,9 @@ export function CustomerProfileDrawer({
                   {/* Khata Balance Card */}
                   <div className={`relative overflow-hidden rounded-xl border p-3 sm:p-3.5 flex flex-col justify-between ${
                     isDebt
-                      ? 'border-rose-500/25 bg-gradient-to-br from-card via-card to-rose-500/[0.06]'
+                      ? 'border-destructive/25 bg-gradient-to-br from-card via-card to-destructive/[0.06]'
                       : isAdvance
-                      ? 'border-emerald-500/25 bg-gradient-to-br from-card via-card to-emerald-500/[0.06]'
+                      ? 'border-success/25 bg-gradient-to-br from-card via-card to-success/[0.06]'
                       : 'border-border/70 bg-gradient-to-br from-card via-card to-muted/20'
                   }`}>
                     <div className="flex items-start justify-between gap-1.5">
@@ -219,9 +352,9 @@ export function CustomerProfileDrawer({
                       </span>
                       <div className={`size-7 rounded-lg flex items-center justify-center shrink-0 ${
                         isDebt
-                          ? 'bg-rose-500/10 text-rose-500 ring-1 ring-rose-500/20'
+                          ? 'bg-destructive/10 text-destructive ring-1 ring-destructive/20'
                           : isAdvance
-                          ? 'bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20'
+                          ? 'bg-success/10 text-success ring-1 ring-success/20'
                           : 'bg-muted text-muted-foreground ring-1 ring-border'
                       }`}>
                         <CreditCard className="size-3.5" />
@@ -229,15 +362,15 @@ export function CustomerProfileDrawer({
                     </div>
                     <div className="mt-2.5 flex items-baseline justify-between gap-1.5">
                       <strong className={`text-xl sm:text-2xl font-extrabold tracking-tight tabular-nums truncate ${
-                        isDebt ? 'text-rose-500' : isAdvance ? 'text-emerald-500' : 'text-foreground'
+                        isDebt ? 'text-destructive' : isAdvance ? 'text-success' : 'text-foreground'
                       }`}>
                         {formatCurrency(Math.abs(creditBalance))}
                       </strong>
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
                         isDebt
-                          ? 'bg-rose-500/10 text-rose-500'
+                          ? 'bg-destructive/10 text-destructive'
                           : isAdvance
-                          ? 'bg-emerald-500/10 text-emerald-500'
+                          ? 'bg-success/10 text-success'
                           : 'bg-muted text-muted-foreground'
                       }`}>
                         {isDebt ? 'Outstanding' : isAdvance ? 'Store Credit' : 'Settled'}
@@ -286,12 +419,12 @@ export function CustomerProfileDrawer({
                   </div>
 
                   {/* Repayments */}
-                  <div className="relative overflow-hidden rounded-xl border border-emerald-500/20 bg-gradient-to-br from-card via-card to-emerald-500/[0.04] p-3 sm:p-3.5 flex flex-col justify-between">
+                  <div className="relative overflow-hidden rounded-xl border border-success/20 bg-gradient-to-br from-card via-card to-success/[0.04] p-3 sm:p-3.5 flex flex-col justify-between">
                     <div className="flex items-start justify-between gap-1.5">
                       <span className="text-xs font-semibold text-foreground/80 leading-snug">
                         Repayments
                       </span>
-                      <div className="size-7 rounded-lg bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20 flex items-center justify-center shrink-0">
+                      <div className="size-7 rounded-lg bg-success/10 text-success ring-1 ring-success/20 flex items-center justify-center shrink-0">
                         <Banknote className="size-3.5" />
                       </div>
                     </div>
@@ -299,7 +432,7 @@ export function CustomerProfileDrawer({
                       <strong className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground tabular-nums">
                         {customer?.totalPaymentsCount || 0}
                       </strong>
-                      <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md shrink-0">
+                      <span className="text-[10px] font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded-md shrink-0">
                         Completed
                       </span>
                     </div>
@@ -407,7 +540,7 @@ export function CustomerProfileDrawer({
                                           +{formatCurrency(entry.balance)}
                                         </span>
                                       ) : entry.balance < 0 ? (
-                                        <span className="text-emerald-500 font-semibold">
+                                        <span className="text-success font-semibold">
                                           -{formatCurrency(Math.abs(entry.balance))} (Adv)
                                         </span>
                                       ) : (

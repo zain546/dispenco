@@ -103,13 +103,15 @@ export interface RecordKhataPaymentPayload {
   gatewayRef?: string;
 }
 
+export interface QueryCustomersParams {
+  search?: string;
+  hasBalance?: string;
+  page?: number;
+  limit?: number;
+}
+
 export const customersApi = {
-  async getCustomers(params?: {
-    search?: string;
-    hasBalance?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<CustomerListResponse> {
+  async getCustomers(params?: QueryCustomersParams): Promise<CustomerListResponse> {
     const res = await api.get('/customers', { params });
     return res.data;
   },

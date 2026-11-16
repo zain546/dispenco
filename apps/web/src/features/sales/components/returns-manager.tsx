@@ -30,6 +30,8 @@ import {
   QueryReturnsParams,
 } from '../services/sales-api';
 import { useReturns } from '../hooks/use-sales-queries';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { CreateReturnModal } from './create-return-modal';
 import { ReturnSlipModal } from './return-slip-modal';
@@ -62,9 +64,13 @@ export function ReturnsManager() {
   const totalCount = returnsData?.meta?.total || 0;
   const totalPages = returnsData?.meta?.totalPages || 1;
 
+  const queryClient = useQueryClient();
+
   // Handle Return Processed callback
   const handleReturnCreated = (newReturn: ReturnRecord) => {
     refetch();
+    queryClient.invalidateQueries({ queryKey: queryKeys.inventory.all() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
     setSelectedReturnForSlip(newReturn);
   };
 

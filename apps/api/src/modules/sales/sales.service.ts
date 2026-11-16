@@ -483,6 +483,9 @@ export class SalesService {
     });
 
     await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+    if (isOnCredit || dto.customerId) {
+      await this.cache.del(`customers:summary:${tenantId}`);
+    }
 
     // Cache idempotent response for 24 hours to prevent duplicate sale creation on network retry
     if (dto.clientTxId) {
@@ -812,10 +815,14 @@ export class SalesService {
         saleId: sale.id,
         status: SaleStatus.VOIDED,
         storeId: sale.storeId,
+        wasOnCredit: sale.status === SaleStatus.ON_CREDIT,
       };
     });
 
     await this.cache.invalidateStoreInventory(tenantId, result.storeId);
+    if (result.wasOnCredit) {
+      await this.cache.del(`customers:summary:${tenantId}`);
+    }
 
     return result;
   }
@@ -1095,6 +1102,7 @@ export class SalesService {
       this.cache.invalidateStoreInventory(tenantId, result.sale?.storeId),
       this.cache.del(`returns:summary:${tenantId}:all`),
       result.sale?.storeId ? this.cache.del(`returns:summary:${tenantId}:${result.sale.storeId}`) : Promise.resolve(),
+      dto.refundMethod === 'CREDIT' ? this.cache.del(`customers:summary:${tenantId}`) : Promise.resolve(),
     ]);
 
     return result;
