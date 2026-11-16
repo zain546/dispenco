@@ -56,5 +56,11 @@ export const queryKeys = {
   taxRates: {
     all: ['tax-rates'] as const,
   },
+  prescriptions: {
+    all: (storeId?: string) => ['prescriptions', { storeId: storeId ?? 'all' }] as const,
+    list: (storeId?: string, params?: Record<string, unknown>) =>
+      [...queryKeys.prescriptions.all(storeId), 'list', params ?? {}] as const,
+    detail: (id: string) => ['prescriptions', 'detail', id] as const,
+  },
 } as const;
 

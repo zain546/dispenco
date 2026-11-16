@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   RotateCcw,
   Search,
@@ -26,70 +26,45 @@ import {
 } from '@/components/ui/select';
 import { useStore } from '@/context/store-context';
 import {
-  salesApi,
   ReturnRecord,
-  ReturnsSummaryMetrics,
   QueryReturnsParams,
 } from '../services/sales-api';
+import { useReturns } from '../hooks/use-sales-queries';
 import { formatCurrency, formatDateTime } from '@/lib/format';
-import { getErrorMessage } from '@/lib/errors';
 import { CreateReturnModal } from './create-return-modal';
 import { ReturnSlipModal } from './return-slip-modal';
-import { toast } from 'sonner';
 
 export function ReturnsManager() {
   const { activeStore, isAllStores } = useStore();
-  const [returns, setReturns] = useState<ReturnRecord[]>([]);
-  const [summary, setSummary] = useState<ReturnsSummaryMetrics | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('ALL');
-  const [isLoading, setIsLoading] = useState(true);
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedReturnForSlip, setSelectedReturnForSlip] = useState<ReturnRecord | null>(null);
-  const fetchSeqRef = React.useRef(0);
 
-  const fetchReturns = useCallback(async () => {
-    const reqId = ++fetchSeqRef.current;
-    setIsLoading(true);
-    try {
-      const params: QueryReturnsParams = {
-        page,
-        limit: 15,
-        storeId: !isAllStores && activeStore?.id ? activeStore.id : undefined,
-        search: search.trim() || undefined,
-        refundMethod: methodFilter !== 'ALL' ? methodFilter : undefined,
-      };
+  const queryParams: QueryReturnsParams = useMemo(
+    () => ({
+      page,
+      limit: 15,
+      storeId: !isAllStores && activeStore?.id ? activeStore.id : undefined,
+      search: search.trim() || undefined,
+      refundMethod: methodFilter !== 'ALL' ? methodFilter : undefined,
+    }),
+    [page, isAllStores, activeStore?.id, search, methodFilter],
+  );
 
-      const res = await salesApi.getReturns(params);
-      if (reqId !== fetchSeqRef.current) return;
-      setReturns(res.data || []);
-      if (res.summary) {
-        setSummary(res.summary);
-      }
-      setTotalCount(res.meta?.total || 0);
-      setTotalPages(res.meta?.totalPages || 1);
-    } catch (err) {
-      if (reqId !== fetchSeqRef.current) return;
-      toast.error(getErrorMessage(err, 'Failed to fetch returns'));
-    } finally {
-      if (reqId === fetchSeqRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [activeStore?.id, isAllStores, page, search, methodFilter]);
+  const { data: returnsData, isLoading, refetch } = useReturns(queryParams);
 
-  useEffect(() => {
-    fetchReturns();
-  }, [fetchReturns]);
+  const returns = returnsData?.data || [];
+  const summary = returnsData?.summary || null;
+  const totalCount = returnsData?.meta?.total || 0;
+  const totalPages = returnsData?.meta?.totalPages || 1;
 
   // Handle Return Processed callback
   const handleReturnCreated = (newReturn: ReturnRecord) => {
-    fetchReturns();
+    refetch();
     setSelectedReturnForSlip(newReturn);
   };
 
@@ -128,7 +103,7 @@ export function ReturnsManager() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={fetchReturns}
+            onClick={() => refetch()}
             disabled={isLoading}
             className="h-9 gap-1.5 text-xs font-medium cursor-pointer whitespace-nowrap"
           >
