@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -89,6 +90,7 @@ export function ImportProductsModal({
   onClose,
   onSuccess,
 }: ImportProductsModalProps) {
+  const queryClient = useQueryClient();
   const [step, setStep] = useState<1 | 2>(1);
   const [inputMode, setInputMode] = useState<'file' | 'raw'>('file');
   const [csvContent, setCsvContent] = useState<string>('');
@@ -254,6 +256,8 @@ export function ImportProductsModal({
       setIsConfirming(true);
       const res = await importApi.confirmImport(validItems);
       toast.success(res.message || `Successfully imported ${res.importedCount} medicine catalog items!`);
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      await queryClient.invalidateQueries({ queryKey: ['reports'] });
       onSuccess();
       onClose();
       resetState();

@@ -39,12 +39,11 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import {
-  productsApi,
   type ExpiryRiskBatchItem,
-  type ExpiryRiskForecastResponse,
   type RiskLevel,
   type BatchData,
 } from '../services/products-api';
+import { useExpiryRisk } from '../hooks/use-inventory-queries';
 import { useStore } from '@/context/store-context';
 import { EditBatchModal } from './edit-batch-modal';
 import { ProductBatchesModal } from './product-batches-modal';
@@ -55,11 +54,6 @@ interface ExpiryRiskViewProps {
 
 export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
   const { activeStoreId, isAllStores } = useStore();
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [data, setData] = useState<ExpiryRiskForecastResponse | null>(null);
 
   // Filters
   const [timeframeDays, setTimeframeDays] = useState<number>(30);
@@ -73,39 +67,31 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
   const [selectedProductForModal, setSelectedProductForModal] = useState<{ id: string; name: string } | null>(null);
   const [batchesModalOpen, setBatchesModalOpen] = useState(false);
 
+  const {
+    data: queryData,
+    isLoading,
+    isFetching: isRefreshing,
+    error: queryError,
+    refetch: refetchForecast,
+  } = useExpiryRisk({
+    storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+    timeframeDays,
+    riskFilter: riskFilter !== 'ALL' ? riskFilter : undefined,
+    search: search.trim() || undefined,
+    limit: 150,
+  });
+
+  const data = queryData ?? null;
+  const fetchError = queryError
+    ? getErrorMessage(queryError, 'Failed to calculate expiry risk forecast')
+    : null;
+
   const fetchForecast = useCallback(
-    async (showRefreshIndicator = false) => {
-      if (showRefreshIndicator) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      setFetchError(null);
-
-      try {
-        const res = await productsApi.getExpiryRiskForecast({
-          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-          timeframeDays,
-          riskFilter: riskFilter !== 'ALL' ? riskFilter : undefined,
-          search: search.trim() || undefined,
-          limit: 150,
-        });
-        setData(res);
-      } catch (err: unknown) {
-        const msg = getErrorMessage(err, 'Failed to calculate expiry risk forecast');
-        setFetchError(msg);
-        toast.error(msg);
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
+    (_showRefreshIndicator?: boolean) => {
+      void refetchForecast();
     },
-    [activeStoreId, isAllStores, timeframeDays, riskFilter, search],
+    [refetchForecast],
   );
-
-  useEffect(() => {
-    fetchForecast();
-  }, [fetchForecast]);
 
   const handleOpenEditBatch = (item: ExpiryRiskBatchItem) => {
     const batchData: BatchData = {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Boxes,
@@ -43,6 +44,7 @@ import { getErrorMessage } from '@/lib/errors';
 export function StockReceiveForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores } = useStore();
   const preselectedProductId = searchParams.get('productId');
 
@@ -204,6 +206,8 @@ export function StockReceiveForm() {
     try {
       const res = await productsApi.receiveStock(payload);
       toast.success(res.message || 'Stock batch received successfully!');
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      await queryClient.invalidateQueries({ queryKey: ['reports'] });
       router.push('/inventory');
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to receive stock batch'));

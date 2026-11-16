@@ -34,7 +34,7 @@ export function InvertedPriceDialog({
       <AlertDialogContent className="sm:max-w-md p-5 sm:p-6 gap-4">
         <AlertDialogHeader className="sm:text-left gap-3">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+            <div className="size-10 rounded-full bg-warning/10 text-warning flex items-center justify-center shrink-0 border border-warning/20">
               <AlertTriangle className="size-5" />
             </div>
             <div>
@@ -124,7 +124,7 @@ export function BarcodeCollisionDialog({
       <AlertDialogContent className="sm:max-w-md p-5 sm:p-6 gap-4">
         <AlertDialogHeader className="sm:text-left gap-3">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/20">
+            <div className="size-10 rounded-full bg-warning/10 text-warning flex items-center justify-center shrink-0 border border-warning/20">
               <Boxes className="size-5" />
             </div>
             <div>

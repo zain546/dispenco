@@ -20,13 +20,18 @@ export const queryKeys = {
   },
   inventory: {
     all: (storeId?: string) => ['inventory', { storeId: storeId ?? 'all' }] as const,
-    aggregation: (storeId?: string) => [...queryKeys.inventory.all(storeId), 'aggregation'] as const,
+    aggregation: (storeId?: string, params?: Record<string, unknown>) =>
+      [...queryKeys.inventory.all(storeId), 'aggregation', params ?? {}] as const,
     products: (storeId?: string, params?: Record<string, unknown>) =>
       [...queryKeys.inventory.all(storeId), 'products', params ?? {}] as const,
     batches: (productId: string, storeId?: string) =>
       [...queryKeys.inventory.all(storeId), 'batches', productId] as const,
-    expiryRisk: (storeId?: string, days?: number) =>
-      [...queryKeys.inventory.all(storeId), 'expiry-risk', days ?? 90] as const,
+    expiryRisk: (storeId?: string, params?: Record<string, unknown> | number) =>
+      [
+        ...queryKeys.inventory.all(storeId),
+        'expiry-risk',
+        typeof params === 'number' ? { timeframeDays: params } : (params ?? {}),
+      ] as const,
     lowStock: (storeId?: string) =>
       [...queryKeys.inventory.all(storeId), 'low-stock'] as const,
   },

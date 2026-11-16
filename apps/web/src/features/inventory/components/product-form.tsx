@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useForm, useWatch, type Control, type UseFormSetValue } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Save,
@@ -83,6 +84,7 @@ export function ProductForm({
 }: ProductFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
@@ -473,6 +475,8 @@ export function ProductForm({
         toast.success('Stock & Medicine created successfully!');
       }
 
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      await queryClient.invalidateQueries({ queryKey: ['reports'] });
       router.push('/inventory');
       router.refresh();
     } catch (err: unknown) {
@@ -598,9 +602,9 @@ export function ProductForm({
             </div>
 
             {scannedExistingProduct && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs animate-in fade-in">
+              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs animate-in fade-in">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="size-7 rounded-md bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                  <div className="size-7 rounded-md bg-warning/20 text-warning flex items-center justify-center shrink-0">
                     <Boxes className="size-4" />
                   </div>
                   <div className="min-w-0">
@@ -964,12 +968,12 @@ export function ProductForm({
                   onScan={(scannedVal, parsedData) => handleSmartBoxScan(scannedVal, parsedData)}
                 />
                 {scannedExistingProduct && !isEditing && (
-                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in mt-1.5">
+                  <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in mt-1.5">
                     <div className="flex items-start gap-2.5 min-w-0">
-                      <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                      <AlertTriangle className="size-4 text-warning shrink-0 mt-0.5" />
                       <div className="space-y-0.5 min-w-0">
                         <p className="font-semibold text-foreground">
-                          Barcode already belongs to <span className="text-amber-500 font-bold">{scannedExistingProduct.name}</span>
+                          Barcode already belongs to <span className="text-warning font-bold">{scannedExistingProduct.name}</span>
                         </p>
                         <p className="text-micro text-muted-foreground">
                           Duplicate barcodes are not allowed. Switch to receive a new stock batch for this medicine.

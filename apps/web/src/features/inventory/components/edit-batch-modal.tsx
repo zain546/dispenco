@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -33,6 +34,7 @@ export function EditBatchModal({
   onOpenChange,
   onBatchUpdated,
 }: EditBatchModalProps) {
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [batchNumber, setBatchNumber] = useState('');
   const [mfgDate, setMfgDate] = useState('');
@@ -109,6 +111,8 @@ export function EditBatchModal({
       });
 
       toast.success(`Stock Batch ${batchNumber} updated successfully`);
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      await queryClient.invalidateQueries({ queryKey: ['reports'] });
       onOpenChange(false);
       onBatchUpdated();
     } catch (err: unknown) {
