@@ -283,7 +283,7 @@ export function AnomaliesReviewView() {
   return (
     <div className="space-y-6">
       {/* Top Banner & Header: streamlined and responsive */}
-      <Card className="border border-border/80 sm:border-primary/20 bg-muted/20 sm:bg-linear-to-r sm:from-primary/5 sm:via-primary/10 sm:to-background shadow-xs overflow-hidden">
+      <Card className="border border-border/80 sm:border-primary/20 bg-muted/20 sm:bg-gradient-to-r sm:from-primary/5 sm:via-primary/10 sm:to-background shadow-xs overflow-hidden">
         <CardContent className="p-3 sm:p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center sm:items-start gap-2.5 sm:gap-3.5">
             <div className="size-9 sm:size-11 md:size-12 rounded-xl sm:rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-xs ring-2 sm:ring-4 ring-primary/5">

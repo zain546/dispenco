@@ -122,6 +122,54 @@ const CATEGORIES = [
   { id: 'stores', label: 'Store Benchmark' },
 ] as const;
 
+function renderNarrative(narrativeText: string) {
+  if (!narrativeText) return null;
+
+  const paragraphs = narrativeText.split(/\n\n+/).filter(Boolean);
+
+  return (
+    <div className="space-y-3 text-xs sm:text-sm text-foreground leading-relaxed">
+      {paragraphs.map((para, pIdx) => {
+        const lines = para.split(/\n+/).filter(Boolean);
+        const isList = lines.length > 1 && lines.every((l) => /^\s*[-*•]\s+/.test(l) || /^\s*\d+\.\s+/.test(l));
+
+        if (isList) {
+          return (
+            <ul key={pIdx} className="space-y-1.5 pl-4 list-disc marker:text-primary">
+              {lines.map((line, lIdx) => {
+                const cleaned = line.replace(/^\s*[-*•]\s+/, '').replace(/^\s*\d+\.\s+/, '');
+                return (
+                  <li
+                    key={lIdx}
+                    dangerouslySetInnerHTML={{
+                      __html: cleaned.replace(
+                        /\*\*(.*?)\*\*/g,
+                        '<strong class="font-bold text-foreground">$1</strong>'
+                      ),
+                    }}
+                  />
+                );
+              })}
+            </ul>
+          );
+        }
+
+        return (
+          <p
+            key={pIdx}
+            dangerouslySetInnerHTML={{
+              __html: para.replace(
+                /\*\*(.*?)\*\*/g,
+                '<strong class="font-bold text-foreground">$1</strong>'
+              ),
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function AnalyticsCopilotView() {
   const { activeStoreId, isAllStores, stores } = useStore();
   const [question, setQuestion] = useState('');
@@ -227,42 +275,42 @@ export function AnalyticsCopilotView() {
   return (
     <div className="space-y-6">
       {/* Top Professional Intelligence Card */}
-      <Card className="border-primary/20 bg-linear-to-r from-primary/5 via-primary/10 to-background shadow-xs overflow-hidden relative">
-        <CardContent className="p-4 sm:p-6 space-y-4">
+      <Card className="border-primary/25 bg-gradient-to-r from-primary/10 via-primary/5 to-background shadow-xs overflow-hidden relative">
+        <CardContent className="p-4 sm:p-5 space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="size-11 sm:size-12 rounded-2xl bg-linear-to-br from-primary to-teal-600 text-primary-foreground flex items-center justify-center shadow-md shadow-primary/25 shrink-0 mt-0.5 sm:mt-0 ring-4 ring-primary/10">
-                <Sparkles className="size-5 sm:size-6" />
+            <div className="flex items-center gap-3">
+              <div className="size-10 sm:size-11 rounded-2xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground flex items-center justify-center shadow-md shadow-primary/25 shrink-0 ring-4 ring-primary/10">
+                <Sparkles className="size-5" />
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base sm:text-lg font-bold text-foreground">
-                    Dispenco AI Analytics Copilot
+                  <h3 className="text-sm sm:text-base font-bold text-foreground">
+                    Ask Anything About Your Pharmacy Operations
                   </h3>
                   <Badge
                     variant="outline"
-                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold gap-1"
+                    className="bg-primary/15 text-primary border-primary/30 text-micro font-semibold gap-1"
                   >
                     <Cpu className="size-3 text-primary" />
                     <span>Dispenco Intelligence Engine</span>
                   </Badge>
                   <Badge
                     variant="secondary"
-                    className="text-micro font-medium gap-1 bg-muted/60 text-muted-foreground"
+                    className="text-micro font-semibold gap-1 bg-muted/80 text-foreground border border-border/70"
                   >
                     <Building2 className="size-3" />
                     <span>{activeStoreName}</span>
                   </Badge>
                 </div>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 max-w-2xl">
-                  Enterprise-grade natural language business intelligence. Formulate queries in plain English to interrogate transactions, margin trends, expiry exposures, and patient credit balances.
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Interrogate live transactions, product margins, batch expiries, and patient credit in plain English.
                 </p>
               </div>
             </div>
 
             {/* Zero-Hallucination Trust Badge */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border/80 shadow-2xs shrink-0 self-start">
-              <ShieldCheck className="size-4 text-primary" />
+            <div className="hidden lg:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-card border border-border/90 shadow-2xs shrink-0 self-center">
+              <ShieldCheck className="size-4 text-success" />
               <div className="text-left">
                 <div className="text-micro font-bold text-foreground">Audited Database</div>
                 <div className="text-[10px] text-muted-foreground">Zero-hallucination execution</div>
@@ -474,16 +522,8 @@ export function AnalyticsCopilotView() {
               )}
 
               {/* Full Executive Narrative */}
-              <div className="text-sm sm:text-base leading-relaxed text-foreground prose dark:prose-invert max-w-none">
-                <p
-                  className="font-normal"
-                  dangerouslySetInnerHTML={{
-                    __html: currentResult.narrative.replace(
-                      /\*\*(.*?)\*\*/g,
-                      '<strong class="font-bold text-primary">$1</strong>'
-                    ),
-                  }}
-                />
+              <div className="p-3.5 sm:p-4 rounded-xl bg-card border border-border/80 shadow-2xs">
+                {renderNarrative(currentResult.narrative)}
               </div>
 
               {/* Recommended Operational Action Items (if generated by Gemini) */}
@@ -584,28 +624,33 @@ export function AnalyticsCopilotView() {
                     <ResponsiveContainer width="100%" height="100%">
                       {activeChartType === 'line' ? (
                         <LineChart data={currentResult.chartData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
                           <XAxis
                             dataKey={currentResult.chartData[0]?.date !== undefined ? 'date' : 'name'}
-                            tick={{ fontSize: 10 }}
+                            tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
                             tickLine={false}
-                            axisLine={false}
+                            axisLine={{ stroke: 'var(--border)' }}
                             tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
                           />
                           <YAxis
-                            tick={{ fontSize: 11 }}
+                            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                             tickLine={false}
-                            axisLine={false}
+                            axisLine={{ stroke: 'var(--border)' }}
                             tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                           />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              borderColor: 'hsl(var(--border))',
+                              backgroundColor: 'var(--popover)',
+                              borderColor: 'var(--border)',
+                              color: 'var(--popover-foreground)',
                               borderRadius: '12px',
                               fontSize: '12px',
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                             }}
+                            formatter={(val: unknown) => [
+                              typeof val === 'number' && val > 100 ? formatCurrency(val) : Number(val || 0).toLocaleString(),
+                              'Value',
+                            ]}
                           />
                           <Line
                             type="monotone"
@@ -616,9 +661,9 @@ export function AnalyticsCopilotView() {
                                 ? 'value'
                                 : 'unitsSold'
                             }
-                            stroke="#0d9488"
+                            stroke="var(--primary)"
                             strokeWidth={2.5}
-                            dot={{ r: 3.5, fill: '#0d9488' }}
+                            dot={{ r: 3.5, fill: 'var(--primary)' }}
                             activeDot={{ r: 6 }}
                           />
                         </LineChart>
@@ -626,32 +671,37 @@ export function AnalyticsCopilotView() {
                         <AreaChart data={currentResult.chartData}>
                           <defs>
                             <linearGradient id="copilotGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#0d9488" stopOpacity={0.35} />
-                              <stop offset="95%" stopColor="#0d9488" stopOpacity={0.0} />
+                              <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
+                              <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
                           <XAxis
                             dataKey={currentResult.chartData[0]?.date !== undefined ? 'date' : 'name'}
-                            tick={{ fontSize: 10 }}
+                            tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
                             tickLine={false}
-                            axisLine={false}
+                            axisLine={{ stroke: 'var(--border)' }}
                             tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
                           />
                           <YAxis
-                            tick={{ fontSize: 11 }}
+                            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                             tickLine={false}
-                            axisLine={false}
+                            axisLine={{ stroke: 'var(--border)' }}
                             tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                           />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              borderColor: 'hsl(var(--border))',
+                              backgroundColor: 'var(--popover)',
+                              borderColor: 'var(--border)',
+                              color: 'var(--popover-foreground)',
                               borderRadius: '12px',
                               fontSize: '12px',
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                             }}
+                            formatter={(val: unknown) => [
+                              typeof val === 'number' && val > 100 ? formatCurrency(val) : Number(val || 0).toLocaleString(),
+                              'Value',
+                            ]}
                           />
                           <Area
                             type="monotone"
@@ -662,7 +712,7 @@ export function AnalyticsCopilotView() {
                                 ? 'value'
                                 : 'unitsSold'
                             }
-                            stroke="#0d9488"
+                            stroke="var(--primary)"
                             strokeWidth={2}
                             fillOpacity={1}
                             fill="url(#copilotGradient)"
@@ -670,29 +720,34 @@ export function AnalyticsCopilotView() {
                         </AreaChart>
                       ) : (
                         <BarChart data={currentResult.chartData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
                           <XAxis
                             dataKey={currentResult.chartData[0]?.name !== undefined ? 'name' : 'date'}
-                            tick={{ fontSize: 10 }}
+                            tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
                             tickLine={false}
-                            axisLine={false}
+                            axisLine={{ stroke: 'var(--border)' }}
                             interval={0}
                             tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
                           />
                           <YAxis
-                            tick={{ fontSize: 11 }}
+                            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
                             tickLine={false}
-                            axisLine={false}
+                            axisLine={{ stroke: 'var(--border)' }}
                             tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                           />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              borderColor: 'hsl(var(--border))',
+                              backgroundColor: 'var(--popover)',
+                              borderColor: 'var(--border)',
+                              color: 'var(--popover-foreground)',
                               borderRadius: '12px',
                               fontSize: '12px',
                               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                             }}
+                            formatter={(val: unknown) => [
+                              typeof val === 'number' && val > 100 ? formatCurrency(val) : Number(val || 0).toLocaleString(),
+                              'Value',
+                            ]}
                           />
                           <Bar
                             dataKey={
@@ -702,7 +757,7 @@ export function AnalyticsCopilotView() {
                                 ? 'value'
                                 : 'unitsSold'
                             }
-                            fill="#0d9488"
+                            fill="var(--primary)"
                             radius={[6, 6, 0, 0]}
                           />
                         </BarChart>
@@ -849,7 +904,7 @@ export function AnalyticsCopilotView() {
         <Card className="border border-border/70 bg-muted/10 shadow-2xs overflow-hidden">
           <CardContent className="p-6 sm:p-10 space-y-6 text-center">
             <div className="max-w-md mx-auto space-y-2">
-              <div className="size-14 rounded-2xl bg-linear-to-br from-primary/20 to-teal-500/20 text-primary mx-auto flex items-center justify-center shadow-xs ring-4 ring-primary/10">
+              <div className="size-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary mx-auto flex items-center justify-center shadow-xs ring-4 ring-primary/10 border border-primary/20">
                 <Sparkles className="size-7" />
               </div>
               <h4 className="font-bold text-base sm:text-lg text-foreground">
@@ -860,7 +915,7 @@ export function AnalyticsCopilotView() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-left max-w-5xl mx-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -868,18 +923,20 @@ export function AnalyticsCopilotView() {
                   setQuestion(q);
                   handleQuery(q);
                 }}
-                className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs"
+                className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="size-9 rounded-xl bg-success/10 text-success flex items-center justify-center">
-                    <TrendingUp className="size-4" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="size-9 rounded-xl bg-success/10 text-success flex items-center justify-center">
+                      <TrendingUp className="size-4" />
+                    </div>
+                    <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
-                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="font-bold text-xs block text-foreground">Revenue & Top Sellers</span>
+                  <span className="text-micro text-muted-foreground block mt-1 leading-relaxed">
+                    Identify revenue champions, high-margin products, and store benchmarks.
+                  </span>
                 </div>
-                <span className="font-bold text-xs block text-foreground">Revenue & Top Sellers</span>
-                <span className="text-micro text-muted-foreground block mt-1 leading-relaxed">
-                  Identify revenue champions, high-margin products, and store benchmarks.
-                </span>
               </button>
 
               <button
@@ -889,18 +946,20 @@ export function AnalyticsCopilotView() {
                   setQuestion(q);
                   handleQuery(q);
                 }}
-                className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs"
+                className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="size-9 rounded-xl bg-warning/10 text-warning flex items-center justify-center">
-                    <AlertTriangle className="size-4" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="size-9 rounded-xl bg-warning/10 text-warning flex items-center justify-center">
+                      <AlertTriangle className="size-4" />
+                    </div>
+                    <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
-                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="font-bold text-xs block text-foreground">Expiry Risk & Dead Stock</span>
+                  <span className="text-micro text-muted-foreground block mt-1 leading-relaxed">
+                    Audit expiring stock capital and detect stagnant inventory tying up cash.
+                  </span>
                 </div>
-                <span className="font-bold text-xs block text-foreground">Expiry Risk & Dead Stock</span>
-                <span className="text-micro text-muted-foreground block mt-1 leading-relaxed">
-                  Audit expiring stock capital and detect stagnant inventory tying up cash.
-                </span>
               </button>
 
               <button
@@ -910,18 +969,43 @@ export function AnalyticsCopilotView() {
                   setQuestion(q);
                   handleQuery(q);
                 }}
-                className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs"
+                className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                    <CreditCard className="size-4" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                      <CreditCard className="size-4" />
+                    </div>
+                    <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
-                  <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="font-bold text-xs block text-foreground">Credit Ledger (Khata)</span>
+                  <span className="text-micro text-muted-foreground block mt-1 leading-relaxed">
+                    Monitor outstanding patient credit balances, aged receivables, and debtors.
+                  </span>
                 </div>
-                <span className="font-bold text-xs block text-foreground">Credit Ledger (Khata)</span>
-                <span className="text-micro text-muted-foreground block mt-1 leading-relaxed">
-                  Monitor outstanding patient credit balances, aged receivables, and debtors.
-                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const q = 'What medicines are out of stock or need reordering?';
+                  setQuestion(q);
+                  handleQuery(q);
+                }}
+                className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="size-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center">
+                      <Zap className="size-4" />
+                    </div>
+                    <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  </div>
+                  <span className="font-bold text-xs block text-foreground">Procurement & Depletions</span>
+                  <span className="text-micro text-muted-foreground block mt-1 leading-relaxed">
+                    Audit depleted medicines below safety stock and calculate reorder recommendations.
+                  </span>
+                </div>
               </button>
             </div>
           </CardContent>
