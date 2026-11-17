@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -57,6 +58,7 @@ import {
   Copy,
   Check,
   Pencil,
+  XCircle,
 } from 'lucide-react';
 import { storesApi, StoreData } from '@/lib/stores-api';
 import { useStore } from '@/context/store-context';
@@ -89,6 +91,7 @@ export function PurchasesManager() {
   const receiveOrderMutation = useReceivePurchaseOrder();
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<any | null>(null);
 
   const effectiveStoreId = selectedStoreId || (!isAllStores && activeStoreId ? activeStoreId : undefined);
   const {
@@ -185,14 +188,21 @@ export function PurchasesManager() {
     setIsCreateModalOpen(true);
   };
 
-  const handleCancelOrder = async (orderId: string) => {
-    if (typeof window !== 'undefined' && !window.confirm('Are you sure you want to cancel this pending purchase order? This action cannot be undone.')) {
+  const handleOpenCancelConfirmation = (order: any) => {
+    if (!order || order.status !== 'PENDING') {
+      toast.error('Only pending purchase orders can be cancelled');
       return;
     }
+    setOrderToCancel(order);
+  };
+
+  const handleConfirmCancelOrder = async () => {
+    if (!orderToCancel) return;
     setIsCancellingOrder(true);
     try {
-      const res = await cancelOrderMutation.mutateAsync(orderId);
+      const res = await cancelOrderMutation.mutateAsync(orderToCancel.id);
       toast.success(res.message || 'Purchase Order cancelled successfully');
+      setOrderToCancel(null);
       setIsDetailsModalOpen(false);
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to cancel purchase order'));
@@ -488,7 +498,12 @@ export function PurchasesManager() {
       case 'PARTIAL':
         return <Badge variant="warning" className="text-micro font-semibold">PARTIAL</Badge>;
       case 'CANCELLED':
-        return <Badge variant="secondary" className="text-micro font-semibold">CANCELLED</Badge>;
+        return (
+          <Badge variant="destructive" className="text-micro font-semibold gap-1 py-0.5 px-2">
+            <XCircle className="size-2.5" />
+            <span>CANCELLED</span>
+          </Badge>
+        );
       default:
         return <Badge variant="warning" className="text-micro font-semibold">PENDING</Badge>;
     }
@@ -1219,8 +1234,22 @@ export function PurchasesManager() {
         <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
           <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
-                <Package className="size-4.5" />
+              <div
+                className={`size-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                  selectedOrder?.status === 'CANCELLED'
+                    ? 'bg-destructive/10 text-destructive border-destructive/20'
+                    : selectedOrder?.status === 'RECEIVED'
+                    ? 'bg-success/10 text-success border-success/20'
+                    : 'bg-primary/10 text-primary border-primary/20'
+                }`}
+              >
+                {selectedOrder?.status === 'CANCELLED' ? (
+                  <XCircle className="size-4.5" />
+                ) : selectedOrder?.status === 'RECEIVED' ? (
+                  <FileCheck className="size-4.5" />
+                ) : (
+                  <Package className="size-4.5" />
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1246,7 +1275,17 @@ export function PurchasesManager() {
                   {selectedOrder?.status && getStatusBadge(selectedOrder.status)}
                 </div>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Order placed on {selectedOrder?.createdAt ? formatDate(selectedOrder.createdAt) : 'N/A'}
+                  {selectedOrder?.status === 'CANCELLED' ? (
+                    <span className="text-destructive font-medium flex items-center gap-1.5">
+                      <span>Order cancelled</span>
+                      <span>•</span>
+                      <span className="text-muted-foreground">
+                        Placed on {selectedOrder?.createdAt ? formatDate(selectedOrder.createdAt) : 'N/A'}
+                      </span>
+                    </span>
+                  ) : (
+                    `Order placed on ${selectedOrder?.createdAt ? formatDate(selectedOrder.createdAt) : 'N/A'}`
+                  )}
                 </DialogDescription>
               </div>
             </div>
@@ -1286,8 +1325,17 @@ export function PurchasesManager() {
                   <span className="text-muted-foreground text-micro font-medium sm:justify-end flex items-center gap-1.5">
                     <DollarSign className="size-3 text-primary" /> Total Order Value
                   </span>
-                  <p className="font-bold text-primary text-sm tabular-nums">
-                    {formatCurrency(Number(selectedOrder?.totalCost) || 0)}
+                  <p
+                    className={`font-bold text-sm tabular-nums flex items-center gap-1.5 sm:justify-end ${
+                      selectedOrder?.status === 'CANCELLED' ? 'text-muted-foreground' : 'text-primary'
+                    }`}
+                  >
+                    <span>{formatCurrency(Number(selectedOrder?.totalCost) || 0)}</span>
+                    {selectedOrder?.status === 'CANCELLED' && (
+                      <span className="text-micro font-medium text-destructive px-1.5 py-0.5 rounded bg-destructive/10 border border-destructive/20">
+                        Voided
+                      </span>
+                    )}
                   </p>
                   <p className="text-micro text-muted-foreground">
                     {detailsLineItemCount} {detailsLineItemCount === 1 ? 'line item' : 'line items'}
@@ -1295,40 +1343,54 @@ export function PurchasesManager() {
                 </div>
               </div>
 
-              {/* Intake & Fulfillment Progress Indicator */}
-              <div className="pt-2.5 border-t border-border/60 space-y-1.5">
-                <div className="flex items-center justify-between text-micro">
-                  <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                    <span>Intake Progress:</span>
-                    <strong className="text-foreground font-semibold">
-                      {totalDetailsReceived} of {totalDetailsExpected} units received
-                    </strong>
-                  </span>
-                  <span
-                    className={`font-bold font-mono ${
-                      detailsFulfillmentPercent >= 100
-                        ? 'text-success'
-                        : detailsFulfillmentPercent > 0
-                        ? 'text-warning'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    {detailsFulfillmentPercent}%
-                  </span>
+              {/* Intake & Fulfillment Progress Indicator or Cancelled Notice */}
+              {selectedOrder?.status === 'CANCELLED' ? (
+                <div className="pt-2.5 border-t border-border/60">
+                  <div className="p-2.5 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive flex items-center gap-2.5">
+                    <XCircle className="size-4 shrink-0 text-destructive" />
+                    <div className="text-xs">
+                      <span className="font-semibold block text-destructive">This purchase order was cancelled</span>
+                      <span className="text-muted-foreground text-micro">
+                        This order has been voided. No stock intake was performed and items will not be added to inventory.
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="h-1.5 w-full bg-muted/80 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 rounded-full ${
-                      detailsFulfillmentPercent >= 100
-                        ? 'bg-success'
-                        : detailsFulfillmentPercent > 0
-                        ? 'bg-warning'
-                        : 'bg-primary/40'
-                    }`}
-                    style={{ width: `${detailsFulfillmentPercent}%` }}
-                  />
+              ) : (
+                <div className="pt-2.5 border-t border-border/60 space-y-1.5">
+                  <div className="flex items-center justify-between text-micro">
+                    <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                      <span>Intake Progress:</span>
+                      <strong className="text-foreground font-semibold">
+                        {totalDetailsReceived} of {totalDetailsExpected} units received
+                      </strong>
+                    </span>
+                    <span
+                      className={`font-bold font-mono ${
+                        detailsFulfillmentPercent >= 100
+                          ? 'text-success'
+                          : detailsFulfillmentPercent > 0
+                          ? 'text-warning'
+                          : 'text-muted-foreground'
+                      }`}
+                    >
+                      {detailsFulfillmentPercent}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-muted/80 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 rounded-full ${
+                        detailsFulfillmentPercent >= 100
+                          ? 'bg-success'
+                          : detailsFulfillmentPercent > 0
+                          ? 'bg-warning'
+                          : 'bg-primary/40'
+                      }`}
+                      style={{ width: `${detailsFulfillmentPercent}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {selectedOrder?.notes && (
@@ -1411,6 +1473,11 @@ export function PurchasesManager() {
                                 <Badge variant="outline" className="text-micro text-success border-success/30 bg-success/5 font-medium py-0.5 px-2">
                                   Received into Stock
                                 </Badge>
+                              ) : selectedOrder?.status === 'CANCELLED' ? (
+                                <Badge variant="outline" className="text-micro text-destructive/80 border-destructive/30 bg-destructive/5 font-medium py-0.5 px-2 inline-flex items-center gap-1">
+                                  <XCircle className="size-2.5 text-destructive" />
+                                  <span>Order Voided</span>
+                                </Badge>
                               ) : (
                                 <Badge variant="outline" className="text-micro text-muted-foreground border-border/70 bg-muted/40 font-medium py-0.5 px-2 inline-flex items-center gap-1">
                                   <Clock className="size-2.5 text-muted-foreground" />
@@ -1447,7 +1514,7 @@ export function PurchasesManager() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => handleCancelOrder(selectedOrder.id)}
+                      onClick={() => handleOpenCancelConfirmation(selectedOrder)}
                       disabled={isCancellingOrder}
                       className="h-9 px-3 text-xs font-semibold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer gap-1.5"
                     >
@@ -1499,6 +1566,30 @@ export function PurchasesManager() {
         defaultStoreId={(!isAllStores && activeStoreId) ? activeStoreId : (stores[0]?.id || '')}
         onConfirmPo={handleConfirmOcrPo}
         onDirectCreatePo={handleDirectCreatePoFromOcr}
+      />
+
+      {/* Cancel Purchase Order Confirmation Dialog */}
+      <ConfirmDialog
+        open={Boolean(orderToCancel)}
+        onOpenChange={(open) => !open && setOrderToCancel(null)}
+        title="Cancel Purchase Order"
+        description={
+          orderToCancel ? (
+            <span>
+              Are you sure you want to cancel Purchase Order{' '}
+              <strong className="text-foreground font-mono font-semibold">
+                {orderToCancel.orderNumber}
+              </strong>
+              ? This action cannot be undone and will void this draft order.
+            </span>
+          ) : (
+            'Are you sure you want to cancel this pending purchase order? This action cannot be undone.'
+          )
+        }
+        confirmLabel="Cancel Purchase Order"
+        variant="destructive"
+        isLoading={isCancellingOrder}
+        onConfirm={handleConfirmCancelOrder}
       />
     </div>
   );

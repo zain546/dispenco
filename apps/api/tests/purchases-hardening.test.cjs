@@ -153,3 +153,47 @@ test('PurchasesController exposes PATCH and POST cancel endpoints guarded with P
     'PurchasesController must expose POST :id/cancel guarded with PURCHASES_CREATE'
   );
 });
+
+test('PurchasesManager uses custom accessible ConfirmDialog rather than native browser window.confirm', () => {
+  const purchasesManagerPath = path.join(
+    __dirname,
+    '../../web/src/features/purchases/components/purchases-manager.tsx'
+  );
+  const source = fs.readFileSync(purchasesManagerPath, 'utf8');
+
+  assert.doesNotMatch(
+    source,
+    /window\.confirm/,
+    'PurchasesManager must NOT use raw browser window.confirm'
+  );
+
+  assert.match(
+    source,
+    /import\s*\{\s*ConfirmDialog\s*\}\s*from\s*'@\/components\/ui\/confirm-dialog'/,
+    'PurchasesManager must import ConfirmDialog'
+  );
+
+  assert.match(
+    source,
+    /<ConfirmDialog[\s\S]*?open=\{Boolean\(orderToCancel\)\}[\s\S]*?variant="destructive"/,
+    'PurchasesManager must render ConfirmDialog for cancellation with destructive styling'
+  );
+
+  assert.match(
+    source,
+    /case\s*'CANCELLED':[\s\S]*?variant="destructive"[\s\S]*?CANCELLED/,
+    'getStatusBadge must render destructive badge for CANCELLED orders'
+  );
+
+  assert.match(
+    source,
+    /selectedOrder\?\.status\s*===\s*'CANCELLED'[\s\S]*?This purchase order (?:has been|was) cancelled/,
+    'PurchasesManager must render cancellation notice banner in details modal'
+  );
+
+  assert.match(
+    source,
+    /selectedOrder\?\.status\s*===\s*'CANCELLED'[\s\S]*?Order Voided/,
+    'PurchasesManager must render Order Voided badge for cancelled order line items'
+  );
+});
