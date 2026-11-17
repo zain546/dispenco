@@ -40,6 +40,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { productsApi } from '../services/products-api';
+import { useInventoryAggregation } from '../hooks/use-inventory-queries';
 import { ProductList, formatCategory, formatUnitPlural } from './product-list';
 import { ProductBatchesModal } from './product-batches-modal';
 import { ImportProductsModal } from './import-products-modal';
@@ -59,62 +60,28 @@ import { generateInventoryStockPdfDoc } from '../utils/inventory-report-pdf';
 
 export type InventoryTab = 'in-stock' | 'full-catalog' | 'priority-top-sellers' | 'unstocked' | 'expiry-risk' | 'expiring-soon' | 'low-stock';
 
+const DEFAULT_AGGREGATION_DATA = {
+  totalProducts: 0,
+  summary: {
+    totalCatalogItems: 0,
+    stockedCount: 0,
+    unstockedCount: 0,
+    priorityUnstockedCount: 0,
+    completionPercentage: 100,
+    outOfStockCount: 0,
+    lowStockCount: 0,
+    expiringSoonCount: 0,
+    priorityCount: 0,
+  },
+  products: [],
+};
+
 export function InventoryDashboard() {
   const { activeStore, activeStoreId, isAllStores } = useStore();
   const { user } = useAuth();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState<InventoryTab>(!isAllStores ? 'in-stock' : 'full-catalog');
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [data, setData] = useState<{
-    totalProducts: number;
-    summary: {
-      totalCatalogItems: number;
-      stockedCount?: number;
-      unstockedCount?: number;
-      priorityUnstockedCount?: number;
-      completionPercentage?: number;
-      outOfStockCount: number;
-      lowStockCount: number;
-      expiringSoonCount: number;
-      priorityCount: number;
-    };
-    products: Array<{
-      id: string;
-      name: string;
-      genericName: string | null;
-      category: string;
-      unit: string;
-      barcode: string | null;
-      lowStockThreshold: number;
-      totalStock: number;
-      batchCount: number;
-      earliestBatchNumber: string | null;
-      earliestExpiryDate: string | null;
-      daysUntilEarliestExpiry: number | null;
-      isOutofStock: boolean;
-      isLowStock: boolean;
-      isExpiringSoon: boolean;
-      isPriority: boolean;
-      vendorName?: string | null;
-      manufacturer?: string | null;
-    }>;
-  }>({
-    totalProducts: 0,
-    summary: {
-      totalCatalogItems: 0,
-      stockedCount: 0,
-      unstockedCount: 0,
-      priorityUnstockedCount: 0,
-      completionPercentage: 100,
-      outOfStockCount: 0,
-      lowStockCount: 0,
-      expiringSoonCount: 0,
-      priorityCount: 0,
-    },
-    products: [],
-  });
 
   // Read URL query parameter on mount for tab selection
   useEffect(() => {
@@ -144,32 +111,26 @@ export function InventoryDashboard() {
   const [selectedProductForModal, setSelectedProductForModal] = useState<{ id: string; name: string } | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
 
-  const fetchAggregation = useCallback(async () => {
-    setIsLoading(true);
-    setFetchError(null);
-    try {
-      const res = await productsApi.getInventoryAggregation({
-        storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
-        inStockOnly: activeTab === 'in-stock' ? true : undefined,
-        lowStockOnly: activeTab === 'low-stock' ? true : undefined,
-        expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
-        priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
-        unstockedOnly: activeTab === 'unstocked' ? true : undefined,
-        search: search.trim() || undefined,
-      });
-      setData(res);
-    } catch (err: unknown) {
-      const msg = getErrorMessage(err, 'Failed to load inventory aggregation metrics');
-      setFetchError(msg);
-      toast.error(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeTab, search, activeStoreId, isAllStores]);
+  const {
+    data: queryData,
+    isLoading,
+    isFetching,
+    error: queryError,
+    refetch: fetchAggregation,
+  } = useInventoryAggregation({
+    storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+    inStockOnly: activeTab === 'in-stock' ? true : undefined,
+    lowStockOnly: activeTab === 'low-stock' ? true : undefined,
+    expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
+    priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
+    unstockedOnly: activeTab === 'unstocked' ? true : undefined,
+    search: search.trim() || undefined,
+  });
 
-  useEffect(() => {
-    fetchAggregation();
-  }, [fetchAggregation]);
+  const data = queryData ?? DEFAULT_AGGREGATION_DATA;
+  const fetchError = queryError
+    ? getErrorMessage(queryError, 'Failed to load inventory aggregation metrics')
+    : null;
 
 
   const handleExportStockPdf = async (scope: 'all' | 'in-stock' | 'low-stock' | 'expiring' = 'all') => {
@@ -235,7 +196,7 @@ export function InventoryDashboard() {
   };
 
   return (
-    <div className="space-y-5 sm:space-y-6 max-w-7xl mx-auto p-3.5 sm:p-6 pb-12">
+    <div className="space-y-5 sm:space-y-6 pb-12">
       {/* Top Header */}
       <PageHeader
         title="Inventory & Exception Hub"
@@ -245,12 +206,12 @@ export function InventoryDashboard() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => fetchAggregation()}
-            disabled={isLoading}
+            onClick={() => { void fetchAggregation(); }}
+            disabled={isFetching}
             className="size-8 sm:hidden bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs shrink-0 cursor-pointer"
             title="Refresh inventory data"
           >
-            <RefreshCw className={`size-3.5 text-muted-foreground ${isLoading ? 'animate-spin text-primary' : ''}`} />
+            <RefreshCw className={`size-3.5 text-muted-foreground ${isFetching ? 'animate-spin text-primary' : ''}`} />
           </Button>
         }
         actions={
@@ -332,7 +293,7 @@ export function InventoryDashboard() {
                   className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
                 >
                   <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Boxes className="size-3.5 text-emerald-500 shrink-0" />
+                    <Boxes className="size-3.5 text-success shrink-0" />
                     <span>In-Stock Items Only</span>
                   </div>
                   <span className="text-micro text-muted-foreground">
@@ -344,8 +305,8 @@ export function InventoryDashboard() {
                   className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
                 >
                   <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
-                    <span>Low Stock / Reorder Sheet</span>
+                    <AlertTriangle className="size-3.5 text-warning shrink-0" />
+                  <span>Low Stock / Reorder Sheet</span>
                   </div>
                   <span className="text-micro text-muted-foreground">
                     Depleted items needing purchase reorders
@@ -356,7 +317,7 @@ export function InventoryDashboard() {
                   className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
                 >
                   <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Clock className="size-3.5 text-rose-500 shrink-0" />
+                    <Clock className="size-3.5 text-destructive shrink-0" />
                     <span>Expiring Soon (&lt; 180 Days)</span>
                   </div>
                   <span className="text-micro text-muted-foreground">
@@ -370,12 +331,12 @@ export function InventoryDashboard() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => fetchAggregation()}
-              disabled={isLoading}
+              onClick={() => { void fetchAggregation(); }}
+              disabled={isFetching}
               className="size-9 hidden sm:inline-flex bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs shrink-0 cursor-pointer"
               title="Refresh inventory data"
             >
-              <RefreshCw className={`size-3.5 text-muted-foreground ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`size-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         }
@@ -404,7 +365,7 @@ export function InventoryDashboard() {
             <strong className="text-xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
               {!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
             </strong>
-            <span className="text-[10px] font-semibold text-cyan-300 bg-primary/20 border border-primary/30 px-1.5 py-0.5 rounded-md shrink-0">
+            <span className="text-[10px] font-semibold text-primary bg-primary/20 border border-primary/30 px-1.5 py-0.5 rounded-md shrink-0">
               {!isAllStores ? `of ${data.summary.totalCatalogItems} items` : 'Catalog'}
             </span>
           </div>
@@ -429,11 +390,11 @@ export function InventoryDashboard() {
           </div>
           <div className="mt-2.5 sm:mt-3 flex items-baseline justify-between gap-1.5">
             <strong className={`text-xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${
-              data.summary.priorityCount > 0 ? 'text-amber-400' : 'text-foreground/85'
+              data.summary.priorityCount > 0 ? 'text-warning' : 'text-foreground/85'
             }`}>
               {data.summary.priorityCount}
             </strong>
-            <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-md shrink-0">
+            <span className="text-[10px] font-semibold text-warning bg-warning/10 border border-warning/20 px-1.5 py-0.5 rounded-md shrink-0">
               Priority
             </span>
           </div>
@@ -457,10 +418,10 @@ export function InventoryDashboard() {
             </div>
           </div>
           <div className="mt-2.5 sm:mt-3 flex items-baseline justify-between gap-1.5">
-            <strong className="text-xl sm:text-3xl font-extrabold tracking-tight text-rose-400 tabular-nums">
+            <strong className="text-xl sm:text-3xl font-extrabold tracking-tight text-destructive tabular-nums">
               {data.summary.expiringSoonCount}
             </strong>
-            <span className="text-[10px] font-semibold text-rose-300 bg-rose-500/15 border border-rose-500/25 px-1.5 py-0.5 rounded-md shrink-0">
+            <span className="text-[10px] font-semibold text-destructive bg-destructive/15 border border-destructive/25 px-1.5 py-0.5 rounded-md shrink-0">
               &lt; 180 Days
             </span>
           </div>
@@ -485,13 +446,13 @@ export function InventoryDashboard() {
           </div>
           <div className="mt-2.5 sm:mt-3 flex items-baseline justify-between gap-1.5">
             <strong className={`text-xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${
-              data.summary.lowStockCount > 0 ? 'text-amber-400' : 'text-foreground/85'
+              data.summary.lowStockCount > 0 ? 'text-warning' : 'text-foreground/85'
             }`}>
               {data.summary.lowStockCount}
             </strong>
             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
               data.summary.lowStockCount > 0
-                ? 'text-amber-400 bg-amber-500/15 border-amber-500/25'
+                ? 'text-warning bg-warning/15 border-warning/25'
                 : 'text-muted-foreground bg-muted/60 border-border/60'
             }`}>
               {data.summary.lowStockCount > 0 ? 'Needs Restock' : 'Healthy'}

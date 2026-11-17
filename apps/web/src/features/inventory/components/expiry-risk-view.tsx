@@ -39,12 +39,11 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import {
-  productsApi,
   type ExpiryRiskBatchItem,
-  type ExpiryRiskForecastResponse,
   type RiskLevel,
   type BatchData,
 } from '../services/products-api';
+import { useExpiryRisk } from '../hooks/use-inventory-queries';
 import { useStore } from '@/context/store-context';
 import { EditBatchModal } from './edit-batch-modal';
 import { ProductBatchesModal } from './product-batches-modal';
@@ -55,11 +54,6 @@ interface ExpiryRiskViewProps {
 
 export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
   const { activeStoreId, isAllStores } = useStore();
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [data, setData] = useState<ExpiryRiskForecastResponse | null>(null);
 
   // Filters
   const [timeframeDays, setTimeframeDays] = useState<number>(30);
@@ -73,39 +67,32 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
   const [selectedProductForModal, setSelectedProductForModal] = useState<{ id: string; name: string } | null>(null);
   const [batchesModalOpen, setBatchesModalOpen] = useState(false);
 
+  const {
+    data: queryData,
+    isLoading,
+    isFetching: isRefreshing,
+    isPlaceholderData,
+    error: queryError,
+    refetch: refetchForecast,
+  } = useExpiryRisk({
+    storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+    timeframeDays,
+    riskFilter: riskFilter !== 'ALL' ? riskFilter : undefined,
+    search: search.trim() || undefined,
+    limit: 150,
+  });
+
+  const data = queryData ?? null;
+  const fetchError = queryError
+    ? getErrorMessage(queryError, 'Failed to calculate expiry risk forecast')
+    : null;
+
   const fetchForecast = useCallback(
-    async (showRefreshIndicator = false) => {
-      if (showRefreshIndicator) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      setFetchError(null);
-
-      try {
-        const res = await productsApi.getExpiryRiskForecast({
-          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-          timeframeDays,
-          riskFilter: riskFilter !== 'ALL' ? riskFilter : undefined,
-          search: search.trim() || undefined,
-          limit: 150,
-        });
-        setData(res);
-      } catch (err: unknown) {
-        const msg = getErrorMessage(err, 'Failed to calculate expiry risk forecast');
-        setFetchError(msg);
-        toast.error(msg);
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
+    (_showRefreshIndicator?: boolean) => {
+      void refetchForecast();
     },
-    [activeStoreId, isAllStores, timeframeDays, riskFilter, search],
+    [refetchForecast],
   );
-
-  useEffect(() => {
-    fetchForecast();
-  }, [fetchForecast]);
 
   const handleOpenEditBatch = (item: ExpiryRiskBatchItem) => {
     const batchData: BatchData = {
@@ -275,31 +262,31 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Capital at Risk (Cost Loss)"
-          value={isLoading ? 'Calculating...' : formatCurrency(summary?.totalCapitalAtRisk ?? 0)}
+          value={isLoading || isPlaceholderData ? 'Calculating...' : formatCurrency(summary?.totalCapitalAtRisk ?? 0)}
           icon={DollarSign}
           variant={summary?.totalCapitalAtRisk && summary.totalCapitalAtRisk > 0 ? 'destructive' : 'default'}
-          caption="Estimated financial loss if unsold batches reach expiry"
+          caption={isPlaceholderData ? 'Updating forecast for selected timeframe...' : 'Estimated financial loss if unsold batches reach expiry'}
         />
         <StatCard
           label="Units Projected Unsold"
-          value={isLoading ? '...' : (summary?.totalUnitsAtRisk ?? 0).toLocaleString()}
+          value={isLoading || isPlaceholderData ? '...' : (summary?.totalUnitsAtRisk ?? 0).toLocaleString()}
           icon={Package}
           variant="warning"
-          caption="Stock forecasted to remain on shelves past expiry date"
+          caption={isPlaceholderData ? 'Updating...' : 'Stock forecasted to remain on shelves past expiry date'}
         />
         <StatCard
           label="Critical Interventions"
-          value={isLoading ? '...' : (summary?.criticalBatchesCount ?? 0).toString()}
+          value={isLoading || isPlaceholderData ? '...' : (summary?.criticalBatchesCount ?? 0).toString()}
           icon={AlertTriangle}
           variant={summary?.criticalBatchesCount && summary.criticalBatchesCount > 0 ? 'destructive' : 'default'}
           caption="Batches requiring immediate markdown or supplier return"
         />
         <StatCard
           label="Zero-Velocity Batches"
-          value={isLoading ? '...' : (summary?.stagnantBatchesCount ?? 0).toString()}
+          value={isLoading || isPlaceholderData ? '...' : (summary?.stagnantBatchesCount ?? 0).toString()}
           icon={TrendingDown}
           variant="warning"
-          caption={`No sales recorded over the past ${timeframeDays} days`}
+          caption={isPlaceholderData ? 'Updating velocity metrics...' : `No sales recorded over the past ${timeframeDays} days`}
         />
       </div>
 

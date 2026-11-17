@@ -11,12 +11,14 @@ import { validateProductAttributes } from '@dispenco/types';
 import { Prisma } from '@prisma/client';
 import * as Papa from 'papaparse';
 import { SearchService } from '../search/search.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly searchService: SearchService,
+    private readonly cache: RedisCacheService,
   ) {}
 
   /**
@@ -147,6 +149,7 @@ export class ProductsService {
 
     const createdDetail = await this.getProductById(tenantId, product.id);
     await this.searchService.indexProduct(createdDetail);
+    await this.cache.invalidateStoreInventory(tenantId);
     return createdDetail;
   }
 
@@ -265,8 +268,8 @@ export class ProductsService {
       const latestBatch = activeStockBatches[0] || product.batches[0] || null;
 
       const batchCount = product.batches.length;
-      const expiredBatchCount = product.batches.filter((b) => new Date(b.expiryDate) <= now).length;
-      const nearExpiryBatchCount = product.batches.filter((b) => {
+      const expiredBatchCount = activeStockBatches.filter((b) => new Date(b.expiryDate) <= now).length;
+      const nearExpiryBatchCount = activeStockBatches.filter((b) => {
         const exp = new Date(b.expiryDate);
         return exp > now && exp <= hundredEightyDaysFromNow;
       }).length;
@@ -439,6 +442,7 @@ export class ProductsService {
 
     const updated = await this.getProductById(tenantId, updatedProduct.id);
     await this.searchService.indexProduct(updated);
+    await this.cache.invalidateStoreInventory(tenantId);
     return updated;
   }
 
@@ -540,6 +544,7 @@ export class ProductsService {
     });
 
     await this.searchService.removeProduct(id);
+    await this.cache.invalidateStoreInventory(tenantId);
 
     return {
       success: true,
@@ -858,6 +863,8 @@ export class ProductsService {
     for (const prod of createdProducts) {
       await this.searchService.indexProduct(prod);
     }
+
+    await this.cache.invalidateStoreInventory(tenantId);
 
     return {
       success: true,

@@ -7,9 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function CustomersPage() {
-  return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <CustomerList />
-    </div>
-  );
+  return <CustomerList />;
 }

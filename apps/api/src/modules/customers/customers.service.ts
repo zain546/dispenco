@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreateCustomerDto } from './dtos/create-customer.dto';
 import { UpdateCustomerDto } from './dtos/update-customer.dto';
 import { CustomerQueryDto } from './dtos/customer-query.dto';
@@ -25,7 +26,14 @@ export interface LedgerEntry {
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
+
+  async invalidateCustomerCache(tenantId: string) {
+    await this.cache.del(`customers:summary:${tenantId}`);
+  }
 
   async create(tenantId: string, dto: CreateCustomerDto) {
     const cleanName = dto.name.trim();
@@ -34,7 +42,7 @@ export class CustomersService {
     const cleanAddress = dto.address?.trim() || null;
     const initialBalance = dto.initialCreditBalance ? Number(dto.initialCreditBalance) : 0;
 
-    return this.prisma.customer.create({
+    const customer = await this.prisma.customer.create({
       data: {
         tenantId,
         name: cleanName,
@@ -44,6 +52,9 @@ export class CustomersService {
         creditBalance: new Prisma.Decimal(initialBalance),
       },
     });
+
+    await this.invalidateCustomerCache(tenantId);
+    return customer;
   }
 
   async findAll(tenantId: string, query: CustomerQueryDto) {
@@ -55,11 +66,16 @@ export class CustomersService {
 
     if (query.search && query.search.trim()) {
       const term = query.search.trim();
-      where.OR = [
+      const digitsOnly = term.replace(/\D/g, '');
+      const orConditions: Prisma.CustomerWhereInput[] = [
         { name: { contains: term, mode: 'insensitive' } },
         { phone: { contains: term } },
         { email: { contains: term, mode: 'insensitive' } },
       ];
+      if (digitsOnly && digitsOnly.length >= 3 && digitsOnly !== term) {
+        orConditions.push({ phone: { contains: digitsOnly } });
+      }
+      where.OR = orConditions;
     }
 
     if (query.hasBalance === 'true' || query.hasBalance === 'debt') {
@@ -70,7 +86,9 @@ export class CustomersService {
       where.creditBalance = { equals: new Prisma.Decimal(0) };
     }
 
-    const [customers, total] = await Promise.all([
+    const summaryCacheKey = `customers:summary:${tenantId}`;
+
+    const [customers, total, summary] = await Promise.all([
       this.prisma.customer.findMany({
         where,
         skip,
@@ -83,24 +101,32 @@ export class CustomersService {
         },
       }),
       this.prisma.customer.count({ where }),
-    ]);
+      this.cache.wrap(summaryCacheKey, 45, async () => {
+        const [allCustomersCount, creditSumResult, debtorsCount, advanceSumResult, advanceCount] = await Promise.all([
+          this.prisma.customer.count({ where: { tenantId } }),
+          this.prisma.customer.aggregate({
+            where: { tenantId, creditBalance: { gt: new Prisma.Decimal(0) } },
+            _sum: { creditBalance: true },
+          }),
+          this.prisma.customer.count({
+            where: { tenantId, creditBalance: { gt: new Prisma.Decimal(0) } },
+          }),
+          this.prisma.customer.aggregate({
+            where: { tenantId, creditBalance: { lt: new Prisma.Decimal(0) } },
+            _sum: { creditBalance: true },
+          }),
+          this.prisma.customer.count({
+            where: { tenantId, creditBalance: { lt: new Prisma.Decimal(0) } },
+          }),
+        ]);
 
-    // Aggregate summary metrics across all tenant customers
-    const [allCustomersCount, creditSumResult, debtorsCount, advanceSumResult, advanceCount] = await Promise.all([
-      this.prisma.customer.count({ where: { tenantId } }),
-      this.prisma.customer.aggregate({
-        where: { tenantId, creditBalance: { gt: new Prisma.Decimal(0) } },
-        _sum: { creditBalance: true },
-      }),
-      this.prisma.customer.count({
-        where: { tenantId, creditBalance: { gt: new Prisma.Decimal(0) } },
-      }),
-      this.prisma.customer.aggregate({
-        where: { tenantId, creditBalance: { lt: new Prisma.Decimal(0) } },
-        _sum: { creditBalance: true },
-      }),
-      this.prisma.customer.count({
-        where: { tenantId, creditBalance: { lt: new Prisma.Decimal(0) } },
+        return {
+          totalCustomers: allCustomersCount,
+          totalCreditOutstanding: Number(creditSumResult._sum.creditBalance || 0),
+          customersWithBalanceCount: debtorsCount,
+          totalAdvanceDeposits: Math.abs(Number(advanceSumResult?._sum?.creditBalance || 0)),
+          advanceCustomersCount: advanceCount,
+        };
       }),
     ]);
 
@@ -122,13 +148,7 @@ export class CustomersService {
         total,
         totalPages: Math.ceil(total / limit),
       },
-      summary: {
-        totalCustomers: allCustomersCount,
-        totalCreditOutstanding: Number(creditSumResult._sum.creditBalance || 0),
-        customersWithBalanceCount: debtorsCount,
-        totalAdvanceDeposits: Math.abs(Number(advanceSumResult?._sum?.creditBalance || 0)),
-        advanceCustomersCount: advanceCount,
-      },
+      summary,
     };
   }
 
@@ -156,13 +176,19 @@ export class CustomersService {
     }
 
     const cleanTerm = term.trim();
+    const digitsOnly = cleanTerm.replace(/\D/g, '');
+    const orConditions: Prisma.CustomerWhereInput[] = [
+      { name: { contains: cleanTerm, mode: 'insensitive' } },
+      { phone: { contains: cleanTerm } },
+    ];
+    if (digitsOnly && digitsOnly.length >= 3 && digitsOnly !== cleanTerm) {
+      orConditions.push({ phone: { contains: digitsOnly } });
+    }
+
     const customers = await this.prisma.customer.findMany({
       where: {
         tenantId,
-        OR: [
-          { name: { contains: cleanTerm, mode: 'insensitive' } },
-          { phone: { contains: cleanTerm } },
-        ],
+        OR: orConditions,
       },
       take: 10,
       orderBy: { name: 'asc' },
@@ -277,7 +303,7 @@ export class CustomersService {
       where: { id, tenantId },
       include: {
         _count: {
-          select: { sales: true },
+          select: { sales: true, payments: true },
         },
       },
     });
@@ -301,9 +327,18 @@ export class CustomersService {
       );
     }
 
-    return this.prisma.customer.delete({
+    if (customer._count.payments > 0) {
+      throw new BadRequestException(
+        `Cannot delete customer with ${customer._count.payments} recorded payment transactions. Customer ledger history is preserved for financial audit compliance.`,
+      );
+    }
+
+    const deleted = await this.prisma.customer.delete({
       where: { id },
     });
+
+    await this.invalidateCustomerCache(tenantId);
+    return deleted;
   }
 
   async getLedger(tenantId: string, customerId: string) {
@@ -343,7 +378,31 @@ export class CustomersService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // 3. Unify into chronological timeline entries
+    // 3. Fetch all Returns where refund was issued as store credit
+    const creditReturns = await this.prisma.return.findMany({
+      where: {
+        tenantId,
+        refundMethod: 'CREDIT',
+        sale: {
+          customerId,
+        },
+      },
+      include: {
+        sale: { select: { receiptNumber: true } },
+        returnItems: {
+          include: {
+            saleItem: {
+              include: {
+                product: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // 4. Unify into chronological timeline entries
     const rawEntries: Array<{
       id: string;
       type: 'DEBIT_SALE' | 'CREDIT_PAYMENT';
@@ -392,6 +451,27 @@ export class CustomersService {
           method: payment.method,
         });
       }
+    }
+
+    // Store credit return refunds are credits (decrease debt or increase advance)
+    for (const ret of creditReturns) {
+      const returnedItemsSummary = ret.returnItems
+        .map((ri) => ri.saleItem.product.name)
+        .slice(0, 3)
+        .join(', ');
+      const moreReturned = ret.returnItems.length > 3 ? ` +${ret.returnItems.length - 3} more` : '';
+
+      rawEntries.push({
+        id: `return-${ret.id}`,
+        type: 'CREDIT_PAYMENT',
+        date: ret.createdAt,
+        reference: ret.returnNumber || `RET-${ret.id.slice(0, 8)}`,
+        description: `Credit Return Refund (Receipt #${ret.sale.receiptNumber || 'N/A'}) - ${returnedItemsSummary}${moreReturned}`,
+        debit: 0,
+        credit: Number(ret.refundAmount),
+        method: 'CREDIT_NOTE',
+        receiptNumber: ret.sale.receiptNumber || undefined,
+      });
     }
 
     // Sort all entries chronologically
@@ -479,7 +559,7 @@ export class CustomersService {
       throw new BadRequestException('Payment amount must be greater than zero');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. Create standalone Payment record
       const payment = await tx.payment.create({
         data: {
@@ -535,5 +615,8 @@ export class CustomersService {
         newCreditBalance: Number(updatedCustomer.creditBalance),
       };
     });
+
+    await this.invalidateCustomerCache(tenantId);
+    return result;
   }
 }

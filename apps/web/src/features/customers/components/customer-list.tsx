@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useTransition } from 'react';
+import React, { useState, useMemo, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
   Users,
   UserPlus,
   Search,
   RefreshCw,
+  AlertCircle,
   Phone,
   Mail,
   MapPin,
@@ -31,17 +32,18 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatCurrency, getInitials } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import {
-  customersApi,
   CustomerItem,
-  CustomerListResponse,
+  QueryCustomersParams,
 } from '../services/customers-api';
+import {
+  useCustomers,
+  useDeleteCustomer,
+} from '../hooks/use-customers-queries';
 import { CustomerModal } from './customer-modal';
 import { RecordKhataPaymentModal } from './record-khata-payment-modal';
 import { CustomerProfileDrawer } from './customer-profile-drawer';
 
 export function CustomerList() {
-  const [data, setData] = useState<CustomerListResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [hasBalanceFilter, setHasBalanceFilter] = useState<'all' | 'debt' | 'advance' | 'settled'>('all');
   const [page, setPage] = useState(1);
@@ -59,49 +61,26 @@ export function CustomerList() {
 
   // Deletion confirm dialog state
   const [customerToDelete, setCustomerToDelete] = useState<CustomerItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await customersApi.getCustomers({
-        search: search.trim() || undefined,
-        hasBalance:
-          hasBalanceFilter === 'debt'
-            ? 'debt'
-            : hasBalanceFilter === 'advance'
-            ? 'advance'
-            : hasBalanceFilter === 'settled'
-            ? 'settled'
-            : undefined,
-        page,
-        limit: 20,
-      });
+  const queryParams: QueryCustomersParams = useMemo(
+    () => ({
+      search: search.trim() || undefined,
+      hasBalance:
+        hasBalanceFilter === 'debt'
+          ? 'debt'
+          : hasBalanceFilter === 'advance'
+          ? 'advance'
+          : hasBalanceFilter === 'settled'
+          ? 'settled'
+          : undefined,
+      page,
+      limit: 20,
+    }),
+    [search, hasBalanceFilter, page],
+  );
 
-      // Guarantee consistent client-side presentation
-      let filteredData = res.data;
-      if (hasBalanceFilter === 'settled') {
-        filteredData = filteredData.filter((c) => Number(c.creditBalance) === 0);
-      } else if (hasBalanceFilter === 'advance') {
-        filteredData = filteredData.filter((c) => Number(c.creditBalance) < 0);
-      } else if (hasBalanceFilter === 'debt') {
-        filteredData = filteredData.filter((c) => Number(c.creditBalance) > 0);
-      }
-
-      setData({ ...res, data: filteredData });
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to load customers'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [search, hasBalanceFilter, page]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchData();
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [fetchData]);
+  const { data, isLoading, isFetching, isError, error, refetch } = useCustomers(queryParams);
+  const deleteMutation = useDeleteCustomer();
 
   const handleOpenDrawer = (customer: CustomerItem) => {
     setSelectedCustomerIdForDrawer(customer.id);
@@ -136,16 +115,12 @@ export function CustomerList() {
 
   const handleConfirmDelete = async () => {
     if (!customerToDelete) return;
-    setIsDeleting(true);
     try {
-      await customersApi.deleteCustomer(customerToDelete.id);
+      await deleteMutation.mutateAsync(customerToDelete.id);
       toast.success(`Customer "${customerToDelete.name}" deleted`);
       setCustomerToDelete(null);
-      fetchData();
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to delete customer'));
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -156,7 +131,7 @@ export function CustomerList() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 pb-12">
       {/* Standardized Header */}
       <PageHeader
         title="Customers & Khata Ledgers"
@@ -167,11 +142,13 @@ export function CustomerList() {
             <Button
               size="sm"
               variant="outline"
-              onClick={fetchData}
-              disabled={isLoading}
+              onClick={() => {
+                void refetch();
+              }}
+              disabled={isLoading || isFetching}
               className="h-9 gap-1.5 text-xs font-medium cursor-pointer"
             >
-              <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Button
@@ -281,13 +258,13 @@ export function CustomerList() {
             }}
             className={`px-3 py-1 rounded-md transition-all font-medium cursor-pointer flex items-center gap-1.5 ${
               hasBalanceFilter === 'advance'
-                ? 'bg-background text-emerald-500 shadow-xs font-semibold'
+                ? 'bg-background text-success shadow-xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <span>Advance</span>
             {Boolean(summary.advanceCustomersCount) && (
-              <span className="font-mono text-micro px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold">
+              <span className="font-mono text-micro px-1.5 py-0.5 rounded-full bg-success/10 text-success font-semibold">
                 {summary.advanceCustomersCount}
               </span>
             )}
@@ -333,6 +310,19 @@ export function CustomerList() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="p-8 text-center space-y-3">
+              <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+                <AlertCircle className="size-5" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Failed to load customers</p>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                {getErrorMessage(error, 'An unexpected error occurred while fetching customer records.')}
+              </p>
+              <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5 text-xs">
+                <RefreshCw className="size-3.5" /> Retry
+              </Button>
             </div>
           ) : data?.data.length === 0 ? (
             <EmptyState
@@ -422,7 +412,7 @@ export function CustomerList() {
                           ) : balance < 0 ? (
                             <Badge
                               variant="secondary"
-                              className="tabular-nums font-mono font-semibold bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                              className="tabular-nums font-mono font-semibold bg-success/15 text-success border-success/30"
                             >
                               Advance: {formatCurrency(Math.abs(balance))}
                             </Badge>
@@ -532,9 +522,6 @@ export function CustomerList() {
         isOpen={isCustomerModalOpen}
         onClose={() => setIsCustomerModalOpen(false)}
         customerToEdit={customerToEdit}
-        onSuccess={() => {
-          fetchData();
-        }}
       />
 
       {/* Customer Full Profile & Ledger Drawer */}
@@ -546,9 +533,6 @@ export function CustomerList() {
           setIsDrawerOpen(false);
           handleOpenEdit(cust);
         }}
-        onBalanceUpdated={() => {
-          fetchData();
-        }}
       />
 
       {/* Quick Settle Khata Payment Modal */}
@@ -558,9 +542,6 @@ export function CustomerList() {
         onClose={() => {
           setIsQuickPaymentOpen(false);
           setCustomerForQuickPayment(null);
-        }}
-        onSuccess={() => {
-          fetchData();
         }}
       />
 
@@ -578,7 +559,7 @@ export function CustomerList() {
         }
         confirmLabel="Delete Customer"
         variant="destructive"
-        isLoading={isDeleting}
+        isLoading={deleteMutation.isPending}
         onConfirm={handleConfirmDelete}
       />
     </div>

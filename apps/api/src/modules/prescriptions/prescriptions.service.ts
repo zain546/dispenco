@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreatePrescriptionDto } from './dtos/create-prescription.dto';
 import {
   UpdatePrescriptionDto,
@@ -22,7 +23,18 @@ export interface GetPrescriptionsParams {
 
 @Injectable()
 export class PrescriptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: RedisCacheService,
+  ) {}
+
+  private async invalidateRxCache(tenantId: string, storeId?: string) {
+    const patterns = [`rx:summary:${tenantId}:all`];
+    if (storeId) {
+      patterns.push(`rx:summary:${tenantId}:${storeId}`);
+    }
+    await Promise.all(patterns.map((p) => this.cache.del(p)));
+  }
 
   /**
    * Create a new verified prescription record
@@ -109,6 +121,8 @@ export class PrescriptionsService {
       },
     });
 
+    await this.invalidateRxCache(tenantId, dto.storeId);
+
     return {
       success: true,
       message: 'Prescription recorded successfully',
@@ -151,7 +165,9 @@ export class PrescriptionsService {
     const baseScope: any = { tenantId };
     if (params.storeId) baseScope.storeId = params.storeId;
 
-    const [total, items, storeTotal, activeCount, controlledCount, dispensedCount] = await Promise.all([
+    const summaryCacheKey = `rx:summary:${tenantId}:${params.storeId || 'all'}`;
+
+    const [total, items, summary] = await Promise.all([
       this.prisma.prescription.count({ where }),
       this.prisma.prescription.findMany({
         where,
@@ -177,26 +193,32 @@ export class PrescriptionsService {
           sale: { select: { id: true, receiptNumber: true, totalAmount: true } },
         },
       }),
-      this.prisma.prescription.count({ where: baseScope }),
-      this.prisma.prescription.count({ where: { ...baseScope, status: PrescriptionStatus.ACTIVE } }),
-      this.prisma.prescription.count({
-        where: {
-          ...baseScope,
-          items: { some: { product: { isControlledSubstance: true } } },
-        },
+      this.cache.wrap(summaryCacheKey, 45, async () => {
+        const [storeTotal, activeCount, controlledCount, dispensedCount] = await Promise.all([
+          this.prisma.prescription.count({ where: baseScope }),
+          this.prisma.prescription.count({ where: { ...baseScope, status: PrescriptionStatus.ACTIVE } }),
+          this.prisma.prescription.count({
+            where: {
+              ...baseScope,
+              items: { some: { product: { isControlledSubstance: true } } },
+            },
+          }),
+          this.prisma.prescription.count({ where: { ...baseScope, status: PrescriptionStatus.DISPENSED } }),
+        ]);
+
+        return {
+          totalPrescriptions: storeTotal,
+          activeCount,
+          controlledCount,
+          dispensedCount,
+        };
       }),
-      this.prisma.prescription.count({ where: { ...baseScope, status: PrescriptionStatus.DISPENSED } }),
     ]);
 
     return {
       success: true,
       data: items,
-      summary: {
-        totalPrescriptions: storeTotal,
-        activeCount,
-        controlledCount,
-        dispensedCount,
-      },
+      summary,
       meta: {
         total,
         page,
@@ -293,7 +315,8 @@ export class PrescriptionsService {
    * Update prescription details
    */
   async update(tenantId: string, id: string, dto: UpdatePrescriptionDto) {
-    await this.findOne(tenantId, id);
+    const rx = await this.findOne(tenantId, id);
+    const existing = rx.data;
 
     const updated = await this.prisma.prescription.update({
       where: { id },
@@ -323,6 +346,8 @@ export class PrescriptionsService {
         },
       },
     });
+
+    await this.invalidateRxCache(tenantId, existing.storeId);
 
     return {
       success: true,
@@ -404,6 +429,8 @@ export class PrescriptionsService {
         },
       },
     });
+
+    await this.invalidateRxCache(tenantId, existing.storeId);
 
     return {
       success: true,

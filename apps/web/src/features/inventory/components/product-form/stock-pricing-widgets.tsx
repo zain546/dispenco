@@ -199,8 +199,8 @@ export const ExpiryDateNotice = React.memo(function ExpiryDateNotice({
       </span>
     </div>
   ) : (
-    <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-micro text-amber-700 dark:text-amber-400 flex items-center gap-1.5 animate-in fade-in">
-      <AlertCircle className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+    <div className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-micro text-warning flex items-center gap-1.5 animate-in fade-in">
+      <AlertCircle className="size-3.5 shrink-0 text-warning" />
       <span>
         <strong>Short Expiry Notice:</strong> {expiryWarning.message}
       </span>

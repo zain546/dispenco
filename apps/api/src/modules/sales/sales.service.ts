@@ -483,6 +483,9 @@ export class SalesService {
     });
 
     await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+    if (isOnCredit || dto.customerId) {
+      await this.cache.del(`customers:summary:${tenantId}`);
+    }
 
     // Cache idempotent response for 24 hours to prevent duplicate sale creation on network retry
     if (dto.clientTxId) {
@@ -812,10 +815,14 @@ export class SalesService {
         saleId: sale.id,
         status: SaleStatus.VOIDED,
         storeId: sale.storeId,
+        wasOnCredit: sale.status === SaleStatus.ON_CREDIT,
       };
     });
 
     await this.cache.invalidateStoreInventory(tenantId, result.storeId);
+    if (result.wasOnCredit) {
+      await this.cache.del(`customers:summary:${tenantId}`);
+    }
 
     return result;
   }
@@ -1091,7 +1098,12 @@ export class SalesService {
       return createdReturn;
     });
 
-    await this.cache.invalidateStoreInventory(tenantId, result.sale?.storeId);
+    await Promise.all([
+      this.cache.invalidateStoreInventory(tenantId, result.sale?.storeId),
+      this.cache.del(`returns:summary:${tenantId}:all`),
+      result.sale?.storeId ? this.cache.del(`returns:summary:${tenantId}:${result.sale.storeId}`) : Promise.resolve(),
+      result.refundMethod === 'CREDIT' ? this.cache.del(`customers:summary:${tenantId}`) : Promise.resolve(),
+    ]);
 
     return result;
   }
@@ -1100,7 +1112,8 @@ export class SalesService {
    * Query return transactions with pagination, store filter, and search
    */
   async getReturns(tenantId: string, query: QueryReturnsDto) {
-    const { storeId, search, refundMethod, page = 1, limit = 20 } = query;
+    const { search, refundMethod, page = 1, limit = 20 } = query;
+    const storeId = query.storeId && query.storeId !== 'all' ? query.storeId : undefined;
     const skip = (page - 1) * limit;
 
     const baseStoreWhere: Prisma.ReturnWhereInput = {
@@ -1131,7 +1144,9 @@ export class SalesService {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const [returns, total, storeTotals, storeUnitsAggregate, todayReturnsCount] = await Promise.all([
+    const summaryCacheKey = `returns:summary:${tenantId}:${storeId || 'all'}`;
+
+    const [returns, total, summary] = await Promise.all([
       this.prisma.return.findMany({
         where,
         skip,
@@ -1168,22 +1183,33 @@ export class SalesService {
         },
       }),
       this.prisma.return.count({ where }),
-      this.prisma.return.aggregate({
-        where: baseStoreWhere,
-        _count: { id: true },
-        _sum: { refundAmount: true },
-      }),
-      this.prisma.returnItem.aggregate({
-        where: {
-          return: baseStoreWhere,
-        },
-        _sum: { quantity: true },
-      }),
-      this.prisma.return.count({
-        where: {
-          ...baseStoreWhere,
-          createdAt: { gte: startOfToday },
-        },
+      this.cache.wrap(summaryCacheKey, 45, async () => {
+        const [storeTotals, storeUnitsAggregate, todayReturnsCount] = await Promise.all([
+          this.prisma.return.aggregate({
+            where: baseStoreWhere,
+            _count: { id: true },
+            _sum: { refundAmount: true },
+          }),
+          this.prisma.returnItem.aggregate({
+            where: {
+              return: baseStoreWhere,
+            },
+            _sum: { quantity: true },
+          }),
+          this.prisma.return.count({
+            where: {
+              ...baseStoreWhere,
+              createdAt: { gte: startOfToday },
+            },
+          }),
+        ]);
+
+        return {
+          totalReturns: storeTotals._count.id || 0,
+          totalRefundAmount: Number(storeTotals._sum.refundAmount || 0),
+          totalUnitsRestocked: Number(storeUnitsAggregate._sum.quantity || 0),
+          todayReturnsCount,
+        };
       }),
     ]);
 
@@ -1233,12 +1259,7 @@ export class SalesService {
 
     return {
       data: enrichedReturns,
-      summary: {
-        totalReturns: storeTotals._count.id || 0,
-        totalRefundAmount: Number(storeTotals._sum.refundAmount || 0),
-        totalUnitsRestocked: Number(storeUnitsAggregate._sum.quantity || 0),
-        todayReturnsCount,
-      },
+      summary,
       meta: {
         total,
         page,

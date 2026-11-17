@@ -15,12 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getErrorMessage } from '@/lib/errors';
-import { customersApi, CustomerItem } from '../services/customers-api';
+import { CustomerItem } from '../services/customers-api';
+import { useCreateCustomer, useUpdateCustomer } from '../hooks/use-customers-queries';
 
 interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (customer?: CustomerItem) => void;
+  onSuccess?: (customer?: CustomerItem) => void;
   customerToEdit?: CustomerItem | null;
 }
 
@@ -35,9 +36,11 @@ export function CustomerModal({
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditing = Boolean(customerToEdit);
+  const createMutation = useCreateCustomer();
+  const updateMutation = useUpdateCustomer();
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   useEffect(() => {
     if (customerToEdit) {
@@ -63,19 +66,21 @@ export function CustomerModal({
       return;
     }
 
-    setIsSubmitting(true);
     try {
       if (isEditing && customerToEdit) {
-        const updated = await customersApi.updateCustomer(customerToEdit.id, {
-          name: cleanName,
-          phone: phone.trim() || undefined,
-          email: email.trim() || undefined,
-          address: address.trim() || undefined,
+        const updated = await updateMutation.mutateAsync({
+          id: customerToEdit.id,
+          payload: {
+            name: cleanName,
+            phone: phone.trim() || undefined,
+            email: email.trim() || undefined,
+            address: address.trim() || undefined,
+          },
         });
         toast.success(`Customer "${cleanName}" updated successfully`);
-        onSuccess(updated);
+        onSuccess?.(updated);
       } else {
-        const created = await customersApi.createCustomer({
+        const created = await createMutation.mutateAsync({
           name: cleanName,
           phone: phone.trim() || undefined,
           email: email.trim() || undefined,
@@ -83,13 +88,11 @@ export function CustomerModal({
           initialCreditBalance: initialBalance ? Number(initialBalance) : undefined,
         });
         toast.success(`Customer "${cleanName}" registered successfully`);
-        onSuccess(created);
+        onSuccess?.(created);
       }
       onClose();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to save customer'));
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

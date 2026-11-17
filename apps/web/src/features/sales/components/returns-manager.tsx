@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   RotateCcw,
   Search,
@@ -11,6 +11,7 @@ import {
   DollarSign,
   Package,
   FileText,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,70 +27,53 @@ import {
 } from '@/components/ui/select';
 import { useStore } from '@/context/store-context';
 import {
-  salesApi,
   ReturnRecord,
-  ReturnsSummaryMetrics,
   QueryReturnsParams,
 } from '../services/sales-api';
+import { useReturns } from '../hooks/use-sales-queries';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency, formatDateTime } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { CreateReturnModal } from './create-return-modal';
 import { ReturnSlipModal } from './return-slip-modal';
-import { toast } from 'sonner';
 
 export function ReturnsManager() {
   const { activeStore, isAllStores } = useStore();
-  const [returns, setReturns] = useState<ReturnRecord[]>([]);
-  const [summary, setSummary] = useState<ReturnsSummaryMetrics | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<string>('ALL');
-  const [isLoading, setIsLoading] = useState(true);
 
   // Modals state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedReturnForSlip, setSelectedReturnForSlip] = useState<ReturnRecord | null>(null);
-  const fetchSeqRef = React.useRef(0);
 
-  const fetchReturns = useCallback(async () => {
-    const reqId = ++fetchSeqRef.current;
-    setIsLoading(true);
-    try {
-      const params: QueryReturnsParams = {
-        page,
-        limit: 15,
-        storeId: !isAllStores && activeStore?.id ? activeStore.id : undefined,
-        search: search.trim() || undefined,
-        refundMethod: methodFilter !== 'ALL' ? methodFilter : undefined,
-      };
+  const queryParams: QueryReturnsParams = useMemo(
+    () => ({
+      page,
+      limit: 15,
+      storeId: !isAllStores && activeStore?.id ? activeStore.id : undefined,
+      search: search.trim() || undefined,
+      refundMethod: methodFilter !== 'ALL' ? methodFilter : undefined,
+    }),
+    [page, isAllStores, activeStore?.id, search, methodFilter],
+  );
 
-      const res = await salesApi.getReturns(params);
-      if (reqId !== fetchSeqRef.current) return;
-      setReturns(res.data || []);
-      if (res.summary) {
-        setSummary(res.summary);
-      }
-      setTotalCount(res.meta?.total || 0);
-      setTotalPages(res.meta?.totalPages || 1);
-    } catch (err) {
-      if (reqId !== fetchSeqRef.current) return;
-      toast.error(getErrorMessage(err, 'Failed to fetch returns'));
-    } finally {
-      if (reqId === fetchSeqRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [activeStore?.id, isAllStores, page, search, methodFilter]);
+  const { data: returnsData, isLoading, isError, error, refetch } = useReturns(queryParams);
 
-  useEffect(() => {
-    fetchReturns();
-  }, [fetchReturns]);
+  const returns = returnsData?.data || [];
+  const summary = returnsData?.summary || null;
+  const totalCount = returnsData?.meta?.total || 0;
+  const totalPages = returnsData?.meta?.totalPages || 1;
+
+  const queryClient = useQueryClient();
 
   // Handle Return Processed callback
   const handleReturnCreated = (newReturn: ReturnRecord) => {
-    fetchReturns();
+    queryClient.invalidateQueries({ queryKey: ['sales', 'returns'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
+    refetch();
     setSelectedReturnForSlip(newReturn);
   };
 
@@ -128,7 +112,7 @@ export function ReturnsManager() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={fetchReturns}
+            onClick={() => refetch()}
             disabled={isLoading}
             className="h-9 gap-1.5 text-xs font-medium cursor-pointer whitespace-nowrap"
           >
@@ -153,28 +137,28 @@ export function ReturnsManager() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Returns"
-          value={totalReturnsMetric}
+          value={isError ? '—' : totalReturnsMetric}
           caption="Logged returns across ledger"
           icon={RotateCcw}
           variant="default"
         />
         <StatCard
           title="Total Refunded"
-          value={formatCurrency(totalRefundValue)}
+          value={isError ? '—' : formatCurrency(totalRefundValue)}
           caption="Returned funds & credit adjustments"
           icon={DollarSign}
           variant="destructive"
         />
         <StatCard
           title="Restocked Units"
-          value={totalUnitsRestocked}
+          value={isError ? '—' : totalUnitsRestocked}
           caption="Medicine packages returned to batches"
           icon={Package}
           variant="success"
         />
         <StatCard
           title="Today's Returns"
-          value={todayReturnsCount}
+          value={isError ? '—' : todayReturnsCount}
           caption="Returns processed today"
           icon={Calendar}
           variant="default"
@@ -238,6 +222,19 @@ export function ReturnsManager() {
           <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className="size-8 animate-spin text-primary" />
             <span className="text-xs">Loading returns ledger...</span>
+          </div>
+        ) : isError ? (
+          <div className="p-8 text-center space-y-3">
+            <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+              <AlertCircle className="size-5" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">Failed to load returns ledger</p>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              {getErrorMessage(error, 'An error occurred while fetching return transactions.')}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => void refetch()} className="gap-1.5 text-xs">
+              <RefreshCw className="size-3.5" /> Retry
+            </Button>
           </div>
         ) : returns.length === 0 ? (
           <div className="p-8">

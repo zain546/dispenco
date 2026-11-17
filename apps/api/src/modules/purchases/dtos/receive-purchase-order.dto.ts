@@ -24,7 +24,7 @@ export class ReceivePurchaseItemDto {
   @IsNotEmpty()
   batchNumber!: string;
 
-  @IsDateString()
+  @IsDateString({ strict: true })
   expiryDate!: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })

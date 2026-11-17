@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreatePurchaseOrderDto } from './dtos/create-purchase-order.dto';
+import { UpdatePurchaseOrderDto } from './dtos/update-purchase-order.dto';
 import { ReceivePurchaseOrderDto } from './dtos/receive-purchase-order.dto';
 import { PurchaseOrderStatus, Prisma } from '@prisma/client';
 
@@ -91,6 +92,10 @@ export class PurchasesService {
       },
     });
 
+    if (this.cache) {
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
+    }
+
     return {
       success: true,
       message: `Purchase Order ${orderNumber} created successfully`,
@@ -123,6 +128,8 @@ export class PurchasesService {
     }
 
     const targetStoreId = order.storeId;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
 
     const result = await this.prisma.$transaction(async (tx) => {
       for (const itemDto of dto.items) {
@@ -136,19 +143,49 @@ export class PurchasesService {
           );
         }
 
-        const newReceivedQty = item.receivedQuantity + itemDto.receivedQuantity;
         const sellPrice = itemDto.sellPrice ?? Number(item.unitCost) * 1.25;
 
         // Create inventory batch if stock was received
         let batchId: string | null = null;
         if (itemDto.receivedQuantity > 0) {
+          if (!itemDto.expiryDate) {
+            throw new BadRequestException(
+              `Expiry date is required for incoming stock intake`,
+            );
+          }
+          const parsedExpiry = new Date(itemDto.expiryDate);
+          if (isNaN(parsedExpiry.getTime())) {
+            throw new BadRequestException(
+              `Invalid expiry date format for item "${itemDto.purchaseItemId}"`,
+            );
+          }
+          // Validate calendar-day validity (e.g. reject Feb 30 which normalizes to March 2)
+          const dateParts = itemDto.expiryDate.split('T')[0].split('-');
+          if (dateParts.length === 3) {
+            const [y, m, d] = dateParts.map(Number);
+            if (
+              parsedExpiry.getUTCFullYear() !== y ||
+              parsedExpiry.getUTCMonth() + 1 !== m ||
+              parsedExpiry.getUTCDate() !== d
+            ) {
+              throw new BadRequestException(
+                `Invalid calendar date "${itemDto.expiryDate}" for item "${itemDto.purchaseItemId}"`,
+              );
+            }
+          }
+          if (parsedExpiry < today) {
+            throw new BadRequestException(
+              `Expiry date cannot be in the past for incoming stock intake`,
+            );
+          }
+
           const batch = await tx.batch.create({
             data: {
               tenantId,
               storeId: order.storeId,
               productId: item.productId,
               batchNumber: itemDto.batchNumber.trim(),
-              expiryDate: new Date(itemDto.expiryDate),
+              expiryDate: parsedExpiry,
               costPrice: item.unitCost,
               sellPrice: new Prisma.Decimal(sellPrice),
               quantityReceived: itemDto.receivedQuantity,
@@ -189,12 +226,26 @@ export class PurchasesService {
         newStatus = PurchaseOrderStatus.PARTIAL;
       }
 
-      const updatedOrder = await tx.purchaseOrder.update({
-        where: { id: orderId },
+      const statusRes = await tx.purchaseOrder.updateMany({
+        where: {
+          id: orderId,
+          tenantId,
+          status: { in: [PurchaseOrderStatus.PENDING, PurchaseOrderStatus.PARTIAL] },
+        },
         data: {
           status: newStatus,
           notes: dto.notes ? `${order.notes || ''}\n${dto.notes}`.trim() : order.notes,
         },
+      });
+
+      if (statusRes.count === 0) {
+        throw new BadRequestException(
+          'Cannot receive stock: Purchase order is no longer in PENDING or PARTIAL status',
+        );
+      }
+
+      const updatedOrder = await tx.purchaseOrder.findUniqueOrThrow({
+        where: { id: orderId },
         include: {
           supplier: true,
           store: true,
@@ -232,6 +283,7 @@ export class PurchasesService {
 
     if (this.cache) {
       await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
     }
 
     return result;
@@ -308,6 +360,187 @@ export class PurchasesService {
     };
   }
 
+  async updateOrder(
+    tenantId: string,
+    orderId: string,
+    dto: UpdatePurchaseOrderDto,
+  ) {
+    const order = await this.prisma.purchaseOrder.findFirst({
+      where: { id: orderId, tenantId },
+      include: {
+        purchaseItems: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Purchase Order "${orderId}" not found`);
+    }
+
+    if (order.status !== PurchaseOrderStatus.PENDING) {
+      throw new BadRequestException(
+        `Only PENDING purchase orders can be modified. This order is ${order.status}`,
+      );
+    }
+
+    if (dto.items && dto.items.length === 0) {
+      throw new BadRequestException(
+        'Purchase order must contain at least one line item',
+      );
+    }
+
+    // Verify tenant ownership to prevent cross-tenant IDOR
+    if (dto.supplierId) {
+      const supplier = await this.prisma.supplier.findFirst({
+        where: { id: dto.supplierId, tenantId },
+      });
+      if (!supplier) {
+        throw new NotFoundException(`Supplier with ID "${dto.supplierId}" not found`);
+      }
+    }
+
+    if (dto.storeId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: dto.storeId, tenantId, isActive: true },
+      });
+      if (!store) {
+        throw new NotFoundException(`Active store with ID "${dto.storeId}" not found for this tenant`);
+      }
+    }
+
+    if (dto.items && dto.items.length > 0) {
+      const productIds = dto.items.map((i) => i.productId).filter(Boolean);
+      if (productIds.length > 0) {
+        const validProductsCount = await this.prisma.product.count({
+          where: { id: { in: productIds }, tenantId, isActive: true },
+        });
+        if (validProductsCount !== productIds.length) {
+          throw new BadRequestException(
+            'One or more selected products are invalid, inactive, or belong to another organization',
+          );
+        }
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      let newTotalCost = order.totalCost;
+
+      if (dto.items && dto.items.length > 0) {
+        const total = dto.items.reduce(
+          (acc, item) => acc + item.expectedQuantity * item.unitCost,
+          0,
+        );
+        newTotalCost = new Prisma.Decimal(total);
+      }
+
+      // Atomic row lock & status check: only proceed if status is still PENDING
+      const lockRes = await tx.purchaseOrder.updateMany({
+        where: { id: orderId, tenantId, status: PurchaseOrderStatus.PENDING },
+        data: {
+          ...(dto.storeId && { storeId: dto.storeId }),
+          ...(dto.supplierId && { supplierId: dto.supplierId }),
+          ...(dto.notes !== undefined && { notes: dto.notes }),
+          totalCost: newTotalCost,
+        },
+      });
+
+      if (lockRes.count === 0) {
+        throw new BadRequestException(
+          'Only PENDING purchase orders can be modified. This order status changed concurrently.',
+        );
+      }
+
+      if (dto.items && dto.items.length > 0) {
+        await tx.purchaseItem.deleteMany({
+          where: { purchaseOrderId: orderId },
+        });
+
+        await tx.purchaseItem.createMany({
+          data: dto.items.map((item) => ({
+            purchaseOrderId: orderId,
+            productId: item.productId,
+            expectedQuantity: item.expectedQuantity,
+            unitCost: new Prisma.Decimal(item.unitCost),
+          })),
+        });
+      }
+
+      return tx.purchaseOrder.findUniqueOrThrow({
+        where: { id: orderId },
+        include: {
+          supplier: true,
+          store: true,
+          purchaseItems: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+    });
+
+    if (this.cache) {
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
+    }
+
+    return {
+      success: true,
+      message: `Purchase Order ${order.orderNumber} updated successfully`,
+      data: updated,
+    };
+  }
+
+  async cancelOrder(tenantId: string, orderId: string) {
+    const order = await this.prisma.purchaseOrder.findFirst({
+      where: { id: orderId, tenantId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Purchase Order "${orderId}" not found`);
+    }
+
+    if (order.status !== PurchaseOrderStatus.PENDING) {
+      throw new BadRequestException(
+        `Only PENDING purchase orders can be cancelled. Current status is ${order.status}`,
+      );
+    }
+
+    // Atomic update checking status === PENDING
+    const updateRes = await this.prisma.purchaseOrder.updateMany({
+      where: {
+        id: orderId,
+        tenantId,
+        status: PurchaseOrderStatus.PENDING,
+      },
+      data: {
+        status: PurchaseOrderStatus.CANCELLED,
+      },
+    });
+
+    if (updateRes.count === 0) {
+      throw new BadRequestException(
+        'Only PENDING purchase orders can be cancelled. Order status changed concurrently.',
+      );
+    }
+
+    const cancelledOrder = await this.prisma.purchaseOrder.findUniqueOrThrow({
+      where: { id: orderId },
+      include: {
+        supplier: true,
+        store: true,
+      },
+    });
+
+    if (this.cache) {
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
+    }
+
+    return {
+      success: true,
+      message: `Purchase Order ${order.orderNumber} cancelled successfully`,
+      data: cancelledOrder,
+    };
+  }
+
   /**
    * Step 4.2 — Smart Reorder Suggestions
    * Calculates dynamic reorder point, days until stockout, suggested order quantities,
@@ -329,8 +562,12 @@ export class PurchasesService {
     const urgencyFilter = options?.urgencyFilter?.toUpperCase();
     const limit = Math.max(1, Math.min(500, Number(options?.limit) || 100));
 
-    // 1. Fetch active products
-    const products = await this.prisma.product.findMany({
+    const searchKey = search ? encodeURIComponent(search) : 'null';
+    const cacheKey = `purchases:${tenantId}:reorder:${effectiveStoreId || 'all'}:${timeframeDays}:${urgencyFilter || 'ALL'}:${searchKey}:${limit}`;
+
+    const compute = async () => {
+      // 1. Fetch active products
+      const products = await this.prisma.product.findMany({
       where: {
         tenantId,
         isActive: true,
@@ -680,10 +917,16 @@ export class PurchasesService {
       return a.daysUntilStockout - b.daysUntilStockout;
     });
 
-    return {
-      timeframeDays,
-      summary,
-      suggestions: filtered.slice(0, limit),
+      return {
+        timeframeDays,
+        summary,
+        suggestions: filtered.slice(0, limit),
+      };
     };
+
+    if (this.cache) {
+      return this.cache.wrap(cacheKey, 120, compute);
+    }
+    return compute();
   }
 }

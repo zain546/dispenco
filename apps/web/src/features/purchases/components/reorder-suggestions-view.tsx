@@ -25,6 +25,7 @@ import {
   ArrowRight,
   CheckSquare,
   Square,
+  MinusSquare,
   ShieldCheck,
   Eye,
 } from 'lucide-react';
@@ -43,6 +44,7 @@ import {
   type ReorderSuggestionsResponse,
   type ReorderUrgency,
 } from '../services/purchases-api';
+import { useReorderSuggestions } from '../hooks/use-purchases-queries';
 import { useStore } from '@/context/store-context';
 
 interface ReorderSuggestionsViewProps {
@@ -53,12 +55,22 @@ interface ReorderSuggestionsViewProps {
   }) => void;
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  TABLET_CAPSULE: 'Tablet / Capsule',
+  SYRUP_LIQUID: 'Syrup / Liquid',
+  INJECTION_INFUSION: 'Injection / Infusion',
+  MEDICAL_DEVICE: 'Medical Device',
+  COSMETICS_PERSONAL_CARE: 'Personal Care',
+  GENERAL_ITEM: 'General Item',
+};
+
+function formatCategory(cat?: string): string {
+  if (!cat) return 'General';
+  return CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ');
+}
+
 export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsViewProps) {
   const { activeStoreId, isAllStores } = useStore();
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [data, setData] = useState<ReorderSuggestionsResponse | null>(null);
 
   // Filters
   const [timeframeDays, setTimeframeDays] = useState<number>(30);
@@ -68,36 +80,27 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
   // Multi-selection state
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
+  const {
+    data,
+    isLoading,
+    isFetching: isRefreshing,
+    isError,
+    error,
+    refetch,
+  } = useReorderSuggestions({
+    storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+    timeframeDays,
+    urgencyFilter: urgencyFilter !== 'ALL' ? urgencyFilter : undefined,
+    search: search.trim() || undefined,
+    limit: 150,
+  });
+
   const fetchSuggestions = useCallback(
-    async (showRefreshIndicator = false) => {
-      if (showRefreshIndicator) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-
-      try {
-        const res = await purchasesApi.getReorderSuggestions({
-          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-          timeframeDays,
-          urgencyFilter: urgencyFilter !== 'ALL' ? urgencyFilter : undefined,
-          search: search.trim() || undefined,
-          limit: 150,
-        });
-        setData(res);
-      } catch (err: unknown) {
-        toast.error(getErrorMessage(err, 'Failed to calculate smart reorder suggestions'));
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
+    (_showRefreshIndicator?: boolean) => {
+      void refetch();
     },
-    [activeStoreId, isAllStores, timeframeDays, urgencyFilter, search],
+    [refetch],
   );
-
-  useEffect(() => {
-    fetchSuggestions();
-  }, [fetchSuggestions]);
 
   // Handle single item Convert to PO
   const handleSingleConvertToPO = (item: ReorderSuggestionItem) => {
@@ -181,7 +184,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
       default:
         return (
           <StatusBadge variant="success" size="sm" dot>
-            Adequate Stock
+            Healthy Stock
           </StatusBadge>
         );
     }
@@ -254,36 +257,38 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
       {/* High-Level Metric StatCards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
-          label="Out of Stock / Critical"
-          value={isLoading ? '...' : criticalCount.toString()}
+          label="Critical Stockouts"
+          value={isError ? '—' : isLoading ? '...' : criticalCount.toString()}
           icon={criticalCount > 0 ? AlertTriangle : ShieldCheck}
-          variant={criticalCount > 0 ? 'destructive' : 'success'}
-          caption={criticalCount > 0 ? 'Stockout imminent before delivery' : '0 stockout risks detected'}
+          variant={isError ? 'default' : criticalCount > 0 ? 'destructive' : 'success'}
+          caption={isError ? 'Forecast calculation failed' : criticalCount > 0 ? 'Stockout imminent before delivery' : '0 stockout risks detected'}
         />
         <StatCard
-          label="Reorder Actions Required"
-          value={isLoading ? '...' : totalReordersNeeded.toString()}
+          label="Medicines to Order"
+          value={isError ? '—' : isLoading ? '...' : totalReordersNeeded.toString()}
           icon={totalReordersNeeded > 0 ? ShoppingCart : CheckCircle2}
-          variant={totalReordersNeeded > 0 ? 'warning' : 'success'}
-          caption={totalReordersNeeded > 0 ? 'Products below replenishment threshold' : 'All stock levels healthy'}
+          variant={isError ? 'default' : totalReordersNeeded > 0 ? 'warning' : 'success'}
+          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? 'Products below replenishment threshold' : 'All stock levels healthy'}
         />
         <StatCard
           label={totalReordersNeeded > 0 ? 'Suggested Units to Order' : 'Catalog Medicines Tracked'}
           value={
-            isLoading
+            isError
+              ? '—'
+              : isLoading
               ? '...'
               : totalReordersNeeded > 0
               ? (summary?.totalUnitsToOrder ?? 0).toLocaleString()
               : totalCatalogCount.toString()
           }
           icon={Package}
-          caption={totalReordersNeeded > 0 ? '14-day stock safety coverage' : '100% adequate coverage'}
+          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? '14-day stock safety coverage' : '100% adequate coverage'}
         />
         <StatCard
-          label={totalReordersNeeded > 0 ? 'Est. Working Capital' : 'Reorder Capital Needed'}
-          value={isLoading ? 'Calculating...' : formatCurrency(summary?.totalEstimatedCost ?? 0)}
+          label={totalReordersNeeded > 0 ? 'Estimated Order Cost' : 'Reorder Capital Needed'}
+          value={isError ? '—' : isLoading ? 'Calculating...' : formatCurrency(summary?.totalEstimatedCost ?? 0)}
           icon={DollarSign}
-          caption={totalReordersNeeded > 0 ? 'Projected purchase outlay' : 'No purchase outlay needed'}
+          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? 'Projected purchase outlay' : 'No purchase outlay needed'}
         />
       </div>
 
@@ -306,11 +311,11 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-0.5">
               <div className="flex items-center gap-1.5 w-max">
                 {[
-                  { label: 'Reorder Needed', value: 'REORDER_NEEDED', count: (summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0), variant: 'warning' },
+                  { label: 'Needs Reorder', value: 'REORDER_NEEDED', count: (summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0), variant: 'warning' },
                   { label: 'Critical Only', value: 'CRITICAL', count: summary?.criticalReordersCount, variant: 'destructive' },
                   { label: 'Upcoming', value: 'UPCOMING', count: summary?.upcomingCount },
-                  { label: 'All Catalog', value: 'ALL', count: summary?.totalProductsAnalyzed },
-                  { label: 'Adequate', value: 'ADEQUATE', count: summary?.adequateCount, variant: 'success' },
+                  { label: 'All Medicines', value: 'ALL', count: summary?.totalProductsAnalyzed },
+                  { label: 'Healthy Stock', value: 'ADEQUATE', count: summary?.adequateCount, variant: 'success' },
                 ].map((tier) => (
                   <Button
                     key={tier.value}
@@ -381,10 +386,31 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                 Evaluating sales velocity, supplier lead times, and replenishment needs...
               </p>
             </div>
+          ) : isError ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="size-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+                <AlertTriangle className="size-6" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">
+                Failed to Calculate Reorder Forecast
+              </h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                {getErrorMessage(error, 'An error occurred while analyzing inventory sales velocity and supplier lead times.')}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void refetch()}
+                className="gap-1.5 text-xs font-semibold cursor-pointer"
+              >
+                <RefreshCw className="size-3.5" />
+                <span>Retry Analysis</span>
+              </Button>
+            </div>
           ) : !data?.suggestions || data.suggestions.length === 0 ? (
             urgencyFilter === 'REORDER_NEEDED' && !search ? (
               <div className="p-8 sm:p-12 text-center flex flex-col items-center justify-center space-y-3.5">
-                <div className="size-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center ring-8 ring-emerald-500/5 shadow-xs">
+                <div className="size-14 rounded-2xl bg-success/10 text-success flex items-center justify-center ring-8 ring-success/5 shadow-xs">
                   <CheckCircle2 className="size-7" />
                 </div>
                 <div className="space-y-1.5 max-w-md">
@@ -402,7 +428,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                     className="gap-1.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer h-9 px-4"
                   >
                     <Eye className="size-4" />
-                    <span>Inspect All Catalog Stock ({totalCatalogCount})</span>
+                    <span>Inspect All Medicines ({totalCatalogCount})</span>
                   </Button>
                 </div>
               </div>
@@ -421,7 +447,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                     }}
                     className="gap-1.5 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
                   >
-                    View All Catalog ({totalCatalogCount})
+                    View All Medicines ({totalCatalogCount})
                   </Button>
                 }
               />
@@ -437,8 +463,10 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                         aria-label="Select all items"
                         className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
                       >
-                        {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                        {data?.suggestions && selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
                           <CheckSquare className="size-4 text-primary" />
+                        ) : selectedProductIds.length > 0 ? (
+                          <MinusSquare className="size-4 text-primary" />
                         ) : (
                           <Square className="size-4" />
                         )}
@@ -499,8 +527,8 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span className="bg-secondary px-1.5 py-0.5 rounded text-micro font-medium">
-                              {item.category}
+                            <span className="bg-secondary px-1.5 py-0.5 rounded text-micro font-medium text-secondary-foreground">
+                              {formatCategory(item.category)}
                             </span>
                             {item.barcode && <span className="font-mono text-micro">#{item.barcode}</span>}
                           </div>
@@ -525,7 +553,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             Reorder Trigger: <strong className="text-foreground">{item.reorderPoint}</strong> {item.unit}
                           </div>
                           <div className="text-micro text-muted-foreground">
-                            Safety Buffer: {item.lowStockThreshold} min
+                            Safety Buffer: <strong className="text-foreground">{item.lowStockThreshold}</strong> {item.unit}
                           </div>
                         </td>
 
@@ -545,7 +573,11 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             )}
                           </div>
                           <div className="text-micro text-muted-foreground">
-                            {item.totalUnitsSoldInTimeframe} sold in {item.timeframeDays}d
+                            {item.totalUnitsSoldInTimeframe > 0 ? (
+                              `${item.totalUnitsSoldInTimeframe} sold in ${item.timeframeDays}d`
+                            ) : (
+                              `0 sold in ${item.timeframeDays}d • Restocking buffer`
+                            )}
                           </div>
                         </td>
 
@@ -604,7 +636,10 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                         {/* Urgency Status */}
                         <td className="py-3 px-3 align-top">
                           {renderUrgencyBadge(item.urgencyLevel)}
-                          <div className="text-micro text-muted-foreground mt-1 line-clamp-2 max-w-[180px]">
+                          <div
+                            title={item.reason}
+                            className="text-micro text-muted-foreground mt-1 line-clamp-2 max-w-[220px]"
+                          >
                             {item.reason}
                           </div>
                         </td>
@@ -629,6 +664,37 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
           )}
         </CardContent>
       </Card>
+
+      {/* Floating Sticky Bulk Reorder Action Bar */}
+      {selectedProductIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl px-4 sm:px-5 py-3 flex items-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs font-semibold text-foreground whitespace-nowrap">
+              {selectedProductIds.length} {selectedProductIds.length === 1 ? 'medicine' : 'medicines'} selected
+            </span>
+          </div>
+          <div className="h-4 w-px bg-border/80 shrink-0" />
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelectedProductIds([])}
+              className="h-8 px-2.5 sm:px-3 text-xs font-medium cursor-pointer"
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleBulkConvertToPO}
+              className="h-8 px-3 sm:px-4 text-xs font-bold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer whitespace-nowrap"
+            >
+              <ShoppingCart className="size-3.5" />
+              <span>Convert to Purchase Order</span>
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

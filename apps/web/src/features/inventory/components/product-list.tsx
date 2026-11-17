@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Package,
@@ -586,6 +587,7 @@ interface ProductListProps {
 
 export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: ProductListProps = {}) {
   const { activeStoreId, isAllStores } = useStore();
+  const queryClient = useQueryClient();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -697,6 +699,7 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
       );
       // Silent background refresh to keep state perfectly in sync without layout shifts
       fetchProducts(true);
+      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
     } catch {
       // Revert optimistic update on error
       setProducts((prevProducts) =>
@@ -733,6 +736,7 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
       setDeleteDialogOpen(false);
       setDeletingProduct(null);
       fetchProducts();
+      void queryClient.invalidateQueries({ queryKey: ['inventory'] });
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to deactivate product'));
     } finally {

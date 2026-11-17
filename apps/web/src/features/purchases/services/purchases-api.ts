@@ -13,6 +13,13 @@ export interface CreatePurchaseOrderInput {
   items: PurchaseOrderItemInput[];
 }
 
+export interface UpdatePurchaseOrderInput {
+  storeId?: string;
+  supplierId?: string;
+  notes?: string;
+  items?: PurchaseOrderItemInput[];
+}
+
 export interface ReceivePurchaseItemInput {
   purchaseItemId: string;
   receivedQuantity: number;
@@ -83,6 +90,16 @@ export const purchasesApi = {
 
   createPurchaseOrder: async (data: CreatePurchaseOrderInput) => {
     const res = await apiClient.post('/purchases', data);
+    return res.data;
+  },
+
+  updatePurchaseOrder: async (id: string, data: UpdatePurchaseOrderInput) => {
+    const res = await apiClient.patch(`/purchases/${id}`, data);
+    return res.data;
+  },
+
+  cancelPurchaseOrder: async (id: string) => {
+    const res = await apiClient.post(`/purchases/${id}/cancel`);
     return res.data;
   },
 

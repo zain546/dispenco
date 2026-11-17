@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { salesApi, CreateSaleInput, CreateReturnInput } from '../services/sales-api';
+import { salesApi, CreateSaleInput, CreateReturnInput, QueryReturnsParams } from '../services/sales-api';
 import { queryKeys } from '@/lib/query-keys';
 
 export function useRecentSales(storeId?: string, limit: number = 20, options?: { enabled?: boolean }) {
@@ -47,6 +47,15 @@ export function useVoidSale() {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
+  });
+}
+
+export function useReturns(params?: QueryReturnsParams, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.sales.returns(params?.storeId, params as Record<string, unknown>),
+    queryFn: () => salesApi.getReturns(params),
+    enabled: options?.enabled ?? true,
+    staleTime: 30 * 1000,
   });
 }
 

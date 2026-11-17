@@ -16,12 +16,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
-import { customersApi, CustomerItem } from '../services/customers-api';
+import { useRecordKhataPayment } from '../hooks/use-customers-queries';
 
 interface RecordKhataPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (newBalance: number) => void;
+  onSuccess?: (newBalance: number) => void;
   customer: {
     id: string;
     name: string;
@@ -38,7 +38,9 @@ export function RecordKhataPaymentModal({
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<'CASH' | 'DIGITAL'>('CASH');
   const [notes, setNotes] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const paymentMutation = useRecordKhataPayment();
+  const isSubmitting = paymentMutation.isPending;
 
   useEffect(() => {
     if (customer && customer.creditBalance > 0) {
@@ -65,21 +67,21 @@ export function RecordKhataPaymentModal({
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      const res = await customersApi.recordPayment(customer.id, {
-        amount: numAmount,
-        method,
-        notes: notes.trim() || undefined,
+      const res = await paymentMutation.mutateAsync({
+        customerId: customer.id,
+        payload: {
+          amount: numAmount,
+          method,
+          notes: notes.trim() || undefined,
+        },
       });
 
       toast.success(res.message);
-      onSuccess(res.newCreditBalance);
+      onSuccess?.(res.newCreditBalance);
       onClose();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to record payment'));
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -119,7 +121,7 @@ export function RecordKhataPaymentModal({
                   {isDebt ? 'Current Khata Debt' : isAdvance ? 'Current Advance' : 'Current Balance'}
                 </p>
                 <p className={`text-lg font-bold tabular-nums mt-0.5 ${
-                  isDebt ? 'text-destructive' : isAdvance ? 'text-emerald-500' : 'text-foreground'
+                  isDebt ? 'text-destructive' : isAdvance ? 'text-success' : 'text-foreground'
                 }`}>
                   {isAdvance ? `Advance: ${formatCurrency(Math.abs(currentBalance))}` : formatCurrency(currentBalance)}
                 </p>
@@ -130,7 +132,7 @@ export function RecordKhataPaymentModal({
                   projectedBalance > 0
                     ? 'text-destructive'
                     : projectedBalance < 0
-                    ? 'text-emerald-500'
+                    ? 'text-success'
                     : 'text-success'
                 }`}>
                   {projectedBalance > 0

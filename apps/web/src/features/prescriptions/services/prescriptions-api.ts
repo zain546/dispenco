@@ -162,6 +162,21 @@ export interface PrescriptionOcrResponse {
   items: ExtractedPrescriptionItem[];
 }
 
+export interface QueryPrescriptionsParams {
+  storeId?: string;
+  status?: PrescriptionStatus;
+  search?: string;
+  isControlledOnly?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface DispensePrescriptionPayload {
+  saleId?: string;
+  notes?: string;
+  items?: Array<{ itemId: string; quantityDispensed: number }>;
+}
+
 export const prescriptionsApi = {
   createPrescription: async (payload: CreatePrescriptionPayload) => {
     const res = await apiClient.post('/prescriptions', payload);
@@ -173,14 +188,7 @@ export const prescriptionsApi = {
     return res.data;
   },
 
-  getPrescriptions: async (params?: {
-    storeId?: string;
-    status?: PrescriptionStatus;
-    search?: string;
-    isControlledOnly?: boolean;
-    page?: number;
-    limit?: number;
-  }): Promise<GetPrescriptionsResponse> => {
+  getPrescriptions: async (params?: QueryPrescriptionsParams): Promise<GetPrescriptionsResponse> => {
     const q = new URLSearchParams();
     if (params?.storeId) q.append('storeId', params.storeId);
     if (params?.status) q.append('status', params.status);
@@ -204,14 +212,7 @@ export const prescriptionsApi = {
     return res.data;
   },
 
-  dispensePrescription: async (
-    id: string,
-    payload: {
-      saleId?: string;
-      notes?: string;
-      items?: Array<{ itemId: string; quantityDispensed: number }>;
-    },
-  ) => {
+  dispensePrescription: async (id: string, payload: DispensePrescriptionPayload) => {
     const res = await apiClient.post(`/prescriptions/${id}/dispense`, payload);
     return res.data;
   },

@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { productsApi, ExpiryRiskForecastResponse } from '../services/products-api';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { productsApi } from '../services/products-api';
 import { queryKeys } from '@/lib/query-keys';
 
 export function useInventoryAggregation(
@@ -16,9 +16,10 @@ export function useInventoryAggregation(
   },
   options?: { enabled?: boolean }
 ) {
-  const storeId = params?.storeId;
+  const { storeId, ...filterParams } = params ?? {};
+
   return useQuery({
-    queryKey: queryKeys.inventory.aggregation(storeId),
+    queryKey: queryKeys.inventory.aggregation(storeId, filterParams),
     queryFn: () => productsApi.getInventoryAggregation(params),
     enabled: options?.enabled ?? true,
     staleTime: 60 * 1000, // 60 seconds matching backend Redis TTL
@@ -35,13 +36,24 @@ export function useExpiryRisk(
   },
   options?: { enabled?: boolean }
 ) {
-  const storeId = params?.storeId;
-  const days = params?.timeframeDays ?? 90;
+  const { storeId, ...filterParams } = params ?? {};
+
+  // Only retain placeholder data if the store scope matches
+  const keepPreviousData = (previousData: any, previousQuery: any) => {
+    if (!previousData || !previousQuery) return undefined;
+    const prevKey = previousQuery.queryKey as unknown[];
+    const prevStore = (prevKey?.[1] as { storeId?: string })?.storeId;
+    const currentStore = storeId ?? 'all';
+    if (prevStore !== currentStore) return undefined;
+    return previousData;
+  };
+
   return useQuery({
-    queryKey: queryKeys.inventory.expiryRisk(storeId, days),
+    queryKey: queryKeys.inventory.expiryRisk(storeId, filterParams),
     queryFn: () => productsApi.getExpiryRiskForecast(params),
     enabled: options?.enabled ?? true,
     staleTime: 180 * 1000, // 3 minutes matching backend Redis TTL
+    placeholderData: keepPreviousData,
   });
 }
 
