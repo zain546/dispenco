@@ -25,6 +25,8 @@ import {
   X,
   Copy,
   Check,
+  Lock,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -118,6 +120,34 @@ const SEVERITY_CONFIG: Record<
     label: 'Informational',
     variant: 'neutral',
   },
+};
+
+const QUICK_RATIONALE_PRESETS: Record<AnomalyType, string[]> = {
+  [AnomalyType.BELOW_COST_SALE]: [
+    'Authorized clearance write-down on short-dated stock',
+    'Customer price match authorized by pharmacy manager',
+    'Catalog acquisition cost reconciliation error corrected',
+  ],
+  [AnomalyType.AFTER_HOURS_SALE]: [
+    'Authorized emergency patient after-hours dispensation',
+    'Staff register end-of-day reconciliation transaction',
+    'Doctor urgent off-hours prescription fulfillment',
+  ],
+  [AnomalyType.EXCESSIVE_DISCOUNT]: [
+    'Authorized bulk / institutional patient loyalty concession',
+    'Senior citizen / compassionate discount authorized by owner',
+    'Cashier discount policy refresher training completed',
+  ],
+  [AnomalyType.HIGH_VOID_RATE]: [
+    'Cashier re-trained on POS returns and register workflow',
+    'Hardware barcode scanner latency caused duplicated entries',
+    'Customer abandoned counter before completing payment',
+  ],
+  [AnomalyType.REPETITIVE_SHRINKAGE]: [
+    'Physical shelf count audit performed; stock reconciled',
+    'Damaged packaging batch written off per supplier protocol',
+    'Expired cold-chain disposal documented in compliance log',
+  ],
 };
 
 function renderStatusBadge(status: AnomalyStatus) {
@@ -1055,104 +1085,130 @@ export function AnomaliesReviewView() {
         open={!!selectedFlag}
         onOpenChange={(open) => !open && setSelectedFlag(null)}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 shadow-2xl bg-card">
+          <DialogHeader className="p-4 sm:p-5 pr-12 border-b border-border/70 bg-muted/20 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-xs ring-2 ring-primary/5">
                 <FileCheck2 className="size-5" />
-              </span>
-              <div>
-                <DialogTitle className="text-base font-bold">
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base sm:text-lg font-bold text-foreground leading-tight">
                   Operational Discrepancy Review
                 </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Review statistical variance evidence and log managerial
-                  resolution rationale.
+                <DialogDescription className="text-micro sm:text-xs text-muted-foreground pt-0.5">
+                  Review statistical variance evidence and log managerial resolution rationale.
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          {selectedFlag && (
-            <div className="space-y-4 py-2">
-              {/* Evidence Overview Box */}
-              <div className="p-4 rounded-lg border border-border/70 bg-muted/30 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h4 className="font-semibold text-sm text-foreground">
-                      {selectedFlag.title}
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {selectedFlag.description}
-                    </p>
-                  </div>
-                  {SEVERITY_CONFIG[selectedFlag.severity] && (
-                    <StatusBadge
-                      variant={
-                        SEVERITY_CONFIG[selectedFlag.severity].variant
-                      }
-                      size="xs"
-                    >
-                      {SEVERITY_CONFIG[selectedFlag.severity].label}
-                    </StatusBadge>
-                  )}
-                </div>
+          {selectedFlag && (() => {
+            const cfg = TYPE_CONFIG[selectedFlag.type] || {
+              label: selectedFlag.type,
+              icon: AlertTriangle,
+              color: 'text-muted-foreground bg-muted',
+              desc: '',
+            };
+            const Icon = cfg.icon;
+            const meta = (selectedFlag.metadata as Record<string, any>) || {};
+            const presets = QUICK_RATIONALE_PRESETS[selectedFlag.type] || [];
+            const contextTiles: Array<{ label: string; value: string; isCopyable?: boolean }> = [];
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-border/40 text-xs">
-                  <div>
-                    <span className="text-muted-foreground block text-micro">
-                      Staff Involved
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {selectedFlag.user?.name || 'System Recorded'}
-                    </span>
-                    {selectedFlag.user?.email && (
-                      <span className="text-muted-foreground block text-micro">
-                        {selectedFlag.user.email}
-                      </span>
+            if (meta.receiptNumber) contextTiles.push({ label: 'Receipt Reference', value: String(meta.receiptNumber), isCopyable: true });
+            if (meta.checkoutTimePkt) contextTiles.push({ label: 'Checkout Time', value: `${meta.checkoutTimePkt} PKT` });
+            if (meta.totalAmount !== undefined) contextTiles.push({ label: 'Total Amount', value: `PKR ${Number(meta.totalAmount).toLocaleString()}` });
+            if (meta.discountAmount !== undefined) contextTiles.push({ label: 'Discount Amount', value: `PKR ${Number(meta.discountAmount).toFixed(2)}` });
+            if (meta.grossAmount !== undefined) contextTiles.push({ label: 'Gross Sale', value: `PKR ${Number(meta.grossAmount).toFixed(2)}` });
+            if (meta.discountPercentage !== undefined) contextTiles.push({ label: 'Discount Rate', value: `${meta.discountPercentage}%` });
+            if (meta.voidedTransactions !== undefined && meta.totalTransactions !== undefined) {
+              contextTiles.push({ label: 'Void Ratio', value: `${meta.voidedTransactions} / ${meta.totalTransactions} sales` });
+            }
+            if (meta.storeAvgRatePercent !== undefined) contextTiles.push({ label: 'Store Average', value: `${meta.storeAvgRatePercent}%` });
+            if (meta.adjustmentCount !== undefined) contextTiles.push({ label: 'Write-off Incidents', value: `${meta.adjustmentCount} times` });
+
+            return (
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 custom-scrollbar">
+                {/* Evidence Overview Box */}
+                <div className="p-4 sm:p-4.5 rounded-2xl border border-border/70 bg-muted/20 space-y-3.5 shadow-2xs">
+                  {/* Category Pill + Severity Row */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-lg border ${cfg.color} shrink-0`}>
+                        <Icon className="size-3.5" />
+                      </div>
+                      <Badge variant="secondary" className="font-semibold text-micro uppercase tracking-wider bg-muted/80 text-foreground">
+                        {cfg.label}
+                      </Badge>
+                    </div>
+
+                    {SEVERITY_CONFIG[selectedFlag.severity] && (
+                      <StatusBadge
+                        variant={SEVERITY_CONFIG[selectedFlag.severity].variant}
+                        size="xs"
+                        className="shrink-0"
+                      >
+                        {SEVERITY_CONFIG[selectedFlag.severity].label}
+                      </StatusBadge>
                     )}
                   </div>
 
-                  <div>
-                    <span className="text-muted-foreground block text-micro">
-                      Store Location
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {selectedFlag.storeName || 'Primary Store'}
-                    </span>
+                  {/* Title & Description */}
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm sm:text-base text-foreground leading-snug">
+                      {selectedFlag.title}
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {selectedFlag.description}
+                    </p>
                   </div>
 
-                  <div>
-                    <span className="text-muted-foreground block text-micro">
-                      Detected On
-                    </span>
-                    <span className="font-medium text-foreground tabular-nums">
-                      {new Date(selectedFlag.createdAt).toLocaleString()}
-                    </span>
+                  {/* Staff, Location & Timestamp Meta Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2.5 border-t border-border/50 text-xs">
+                    <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Staff Involved
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <div className="size-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-[10px]">
+                          {selectedFlag.user?.name ? selectedFlag.user.name.slice(0, 1).toUpperCase() : 'S'}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-semibold text-foreground truncate block text-xs">
+                            {selectedFlag.user?.name || 'System Recorded'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Store Location
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Building2 className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-semibold text-foreground truncate text-xs">
+                          {selectedFlag.storeName || (activeStore ? activeStore.name : 'Primary Branch')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Detected On
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Clock className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-semibold text-foreground tabular-nums whitespace-nowrap text-xs">
+                          {new Date(selectedFlag.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+                          {new Date(selectedFlag.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Structured Context Evidence */}
-                {(() => {
-                  const meta = (selectedFlag.metadata as Record<string, any>) || {};
-                  const contextTiles: Array<{ label: string; value: string; isCopyable?: boolean }> = [];
-
-                  if (meta.receiptNumber) contextTiles.push({ label: 'Receipt Reference', value: String(meta.receiptNumber), isCopyable: true });
-                  if (meta.checkoutTimePkt) contextTiles.push({ label: 'Checkout Time', value: `${meta.checkoutTimePkt} PKT` });
-                  if (meta.totalAmount !== undefined) contextTiles.push({ label: 'Total Amount', value: `PKR ${Number(meta.totalAmount).toLocaleString()}` });
-                  if (meta.discountAmount !== undefined) contextTiles.push({ label: 'Discount Amount', value: `PKR ${Number(meta.discountAmount).toFixed(2)}` });
-                  if (meta.grossAmount !== undefined) contextTiles.push({ label: 'Gross Sale', value: `PKR ${Number(meta.grossAmount).toFixed(2)}` });
-                  if (meta.discountPercentage !== undefined) contextTiles.push({ label: 'Discount Rate', value: `${meta.discountPercentage}%` });
-                  if (meta.voidedTransactions !== undefined && meta.totalTransactions !== undefined) {
-                    contextTiles.push({ label: 'Void Ratio', value: `${meta.voidedTransactions} / ${meta.totalTransactions} sales` });
-                  }
-                  if (meta.storeAvgRatePercent !== undefined) contextTiles.push({ label: 'Store Average', value: `${meta.storeAvgRatePercent}%` });
-                  if (meta.adjustmentCount !== undefined) contextTiles.push({ label: 'Write-off Incidents', value: `${meta.adjustmentCount} times` });
-
-                  if (contextTiles.length === 0) return null;
-
-                  return (
-                    <div className="pt-2 border-t border-border/40 space-y-1.5">
+                  {/* Structured Context Evidence */}
+                  {contextTiles.length > 0 && (
+                    <div className="pt-2.5 border-t border-border/50 space-y-1.5">
                       <span className="text-muted-foreground block text-micro font-semibold uppercase tracking-wider">
                         Transaction Context Evidence
                       </span>
@@ -1163,15 +1219,15 @@ export function AnomaliesReviewView() {
                               {tile.label}
                             </span>
                             <div className="flex items-center justify-between gap-1 mt-0.5">
-                              <span className="text-xs font-bold text-foreground truncate block font-mono">
+                              <span className="text-xs font-bold text-foreground font-mono select-all break-all">
                                 {tile.value}
                               </span>
                               {tile.isCopyable && (
                                 <button
                                   type="button"
                                   onClick={() => handleCopyReceipt(tile.value)}
-                                  className="text-muted-foreground hover:text-primary transition-colors cursor-pointer shrink-0"
-                                  title="Copy receipt number"
+                                  className="text-muted-foreground hover:text-primary transition-colors cursor-pointer shrink-0 p-0.5"
+                                  title="Copy reference"
                                 >
                                   {copiedReceipt ? (
                                     <Check className="size-3 text-success" />
@@ -1185,122 +1241,158 @@ export function AnomaliesReviewView() {
                         ))}
                       </div>
                     </div>
-                  );
-                })()}
-              </div>
-
-              {/* Status Selector */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Manager Review Decision
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {[
-                    {
-                      status: AnomalyStatus.UNDER_REVIEW,
-                      label: 'Investigating',
-                      desc: 'Interviewing staff or reviewing register data',
-                      icon: Clock,
-                      activeClass: 'border-info/60 bg-info/10 text-info ring-1 ring-info/50',
-                    },
-                    {
-                      status: AnomalyStatus.RESOLVED,
-                      label: 'Resolved & Authorized',
-                      desc: 'Authorized variance or resolved procedural error',
-                      icon: CheckCircle2,
-                      activeClass: 'border-success/60 bg-success/10 text-success ring-1 ring-success/50',
-                    },
-                    {
-                      status: AnomalyStatus.DISMISSED,
-                      label: 'Dismissed',
-                      desc: 'False positive or non-actionable variance',
-                      icon: X,
-                      activeClass: 'border-muted-foreground/50 bg-muted text-foreground ring-1 ring-border',
-                    },
-                  ].map((opt) => {
-                    const Icon = opt.icon;
-                    const isSelected = resolutionStatus === opt.status;
-                    return (
-                      <button
-                        type="button"
-                        key={opt.status}
-                        onClick={() => setResolutionStatus(opt.status)}
-                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                          isSelected
-                            ? opt.activeClass
-                            : 'border-border/60 hover:bg-muted/40 text-foreground'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5 font-semibold text-xs">
-                          <Icon className="size-3.5" />
-                          <span>{opt.label}</span>
-                        </div>
-                        <div className="text-micro text-muted-foreground leading-tight mt-1">
-                          {opt.desc}
-                        </div>
-                      </button>
-                    );
-                  })}
+                  )}
                 </div>
-              </div>
 
-              {/* Resolution Note Textarea */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                  <span>Manager Resolution Rationale</span>
-                  <span className="text-micro text-muted-foreground font-normal">
-                    Logged in tamper-proof compliance audit trail
-                  </span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={resolutionNote}
-                  onChange={(e) => setResolutionNote(e.target.value)}
-                  placeholder="e.g. Authorized clearance sale approved for short-dated stock; or Cashier completed returns policy refresher session."
-                  className="w-full text-xs p-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              {/* Previous Review Info if already reviewed */}
-              {selectedFlag.reviewedBy && (
-                <div className="p-2.5 rounded-md bg-muted/40 text-xs text-muted-foreground flex items-center gap-2">
-                  <CheckCircle2 className="size-4 text-success shrink-0" />
-                  <span>
-                    Previously reviewed by{' '}
-                    <strong className="text-foreground">
-                      {selectedFlag.reviewedBy.name}
-                    </strong>{' '}
-                    on{' '}
-                    {selectedFlag.reviewedAt
-                      ? new Date(selectedFlag.reviewedAt).toLocaleString()
-                      : 'earlier date'}
-                    .
-                  </span>
+                {/* Status Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-foreground">
+                    Manager Review Decision
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      {
+                        status: AnomalyStatus.UNDER_REVIEW,
+                        label: 'Investigating',
+                        desc: 'Interviewing staff or reviewing register data',
+                        icon: Clock,
+                        activeClass: 'border-info/60 bg-info/10 text-info ring-1 ring-info/50',
+                      },
+                      {
+                        status: AnomalyStatus.RESOLVED,
+                        label: 'Resolved & Authorized',
+                        desc: 'Authorized variance or resolved procedural error',
+                        icon: CheckCircle2,
+                        activeClass: 'border-success/60 bg-success/10 text-success ring-1 ring-success/50',
+                      },
+                      {
+                        status: AnomalyStatus.DISMISSED,
+                        label: 'Dismissed',
+                        desc: 'False positive or non-actionable variance',
+                        icon: X,
+                        activeClass: 'border-muted-foreground/50 bg-muted text-foreground ring-1 ring-border',
+                      },
+                    ].map((opt) => {
+                      const ButtonIcon = opt.icon;
+                      const isSelected = resolutionStatus === opt.status;
+                      return (
+                        <button
+                          type="button"
+                          key={opt.status}
+                          onClick={() => setResolutionStatus(opt.status)}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? opt.activeClass
+                              : 'border-border/60 hover:bg-muted/40 text-foreground'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 font-semibold text-xs">
+                            <ButtonIcon className="size-3.5" />
+                            <span>{opt.label}</span>
+                          </div>
+                          <div className="text-micro text-muted-foreground leading-tight mt-1">
+                            {opt.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
+
+                {/* Resolution Note Textarea with Quick Presets */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">
+                      Manager Resolution Rationale
+                    </label>
+                    <span className="text-micro text-muted-foreground font-normal flex items-center gap-1">
+                      <Lock className="size-2.5 text-primary" />
+                      Logged in immutable compliance audit trail
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows={3}
+                    value={resolutionNote}
+                    onChange={(e) => setResolutionNote(e.target.value)}
+                    placeholder="Document resolution findings, authorization rationale, or staff coaching details..."
+                    className="w-full text-xs p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed custom-scrollbar shadow-2xs"
+                  />
+
+                  {/* Suggested Rationale Presets */}
+                  {presets.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                        Quick Presets (Click to insert):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {presets.map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setResolutionNote(preset)}
+                            className="text-micro px-2.5 py-1 rounded-lg bg-card border border-border/70 hover:border-primary/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-left cursor-pointer shadow-2xs"
+                          >
+                            + {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Previous Review Info if already reviewed */}
+                {selectedFlag.reviewedBy && (
+                  <div className="p-3 rounded-xl bg-muted/40 text-xs text-muted-foreground flex items-center gap-2 border border-border/50">
+                    <CheckCircle2 className="size-4 text-success shrink-0" />
+                    <span>
+                      Previously reviewed by{' '}
+                      <strong className="text-foreground">
+                        {selectedFlag.reviewedBy.name}
+                      </strong>{' '}
+                      on{' '}
+                      {selectedFlag.reviewedAt
+                        ? new Date(selectedFlag.reviewedAt).toLocaleString()
+                        : 'earlier date'}
+                      .
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="p-3.5 sm:p-4 border-t border-border/70 bg-muted/20 shrink-0 flex flex-row items-center justify-between gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 text-micro text-muted-foreground">
+              <Lock className="size-3 text-primary" />
+              <span>Immutable DRAP/Compliance Log</span>
             </div>
-          )}
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedFlag(null)}
-              disabled={isSubmittingReview}
-              className="text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSubmitResolution}
-              disabled={isSubmittingReview}
-              className="text-xs font-semibold"
-            >
-              {isSubmittingReview
-                ? 'Saving Resolution...'
-                : 'Confirm & Save Resolution'}
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedFlag(null)}
+                disabled={isSubmittingReview}
+                className="h-8.5 px-3 text-xs font-semibold cursor-pointer shadow-2xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSubmitResolution}
+                disabled={isSubmittingReview}
+                className="h-8.5 px-3.5 text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-xs cursor-pointer gap-1.5"
+              >
+                {isSubmittingReview ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Confirm &amp; Save Resolution</span>
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
