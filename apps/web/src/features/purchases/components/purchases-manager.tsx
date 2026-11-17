@@ -5,6 +5,8 @@ import { purchasesApi } from '../services/purchases-api';
 import {
   usePurchases,
   useCreatePurchaseOrder,
+  useUpdatePurchaseOrder,
+  useCancelPurchaseOrder,
   useReceivePurchaseOrder,
 } from '../hooks/use-purchases-queries';
 import { suppliersApi, SupplierData } from '@/features/suppliers/services/suppliers-api';
@@ -52,6 +54,9 @@ import {
   Sparkles,
   Camera,
   Trash2,
+  Copy,
+  Check,
+  Pencil,
 } from 'lucide-react';
 import { storesApi, StoreData } from '@/lib/stores-api';
 import { useStore } from '@/context/store-context';
@@ -70,6 +75,7 @@ export function PurchasesManager() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fetchingOrderId, setFetchingOrderId] = useState<string | null>(null);
@@ -78,7 +84,11 @@ export function PurchasesManager() {
   const [activeView, setActiveView] = useState<'orders' | 'suggestions'>('orders');
 
   const createOrderMutation = useCreatePurchaseOrder();
+  const updateOrderMutation = useUpdatePurchaseOrder();
+  const cancelOrderMutation = useCancelPurchaseOrder();
   const receiveOrderMutation = useReceivePurchaseOrder();
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
 
   const effectiveStoreId = selectedStoreId || (!isAllStores && activeStoreId ? activeStoreId : undefined);
   const {
@@ -145,11 +155,50 @@ export function PurchasesManager() {
 
   const handleOpenCreateModal = () => {
     loadCreateDependencies();
+    setEditingOrderId(null);
     setSelectedSupplierId('');
     setPoStoreId(effectiveStoreId || stores[0]?.id || '');
     setPoNotes('');
     setPoItems([]);
     setIsCreateModalOpen(true);
+  };
+
+  const handleStartEditOrder = (order: any) => {
+    if (!order || order.status !== 'PENDING') {
+      toast.error('Only pending purchase orders can be edited');
+      return;
+    }
+    loadCreateDependencies();
+    setEditingOrderId(order.id);
+    setSelectedSupplierId(order.supplierId || order.supplier?.id || '');
+    setPoStoreId(order.storeId || order.store?.id || effectiveStoreId || stores[0]?.id || '');
+    setPoNotes(order.notes || '');
+    setPoItems(
+      (order.purchaseItems || []).map((i: any) => ({
+        id: i.id || crypto.randomUUID?.() || Math.random().toString(36).substring(7),
+        productId: i.productId || i.product?.id,
+        expectedQuantity: Number(i.expectedQuantity) || 1,
+        unitCost: Number(i.unitCost) || 0,
+      })),
+    );
+    setIsDetailsModalOpen(false);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (typeof window !== 'undefined' && !window.confirm('Are you sure you want to cancel this pending purchase order? This action cannot be undone.')) {
+      return;
+    }
+    setIsCancellingOrder(true);
+    try {
+      const res = await cancelOrderMutation.mutateAsync(orderId);
+      toast.success(res.message || 'Purchase Order cancelled successfully');
+      setIsDetailsModalOpen(false);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to cancel purchase order'));
+    } finally {
+      setIsCancellingOrder(false);
+    }
   };
 
   const handleOpenOcrModal = async () => {
@@ -285,20 +334,39 @@ export function PurchasesManager() {
 
     setSubmitting(true);
     try {
-      const res = await createOrderMutation.mutateAsync({
-        storeId: targetStoreId,
-        supplierId: selectedSupplierId,
-        notes: poNotes,
-        items: poItems.map((it) => ({
-          productId: it.productId,
-          expectedQuantity: Number(it.expectedQuantity),
-          unitCost: Number(it.unitCost),
-        })),
-      });
-      toast.success(res.message || 'Purchase Order created successfully');
-      setIsCreateModalOpen(false);
+      if (editingOrderId) {
+        const res = await updateOrderMutation.mutateAsync({
+          id: editingOrderId,
+          data: {
+            storeId: targetStoreId,
+            supplierId: selectedSupplierId,
+            notes: poNotes,
+            items: poItems.map((it) => ({
+              productId: it.productId,
+              expectedQuantity: Number(it.expectedQuantity),
+              unitCost: Number(it.unitCost),
+            })),
+          },
+        });
+        toast.success(res.message || 'Purchase Order updated successfully');
+        setIsCreateModalOpen(false);
+        setEditingOrderId(null);
+      } else {
+        const res = await createOrderMutation.mutateAsync({
+          storeId: targetStoreId,
+          supplierId: selectedSupplierId,
+          notes: poNotes,
+          items: poItems.map((it) => ({
+            productId: it.productId,
+            expectedQuantity: Number(it.expectedQuantity),
+            unitCost: Number(it.unitCost),
+          })),
+        });
+        toast.success(res.message || 'Purchase Order created successfully');
+        setIsCreateModalOpen(false);
+      }
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to create purchase order'));
+      toast.error(getErrorMessage(err, editingOrderId ? 'Failed to update purchase order' : 'Failed to create purchase order'));
     } finally {
       setSubmitting(false);
     }
@@ -315,20 +383,29 @@ export function PurchasesManager() {
 
       if (res.success && res.data) {
         setSelectedOrder(res.data);
-        const todayStr = new Date().toISOString().slice(0, 10);
+
+        if (res.data.status === 'RECEIVED') {
+          toast.info('This purchase order has already been fully received.');
+          setIsDetailsModalOpen(true);
+          return;
+        }
+
         const nextYearStr = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
           .toISOString()
           .slice(0, 10);
 
-        const initialReceives = (res.data.purchaseItems || []).map((item: any) => ({
-          purchaseItemId: item.id,
-          productName: item.product?.name || 'Item',
-          expectedQuantity: item.expectedQuantity - item.receivedQuantity,
-          receivedQuantity: item.expectedQuantity - item.receivedQuantity,
-          batchNumber: `BN-${Math.floor(100000 + Math.random() * 900000)}`,
-          expiryDate: nextYearStr,
-          sellPrice: Math.round(Number(item.unitCost) * 1.25),
-        }));
+        const initialReceives = (res.data.purchaseItems || []).map((item: any) => {
+          const remaining = Math.max(0, (Number(item.expectedQuantity) || 0) - (Number(item.receivedQuantity) || 0));
+          return {
+            purchaseItemId: item.id,
+            productName: item.product?.name || 'Item',
+            expectedQuantity: remaining,
+            receivedQuantity: remaining,
+            batchNumber: `BN-${Math.floor(100000 + Math.random() * 900000)}`,
+            expiryDate: nextYearStr,
+            sellPrice: Math.round(Number(item.unitCost) * 1.25),
+          };
+        });
 
         setReceiveItems(initialReceives);
         setIsReceiveModalOpen(true);
@@ -342,6 +419,39 @@ export function PurchasesManager() {
         setFetchingOrderId(null);
       }
     }
+  };
+
+  const handleOpenDetailsModal = async (orderId: string) => {
+    if (fetchingOrderId) return;
+    activeReceiveReqRef.current = orderId;
+    setFetchingOrderId(orderId);
+    try {
+      const res = await purchasesApi.getPurchaseById(orderId);
+      if (activeReceiveReqRef.current !== orderId) return;
+
+      if (res.success && res.data) {
+        setSelectedOrder(res.data);
+        setIsDetailsModalOpen(true);
+      }
+    } catch (err: unknown) {
+      if (activeReceiveReqRef.current === orderId) {
+        toast.error(getErrorMessage(err, 'Failed to load purchase order details'));
+      }
+    } finally {
+      if (activeReceiveReqRef.current === orderId) {
+        setFetchingOrderId(null);
+      }
+    }
+  };
+
+  const [copiedPoNumber, setCopiedPoNumber] = useState(false);
+
+  const handleCopyPoNumber = (orderNumber: string) => {
+    if (!orderNumber) return;
+    navigator.clipboard.writeText(orderNumber);
+    setCopiedPoNumber(true);
+    toast.success(`PO #${orderNumber} copied to clipboard!`);
+    setTimeout(() => setCopiedPoNumber(false), 2000);
   };
 
   const handleReceiveSubmit = async (e: React.FormEvent) => {
@@ -395,6 +505,20 @@ export function PurchasesManager() {
   );
 
   const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId);
+
+  const totalDetailsExpected = (selectedOrder?.purchaseItems || []).reduce(
+    (acc: number, item: any) => acc + (Number(item.expectedQuantity) || 0),
+    0,
+  );
+  const totalDetailsReceived = (selectedOrder?.purchaseItems || []).reduce(
+    (acc: number, item: any) => acc + (Number(item.receivedQuantity) || 0),
+    0,
+  );
+  const detailsFulfillmentPercent =
+    totalDetailsExpected > 0
+      ? Math.min(100, Math.round((totalDetailsReceived / totalDetailsExpected) * 100))
+      : 0;
+  const detailsLineItemCount = selectedOrder?.purchaseItems?.length || 0;
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12">
@@ -592,7 +716,7 @@ export function PurchasesManager() {
                         variant="outline"
                         size="sm"
                         disabled={Boolean(fetchingOrderId)}
-                        onClick={() => handleOpenReceiveModal(po.id)}
+                        onClick={() => handleOpenDetailsModal(po.id)}
                         className="gap-1.5 text-xs font-semibold flex-1 sm:flex-initial h-8.5 justify-center bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
                       >
                         {fetchingOrderId === po.id ? (
@@ -621,10 +745,12 @@ export function PurchasesManager() {
               </div>
               <div>
                 <DialogTitle className="text-base font-bold text-foreground">
-                  Create Purchase Order
+                  {editingOrderId ? 'Edit Purchase Order' : 'Create Purchase Order'}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Draft an order to your distributor before stock delivery arrives.
+                  {editingOrderId
+                    ? 'Modify product quantities, unit costs, or notes for this pending order.'
+                    : 'Draft an order to your distributor before stock delivery arrives.'}
                 </DialogDescription>
               </div>
             </div>
@@ -941,7 +1067,10 @@ export function PurchasesManager() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setEditingOrderId(null);
+                }}
                 disabled={submitting}
                 className="h-9 px-4 text-xs font-semibold cursor-pointer"
               >
@@ -954,7 +1083,7 @@ export function PurchasesManager() {
                 className="h-9 px-4 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
               >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}
-                Confirm &amp; Submit Order
+                {editingOrderId ? 'Save Changes' : 'Confirm & Submit Order'}
               </Button>
             </DialogFooter>
           </form>
@@ -965,8 +1094,8 @@ export function PurchasesManager() {
       <Dialog open={isReceiveModalOpen} onOpenChange={setIsReceiveModalOpen}>
         <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
           <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
-            <DialogTitle className="text-base font-bold flex items-center gap-2 text-success">
-              <FileCheck className="size-5" />
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
+              <FileCheck className="size-5 text-primary" />
               Receive Shipment #{selectedOrder?.orderNumber}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -985,7 +1114,7 @@ export function PurchasesManager() {
                   <div className="flex justify-between items-center font-semibold">
                     <span className="text-foreground">{item.productName}</span>
                     <span className="text-muted-foreground text-micro">
-                      Expected: <strong>{item.expectedQuantity}</strong>
+                      Remaining to Receive: <strong className="text-foreground">{item.expectedQuantity}</strong>
                     </span>
                   </div>
 
@@ -1082,6 +1211,282 @@ export function PurchasesManager() {
               )}
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Purchase Order Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
+          <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                <Package className="size-4.5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-base font-bold text-foreground flex items-center gap-1.5">
+                    <span>{selectedOrder?.orderNumber || 'Purchase Order'}</span>
+                    {selectedOrder?.orderNumber && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleCopyPoNumber(selectedOrder.orderNumber)}
+                        className="size-6 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-md cursor-pointer"
+                        title="Copy Purchase Order Number"
+                      >
+                        {copiedPoNumber ? (
+                          <Check className="size-3 text-success" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                      </Button>
+                    )}
+                  </DialogTitle>
+                  {selectedOrder?.status && getStatusBadge(selectedOrder.status)}
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Order placed on {selectedOrder?.createdAt ? formatDate(selectedOrder.createdAt) : 'N/A'}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+            {/* Overview Metadata Cards with Fulfillment Strip */}
+            <div className="p-3.5 sm:p-4 rounded-xl bg-muted/30 border border-border/80 text-xs space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground text-micro font-medium flex items-center gap-1.5">
+                    <Building2 className="size-3 text-primary" /> Supplier Vendor
+                  </span>
+                  <p className="font-semibold text-foreground text-xs">
+                    {selectedOrder?.supplier?.name || 'N/A'}
+                  </p>
+                  {selectedOrder?.supplier?.contactPhone && (
+                    <p className="text-micro text-muted-foreground font-mono">
+                      {selectedOrder.supplier.contactPhone}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-0.5">
+                  <span className="text-muted-foreground text-micro font-medium flex items-center gap-1.5">
+                    <Building2 className="size-3 text-primary" /> Destination Store
+                  </span>
+                  <p className="font-semibold text-foreground text-xs">
+                    {selectedOrder?.store?.name || 'Main Pharmacy Branch'}
+                  </p>
+                  <p className="text-micro text-muted-foreground">
+                    {selectedOrder?.store?.city || 'Active Branch'}
+                  </p>
+                </div>
+
+                <div className="space-y-0.5 sm:text-right">
+                  <span className="text-muted-foreground text-micro font-medium sm:justify-end flex items-center gap-1.5">
+                    <DollarSign className="size-3 text-primary" /> Total Order Value
+                  </span>
+                  <p className="font-bold text-primary text-sm tabular-nums">
+                    {formatCurrency(Number(selectedOrder?.totalCost) || 0)}
+                  </p>
+                  <p className="text-micro text-muted-foreground">
+                    {detailsLineItemCount} {detailsLineItemCount === 1 ? 'line item' : 'line items'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Intake & Fulfillment Progress Indicator */}
+              <div className="pt-2.5 border-t border-border/60 space-y-1.5">
+                <div className="flex items-center justify-between text-micro">
+                  <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                    <span>Intake Progress:</span>
+                    <strong className="text-foreground font-semibold">
+                      {totalDetailsReceived} of {totalDetailsExpected} units received
+                    </strong>
+                  </span>
+                  <span
+                    className={`font-bold font-mono ${
+                      detailsFulfillmentPercent >= 100
+                        ? 'text-success'
+                        : detailsFulfillmentPercent > 0
+                        ? 'text-warning'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    {detailsFulfillmentPercent}%
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-muted/80 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 rounded-full ${
+                      detailsFulfillmentPercent >= 100
+                        ? 'bg-success'
+                        : detailsFulfillmentPercent > 0
+                        ? 'bg-warning'
+                        : 'bg-primary/40'
+                    }`}
+                    style={{ width: `${detailsFulfillmentPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {selectedOrder?.notes && (
+              <div className="p-3 rounded-xl border border-border/70 bg-card text-xs space-y-1">
+                <span className="text-micro text-muted-foreground font-semibold block">Order Notes:</span>
+                <p className="text-foreground">{selectedOrder.notes}</p>
+              </div>
+            )}
+
+            {/* Line Items Table */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Purchase Order Line Items ({detailsLineItemCount})
+              </Label>
+
+              <div className="rounded-xl border border-border/80 overflow-hidden bg-card shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40 text-muted-foreground font-medium text-micro">
+                        <th className="py-2.5 px-3">#</th>
+                        <th className="py-2.5 px-3">Product Name</th>
+                        <th className="py-2.5 px-3 text-center">Ordered</th>
+                        <th className="py-2.5 px-3 text-center">Received</th>
+                        <th className="py-2.5 px-3 text-right">Unit Cost</th>
+                        <th className="py-2.5 px-3 text-right">Subtotal</th>
+                        <th className="py-2.5 px-3">Batch &amp; Expiry</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {(selectedOrder?.purchaseItems || []).map((item: any, idx: number) => {
+                        const expected = Number(item.expectedQuantity) || 0;
+                        const received = Number(item.receivedQuantity) || 0;
+                        const isFullyReceived = received >= expected && expected > 0;
+                        const isPartiallyReceived = received > 0 && received < expected;
+
+                        return (
+                          <tr key={item.id || idx} className="hover:bg-muted/20 transition-colors">
+                            <td className="py-2.5 px-3 text-muted-foreground font-mono text-micro">
+                              {idx + 1}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className="font-semibold text-foreground block">
+                                {item.product?.name || 'Unknown Product'}
+                              </span>
+                              <span className="text-micro text-muted-foreground font-mono">
+                                Unit: {item.product?.unit || 'Item'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center font-bold text-foreground">
+                              {expected}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <Badge
+                                variant={isFullyReceived ? 'success' : isPartiallyReceived ? 'warning' : 'secondary'}
+                                className="text-micro font-bold py-0.5 px-2"
+                              >
+                                {received} / {expected}
+                              </Badge>
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono text-muted-foreground">
+                              {formatCurrency(Number(item.unitCost) || 0)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-foreground">
+                              {formatCurrency(expected * (Number(item.unitCost) || 0))}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {item.batch?.batchNumber ? (
+                                <div className="space-y-0.5">
+                                  <span className="font-mono text-micro text-foreground font-semibold block">
+                                    {item.batch.batchNumber}
+                                  </span>
+                                  {item.batch.expiryDate && (
+                                    <span className="text-[10px] text-muted-foreground block">
+                                      Exp: {formatDate(item.batch.expiryDate)}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : isFullyReceived ? (
+                                <Badge variant="outline" className="text-micro text-success border-success/30 bg-success/5 font-medium py-0.5 px-2">
+                                  Received into Stock
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-micro text-muted-foreground border-border/70 bg-muted/40 font-medium py-0.5 px-2 inline-flex items-center gap-1">
+                                  <Clock className="size-2.5 text-muted-foreground" />
+                                  <span>Pending Intake</span>
+                                </Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="p-3.5 sm:p-4 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-between gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDetailsModalOpen(false)}
+              className="h-9 px-4 text-xs font-semibold cursor-pointer"
+            >
+              Close
+            </Button>
+
+            {selectedOrder?.status !== 'RECEIVED' && selectedOrder?.status !== 'CANCELLED' && (
+              <div className="flex items-center gap-2">
+                {selectedOrder?.status === 'PENDING' && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCancelOrder(selectedOrder.id)}
+                      disabled={isCancellingOrder}
+                      className="h-9 px-3 text-xs font-semibold text-destructive hover:bg-destructive/10 border-destructive/30 cursor-pointer gap-1.5"
+                    >
+                      {isCancellingOrder ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-3.5" />
+                      )}
+                      <span>Cancel PO</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleStartEditOrder(selectedOrder)}
+                      className="h-9 px-3.5 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer gap-1.5"
+                    >
+                      <Pencil className="size-3.5 text-primary" />
+                      <span>Edit Order</span>
+                    </Button>
+                  </>
+                )}
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    handleOpenReceiveModal(selectedOrder.id);
+                  }}
+                  className="h-9 px-4 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                >
+                  <FileCheck className="size-3.5" />
+                  <span>Receive Stock</span>
+                </Button>
+              </div>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

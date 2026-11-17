@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import {
   purchasesApi,
   CreatePurchaseOrderInput,
+  UpdatePurchaseOrderInput,
   ReceivePurchaseOrderInput,
   ReorderSuggestionsResponse,
 } from '../services/purchases-api';
@@ -96,6 +97,31 @@ export function useReceivePurchaseOrder() {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       // Invalidate reports
       queryClient.invalidateQueries({ queryKey: ['reports'] });
+    },
+  });
+}
+
+export function useUpdatePurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdatePurchaseOrderInput }) =>
+      purchasesApi.updatePurchaseOrder(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.purchases.detail(variables.id) });
+    },
+  });
+}
+
+export function useCancelPurchaseOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => purchasesApi.cancelPurchaseOrder(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['purchases'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.purchases.detail(id) });
     },
   });
 }

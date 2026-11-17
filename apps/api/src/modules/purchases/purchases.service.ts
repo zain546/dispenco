@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisCacheService } from '../cache/redis-cache.service';
 import { CreatePurchaseOrderDto } from './dtos/create-purchase-order.dto';
+import { UpdatePurchaseOrderDto } from './dtos/update-purchase-order.dto';
 import { ReceivePurchaseOrderDto } from './dtos/receive-purchase-order.dto';
 import { PurchaseOrderStatus, Prisma } from '@prisma/client';
 
@@ -328,6 +329,128 @@ export class PurchasesService {
     return {
       success: true,
       data: order,
+    };
+  }
+
+  async updateOrder(
+    tenantId: string,
+    orderId: string,
+    dto: UpdatePurchaseOrderDto,
+  ) {
+    const order = await this.prisma.purchaseOrder.findFirst({
+      where: { id: orderId, tenantId },
+      include: {
+        purchaseItems: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Purchase Order "${orderId}" not found`);
+    }
+
+    if (order.status !== PurchaseOrderStatus.PENDING) {
+      throw new BadRequestException(
+        `Only PENDING purchase orders can be modified. This order is ${order.status}`,
+      );
+    }
+
+    if (dto.items && dto.items.length === 0) {
+      throw new BadRequestException(
+        'Purchase order must contain at least one line item',
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      let newTotalCost = order.totalCost;
+
+      if (dto.items && dto.items.length > 0) {
+        const total = dto.items.reduce(
+          (acc, item) => acc + item.expectedQuantity * item.unitCost,
+          0,
+        );
+        newTotalCost = new Prisma.Decimal(total);
+
+        await tx.purchaseItem.deleteMany({
+          where: { purchaseOrderId: orderId },
+        });
+
+        await tx.purchaseItem.createMany({
+          data: dto.items.map((item) => ({
+            purchaseOrderId: orderId,
+            productId: item.productId,
+            expectedQuantity: item.expectedQuantity,
+            unitCost: new Prisma.Decimal(item.unitCost),
+          })),
+        });
+      }
+
+      const updatedOrder = await tx.purchaseOrder.update({
+        where: { id: orderId },
+        data: {
+          ...(dto.storeId && { storeId: dto.storeId }),
+          ...(dto.supplierId && { supplierId: dto.supplierId }),
+          ...(dto.notes !== undefined && { notes: dto.notes }),
+          totalCost: newTotalCost,
+        },
+        include: {
+          supplier: true,
+          store: true,
+          purchaseItems: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      return updatedOrder;
+    });
+
+    if (this.cache) {
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
+    }
+
+    return {
+      success: true,
+      message: `Purchase Order ${order.orderNumber} updated successfully`,
+      data: updated,
+    };
+  }
+
+  async cancelOrder(tenantId: string, orderId: string) {
+    const order = await this.prisma.purchaseOrder.findFirst({
+      where: { id: orderId, tenantId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Purchase Order "${orderId}" not found`);
+    }
+
+    if (order.status !== PurchaseOrderStatus.PENDING) {
+      throw new BadRequestException(
+        `Only PENDING purchase orders can be cancelled. Current status is ${order.status}`,
+      );
+    }
+
+    const cancelledOrder = await this.prisma.purchaseOrder.update({
+      where: { id: orderId },
+      data: {
+        status: PurchaseOrderStatus.CANCELLED,
+      },
+      include: {
+        supplier: true,
+        store: true,
+      },
+    });
+
+    if (this.cache) {
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
+    }
+
+    return {
+      success: true,
+      message: `Purchase Order ${order.orderNumber} cancelled successfully`,
+      data: cancelledOrder,
     };
   }
 

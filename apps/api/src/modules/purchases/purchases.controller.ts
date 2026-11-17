@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
   Query,
@@ -10,6 +11,7 @@ import {
 import { PurchasesService } from './purchases.service';
 import { InvoiceOcrService } from './services/invoice-ocr.service';
 import { CreatePurchaseOrderDto } from './dtos/create-purchase-order.dto';
+import { UpdatePurchaseOrderDto } from './dtos/update-purchase-order.dto';
 import { ReceivePurchaseOrderDto } from './dtos/receive-purchase-order.dto';
 import { ParseInvoiceOcrDto } from './dtos/parse-invoice-ocr.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -98,5 +100,24 @@ export class PurchasesController {
     @Param('id') id: string,
   ) {
     return this.purchasesService.findOne(tenantId, id);
+  }
+
+  @Patch(':id')
+  @RequirePermissions(Permission.PURCHASES_CREATE)
+  updateOrder(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdatePurchaseOrderDto,
+  ) {
+    return this.purchasesService.updateOrder(tenantId, id, dto);
+  }
+
+  @Post(':id/cancel')
+  @RequirePermissions(Permission.PURCHASES_CREATE)
+  cancelOrder(
+    @CurrentUser('tenantId') tenantId: string,
+    @Param('id') id: string,
+  ) {
+    return this.purchasesService.cancelOrder(tenantId, id);
   }
 }

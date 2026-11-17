@@ -100,3 +100,56 @@ test('ReorderSuggestionsView contains zero raw Tailwind color utilities', () => 
     `ReorderSuggestionsView must not contain raw color classes, found: ${rawColors ? rawColors.join(', ') : 'none'}`
   );
 });
+
+test('PurchasesService protects accounting immutability: allows update and cancel on PENDING only', () => {
+  const source = fs.readFileSync(purchasesServicePath, 'utf8');
+
+  // updateOrder check
+  assert.match(
+    source,
+    /async\s+updateOrder\s*\(\s*tenantId:\s*string,\s*orderId:\s*string,\s*dto:\s*UpdatePurchaseOrderDto/m,
+    'PurchasesService must define updateOrder method'
+  );
+  assert.match(
+    source,
+    /order\.status\s*!==\s*PurchaseOrderStatus\.PENDING/,
+    'updateOrder must strictly guard against non-pending orders'
+  );
+
+  // cancelOrder check
+  assert.match(
+    source,
+    /async\s+cancelOrder\s*\(\s*tenantId:\s*string,\s*orderId:\s*string\s*\)/m,
+    'PurchasesService must define cancelOrder method'
+  );
+  assert.match(
+    source,
+    /order\.status\s*!==\s*PurchaseOrderStatus\.PENDING/,
+    'cancelOrder must strictly guard against non-pending orders'
+  );
+  assert.match(
+    source,
+    /status:\s*PurchaseOrderStatus\.CANCELLED/,
+    'cancelOrder must update status to CANCELLED'
+  );
+});
+
+test('PurchasesController exposes PATCH and POST cancel endpoints guarded with PURCHASES_CREATE permission', () => {
+  const controllerPath = path.join(
+    __dirname,
+    '../src/modules/purchases/purchases.controller.ts'
+  );
+  const source = fs.readFileSync(controllerPath, 'utf8');
+
+  assert.match(
+    source,
+    /@Patch\(':id'\)[\s\S]*?@RequirePermissions\(Permission\.PURCHASES_CREATE\)[\s\S]*?updateOrder\(/,
+    'PurchasesController must expose PATCH :id guarded with PURCHASES_CREATE'
+  );
+
+  assert.match(
+    source,
+    /@Post\(':id\/cancel'\)[\s\S]*?@RequirePermissions\(Permission\.PURCHASES_CREATE\)[\s\S]*?cancelOrder\(/,
+    'PurchasesController must expose POST :id/cancel guarded with PURCHASES_CREATE'
+  );
+});
