@@ -25,6 +25,7 @@ import {
   ArrowRight,
   CheckSquare,
   Square,
+  MinusSquare,
   ShieldCheck,
   Eye,
 } from 'lucide-react';
@@ -52,6 +53,20 @@ interface ReorderSuggestionsViewProps {
     items: { productId: string; productName: string; expectedQuantity: number; unitCost: number }[];
     notes?: string;
   }) => void;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  TABLET_CAPSULE: 'Tablet / Capsule',
+  SYRUP_LIQUID: 'Syrup / Liquid',
+  INJECTION_INFUSION: 'Injection / Infusion',
+  MEDICAL_DEVICE: 'Medical Device',
+  COSMETICS_PERSONAL_CARE: 'Personal Care',
+  GENERAL_ITEM: 'General Item',
+};
+
+function formatCategory(cat?: string): string {
+  if (!cat) return 'General';
+  return CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ');
 }
 
 export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsViewProps) {
@@ -448,8 +463,10 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                         aria-label="Select all items"
                         className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
                       >
-                        {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                        {data?.suggestions && selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
                           <CheckSquare className="size-4 text-primary" />
+                        ) : selectedProductIds.length > 0 ? (
+                          <MinusSquare className="size-4 text-primary" />
                         ) : (
                           <Square className="size-4" />
                         )}
@@ -510,8 +527,8 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span className="bg-secondary px-1.5 py-0.5 rounded text-micro font-medium">
-                              {item.category}
+                            <span className="bg-secondary px-1.5 py-0.5 rounded text-micro font-medium text-secondary-foreground">
+                              {formatCategory(item.category)}
                             </span>
                             {item.barcode && <span className="font-mono text-micro">#{item.barcode}</span>}
                           </div>
@@ -536,7 +553,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             Reorder Trigger: <strong className="text-foreground">{item.reorderPoint}</strong> {item.unit}
                           </div>
                           <div className="text-micro text-muted-foreground">
-                            Safety Buffer: {item.lowStockThreshold} min
+                            Safety Buffer: <strong className="text-foreground">{item.lowStockThreshold}</strong> {item.unit}
                           </div>
                         </td>
 
@@ -556,7 +573,11 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                             )}
                           </div>
                           <div className="text-micro text-muted-foreground">
-                            {item.totalUnitsSoldInTimeframe} sold in {item.timeframeDays}d
+                            {item.totalUnitsSoldInTimeframe > 0 ? (
+                              `${item.totalUnitsSoldInTimeframe} sold in ${item.timeframeDays}d`
+                            ) : (
+                              `0 sold in ${item.timeframeDays}d • Restocking buffer`
+                            )}
                           </div>
                         </td>
 
@@ -615,7 +636,10 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                         {/* Urgency Status */}
                         <td className="py-3 px-3 align-top">
                           {renderUrgencyBadge(item.urgencyLevel)}
-                          <div className="text-micro text-muted-foreground mt-1 line-clamp-2 max-w-[180px]">
+                          <div
+                            title={item.reason}
+                            className="text-micro text-muted-foreground mt-1 line-clamp-2 max-w-[220px]"
+                          >
                             {item.reason}
                           </div>
                         </td>
@@ -640,6 +664,37 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
           )}
         </CardContent>
       </Card>
+
+      {/* Floating Sticky Bulk Reorder Action Bar */}
+      {selectedProductIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl px-4 sm:px-5 py-3 flex items-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs font-semibold text-foreground whitespace-nowrap">
+              {selectedProductIds.length} {selectedProductIds.length === 1 ? 'medicine' : 'medicines'} selected
+            </span>
+          </div>
+          <div className="h-4 w-px bg-border/80 shrink-0" />
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelectedProductIds([])}
+              className="h-8 px-2.5 sm:px-3 text-xs font-medium cursor-pointer"
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleBulkConvertToPO}
+              className="h-8 px-3 sm:px-4 text-xs font-bold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer whitespace-nowrap"
+            >
+              <ShoppingCart className="size-3.5" />
+              <span>Convert to Purchase Order</span>
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
