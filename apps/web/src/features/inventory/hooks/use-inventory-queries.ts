@@ -18,29 +18,11 @@ export function useInventoryAggregation(
 ) {
   const { storeId, ...filterParams } = params ?? {};
 
-  // Custom keepPreviousData: only retain data if the store and status filters are compatible
-  const keepPreviousData = (previousData: any, previousQuery: any) => {
-    if (!previousData || !previousQuery) return undefined;
-    const prevKey = previousQuery.queryKey as unknown[];
-    const prevStore = (prevKey?.[1] as { storeId?: string })?.storeId;
-    const currentStore = storeId ?? 'all';
-    if (prevStore !== currentStore) return undefined;
-
-    const prevParams = (prevKey?.[3] as Record<string, unknown>) ?? {};
-    if (prevParams.unstockedOnly !== filterParams.unstockedOnly) return undefined;
-    if (prevParams.inStockOnly !== filterParams.inStockOnly) return undefined;
-    if (prevParams.lowStockOnly !== filterParams.lowStockOnly) return undefined;
-    if (prevParams.expiringSoonOnly !== filterParams.expiringSoonOnly) return undefined;
-
-    return previousData;
-  };
-
   return useQuery({
     queryKey: queryKeys.inventory.aggregation(storeId, filterParams),
     queryFn: () => productsApi.getInventoryAggregation(params),
     enabled: options?.enabled ?? true,
     staleTime: 60 * 1000, // 60 seconds matching backend Redis TTL
-    placeholderData: keepPreviousData,
   });
 }
 

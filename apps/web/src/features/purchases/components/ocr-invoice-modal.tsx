@@ -253,12 +253,11 @@ export function OcrInvoiceModal({
           setSelectedSupplierId(suppliers[0].id);
         }
 
-        // Map items with internal IDs for keying
+        // Map items with internal IDs for keying. Unmatched items remain null so user is prompted to match.
         const mapped = (res.items || []).map((it, idx) => ({
           ...it,
           id: `item-${idx}-${Date.now()}`,
-          matchedProductId:
-            it.matchedProductId || (products.length > 0 ? products[0].id : null),
+          matchedProductId: it.matchedProductId || null,
         }));
         setEditableItems(mapped);
 

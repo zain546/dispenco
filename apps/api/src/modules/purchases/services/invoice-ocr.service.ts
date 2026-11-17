@@ -506,22 +506,34 @@ Return ONLY valid JSON matching this schema.`;
 
         // Postgres direct fallback if Meilisearch index is empty or offline
         if (!matchedProductId) {
-          const firstWord = cleanName.split(/\s+/)[0];
-          const directProduct = await this.prisma.product.findFirst({
+          // 1. Try exact active name match first to avoid picking older variants (e.g. Panadol 120mg over Panadol 500mg)
+          let directProduct = await this.prisma.product.findFirst({
             where: {
               tenantId,
               isActive: true,
-              OR: [
-                { name: { contains: cleanName, mode: 'insensitive' as const } },
-                { genericName: { contains: cleanName, mode: 'insensitive' as const } },
-                { barcode: cleanName },
-                ...(firstWord && firstWord.length > 2
-                  ? [{ name: { contains: firstWord, mode: 'insensitive' as const } }]
-                  : []),
-              ],
+              name: { equals: cleanName, mode: 'insensitive' as const },
             },
-            orderBy: { createdAt: 'asc' },
           });
+
+          // 2. If no exact match, fall back to containment and first-word search
+          if (!directProduct) {
+            const firstWord = cleanName.split(/\s+/)[0];
+            directProduct = await this.prisma.product.findFirst({
+              where: {
+                tenantId,
+                isActive: true,
+                OR: [
+                  { name: { contains: cleanName, mode: 'insensitive' as const } },
+                  { genericName: { contains: cleanName, mode: 'insensitive' as const } },
+                  { barcode: cleanName },
+                  ...(firstWord && firstWord.length > 2
+                    ? [{ name: { contains: firstWord, mode: 'insensitive' as const } }]
+                    : []),
+                ],
+              },
+              orderBy: { createdAt: 'asc' },
+            });
+          }
 
           if (directProduct) {
             matchedProductId = directProduct.id;

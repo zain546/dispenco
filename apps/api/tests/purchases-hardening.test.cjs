@@ -104,31 +104,32 @@ test('ReorderSuggestionsView contains zero raw Tailwind color utilities', () => 
 test('PurchasesService protects accounting immutability: allows update and cancel on PENDING only', () => {
   const source = fs.readFileSync(purchasesServicePath, 'utf8');
 
-  // updateOrder check
+  // updateOrder check: extract updateOrder source independently
+  const updateOrderMatch = source.match(/async\s+updateOrder\s*\([\s\S]*?\n\s{2}\}/);
+  assert.ok(updateOrderMatch, 'PurchasesService must define updateOrder method');
+  const updateOrderSource = updateOrderMatch[0];
   assert.match(
-    source,
-    /async\s+updateOrder\s*\(\s*tenantId:\s*string,\s*orderId:\s*string,\s*dto:\s*UpdatePurchaseOrderDto/m,
-    'PurchasesService must define updateOrder method'
-  );
-  assert.match(
-    source,
+    updateOrderSource,
     /order\.status\s*!==\s*PurchaseOrderStatus\.PENDING/,
     'updateOrder must strictly guard against non-pending orders'
   );
-
-  // cancelOrder check
   assert.match(
-    source,
-    /async\s+cancelOrder\s*\(\s*tenantId:\s*string,\s*orderId:\s*string\s*\)/m,
-    'PurchasesService must define cancelOrder method'
+    updateOrderSource,
+    /status:\s*PurchaseOrderStatus\.PENDING/,
+    'updateOrder must atomically update only if status is PENDING'
   );
+
+  // cancelOrder check: extract cancelOrder source independently
+  const cancelOrderMatch = source.match(/async\s+cancelOrder\s*\([\s\S]*?\n\s{2}\}/);
+  assert.ok(cancelOrderMatch, 'PurchasesService must define cancelOrder method');
+  const cancelOrderSource = cancelOrderMatch[0];
   assert.match(
-    source,
+    cancelOrderSource,
     /order\.status\s*!==\s*PurchaseOrderStatus\.PENDING/,
     'cancelOrder must strictly guard against non-pending orders'
   );
   assert.match(
-    source,
+    cancelOrderSource,
     /status:\s*PurchaseOrderStatus\.CANCELLED/,
     'cancelOrder must update status to CANCELLED'
   );

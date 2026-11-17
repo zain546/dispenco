@@ -137,28 +137,28 @@ export function ReturnsManager() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Returns"
-          value={totalReturnsMetric}
+          value={isError ? '—' : totalReturnsMetric}
           caption="Logged returns across ledger"
           icon={RotateCcw}
           variant="default"
         />
         <StatCard
           title="Total Refunded"
-          value={formatCurrency(totalRefundValue)}
+          value={isError ? '—' : formatCurrency(totalRefundValue)}
           caption="Returned funds & credit adjustments"
           icon={DollarSign}
           variant="destructive"
         />
         <StatCard
           title="Restocked Units"
-          value={totalUnitsRestocked}
+          value={isError ? '—' : totalUnitsRestocked}
           caption="Medicine packages returned to batches"
           icon={Package}
           variant="success"
         />
         <StatCard
           title="Today's Returns"
-          value={todayReturnsCount}
+          value={isError ? '—' : todayReturnsCount}
           caption="Returns processed today"
           icon={Calendar}
           variant="default"

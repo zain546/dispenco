@@ -354,7 +354,7 @@ export function CustomerProfileDrawer({
                   <RefreshCw className="size-3.5" /> Retry
                 </Button>
               </div>
-            ) : isLoading && !customer ? (
+            ) : (isLoading || !customer || !ledger) ? (
               <div className="py-16 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <span className="text-xs">Loading customer statement & history...</span>
