@@ -188,7 +188,16 @@ export class AuditExportService {
       if (cat === 'stock') {
         where.action = { in: ['STOCK_ADJUSTMENT', 'MANUAL_STOCK_ADJUSTMENT'] };
       } else if (cat === 'sales') {
-        where.action = { in: ['SALE_VOIDED', 'SALE_RETURNED', 'SALE_RETURN_PROCESSED'] };
+        where.action = { in: ['SALE_VOIDED', 'SALE_RETURNED', 'SALE_RETURN_PROCESSED', 'SALE_CREATE', 'SALE_CREATED'] };
+      } else if (cat === 'purchases' || cat === 'procurement') {
+        where.action = {
+          in: [
+            'PURCHASE_ORDER_CREATED',
+            'PURCHASE_ORDER_RECEIVED',
+            'PURCHASE_ORDER_CANCELLED',
+            'PURCHASE_ORDER_UPDATED',
+          ],
+        };
       } else if (cat === 'security') {
         where.action = {
           in: [
@@ -327,6 +336,32 @@ export class AuditExportService {
       case 'CUSTOMER_CREDIT_ADJUSTED':
         severity = 'warning';
         summaryText = `Updated customer credit balance (${meta.customerName || log.entityId.slice(0, 8)}) by PKR ${meta.amount ?? 0}. Current debt: PKR ${meta.newBalance ?? 0}`;
+        break;
+
+      case 'PURCHASE_ORDER_RECEIVED':
+        severity = 'info';
+        summaryText = `Stock intake received for Purchase Order #${meta.poNumber || log.entityId.slice(0, 8)}${meta.supplierName ? ` from ${meta.supplierName}` : ''}. Batches verified and shelved.`;
+        break;
+
+      case 'PURCHASE_ORDER_CREATED':
+        severity = 'info';
+        summaryText = `Initiated Purchase Order #${meta.poNumber || log.entityId.slice(0, 8)}${meta.supplierName ? ` to ${meta.supplierName}` : ''}.`;
+        break;
+
+      case 'PURCHASE_ORDER_CANCELLED':
+        severity = 'warning';
+        summaryText = `Cancelled Purchase Order #${meta.poNumber || log.entityId.slice(0, 8)}. Reason: ${meta.reason || meta.cancelReason || 'Distributor cancelled'}`;
+        break;
+
+      case 'SALE_CREATE':
+      case 'SALE_CREATED':
+        severity = 'info';
+        summaryText = `Dispensed counter sales transaction #${meta.receiptNumber || meta.saleNumber || log.entityId.slice(0, 8)}${meta.totalAmount ? ` (PKR ${Number(meta.totalAmount).toLocaleString()})` : ''}.`;
+        break;
+
+      case 'PRESCRIPTION_VERIFIED':
+        severity = 'info';
+        summaryText = `Prescription #${meta.rxNumber || log.entityId.slice(0, 8)} verified and approved for dispensing.`;
         break;
 
       default:

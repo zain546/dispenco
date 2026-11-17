@@ -26,6 +26,10 @@ import {
   Tag,
   Layers,
   X,
+  Truck,
+  ShoppingBag,
+  Bot,
+  Lock,
   User as UserIcon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,8 +71,9 @@ interface CategoryOption {
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
   { id: 'all', label: 'All Operations', icon: Layers },
+  { id: 'purchases', label: 'Procurement & Orders', icon: Truck },
   { id: 'stock', label: 'Stock Adjustments', icon: Package },
-  { id: 'sales', label: 'Voids & Returns', icon: AlertTriangle },
+  { id: 'sales', label: 'Sales & Returns', icon: AlertTriangle },
   { id: 'security', label: 'Security & Access', icon: Key },
   { id: 'transfers', label: 'Branch Transfers', icon: ArrowRightLeft },
   { id: 'pricing', label: 'Pricing Broadcasts', icon: Tag },
@@ -83,13 +88,165 @@ function formatActionTitle(action: string): string {
 
 function getActionIcon(action: string) {
   const a = action.toUpperCase();
+  if (a.includes('PURCHASE') || a.includes('PO_')) return Truck;
   if (a.includes('STOCK')) return Package;
   if (a.includes('VOID') || a.includes('RETURN')) return AlertTriangle;
   if (a.includes('TRANSFER')) return ArrowRightLeft;
   if (a.includes('KEY') || a.includes('STAFF') || a.includes('ROLE')) return Key;
   if (a.includes('CREDIT') || a.includes('KHATA')) return CreditCard;
   if (a.includes('PRICE') || a.includes('BROADCAST')) return Tag;
+  if (a.includes('SALE')) return ShoppingBag;
   return ShieldCheck;
+}
+
+interface FormattedNarrative {
+  title: string;
+  subtitle?: string;
+  reason?: string;
+}
+
+function formatAuditNarrative(log: AuditLogItem): FormattedNarrative {
+  const meta = (log.metadata as Record<string, any>) || {};
+  const action = log.action.toUpperCase();
+
+  if (action === 'PURCHASE_ORDER_RECEIVED') {
+    const poNum = meta.poNumber || log.entityId.slice(0, 8);
+    const supplier = meta.supplierName ? ` from ${meta.supplierName}` : '';
+    return {
+      title: `Stock intake confirmed for Purchase Order #${poNum}`,
+      subtitle: `Received${supplier}. Inventory batches verified and added to shelf.`,
+      reason: meta.reason,
+    };
+  }
+
+  if (action === 'PURCHASE_ORDER_CREATED') {
+    const poNum = meta.poNumber || log.entityId.slice(0, 8);
+    return {
+      title: `Initiated Purchase Order #${poNum}`,
+      subtitle: meta.supplierName ? `Dispatched procurement order to ${meta.supplierName}` : 'Procurement order drafted.',
+      reason: meta.reason,
+    };
+  }
+
+  if (action === 'PURCHASE_ORDER_CANCELLED') {
+    const poNum = meta.poNumber || log.entityId.slice(0, 8);
+    return {
+      title: `Cancelled Purchase Order #${poNum}`,
+      subtitle: 'Procurement transaction aborted.',
+      reason: meta.reason || meta.cancelReason || 'Distributor cancelled',
+    };
+  }
+
+  if (action === 'SALE_CREATE' || action === 'SALE_CREATED') {
+    const receiptNum = meta.receiptNumber || meta.saleNumber || log.entityId.slice(0, 8);
+    const amountStr = meta.totalAmount ? ` • PKR ${Number(meta.totalAmount).toLocaleString()}` : '';
+    const itemsStr = meta.itemsCount ? ` • ${meta.itemsCount} item(s)` : '';
+    return {
+      title: `POS counter sale dispensed: Receipt #${receiptNum}`,
+      subtitle: `Customer checkout completed${amountStr}${itemsStr}.`,
+    };
+  }
+
+  if (action === 'SALE_VOIDED') {
+    const saleNum = meta.saleNumber || meta.saleId || log.entityId.slice(0, 8);
+    return {
+      title: `Voided sales transaction #${saleNum}`,
+      subtitle: meta.totalAmount ? `Refunded PKR ${Number(meta.totalAmount).toLocaleString()} to customer` : undefined,
+      reason: meta.reason || 'Cashier correction',
+    };
+  }
+
+  if (action === 'SALE_RETURNED' || action === 'SALE_RETURN_PROCESSED') {
+    const saleNum = meta.saleId?.slice(0, 8) || log.entityId.slice(0, 8);
+    return {
+      title: `Customer product return processed for sale #${saleNum}`,
+      subtitle: meta.itemsCount ? `${meta.itemsCount} unit(s) restocked into inventory` : 'Items returned to branch shelf',
+      reason: meta.reason,
+    };
+  }
+
+  if (action === 'STOCK_ADJUSTMENT' || action === 'MANUAL_STOCK_ADJUSTMENT') {
+    const batchNum = meta.batchNumber || meta.batchId || log.entityId.slice(0, 8);
+    const delta = meta.quantityChange ?? meta.delta;
+    const deltaStr = delta !== undefined ? (Number(delta) > 0 ? `+${delta}` : `${delta}`) : null;
+    return {
+      title: `Stock count adjustment for batch #${batchNum}`,
+      subtitle: deltaStr ? `Net physical delta: ${deltaStr} unit(s)` : 'Inventory batch adjusted',
+      reason: meta.reason || 'Physical shelf count variance',
+    };
+  }
+
+  if (action.startsWith('API_KEY')) {
+    const keyName = meta.name || log.entityId.slice(0, 8);
+    if (action.includes('CREATED')) {
+      return {
+        title: `Created integration API key '${keyName}'`,
+        subtitle: meta.keyPrefix ? `Prefix: ${meta.keyPrefix} • Scopes: ${(meta.permissions || []).join(', ') || 'Standard'}` : undefined,
+      };
+    }
+    if (action.includes('REVOKED')) {
+      return {
+        title: `Revoked integration API key '${keyName}'`,
+        subtitle: 'Key access terminated permanently.',
+      };
+    }
+    return {
+      title: `API key '${keyName}' status updated`,
+      subtitle: meta.isActive ? 'Status: Active' : 'Status: Suspended',
+    };
+  }
+
+  if (action.includes('TRANSFER')) {
+    const transferNum = meta.transferNumber || log.entityId.slice(0, 8);
+    if (action.includes('REQUESTED')) {
+      return {
+        title: `Requested stock transfer #${transferNum}`,
+        subtitle: meta.destinationStoreName ? `Transfer to ${meta.destinationStoreName}` : undefined,
+      };
+    }
+    if (action.includes('DISPATCHED')) {
+      return {
+        title: `Dispatched transfer consignment #${transferNum}`,
+        subtitle: 'In transit to destination pharmacy branch',
+      };
+    }
+    if (action.includes('RECEIVED')) {
+      return {
+        title: `Received transfer consignment #${transferNum}`,
+        subtitle: 'Stock merged into active store inventory',
+      };
+    }
+    if (action.includes('CANCELLED')) {
+      return {
+        title: `Cancelled transfer consignment #${transferNum}`,
+        reason: meta.cancelReason || 'Branch declined transfer',
+      };
+    }
+  }
+
+  if (action.includes('CREDIT') || action.includes('KHATA')) {
+    const cust = meta.customerName || log.entityId.slice(0, 8);
+    return {
+      title: `Updated customer khata ledger (${cust})`,
+      subtitle: meta.amount ? `Adjusted by PKR ${Number(meta.amount).toLocaleString()}${meta.newBalance !== undefined ? ` • New balance: PKR ${Number(meta.newBalance).toLocaleString()}` : ''}` : undefined,
+      reason: meta.reason,
+    };
+  }
+
+  // Fallback: If backend summaryText has machine debug "ACTION executed on Entity (id)", rephrase cleanly
+  const raw = log.summaryText || '';
+  if (raw.includes(' executed on ')) {
+    return {
+      title: `${formatActionTitle(log.action)} recorded on ${log.entityType}`,
+      subtitle: `Target Reference #${log.entityId.slice(0, 8)}`,
+      reason: meta.reason,
+    };
+  }
+
+  return {
+    title: raw || formatActionTitle(log.action),
+    reason: meta.reason,
+  };
 }
 
 export function AuditComplianceView() {
@@ -303,9 +460,10 @@ export function AuditComplianceView() {
                 </h3>
                 <Badge
                   variant="outline"
-                  className="bg-primary/10 text-primary border-primary/25 text-[10px] sm:text-micro font-semibold px-1.5 py-0"
+                  className="bg-primary/15 text-primary border-primary/30 text-[10px] sm:text-micro font-mono font-semibold px-2 py-0.5 tracking-wider gap-1 shadow-2xs"
                 >
-                  Append-Only
+                  <Lock className="size-2.5" />
+                  Append-Only Ledger
                 </Badge>
               </div>
               <p className="text-micro sm:text-xs text-muted-foreground mt-0.5 leading-relaxed hidden sm:block max-w-2xl">
@@ -586,6 +744,8 @@ export function AuditComplianceView() {
               const d = new Date(log.createdAt);
               const ActionIcon = getActionIcon(log.action);
               const formattedTitle = formatActionTitle(log.action);
+              const narrative = formatAuditNarrative(log);
+              const isSystem = !log.user?.name || log.user.name.toLowerCase().includes('system');
 
               return (
                 <div
@@ -602,8 +762,13 @@ export function AuditComplianceView() {
                         <span className="font-bold text-xs text-foreground block truncate">
                           {formattedTitle}
                         </span>
-                        <div className="flex items-center gap-1.5 text-micro text-muted-foreground mt-0.5">
-                          <span className="font-medium text-foreground/80">{log.entityType}</span>
+                        <div className="flex items-center gap-1.5 text-micro text-muted-foreground mt-0.5 flex-wrap">
+                          <Badge variant="secondary" className="font-mono text-[9px] px-1.5 py-0 uppercase tracking-wider bg-muted/60 text-muted-foreground">
+                            {log.entityType}
+                          </Badge>
+                          <code className="text-[11px] font-mono text-primary font-semibold">
+                            #{log.entityId.slice(0, 8)}
+                          </code>
                           <span>•</span>
                           <span className="tabular-nums">
                             {d.toLocaleDateString()} {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -615,21 +780,47 @@ export function AuditComplianceView() {
                   </div>
 
                   {/* Summary Narrative */}
-                  <div className="p-2.5 rounded-xl bg-muted/20 border border-border/50 text-xs text-foreground leading-relaxed">
-                    {log.summaryText}
+                  <div className="p-2.5 rounded-xl bg-muted/20 border border-border/50 text-xs text-foreground space-y-1">
+                    <div className="font-medium text-foreground leading-relaxed">
+                      {narrative.title}
+                    </div>
+                    {narrative.subtitle && (
+                      <div className="text-micro text-muted-foreground leading-relaxed">
+                        {narrative.subtitle}
+                      </div>
+                    )}
+                    {narrative.reason && (
+                      <div className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 border border-warning/20 px-1.5 py-0.5 rounded-md font-medium mt-1">
+                        <span>Reason:</span>
+                        <span className="font-semibold">{narrative.reason}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Footer Actor + View Payload Button */}
                   <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
                     <div className="flex items-center gap-1.5 text-micro text-muted-foreground min-w-0">
-                      <div className="size-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-[10px]">
-                        {log.user?.name ? log.user.name.slice(0, 1).toUpperCase() : 'S'}
-                      </div>
-                      <span className="font-semibold text-foreground truncate max-w-[130px]">
-                        {log.user?.name || 'System Automated'}
-                      </span>
-                      {log.user?.role && (
-                        <span className="text-muted-foreground/80">({log.user.role})</span>
+                      {isSystem ? (
+                        <>
+                          <div className="size-5 rounded-md bg-muted text-muted-foreground border border-border/70 flex items-center justify-center shrink-0">
+                            <Bot className="size-3 text-muted-foreground" />
+                          </div>
+                          <span className="font-semibold text-foreground truncate max-w-[130px]">
+                            System Automated
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="size-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-[10px]">
+                            {log.user?.name ? log.user.name.slice(0, 1).toUpperCase() : 'U'}
+                          </div>
+                          <span className="font-semibold text-foreground truncate max-w-[130px]">
+                            {log.user?.name}
+                          </span>
+                          {log.user?.role && (
+                            <span className="text-muted-foreground/80">({log.user.role})</span>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -654,12 +845,12 @@ export function AuditComplianceView() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-transparent border-b border-border/70">
-                  <TableHead className="w-[170px] text-overline font-semibold">Timestamp</TableHead>
-                  <TableHead className="w-[110px] text-overline font-semibold">Severity</TableHead>
+                  <TableHead className="w-[160px] text-overline font-semibold">Timestamp</TableHead>
+                  <TableHead className="w-[105px] text-overline font-semibold">Severity</TableHead>
                   <TableHead className="w-[210px] text-overline font-semibold">Operation &amp; Scope</TableHead>
                   <TableHead className="text-overline font-semibold">Event Narrative &amp; Reason</TableHead>
                   <TableHead className="w-[190px] text-overline font-semibold">Responsible Actor</TableHead>
-                  <TableHead className="text-right w-[85px] text-overline font-semibold">Payload</TableHead>
+                  <TableHead className="text-right w-[80px] text-overline font-semibold">Payload</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -667,6 +858,8 @@ export function AuditComplianceView() {
                   const d = new Date(log.createdAt);
                   const ActionIcon = getActionIcon(log.action);
                   const formattedTitle = formatActionTitle(log.action);
+                  const narrative = formatAuditNarrative(log);
+                  const isSystem = !log.user?.name || log.user.name.toLowerCase().includes('system');
 
                   return (
                     <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
@@ -684,45 +877,79 @@ export function AuditComplianceView() {
                       {/* Severity */}
                       <TableCell>{renderSeverityBadge(log.severity)}</TableCell>
 
-                      {/* Action */}
+                      {/* Operation & Scope */}
                       <TableCell>
-                        <div className="flex items-start gap-2">
-                          <div className="size-7 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                            <ActionIcon className="size-3.5" />
+                        <div className="flex items-start gap-2.5">
+                          <div className="size-8 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                            <ActionIcon className="size-4" />
                           </div>
-                          <div className="min-w-0 space-y-0.5">
+                          <div className="min-w-0 space-y-1">
                             <span className="font-semibold text-xs text-foreground block truncate">
                               {formattedTitle}
                             </span>
-                            <div className="text-micro text-muted-foreground">
-                              {log.entityType}: <code className="text-[10px] text-primary">{log.entityId.slice(0, 10)}...</code>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Badge variant="secondary" className="font-mono text-[9px] px-1.5 py-0 uppercase tracking-wider bg-muted/60 text-muted-foreground">
+                                {log.entityType}
+                              </Badge>
+                              <code className="text-[11px] font-mono text-primary font-semibold">
+                                #{log.entityId.slice(0, 8)}
+                              </code>
                             </div>
                           </div>
                         </div>
                       </TableCell>
 
                       {/* Narrative Summary */}
-                      <TableCell className="text-xs text-foreground font-normal leading-relaxed">
-                        {log.summaryText}
+                      <TableCell className="text-xs text-foreground font-normal leading-relaxed max-w-md">
+                        <div className="space-y-1">
+                          <div className="font-medium text-foreground">
+                            {narrative.title}
+                          </div>
+                          {narrative.subtitle && (
+                            <div className="text-micro text-muted-foreground">
+                              {narrative.subtitle}
+                            </div>
+                          )}
+                          {narrative.reason && (
+                            <div className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 border border-warning/20 px-1.5 py-0.5 rounded-md font-medium">
+                              <span>Reason:</span>
+                              <span className="font-semibold">{narrative.reason}</span>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
 
-                      {/* Actor */}
+                      {/* Responsible Actor */}
                       <TableCell>
-                        <div className="flex items-center gap-2 text-xs">
-                          <div className="size-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-xs">
-                            {log.user?.name ? log.user.name.slice(0, 1).toUpperCase() : 'S'}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-semibold text-foreground truncate">
-                              {log.user?.name || 'System Automated'}
+                        {isSystem ? (
+                          <div className="flex items-center gap-2 text-xs">
+                            <div className="size-7 rounded-lg bg-muted text-muted-foreground border border-border/80 flex items-center justify-center shrink-0">
+                              <Bot className="size-3.5 text-muted-foreground" />
                             </div>
-                            {log.user?.role && (
-                              <Badge variant="outline" className="text-micro px-1 py-0 font-medium text-muted-foreground mt-0.5">
-                                {log.user.role}
+                            <div className="min-w-0">
+                              <div className="font-semibold text-foreground truncate text-xs">
+                                System Automated
+                              </div>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 font-medium text-muted-foreground mt-0.5 border-border/60">
+                                Engine
                               </Badge>
-                            )}
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-xs">
+                            <div className="size-7 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 font-bold text-xs">
+                              {log.user?.name ? log.user.name.slice(0, 1).toUpperCase() : 'U'}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-foreground truncate text-xs">
+                                {log.user?.name}
+                              </div>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 font-medium text-primary bg-primary/5 border-primary/25 mt-0.5">
+                                {log.user?.role || 'Staff'}
+                              </Badge>
+                            </div>
+                          </div>
+                        )}
                       </TableCell>
 
                       {/* View Payload */}
@@ -796,69 +1023,124 @@ export function AuditComplianceView() {
           </DialogHeader>
 
           {/* Modal Content */}
-          {selectedLog && (
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
-              {/* Properties Grid */}
-              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 text-xs p-3.5 rounded-xl bg-muted/30 border border-border/60">
-                <div>
-                  <span className="text-micro uppercase font-semibold text-muted-foreground block">Timestamp</span>
-                  <p className="font-semibold text-foreground tabular-nums pt-0.5">
-                    {new Date(selectedLog.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-micro uppercase font-semibold text-muted-foreground block">Actor</span>
-                  <p className="font-semibold text-foreground pt-0.5">
-                    {selectedLog.user?.name || 'System Automated'}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-micro uppercase font-semibold text-muted-foreground block">Entity Scope</span>
-                  <p className="font-semibold text-primary pt-0.5 font-mono">
-                    {selectedLog.entityType}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-micro uppercase font-semibold text-muted-foreground block">Entity ID</span>
-                  <p className="font-semibold text-foreground pt-0.5 font-mono truncate" title={selectedLog.entityId}>
-                    {selectedLog.entityId}
-                  </p>
-                </div>
-              </div>
+          {selectedLog && (() => {
+            const narrative = formatAuditNarrative(selectedLog);
+            const meta = (selectedLog.metadata as Record<string, any>) || {};
+            const keyFields: Array<{ label: string; value: string }> = [];
 
-              {/* Human Narrative */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-bold text-foreground">Inspection Summary</span>
-                <p className="text-xs text-foreground p-3 rounded-xl border border-border/70 bg-card leading-relaxed">
-                  {selectedLog.summaryText}
-                </p>
-              </div>
+            if (meta.poNumber) keyFields.push({ label: 'PO Reference', value: `#${meta.poNumber}` });
+            if (meta.receiptNumber || meta.saleNumber) keyFields.push({ label: 'Receipt #', value: `#${meta.receiptNumber || meta.saleNumber}` });
+            if (meta.supplierName) keyFields.push({ label: 'Supplier / Vendor', value: String(meta.supplierName) });
+            if (meta.customerName) keyFields.push({ label: 'Customer', value: String(meta.customerName) });
+            if (meta.batchNumber || meta.batchId) keyFields.push({ label: 'Batch ID', value: String(meta.batchNumber || meta.batchId) });
+            if (meta.totalAmount !== undefined && meta.totalAmount !== null) keyFields.push({ label: 'Total Amount', value: `PKR ${Number(meta.totalAmount).toLocaleString()}` });
+            if (meta.quantityChange !== undefined || meta.delta !== undefined) {
+              const d = meta.quantityChange ?? meta.delta;
+              keyFields.push({ label: 'Quantity Delta', value: Number(d) > 0 ? `+${d} units` : `${d} units` });
+            }
+            if (meta.itemsCount) keyFields.push({ label: 'Items Count', value: `${meta.itemsCount} items` });
+            if (meta.reason || meta.cancelReason) keyFields.push({ label: 'Audit Reason', value: String(meta.reason || meta.cancelReason) });
 
-              {/* Metadata JSON Box */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                    <Code className="size-3.5 text-primary" />
-                    <span>Cryptographic Metadata Payload</span>
+            return (
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+                {/* Properties Grid */}
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 text-xs p-3.5 rounded-xl bg-muted/30 border border-border/60">
+                  <div>
+                    <span className="text-micro uppercase font-semibold text-muted-foreground block">Timestamp</span>
+                    <p className="font-semibold text-foreground tabular-nums pt-0.5">
+                      {new Date(selectedLog.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-micro uppercase font-semibold text-muted-foreground block">Actor</span>
+                    <p className="font-semibold text-foreground pt-0.5">
+                      {selectedLog.user?.name || 'System Automated'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-micro uppercase font-semibold text-muted-foreground block">Entity Scope</span>
+                    <p className="font-semibold text-primary pt-0.5 font-mono">
+                      {selectedLog.entityType}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-micro uppercase font-semibold text-muted-foreground block">Entity ID</span>
+                    <p className="font-semibold text-foreground pt-0.5 font-mono truncate select-all" title={selectedLog.entityId}>
+                      {selectedLog.entityId}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Key Audit Parameters Grid (if present) */}
+                {keyFields.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
+                      Key Audit Parameters
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {keyFields.map((field, idx) => (
+                        <div key={idx} className="p-2.5 rounded-xl bg-card border border-border/70 shadow-2xs">
+                          <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+                            {field.label}
+                          </span>
+                          <span className="text-xs font-bold text-foreground truncate block mt-0.5">
+                            {field.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Human Narrative */}
+                <div className="space-y-1.5">
+                  <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
+                    Inspection Narrative &amp; Findings
                   </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyPayloadJson}
-                    className="h-7 px-2 text-micro font-semibold gap-1 cursor-pointer"
-                  >
-                    {copiedPayload ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
-                    <span>{copiedPayload ? 'Copied' : 'Copy JSON'}</span>
-                  </Button>
+                  <div className="p-3.5 rounded-xl border border-border/70 bg-card space-y-1 leading-relaxed">
+                    <p className="text-xs font-semibold text-foreground">
+                      {narrative.title}
+                    </p>
+                    {narrative.subtitle && (
+                      <p className="text-micro text-muted-foreground">
+                        {narrative.subtitle}
+                      </p>
+                    )}
+                    {narrative.reason && (
+                      <div className="inline-flex items-center gap-1 text-[10px] text-warning bg-warning/10 border border-warning/20 px-1.5 py-0.5 rounded-md font-medium mt-1">
+                        <span>Documented Reason:</span>
+                        <span className="font-semibold">{narrative.reason}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <pre className="p-3.5 bg-muted/80 text-foreground rounded-xl text-micro font-mono max-h-56 overflow-y-auto leading-relaxed border border-border/70 select-all custom-scrollbar">
-                  {JSON.stringify(selectedLog.metadata, null, 2)}
-                </pre>
+                {/* Metadata JSON Box */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Code className="size-3.5 text-primary" />
+                      <span>Cryptographic Metadata Payload</span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyPayloadJson}
+                      className="h-7 px-2 text-micro font-semibold gap-1 cursor-pointer"
+                    >
+                      {copiedPayload ? <Check className="size-3 text-success" /> : <Copy className="size-3" />}
+                      <span>{copiedPayload ? 'Copied' : 'Copy JSON'}</span>
+                    </Button>
+                  </div>
+
+                  <pre className="p-3.5 bg-muted/80 text-foreground rounded-xl text-micro font-mono max-h-56 overflow-y-auto leading-relaxed border border-border/70 select-all custom-scrollbar">
+                    {JSON.stringify(selectedLog.metadata, null, 2)}
+                  </pre>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

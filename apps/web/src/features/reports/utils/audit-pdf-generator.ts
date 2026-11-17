@@ -213,8 +213,8 @@ export async function generateAuditPdf({
     // Narrative Summary
     pdf.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
     const narrativeTruncated =
-      item.summaryText.length > 40
-        ? item.summaryText.slice(0, 38) + '...'
+      item.summaryText.length > 52
+        ? item.summaryText.slice(0, 50) + '...'
         : item.summaryText;
     pdf.text(narrativeTruncated, 140, currentY + 5.5);
 
