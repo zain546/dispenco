@@ -131,6 +131,19 @@ export function PurchasesManager() {
       if (tab === 'suggestions' || tab === 'reorder' || tab === 'smart-reorder') {
         setActiveView('suggestions');
       }
+
+      const shouldCreate = params.get('create');
+      const paramSupplierId = params.get('supplierId');
+      if (shouldCreate === 'true' || paramSupplierId) {
+        loadCreateDependencies().then(() => {
+          if (paramSupplierId) {
+            setSelectedSupplierId(paramSupplierId);
+          }
+          setEditingOrderId(null);
+          setPoNotes('');
+          setIsCreateModalOpen(true);
+        });
+      }
     }
   }, []);
 
