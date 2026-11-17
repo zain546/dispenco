@@ -176,6 +176,25 @@ export function PurchasesManager() {
     setIsCreateModalOpen(true);
   };
 
+  const handleDirectCreatePoFromOcr = async (data: {
+    supplierId: string;
+    storeId: string;
+    notes: string;
+    items: Array<{
+      productId: string;
+      expectedQuantity: number;
+      unitCost: number;
+    }>;
+  }) => {
+    const res = await createOrderMutation.mutateAsync({
+      storeId: data.storeId,
+      supplierId: data.supplierId,
+      notes: data.notes,
+      items: data.items,
+    });
+    toast.success(res.message || 'Purchase Order created directly from invoice');
+  };
+
   const handleConvertToPOFromSuggestion = async (data: {
     supplierId?: string;
     items: { productId: string; productName: string; expectedQuantity: number; unitCost: number }[];
@@ -870,6 +889,7 @@ export function PurchasesManager() {
         suppliers={suppliers}
         defaultStoreId={(!isAllStores && activeStoreId) ? activeStoreId : (stores[0]?.id || '')}
         onConfirmPo={handleConfirmOcrPo}
+        onDirectCreatePo={handleDirectCreatePoFromOcr}
       />
     </div>
   );

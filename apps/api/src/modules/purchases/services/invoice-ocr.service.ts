@@ -503,6 +503,44 @@ Return ONLY valid JSON matching this schema.`;
             }
           }
         }
+
+        // Postgres direct fallback if Meilisearch index is empty or offline
+        if (!matchedProductId) {
+          const firstWord = cleanName.split(/\s+/)[0];
+          const directProduct = await this.prisma.product.findFirst({
+            where: {
+              tenantId,
+              isActive: true,
+              OR: [
+                { name: { contains: cleanName, mode: 'insensitive' as const } },
+                { genericName: { contains: cleanName, mode: 'insensitive' as const } },
+                { barcode: cleanName },
+                ...(firstWord && firstWord.length > 2
+                  ? [{ name: { contains: firstWord, mode: 'insensitive' as const } }]
+                  : []),
+              ],
+            },
+            orderBy: { createdAt: 'asc' },
+          });
+
+          if (directProduct) {
+            matchedProductId = directProduct.id;
+            matchedProductName = directProduct.name;
+            genericName = directProduct.genericName;
+            category = directProduct.category;
+            unit = directProduct.unit;
+
+            const normPName = directProduct.name.toLowerCase();
+            const normClean = cleanName.toLowerCase();
+            if (normPName === normClean) {
+              confidence = 0.95;
+            } else if (normPName.includes(normClean) || normClean.includes(normPName)) {
+              confidence = 0.88;
+            } else {
+              confidence = 0.75;
+            }
+          }
+        }
       }
 
       const qty = Number(item.quantity) || 1;
