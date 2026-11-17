@@ -17,6 +17,24 @@ export function useInventoryAggregation(
   options?: { enabled?: boolean }
 ) {
   const { storeId, ...filterParams } = params ?? {};
+
+  // Custom keepPreviousData: only retain data if the store and status filters are compatible
+  const keepPreviousData = (previousData: any, previousQuery: any) => {
+    if (!previousData || !previousQuery) return undefined;
+    const prevKey = previousQuery.queryKey as unknown[];
+    const prevStore = (prevKey?.[1] as { storeId?: string })?.storeId;
+    const currentStore = storeId ?? 'all';
+    if (prevStore !== currentStore) return undefined;
+
+    const prevParams = (prevKey?.[3] as Record<string, unknown>) ?? {};
+    if (prevParams.unstockedOnly !== filterParams.unstockedOnly) return undefined;
+    if (prevParams.inStockOnly !== filterParams.inStockOnly) return undefined;
+    if (prevParams.lowStockOnly !== filterParams.lowStockOnly) return undefined;
+    if (prevParams.expiringSoonOnly !== filterParams.expiringSoonOnly) return undefined;
+
+    return previousData;
+  };
+
   return useQuery({
     queryKey: queryKeys.inventory.aggregation(storeId, filterParams),
     queryFn: () => productsApi.getInventoryAggregation(params),
@@ -37,6 +55,17 @@ export function useExpiryRisk(
   options?: { enabled?: boolean }
 ) {
   const { storeId, ...filterParams } = params ?? {};
+
+  // Only retain placeholder data if the store scope matches
+  const keepPreviousData = (previousData: any, previousQuery: any) => {
+    if (!previousData || !previousQuery) return undefined;
+    const prevKey = previousQuery.queryKey as unknown[];
+    const prevStore = (prevKey?.[1] as { storeId?: string })?.storeId;
+    const currentStore = storeId ?? 'all';
+    if (prevStore !== currentStore) return undefined;
+    return previousData;
+  };
+
   return useQuery({
     queryKey: queryKeys.inventory.expiryRisk(storeId, filterParams),
     queryFn: () => productsApi.getExpiryRiskForecast(params),

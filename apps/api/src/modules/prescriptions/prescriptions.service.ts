@@ -315,7 +315,8 @@ export class PrescriptionsService {
    * Update prescription details
    */
   async update(tenantId: string, id: string, dto: UpdatePrescriptionDto) {
-    await this.findOne(tenantId, id);
+    const rx = await this.findOne(tenantId, id);
+    const existing = rx.data;
 
     const updated = await this.prisma.prescription.update({
       where: { id },
@@ -345,6 +346,8 @@ export class PrescriptionsService {
         },
       },
     });
+
+    await this.invalidateRxCache(tenantId, existing.storeId);
 
     return {
       success: true,

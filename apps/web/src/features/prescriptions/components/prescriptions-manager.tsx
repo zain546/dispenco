@@ -25,6 +25,7 @@ import {
   ShoppingCart,
   Layers,
   Stethoscope,
+  AlertCircle,
   X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +56,7 @@ import {
   QueryPrescriptionsParams,
 } from '../services/prescriptions-api';
 import { usePrescriptions, useDispensePrescription } from '../hooks/use-prescriptions-queries';
+import { useQueryClient } from '@tanstack/react-query';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { useStore } from '@/context/store-context';
 import { formatDate } from '@/lib/format';
@@ -88,7 +90,8 @@ export function PrescriptionsManager() {
     [activeStoreId, isAllStores, statusFilter, search, controlledOnly],
   );
 
-  const { data: rxData, isLoading: loading, refetch: fetchPrescriptions } = usePrescriptions(queryParams);
+  const { data: rxData, isLoading: loading, isError, error, refetch: fetchPrescriptions } = usePrescriptions(queryParams);
+  const queryClient = useQueryClient();
   const prescriptions = rxData?.data || [];
   const summary = rxData?.summary || null;
 
@@ -298,6 +301,19 @@ return (
           <div key={i} className="animate-pulse h-48 rounded-xl border border-border/80 bg-card p-5" />
         ))}
       </div>
+    ) : isError ? (
+      <div className="p-8 text-center space-y-3 bg-card border border-destructive/20 rounded-xl">
+        <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+          <AlertCircle className="size-5" />
+        </div>
+        <p className="text-sm font-semibold text-foreground">Failed to load prescriptions</p>
+        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+          {getErrorMessage(error, 'An error occurred while fetching prescription records.')}
+        </p>
+        <Button size="sm" variant="outline" onClick={() => void fetchPrescriptions()} className="gap-1.5 text-xs">
+          <RefreshCw className="size-3.5" /> Retry
+        </Button>
+      </div>
     ) : prescriptions.length === 0 ? (
       <EmptyState
         title="No Prescriptions Found"
@@ -306,11 +322,12 @@ return (
           <Button
             size="sm"
             onClick={() => {
-              void fetchPrescriptions();
+              setOcrModalMode('ocr');
+              setOcrModalOpen(true);
             }}
             disabled={loading}
             className="h-9 px-3 gap-1.5 text-xs shrink-0 cursor-pointer"
-            title="Refresh Prescriptions"
+            title="Scan Doctor Slip"
           >
             <Camera className="size-3.5" />
             <span>Scan Doctor Slip</span>
@@ -526,7 +543,10 @@ return (
       onOpenChange={setOcrModalOpen}
       products={products}
       defaultStoreId={effectiveStoreId}
-      onSuccess={fetchPrescriptions}
+      onSuccess={() => {
+        void queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+        void fetchPrescriptions();
+      }}
       initialMode={ocrModalMode}
     />
 

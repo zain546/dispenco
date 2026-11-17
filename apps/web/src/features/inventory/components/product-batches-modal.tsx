@@ -169,10 +169,19 @@ export function ProductBatchesModal({
 
   // Paginated Slices
   const totalPages = Math.max(1, Math.ceil(filteredBatches.length / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  // If filteredBatches shrinks (e.g. after an edit reduces stock), clamp currentPage state
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
   const paginatedBatches = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
+    const start = (safeCurrentPage - 1) * pageSize;
     return filteredBatches.slice(start, start + pageSize);
-  }, [filteredBatches, currentPage, pageSize]);
+  }, [filteredBatches, safeCurrentPage, pageSize]);
 
   const handleOpenEdit = (batch: BatchData) => {
     setSelectedBatchForEdit(batch);
@@ -576,27 +585,27 @@ export function ProductBatchesModal({
               {filteredBatches.length > pageSize && (
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/60 shrink-0">
                   <span>
-                    Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredBatches.length)} of {filteredBatches.length} batches
+                    Showing {(safeCurrentPage - 1) * pageSize + 1}–{Math.min(safeCurrentPage * pageSize, filteredBatches.length)} of {filteredBatches.length} batches
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage <= 1}
+                      disabled={safeCurrentPage <= 1}
                       className="h-7 px-2 text-xs gap-1 cursor-pointer"
                     >
                       <ChevronLeft className="size-3.5" />
                       <span>Prev</span>
                     </Button>
                     <span className="px-2 font-semibold text-foreground">
-                      {currentPage} / {totalPages}
+                      {safeCurrentPage} / {totalPages}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage >= totalPages}
+                      disabled={safeCurrentPage >= totalPages}
                       className="h-7 px-2 text-xs gap-1 cursor-pointer"
                     >
                       <span>Next</span>

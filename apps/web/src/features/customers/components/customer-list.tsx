@@ -7,6 +7,7 @@ import {
   UserPlus,
   Search,
   RefreshCw,
+  AlertCircle,
   Phone,
   Mail,
   MapPin,
@@ -78,7 +79,7 @@ export function CustomerList() {
     [search, hasBalanceFilter, page],
   );
 
-  const { data, isLoading, isFetching, refetch } = useCustomers(queryParams);
+  const { data, isLoading, isFetching, isError, error, refetch } = useCustomers(queryParams);
   const deleteMutation = useDeleteCustomer();
 
   const handleOpenDrawer = (customer: CustomerItem) => {
@@ -309,6 +310,19 @@ export function CustomerList() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="p-8 text-center space-y-3">
+              <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+                <AlertCircle className="size-5" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Failed to load customers</p>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                {getErrorMessage(error, 'An unexpected error occurred while fetching customer records.')}
+              </p>
+              <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5 text-xs">
+                <RefreshCw className="size-3.5" /> Retry
+              </Button>
             </div>
           ) : data?.data.length === 0 ? (
             <EmptyState

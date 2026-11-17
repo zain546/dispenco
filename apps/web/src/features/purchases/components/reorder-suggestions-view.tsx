@@ -69,6 +69,8 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
     data,
     isLoading,
     isFetching: isRefreshing,
+    isError,
+    error,
     refetch,
   } = useReorderSuggestions({
     storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
@@ -241,35 +243,37 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
           label="Out of Stock / Critical"
-          value={isLoading ? '...' : criticalCount.toString()}
+          value={isError ? '—' : isLoading ? '...' : criticalCount.toString()}
           icon={criticalCount > 0 ? AlertTriangle : ShieldCheck}
-          variant={criticalCount > 0 ? 'destructive' : 'success'}
-          caption={criticalCount > 0 ? 'Stockout imminent before delivery' : '0 stockout risks detected'}
+          variant={isError ? 'default' : criticalCount > 0 ? 'destructive' : 'success'}
+          caption={isError ? 'Forecast calculation failed' : criticalCount > 0 ? 'Stockout imminent before delivery' : '0 stockout risks detected'}
         />
         <StatCard
           label="Reorder Actions Required"
-          value={isLoading ? '...' : totalReordersNeeded.toString()}
+          value={isError ? '—' : isLoading ? '...' : totalReordersNeeded.toString()}
           icon={totalReordersNeeded > 0 ? ShoppingCart : CheckCircle2}
-          variant={totalReordersNeeded > 0 ? 'warning' : 'success'}
-          caption={totalReordersNeeded > 0 ? 'Products below replenishment threshold' : 'All stock levels healthy'}
+          variant={isError ? 'default' : totalReordersNeeded > 0 ? 'warning' : 'success'}
+          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? 'Products below replenishment threshold' : 'All stock levels healthy'}
         />
         <StatCard
           label={totalReordersNeeded > 0 ? 'Suggested Units to Order' : 'Catalog Medicines Tracked'}
           value={
-            isLoading
+            isError
+              ? '—'
+              : isLoading
               ? '...'
               : totalReordersNeeded > 0
               ? (summary?.totalUnitsToOrder ?? 0).toLocaleString()
               : totalCatalogCount.toString()
           }
           icon={Package}
-          caption={totalReordersNeeded > 0 ? '14-day stock safety coverage' : '100% adequate coverage'}
+          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? '14-day stock safety coverage' : '100% adequate coverage'}
         />
         <StatCard
           label={totalReordersNeeded > 0 ? 'Est. Working Capital' : 'Reorder Capital Needed'}
-          value={isLoading ? 'Calculating...' : formatCurrency(summary?.totalEstimatedCost ?? 0)}
+          value={isError ? '—' : isLoading ? 'Calculating...' : formatCurrency(summary?.totalEstimatedCost ?? 0)}
           icon={DollarSign}
-          caption={totalReordersNeeded > 0 ? 'Projected purchase outlay' : 'No purchase outlay needed'}
+          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? 'Projected purchase outlay' : 'No purchase outlay needed'}
         />
       </div>
 
@@ -366,6 +370,27 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               <p className="text-sm text-muted-foreground font-medium">
                 Evaluating sales velocity, supplier lead times, and replenishment needs...
               </p>
+            </div>
+          ) : isError ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="size-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+                <AlertTriangle className="size-6" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground">
+                Failed to Calculate Reorder Forecast
+              </h3>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                {getErrorMessage(error, 'An error occurred while analyzing inventory sales velocity and supplier lead times.')}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void refetch()}
+                className="gap-1.5 text-xs font-semibold cursor-pointer"
+              >
+                <RefreshCw className="size-3.5" />
+                <span>Retry Analysis</span>
+              </Button>
             </div>
           ) : !data?.suggestions || data.suggestions.length === 0 ? (
             urgencyFilter === 'REORDER_NEEDED' && !search ? (

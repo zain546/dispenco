@@ -17,6 +17,16 @@ export function usePurchases(
   const storeId = params?.storeId;
   const filterParams = params?.status ? { status: params.status } : undefined;
 
+  // Only retain placeholder data if the store scope matches
+  const keepPreviousData = (previousData: any, previousQuery: any) => {
+    if (!previousData || !previousQuery) return undefined;
+    const prevKey = previousQuery.queryKey as unknown[];
+    const prevStore = (prevKey?.[1] as { storeId?: string })?.storeId;
+    const currentStore = storeId ?? 'all';
+    if (prevStore !== currentStore) return undefined;
+    return previousData;
+  };
+
   return useQuery({
     queryKey: queryKeys.purchases.list(storeId, filterParams),
     queryFn: async () => {

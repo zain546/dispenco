@@ -20,6 +20,7 @@ import {
   CreditCard,
   ShoppingBag,
   Printer,
+  AlertCircle,
 } from 'lucide-react';
 import {
   Dialog,
@@ -31,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { formatCurrency, formatDate, formatDateTime, getInitials } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import {
   CustomerItem,
 } from '../services/customers-api';
@@ -64,6 +66,8 @@ export function CustomerProfileDrawer({
     data: customer,
     isLoading: isCustLoading,
     isFetching: isCustFetching,
+    isError: isCustError,
+    error: custError,
     refetch: refetchCust,
   } = useCustomerDetail(isOpen ? customerId : null);
 
@@ -71,6 +75,8 @@ export function CustomerProfileDrawer({
     data: ledger,
     isLoading: isLedgerLoading,
     isFetching: isLedgerFetching,
+    isError: isLedgerError,
+    error: ledgerError,
     refetch: refetchLedger,
   } = useCustomerLedger(isOpen ? customerId : null);
 
@@ -237,7 +243,11 @@ export function CustomerProfileDrawer({
                     <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
                       {customer?.name || 'Customer Profile'}
                     </DialogTitle>
-                    {isDebt ? (
+                    {isCustError ? (
+                      <Badge variant="destructive" className="font-medium text-xs">
+                        Error Loading Details
+                      </Badge>
+                    ) : isDebt ? (
                       <Badge variant="destructive" className="tabular-nums font-mono font-semibold text-xs">
                         Debt: {formatCurrency(creditBalance)}
                       </Badge>
@@ -329,7 +339,22 @@ export function CustomerProfileDrawer({
 
           {/* Scrollable Container */}
           <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-6 space-y-4 sm:space-y-5 custom-scrollbar">
-            {isLoading && !customer ? (
+            {isCustError || isLedgerError ? (
+              <div className="p-8 text-center space-y-3 bg-destructive/5 rounded-xl border border-destructive/20 my-4">
+                <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+                  <AlertCircle className="size-5" />
+                </div>
+                <p className="text-sm font-semibold text-foreground">
+                  Failed to load customer profile or ledger statement
+                </p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  {getErrorMessage(custError || ledgerError, 'An error occurred while fetching statement data.')}
+                </p>
+                <Button size="sm" variant="outline" onClick={handleRefresh} className="gap-1.5 text-xs">
+                  <RefreshCw className="size-3.5" /> Retry
+                </Button>
+              </div>
+            ) : isLoading && !customer ? (
               <div className="py-16 text-center text-muted-foreground flex flex-col items-center justify-center gap-2">
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <span className="text-xs">Loading customer statement & history...</span>

@@ -11,6 +11,7 @@ import {
   DollarSign,
   Package,
   FileText,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ import { useReturns } from '../hooks/use-sales-queries';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
 import { formatCurrency, formatDateTime } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import { CreateReturnModal } from './create-return-modal';
 import { ReturnSlipModal } from './return-slip-modal';
 
@@ -57,7 +59,7 @@ export function ReturnsManager() {
     [page, isAllStores, activeStore?.id, search, methodFilter],
   );
 
-  const { data: returnsData, isLoading, refetch } = useReturns(queryParams);
+  const { data: returnsData, isLoading, isError, error, refetch } = useReturns(queryParams);
 
   const returns = returnsData?.data || [];
   const summary = returnsData?.summary || null;
@@ -68,9 +70,10 @@ export function ReturnsManager() {
 
   // Handle Return Processed callback
   const handleReturnCreated = (newReturn: ReturnRecord) => {
+    queryClient.invalidateQueries({ queryKey: ['sales', 'returns'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    queryClient.invalidateQueries({ queryKey: ['customers'] });
     refetch();
-    queryClient.invalidateQueries({ queryKey: queryKeys.inventory.all() });
-    queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
     setSelectedReturnForSlip(newReturn);
   };
 
@@ -219,6 +222,19 @@ export function ReturnsManager() {
           <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className="size-8 animate-spin text-primary" />
             <span className="text-xs">Loading returns ledger...</span>
+          </div>
+        ) : isError ? (
+          <div className="p-8 text-center space-y-3">
+            <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+              <AlertCircle className="size-5" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">Failed to load returns ledger</p>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              {getErrorMessage(error, 'An error occurred while fetching return transactions.')}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => void refetch()} className="gap-1.5 text-xs">
+              <RefreshCw className="size-3.5" /> Retry
+            </Button>
           </div>
         ) : returns.length === 0 ? (
           <div className="p-8">

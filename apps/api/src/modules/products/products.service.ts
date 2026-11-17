@@ -864,7 +864,7 @@ export class ProductsService {
       await this.searchService.indexProduct(prod);
     }
 
-    await this.cache.invalidateStoreInventory(tenantId, store.id);
+    await this.cache.invalidateStoreInventory(tenantId);
 
     return {
       success: true,

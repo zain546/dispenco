@@ -128,7 +128,7 @@ export class PurchasesService {
 
     const targetStoreId = order.storeId;
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     const result = await this.prisma.$transaction(async (tx) => {
       for (const itemDto of dto.items) {
@@ -352,7 +352,8 @@ export class PurchasesService {
     const urgencyFilter = options?.urgencyFilter?.toUpperCase();
     const limit = Math.max(1, Math.min(500, Number(options?.limit) || 100));
 
-    const cacheKey = `purchases:${tenantId}:reorder:${effectiveStoreId || 'all'}:${timeframeDays}:${urgencyFilter || 'ALL'}:${search || 'none'}:${limit}`;
+    const searchKey = search ? encodeURIComponent(search) : 'null';
+    const cacheKey = `purchases:${tenantId}:reorder:${effectiveStoreId || 'all'}:${timeframeDays}:${urgencyFilter || 'ALL'}:${searchKey}:${limit}`;
 
     const compute = async () => {
       // 1. Fetch active products

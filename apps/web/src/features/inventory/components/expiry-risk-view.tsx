@@ -71,6 +71,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
     data: queryData,
     isLoading,
     isFetching: isRefreshing,
+    isPlaceholderData,
     error: queryError,
     refetch: refetchForecast,
   } = useExpiryRisk({
@@ -261,31 +262,31 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Capital at Risk (Cost Loss)"
-          value={isLoading ? 'Calculating...' : formatCurrency(summary?.totalCapitalAtRisk ?? 0)}
+          value={isLoading || isPlaceholderData ? 'Calculating...' : formatCurrency(summary?.totalCapitalAtRisk ?? 0)}
           icon={DollarSign}
           variant={summary?.totalCapitalAtRisk && summary.totalCapitalAtRisk > 0 ? 'destructive' : 'default'}
-          caption="Estimated financial loss if unsold batches reach expiry"
+          caption={isPlaceholderData ? 'Updating forecast for selected timeframe...' : 'Estimated financial loss if unsold batches reach expiry'}
         />
         <StatCard
           label="Units Projected Unsold"
-          value={isLoading ? '...' : (summary?.totalUnitsAtRisk ?? 0).toLocaleString()}
+          value={isLoading || isPlaceholderData ? '...' : (summary?.totalUnitsAtRisk ?? 0).toLocaleString()}
           icon={Package}
           variant="warning"
-          caption="Stock forecasted to remain on shelves past expiry date"
+          caption={isPlaceholderData ? 'Updating...' : 'Stock forecasted to remain on shelves past expiry date'}
         />
         <StatCard
           label="Critical Interventions"
-          value={isLoading ? '...' : (summary?.criticalBatchesCount ?? 0).toString()}
+          value={isLoading || isPlaceholderData ? '...' : (summary?.criticalBatchesCount ?? 0).toString()}
           icon={AlertTriangle}
           variant={summary?.criticalBatchesCount && summary.criticalBatchesCount > 0 ? 'destructive' : 'default'}
           caption="Batches requiring immediate markdown or supplier return"
         />
         <StatCard
           label="Zero-Velocity Batches"
-          value={isLoading ? '...' : (summary?.stagnantBatchesCount ?? 0).toString()}
+          value={isLoading || isPlaceholderData ? '...' : (summary?.stagnantBatchesCount ?? 0).toString()}
           icon={TrendingDown}
           variant="warning"
-          caption={`No sales recorded over the past ${timeframeDays} days`}
+          caption={isPlaceholderData ? 'Updating velocity metrics...' : `No sales recorded over the past ${timeframeDays} days`}
         />
       </div>
 

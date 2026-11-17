@@ -1102,7 +1102,7 @@ export class SalesService {
       this.cache.invalidateStoreInventory(tenantId, result.sale?.storeId),
       this.cache.del(`returns:summary:${tenantId}:all`),
       result.sale?.storeId ? this.cache.del(`returns:summary:${tenantId}:${result.sale.storeId}`) : Promise.resolve(),
-      dto.refundMethod === 'CREDIT' ? this.cache.del(`customers:summary:${tenantId}`) : Promise.resolve(),
+      result.refundMethod === 'CREDIT' ? this.cache.del(`customers:summary:${tenantId}`) : Promise.resolve(),
     ]);
 
     return result;
@@ -1112,7 +1112,8 @@ export class SalesService {
    * Query return transactions with pagination, store filter, and search
    */
   async getReturns(tenantId: string, query: QueryReturnsDto) {
-    const { storeId, search, refundMethod, page = 1, limit = 20 } = query;
+    const { search, refundMethod, page = 1, limit = 20 } = query;
+    const storeId = query.storeId && query.storeId !== 'all' ? query.storeId : undefined;
     const skip = (page - 1) * limit;
 
     const baseStoreWhere: Prisma.ReturnWhereInput = {

@@ -414,6 +414,7 @@ export function ProductForm({
       if (values.description) attributes.description = values.description;
     }
 
+    let productUpdated = false;
     try {
       if (isEditing && initialData) {
         await productsApi.updateProduct(initialData.id, {
@@ -427,6 +428,10 @@ export function ProductForm({
           lowStockThreshold: Number(values.lowStockThreshold),
           attributes,
         });
+        productUpdated = true;
+        // Invalidate immediately so product updates are reflected even if batch update fails
+        await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        await queryClient.invalidateQueries({ queryKey: ['reports'] });
 
         if (activeBatch?.id) {
           await productsApi.updateBatch(activeBatch.id, {
@@ -441,6 +446,8 @@ export function ProductForm({
             purchaseInvoiceNumber: values.purchaseInvoiceNumber?.trim() || undefined,
             purchaseInvoiceDate: values.purchaseInvoiceDate || undefined,
           });
+          await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          await queryClient.invalidateQueries({ queryKey: ['reports'] });
         }
 
         toast.success(
@@ -480,6 +487,10 @@ export function ProductForm({
       router.push('/inventory');
       router.refresh();
     } catch (err: unknown) {
+      if (productUpdated) {
+        void queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        void queryClient.invalidateQueries({ queryKey: ['reports'] });
+      }
       const msg = getErrorMessage(err, 'Failed to save product');
       setError(msg);
       toast.error(msg);

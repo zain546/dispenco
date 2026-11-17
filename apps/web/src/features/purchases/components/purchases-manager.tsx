@@ -34,6 +34,7 @@ import {
   Building2,
   CheckCircle2,
   Clock,
+  RefreshCw,
   AlertCircle,
   Loader2,
   Box,
@@ -63,6 +64,8 @@ export function PurchasesManager() {
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [fetchingOrderId, setFetchingOrderId] = useState<string | null>(null);
+  const activeReceiveReqRef = React.useRef<string | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [activeView, setActiveView] = useState<'orders' | 'suggestions'>('orders');
 
@@ -73,6 +76,8 @@ export function PurchasesManager() {
   const {
     data: orders = [],
     isLoading: loading,
+    isError,
+    error,
     refetch: fetchOrders,
   } = usePurchases({
     storeId: effectiveStoreId,
@@ -241,9 +246,14 @@ export function PurchasesManager() {
   };
 
   const handleOpenReceiveModal = async (orderId: string) => {
+    if (fetchingOrderId) return;
+    activeReceiveReqRef.current = orderId;
+    setFetchingOrderId(orderId);
     try {
-      setSubmitting(true);
       const res = await purchasesApi.getPurchaseById(orderId);
+      // Guard against race conditions if user switched orders
+      if (activeReceiveReqRef.current !== orderId) return;
+
       if (res.success && res.data) {
         setSelectedOrder(res.data);
         const todayStr = new Date().toISOString().slice(0, 10);
@@ -265,9 +275,13 @@ export function PurchasesManager() {
         setIsReceiveModalOpen(true);
       }
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to load purchase order details'));
+      if (activeReceiveReqRef.current === orderId) {
+        toast.error(getErrorMessage(err, 'Failed to load purchase order details'));
+      }
     } finally {
-      setSubmitting(false);
+      if (activeReceiveReqRef.current === orderId) {
+        setFetchingOrderId(null);
+      }
     }
   };
 
@@ -430,6 +444,19 @@ export function PurchasesManager() {
                 <Skeleton key={i} className="h-20 w-full" />
               ))}
             </div>
+          ) : isError ? (
+            <div className="p-8 text-center space-y-3 bg-card border border-destructive/20 rounded-xl">
+              <div className="size-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+                <AlertCircle className="size-5" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Failed to load purchase orders</p>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                {getErrorMessage(error, 'An error occurred while fetching purchase orders.')}
+              </p>
+              <Button size="sm" variant="outline" onClick={() => void fetchOrders()} className="gap-1.5 text-xs">
+                <RefreshCw className="size-3.5" /> Retry
+              </Button>
+            </div>
           ) : orders.length === 0 ? (
             <EmptyState
               icon={Box}
@@ -483,19 +510,31 @@ export function PurchasesManager() {
                       {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && (
                         <Button
                           size="sm"
+                          disabled={Boolean(fetchingOrderId)}
                           onClick={() => handleOpenReceiveModal(po.id)}
                           className="gap-1.5 text-xs font-bold flex-1 sm:flex-initial h-8.5 justify-center cursor-pointer"
                         >
-                          <FileCheck className="size-3.5" /> Receive Stock
+                          {fetchingOrderId === po.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <FileCheck className="size-3.5" />
+                          )}
+                          <span>Receive Stock</span>
                         </Button>
                       )}
                       <Button
                         variant="outline"
                         size="sm"
+                        disabled={Boolean(fetchingOrderId)}
                         onClick={() => handleOpenReceiveModal(po.id)}
                         className="gap-1.5 text-xs font-semibold flex-1 sm:flex-initial h-8.5 justify-center bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
                       >
-                        <Eye className="size-3.5" /> Details
+                        {fetchingOrderId === po.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Eye className="size-3.5" />
+                        )}
+                        <span>Details</span>
                       </Button>
                     </div>
                   </CardContent>
