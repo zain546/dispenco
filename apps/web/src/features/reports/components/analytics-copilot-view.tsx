@@ -748,7 +748,7 @@ export function AnalyticsCopilotView() {
 
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/60 text-xs text-muted-foreground space-y-1">
                   <div className="flex items-center gap-1.5 text-foreground font-semibold">
-                    <ShieldCheck className="size-3.5 text-emerald-500" />
+                    <ShieldCheck className="size-3.5 text-success" />
                     <span>Safe Execution Policy</span>
                   </div>
                   <p className="text-micro leading-relaxed">
@@ -871,7 +871,7 @@ export function AnalyticsCopilotView() {
                 className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="size-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <div className="size-9 rounded-xl bg-success/10 text-success flex items-center justify-center">
                     <TrendingUp className="size-4" />
                   </div>
                   <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -892,7 +892,7 @@ export function AnalyticsCopilotView() {
                 className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="size-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <div className="size-9 rounded-xl bg-warning/10 text-warning flex items-center justify-center">
                     <AlertTriangle className="size-4" />
                   </div>
                   <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -913,7 +913,7 @@ export function AnalyticsCopilotView() {
                 className="p-4 rounded-xl border border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all group cursor-pointer text-left shadow-2xs hover:shadow-xs"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="size-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                     <CreditCard className="size-4" />
                   </div>
                   <ArrowUpRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />

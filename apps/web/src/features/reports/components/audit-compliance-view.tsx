@@ -853,7 +853,7 @@ export function AuditComplianceView() {
                   </Button>
                 </div>
 
-                <pre className="p-3.5 bg-zinc-950 text-zinc-100 dark:bg-zinc-900 rounded-xl text-micro font-mono max-h-56 overflow-y-auto leading-relaxed border border-border/60 select-all custom-scrollbar">
+                <pre className="p-3.5 bg-muted/80 text-foreground rounded-xl text-micro font-mono max-h-56 overflow-y-auto leading-relaxed border border-border/70 select-all custom-scrollbar">
                   {JSON.stringify(selectedLog.metadata, null, 2)}
                 </pre>
               </div>
