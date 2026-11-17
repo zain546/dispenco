@@ -184,7 +184,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
       default:
         return (
           <StatusBadge variant="success" size="sm" dot>
-            Adequate Stock
+            Healthy Stock
           </StatusBadge>
         );
     }
@@ -257,14 +257,14 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
       {/* High-Level Metric StatCards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
-          label="Out of Stock / Critical"
+          label="Critical Stockouts"
           value={isError ? '—' : isLoading ? '...' : criticalCount.toString()}
           icon={criticalCount > 0 ? AlertTriangle : ShieldCheck}
           variant={isError ? 'default' : criticalCount > 0 ? 'destructive' : 'success'}
           caption={isError ? 'Forecast calculation failed' : criticalCount > 0 ? 'Stockout imminent before delivery' : '0 stockout risks detected'}
         />
         <StatCard
-          label="Reorder Actions Required"
+          label="Medicines to Order"
           value={isError ? '—' : isLoading ? '...' : totalReordersNeeded.toString()}
           icon={totalReordersNeeded > 0 ? ShoppingCart : CheckCircle2}
           variant={isError ? 'default' : totalReordersNeeded > 0 ? 'warning' : 'success'}
@@ -285,7 +285,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
           caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? '14-day stock safety coverage' : '100% adequate coverage'}
         />
         <StatCard
-          label={totalReordersNeeded > 0 ? 'Est. Working Capital' : 'Reorder Capital Needed'}
+          label={totalReordersNeeded > 0 ? 'Estimated Order Cost' : 'Reorder Capital Needed'}
           value={isError ? '—' : isLoading ? 'Calculating...' : formatCurrency(summary?.totalEstimatedCost ?? 0)}
           icon={DollarSign}
           caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? 'Projected purchase outlay' : 'No purchase outlay needed'}
@@ -311,11 +311,11 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-0.5">
               <div className="flex items-center gap-1.5 w-max">
                 {[
-                  { label: 'Reorder Needed', value: 'REORDER_NEEDED', count: (summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0), variant: 'warning' },
+                  { label: 'Needs Reorder', value: 'REORDER_NEEDED', count: (summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0), variant: 'warning' },
                   { label: 'Critical Only', value: 'CRITICAL', count: summary?.criticalReordersCount, variant: 'destructive' },
                   { label: 'Upcoming', value: 'UPCOMING', count: summary?.upcomingCount },
-                  { label: 'All Catalog', value: 'ALL', count: summary?.totalProductsAnalyzed },
-                  { label: 'Adequate', value: 'ADEQUATE', count: summary?.adequateCount, variant: 'success' },
+                  { label: 'All Medicines', value: 'ALL', count: summary?.totalProductsAnalyzed },
+                  { label: 'Healthy Stock', value: 'ADEQUATE', count: summary?.adequateCount, variant: 'success' },
                 ].map((tier) => (
                   <Button
                     key={tier.value}
@@ -428,7 +428,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                     className="gap-1.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer h-9 px-4"
                   >
                     <Eye className="size-4" />
-                    <span>Inspect All Catalog Stock ({totalCatalogCount})</span>
+                    <span>Inspect All Medicines ({totalCatalogCount})</span>
                   </Button>
                 </div>
               </div>
@@ -447,7 +447,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                     }}
                     className="gap-1.5 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
                   >
-                    View All Catalog ({totalCatalogCount})
+                    View All Medicines ({totalCatalogCount})
                   </Button>
                 }
               />
