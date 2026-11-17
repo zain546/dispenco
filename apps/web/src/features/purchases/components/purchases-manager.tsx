@@ -547,7 +547,7 @@ export function PurchasesManager() {
   }, [selectedOrder]);
 
   return (
-    <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-5 sm:space-y-6 pb-12">
       {/* Header Banner */}
       <PageHeader
         title={activeView === 'orders' ? 'Purchase Orders & Shipments' : 'Smart Reorder Suggestions'}

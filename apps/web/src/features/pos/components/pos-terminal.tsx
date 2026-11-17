@@ -1688,7 +1688,7 @@ export function POSTerminal() {
   });
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto pb-12 px-1 sm:px-0">
+    <div className="space-y-4 pb-12">
       {/* Top Header & Keyboard Shortcut Ribbon */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80">
         <div className="space-y-0.5">

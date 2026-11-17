@@ -164,7 +164,7 @@ const dispensedCount = summary
 const totalCount = summary ? summary.totalPrescriptions : prescriptions.length;
 
 return (
-  <div className="space-y-6 max-w-7xl mx-auto">
+  <div className="space-y-6 pb-12">
     {/* Standardized Page Header */}
     <PageHeader
       title="Prescription Management & Compliance"

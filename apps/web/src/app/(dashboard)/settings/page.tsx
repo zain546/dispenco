@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function SettingsPage() {
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 pb-12">
+    <div className="space-y-6 pb-12">
       <Suspense
         fallback={
           <div className="space-y-6">
