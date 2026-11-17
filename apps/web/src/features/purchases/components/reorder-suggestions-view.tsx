@@ -43,6 +43,7 @@ import {
   type ReorderSuggestionsResponse,
   type ReorderUrgency,
 } from '../services/purchases-api';
+import { useReorderSuggestions } from '../hooks/use-purchases-queries';
 import { useStore } from '@/context/store-context';
 
 interface ReorderSuggestionsViewProps {
@@ -56,10 +57,6 @@ interface ReorderSuggestionsViewProps {
 export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsViewProps) {
   const { activeStoreId, isAllStores } = useStore();
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [data, setData] = useState<ReorderSuggestionsResponse | null>(null);
-
   // Filters
   const [timeframeDays, setTimeframeDays] = useState<number>(30);
   const [urgencyFilter, setUrgencyFilter] = useState<string>('REORDER_NEEDED');
@@ -68,36 +65,25 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
   // Multi-selection state
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
+  const {
+    data,
+    isLoading,
+    isFetching: isRefreshing,
+    refetch,
+  } = useReorderSuggestions({
+    storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+    timeframeDays,
+    urgencyFilter: urgencyFilter !== 'ALL' ? urgencyFilter : undefined,
+    search: search.trim() || undefined,
+    limit: 150,
+  });
+
   const fetchSuggestions = useCallback(
-    async (showRefreshIndicator = false) => {
-      if (showRefreshIndicator) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-
-      try {
-        const res = await purchasesApi.getReorderSuggestions({
-          storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-          timeframeDays,
-          urgencyFilter: urgencyFilter !== 'ALL' ? urgencyFilter : undefined,
-          search: search.trim() || undefined,
-          limit: 150,
-        });
-        setData(res);
-      } catch (err: unknown) {
-        toast.error(getErrorMessage(err, 'Failed to calculate smart reorder suggestions'));
-      } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
+    (_showRefreshIndicator?: boolean) => {
+      void refetch();
     },
-    [activeStoreId, isAllStores, timeframeDays, urgencyFilter, search],
+    [refetch],
   );
-
-  useEffect(() => {
-    fetchSuggestions();
-  }, [fetchSuggestions]);
 
   // Handle single item Convert to PO
   const handleSingleConvertToPO = (item: ReorderSuggestionItem) => {
@@ -384,7 +370,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
           ) : !data?.suggestions || data.suggestions.length === 0 ? (
             urgencyFilter === 'REORDER_NEEDED' && !search ? (
               <div className="p-8 sm:p-12 text-center flex flex-col items-center justify-center space-y-3.5">
-                <div className="size-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center ring-8 ring-emerald-500/5 shadow-xs">
+                <div className="size-14 rounded-2xl bg-success/10 text-success flex items-center justify-center ring-8 ring-success/5 shadow-xs">
                   <CheckCircle2 className="size-7" />
                 </div>
                 <div className="space-y-1.5 max-w-md">

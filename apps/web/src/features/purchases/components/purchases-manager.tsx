@@ -1,7 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { purchasesApi } from '../services/purchases-api';
+import {
+  usePurchases,
+  useCreatePurchaseOrder,
+  useReceivePurchaseOrder,
+} from '../hooks/use-purchases-queries';
 import { suppliersApi, SupplierData } from '@/features/suppliers/services/suppliers-api';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { useAuth } from '@/context/auth-context';
@@ -52,8 +57,6 @@ import { OcrInvoiceModal } from './ocr-invoice-modal';
 export function PurchasesManager() {
   const { user } = useAuth();
   const { stores, activeStoreId, isAllStores } = useStore();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -62,6 +65,19 @@ export function PurchasesManager() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [activeView, setActiveView] = useState<'orders' | 'suggestions'>('orders');
+
+  const createOrderMutation = useCreatePurchaseOrder();
+  const receiveOrderMutation = useReceivePurchaseOrder();
+
+  const effectiveStoreId = selectedStoreId || (!isAllStores && activeStoreId ? activeStoreId : undefined);
+  const {
+    data: orders = [],
+    isLoading: loading,
+    refetch: fetchOrders,
+  } = usePurchases({
+    storeId: effectiveStoreId,
+    status: statusFilter === 'ALL' ? undefined : statusFilter,
+  });
 
   // Form State for PO Creation
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
@@ -80,28 +96,6 @@ export function PurchasesManager() {
     expiryDate: string;
     sellPrice: number;
   }[]>([]);
-
-  const fetchOrders = async (storeId?: string) => {
-    try {
-      setLoading(true);
-      const res = await purchasesApi.getPurchases(
-        storeId || selectedStoreId || undefined,
-        statusFilter === 'ALL' ? undefined : statusFilter,
-      );
-      if (res.success) {
-        setOrders(res.data || []);
-      }
-    } catch (err: unknown) {
-      toast.error(getErrorMessage(err, 'Failed to load purchase orders'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const effectiveStoreId = !isAllStores && activeStoreId ? activeStoreId : undefined;
-    fetchOrders(effectiveStoreId);
-  }, [statusFilter, activeStoreId, isAllStores]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -231,7 +225,7 @@ export function PurchasesManager() {
 
     setSubmitting(true);
     try {
-      const res = await purchasesApi.createPurchaseOrder({
+      const res = await createOrderMutation.mutateAsync({
         storeId: targetStoreId,
         supplierId: selectedSupplierId,
         notes: poNotes,
@@ -239,7 +233,6 @@ export function PurchasesManager() {
       });
       toast.success(res.message || 'Purchase Order created successfully');
       setIsCreateModalOpen(false);
-      fetchOrders();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to create purchase order'));
     } finally {
@@ -249,7 +242,7 @@ export function PurchasesManager() {
 
   const handleOpenReceiveModal = async (orderId: string) => {
     try {
-      setLoading(true);
+      setSubmitting(true);
       const res = await purchasesApi.getPurchaseById(orderId);
       if (res.success && res.data) {
         setSelectedOrder(res.data);
@@ -274,7 +267,7 @@ export function PurchasesManager() {
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to load purchase order details'));
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -284,18 +277,20 @@ export function PurchasesManager() {
 
     setSubmitting(true);
     try {
-      const res = await purchasesApi.receivePurchaseOrder(selectedOrder.id, {
-        items: receiveItems.map((item) => ({
-          purchaseItemId: item.purchaseItemId,
-          receivedQuantity: Number(item.receivedQuantity),
-          batchNumber: item.batchNumber,
-          expiryDate: item.expiryDate,
-          sellPrice: Number(item.sellPrice),
-        })),
+      const res = await receiveOrderMutation.mutateAsync({
+        id: selectedOrder.id,
+        data: {
+          items: receiveItems.map((item) => ({
+            purchaseItemId: item.purchaseItemId,
+            receivedQuantity: Number(item.receivedQuantity),
+            batchNumber: item.batchNumber,
+            expiryDate: item.expiryDate,
+            sellPrice: Number(item.sellPrice),
+          })),
+        },
       });
       toast.success(res.message || 'Shipment received and batches updated!');
       setIsReceiveModalOpen(false);
-      fetchOrders();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to receive shipment'));
     } finally {
@@ -456,7 +451,7 @@ export function PurchasesManager() {
             />
           ) : (
             <div className="space-y-3">
-              {orders.map((po) => (
+              {orders.map((po: any) => (
                 <Card
                   key={po.id}
                   className="hover:border-primary/50 transition-colors shadow-xs"

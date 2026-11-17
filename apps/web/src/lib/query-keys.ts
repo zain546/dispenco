@@ -67,5 +67,13 @@ export const queryKeys = {
       [...queryKeys.prescriptions.all(storeId), 'list', params ?? {}] as const,
     detail: (id: string) => ['prescriptions', 'detail', id] as const,
   },
+  purchases: {
+    all: (storeId?: string) => ['purchases', { storeId: storeId ?? 'all' }] as const,
+    list: (storeId?: string, params?: Record<string, unknown>) =>
+      [...queryKeys.purchases.all(storeId), 'list', params ?? {}] as const,
+    detail: (id: string) => ['purchases', 'detail', id] as const,
+    suggestions: (storeId?: string, params?: Record<string, unknown>) =>
+      [...queryKeys.purchases.all(storeId), 'suggestions', params ?? {}] as const,
+  },
 } as const;
 

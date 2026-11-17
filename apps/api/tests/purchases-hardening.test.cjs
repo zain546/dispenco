@@ -1,0 +1,102 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const purchasesServicePath = path.join(
+  __dirname,
+  '../src/modules/purchases/purchases.service.ts'
+);
+const queryKeysPath = path.join(
+  __dirname,
+  '../../web/src/lib/query-keys.ts'
+);
+const usePurchasesQueriesPath = path.join(
+  __dirname,
+  '../../web/src/features/purchases/hooks/use-purchases-queries.ts'
+);
+const reorderSuggestionsViewPath = path.join(
+  __dirname,
+  '../../web/src/features/purchases/components/reorder-suggestions-view.tsx'
+);
+
+test('PurchasesService blocks past expiry dates when checking in shipment stock batches', () => {
+  const source = fs.readFileSync(purchasesServicePath, 'utf8');
+
+  assert.match(
+    source,
+    /parsedExpiry\s*<\s*today/,
+    'PurchasesService.receiveOrder must validate that incoming batch expiry dates are not in the past'
+  );
+  assert.match(
+    source,
+    /Expiry date cannot be in the past for incoming stock intake/,
+    'Must throw a clear BadRequestException for past expiry dates'
+  );
+});
+
+test('PurchasesService wraps getReorderSuggestions in Redis cache with 120s TTL and invalidates on PO create/receive', () => {
+  const source = fs.readFileSync(purchasesServicePath, 'utf8');
+
+  assert.match(
+    source,
+    /cacheKey\s*=\s*`purchases:\${tenantId}:reorder:/,
+    'Must construct a scoped Redis cache key for predictive reorder suggestions'
+  );
+  assert.match(
+    source,
+    /this\.cache\.wrap\(cacheKey,\s*120,\s*compute\)/,
+    'Must wrap reorder calculation in 120s Redis cache'
+  );
+  assert.match(
+    source,
+    /this\.cache\.delByPattern\(`purchases:\${tenantId}:reorder:\*`\)/,
+    'Must invalidate reorder cache upon PO creation and shipment receipt'
+  );
+});
+
+test('QueryKey factory includes purchases with hierarchical store scoping', () => {
+  const source = fs.readFileSync(queryKeysPath, 'utf8');
+
+  assert.match(
+    source,
+    /purchases:\s*\{/,
+    'queryKeys must declare purchases factory'
+  );
+  assert.match(
+    source,
+    /suggestions:\s*\(storeId\?:\s*string,\s*params\?:\s*Record<string,\s*unknown>\)/,
+    'queryKeys.purchases.suggestions must accept filter params'
+  );
+});
+
+test('useReceivePurchaseOrder performs cross-module cache invalidation for inventory and reports', () => {
+  const source = fs.readFileSync(usePurchasesQueriesPath, 'utf8');
+
+  assert.match(
+    source,
+    /queryClient\.invalidateQueries\(\{\s*queryKey:\s*\['purchases'\]\s*\}\)/,
+    'Must invalidate purchases cache'
+  );
+  assert.match(
+    source,
+    /queryClient\.invalidateQueries\(\{\s*queryKey:\s*\['inventory'\]\s*\}\)/,
+    'Must invalidate inventory cache because new batches were added to stock'
+  );
+  assert.match(
+    source,
+    /queryClient\.invalidateQueries\(\{\s*queryKey:\s*\['reports'\]\s*\}\)/,
+    'Must invalidate reports cache'
+  );
+});
+
+test('ReorderSuggestionsView contains zero raw Tailwind color utilities', () => {
+  const source = fs.readFileSync(reorderSuggestionsViewPath, 'utf8');
+
+  const rawColors = source.match(/(emerald|amber|rose|cyan)-[0-9]{2,3}/g);
+  assert.equal(
+    rawColors,
+    null,
+    `ReorderSuggestionsView must not contain raw color classes, found: ${rawColors ? rawColors.join(', ') : 'none'}`
+  );
+});

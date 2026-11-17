@@ -91,6 +91,10 @@ export class PurchasesService {
       },
     });
 
+    if (this.cache) {
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
+    }
+
     return {
       success: true,
       message: `Purchase Order ${orderNumber} created successfully`,
@@ -123,6 +127,8 @@ export class PurchasesService {
     }
 
     const targetStoreId = order.storeId;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     const result = await this.prisma.$transaction(async (tx) => {
       for (const itemDto of dto.items) {
@@ -136,19 +142,35 @@ export class PurchasesService {
           );
         }
 
-        const newReceivedQty = item.receivedQuantity + itemDto.receivedQuantity;
         const sellPrice = itemDto.sellPrice ?? Number(item.unitCost) * 1.25;
 
         // Create inventory batch if stock was received
         let batchId: string | null = null;
         if (itemDto.receivedQuantity > 0) {
+          if (!itemDto.expiryDate) {
+            throw new BadRequestException(
+              `Expiry date is required for incoming stock intake`,
+            );
+          }
+          const parsedExpiry = new Date(itemDto.expiryDate);
+          if (isNaN(parsedExpiry.getTime())) {
+            throw new BadRequestException(
+              `Invalid expiry date format for item "${itemDto.purchaseItemId}"`,
+            );
+          }
+          if (parsedExpiry < today) {
+            throw new BadRequestException(
+              `Expiry date cannot be in the past for incoming stock intake`,
+            );
+          }
+
           const batch = await tx.batch.create({
             data: {
               tenantId,
               storeId: order.storeId,
               productId: item.productId,
               batchNumber: itemDto.batchNumber.trim(),
-              expiryDate: new Date(itemDto.expiryDate),
+              expiryDate: parsedExpiry,
               costPrice: item.unitCost,
               sellPrice: new Prisma.Decimal(sellPrice),
               quantityReceived: itemDto.receivedQuantity,
@@ -232,6 +254,7 @@ export class PurchasesService {
 
     if (this.cache) {
       await this.cache.invalidateStoreInventory(tenantId, targetStoreId);
+      await this.cache.delByPattern(`purchases:${tenantId}:reorder:*`);
     }
 
     return result;
@@ -329,8 +352,11 @@ export class PurchasesService {
     const urgencyFilter = options?.urgencyFilter?.toUpperCase();
     const limit = Math.max(1, Math.min(500, Number(options?.limit) || 100));
 
-    // 1. Fetch active products
-    const products = await this.prisma.product.findMany({
+    const cacheKey = `purchases:${tenantId}:reorder:${effectiveStoreId || 'all'}:${timeframeDays}:${urgencyFilter || 'ALL'}:${search || 'none'}:${limit}`;
+
+    const compute = async () => {
+      // 1. Fetch active products
+      const products = await this.prisma.product.findMany({
       where: {
         tenantId,
         isActive: true,
@@ -680,10 +706,16 @@ export class PurchasesService {
       return a.daysUntilStockout - b.daysUntilStockout;
     });
 
-    return {
-      timeframeDays,
-      summary,
-      suggestions: filtered.slice(0, limit),
+      return {
+        timeframeDays,
+        summary,
+        suggestions: filtered.slice(0, limit),
+      };
     };
+
+    if (this.cache) {
+      return this.cache.wrap(cacheKey, 120, compute);
+    }
+    return compute();
   }
 }
