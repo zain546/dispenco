@@ -25,6 +25,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Truck,
   Plus,
   Search,
@@ -44,6 +51,7 @@ import {
   FileCheck,
   Sparkles,
   Camera,
+  Trash2,
 } from 'lucide-react';
 import { storesApi, StoreData } from '@/lib/stores-api';
 import { useStore } from '@/context/store-context';
@@ -88,8 +96,9 @@ export function PurchasesManager() {
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
   const [products, setProducts] = useState<ProductData[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
+  const [poStoreId, setPoStoreId] = useState('');
   const [poNotes, setPoNotes] = useState('');
-  const [poItems, setPoItems] = useState<{ productId: string; expectedQuantity: number; unitCost: number }[]>([]);
+  const [poItems, setPoItems] = useState<{ id: string; productId: string; expectedQuantity: number; unitCost: number }[]>([]);
 
   // Receive Form State
   const [receiveItems, setReceiveItems] = useState<{
@@ -137,6 +146,7 @@ export function PurchasesManager() {
   const handleOpenCreateModal = () => {
     loadCreateDependencies();
     setSelectedSupplierId('');
+    setPoStoreId(effectiveStoreId || stores[0]?.id || '');
     setPoNotes('');
     setPoItems([]);
     setIsCreateModalOpen(true);
@@ -163,11 +173,15 @@ export function PurchasesManager() {
       setSelectedSupplierId(data.supplierId);
     }
     if (data.storeId) {
+      setPoStoreId(data.storeId);
       setSelectedStoreId(data.storeId);
+    } else {
+      setPoStoreId(effectiveStoreId || stores[0]?.id || '');
     }
     setPoNotes(data.notes || '');
     setPoItems(
       data.items.map((i) => ({
+        id: crypto.randomUUID?.() || Math.random().toString(36).substring(7),
         productId: i.productId,
         expectedQuantity: i.expectedQuantity,
         unitCost: i.unitCost,
@@ -197,6 +211,7 @@ export function PurchasesManager() {
 
   const handleConvertToPOFromSuggestion = async (data: {
     supplierId?: string;
+    storeId?: string;
     items: { productId: string; productName: string; expectedQuantity: number; unitCost: number }[];
     notes?: string;
   }) => {
@@ -204,9 +219,15 @@ export function PurchasesManager() {
     if (data.supplierId) {
       setSelectedSupplierId(data.supplierId);
     }
+    if (data.storeId) {
+      setPoStoreId(data.storeId);
+    } else {
+      setPoStoreId(effectiveStoreId || stores[0]?.id || '');
+    }
     setPoNotes(data.notes || '');
     setPoItems(
       data.items.map((i) => ({
+        id: crypto.randomUUID?.() || Math.random().toString(36).substring(7),
         productId: i.productId,
         expectedQuantity: i.expectedQuantity,
         unitCost: i.unitCost,
@@ -217,33 +238,48 @@ export function PurchasesManager() {
 
   const handleAddPoItem = () => {
     if (products.length === 0) {
-      toast.error('No products available in catalog');
+      toast.error('No products available in catalog. Please check your inventory catalog.');
       return;
     }
-    const firstProd = products[0];
+    const existingIds = new Set(poItems.map((it) => it.productId));
+    const nextProd = products.find((p) => !existingIds.has(p.id)) || products[0];
     setPoItems((prev) => [
       ...prev,
-      { productId: firstProd.id, expectedQuantity: 10, unitCost: 100 },
+      {
+        id: crypto.randomUUID?.() || Math.random().toString(36).substring(7),
+        productId: nextProd.id,
+        expectedQuantity: 10,
+        unitCost: 100,
+      },
     ]);
   };
 
-  const handleRemovePoItem = (index: number) => {
-    setPoItems((prev) => prev.filter((_, i) => i !== index));
+  const handleRemovePoItem = (itemId: string) => {
+    setPoItems((prev) => prev.filter((it) => it.id !== itemId));
   };
 
   const handleCreateOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSupplierId) {
-      toast.error('Please select a supplier');
+      toast.error('Please select a supplier vendor');
       return;
     }
-    const targetStoreId = selectedStoreId || (!isAllStores && activeStoreId ? activeStoreId : stores[0]?.id);
+    const targetStoreId =
+      poStoreId || selectedStoreId || (!isAllStores && activeStoreId ? activeStoreId : stores[0]?.id);
     if (!targetStoreId) {
-      toast.error('Please select an active store branch');
+      toast.error('Please select an active destination branch');
       return;
     }
     if (poItems.length === 0) {
-      toast.error('Please add at least one line item');
+      toast.error('Please add at least one line item to this purchase order');
+      return;
+    }
+
+    const invalidItem = poItems.find(
+      (it) => !it.productId || (Number(it.expectedQuantity) || 0) <= 0 || (Number(it.unitCost) || 0) < 0,
+    );
+    if (invalidItem) {
+      toast.error('Please ensure all line items have a selected product, quantity > 0, and valid unit cost');
       return;
     }
 
@@ -253,7 +289,11 @@ export function PurchasesManager() {
         storeId: targetStoreId,
         supplierId: selectedSupplierId,
         notes: poNotes,
-        items: poItems,
+        items: poItems.map((it) => ({
+          productId: it.productId,
+          expectedQuantity: Number(it.expectedQuantity),
+          unitCost: Number(it.unitCost),
+        })),
       });
       toast.success(res.message || 'Purchase Order created successfully');
       setIsCreateModalOpen(false);
@@ -345,9 +385,16 @@ export function PurchasesManager() {
   };
 
   const calculatedTotalCost = poItems.reduce(
-    (acc, item) => acc + item.expectedQuantity * item.unitCost,
+    (acc, item) => acc + (Number(item.expectedQuantity) || 0) * (Number(item.unitCost) || 0),
     0,
   );
+
+  const totalOrderedUnits = poItems.reduce(
+    (acc, item) => acc + (Number(item.expectedQuantity) || 0),
+    0,
+  );
+
+  const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId);
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12">
@@ -566,25 +613,39 @@ export function PurchasesManager() {
 
       {/* Create Purchase Order Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
           <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
-            <DialogTitle className="text-base font-bold flex items-center gap-2">
-              <Truck className="size-5 text-primary" /> Create Purchase Order
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Draft an order to your distributor before stock delivery arrives.
-            </DialogDescription>
+            <div className="flex items-center gap-2.5">
+              <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                <Truck className="size-4.5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Create Purchase Order
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Draft an order to your distributor before stock delivery arrives.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <form onSubmit={handleCreateOrderSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 custom-scrollbar">
               {/* Quick OCR Assist Banner */}
-              <div className="p-3 rounded-xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-                <div className="flex items-center gap-2.5 text-xs">
-                  <Camera className="size-4 text-primary shrink-0" />
-                  <span className="text-muted-foreground">
-                    Have a distributor bill? Use <strong>Smart OCR Assist</strong> to extract &amp; match items automatically.
-                  </span>
+              <div className="p-3 sm:p-3.5 rounded-xl border border-primary/25 bg-primary/[0.04] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3 text-xs">
+                  <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                    <Camera className="size-4" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="font-semibold text-foreground block">
+                      Have a printed distributor invoice or delivery challan?
+                    </span>
+                    <p className="text-micro text-muted-foreground">
+                      Use <strong>Invoice OCR Assist</strong> to extract quantities, batch numbers, and prices with zero typing.
+                    </p>
+                  </div>
                 </div>
                 <Button
                   type="button"
@@ -594,141 +655,284 @@ export function PurchasesManager() {
                     setIsCreateModalOpen(false);
                     setIsOcrModalOpen(true);
                   }}
-                  className="w-full sm:w-auto h-8 sm:h-7 text-xs font-bold shrink-0 bg-card border-border/80 text-foreground hover:bg-muted gap-1.5 cursor-pointer justify-center"
+                  className="w-full sm:w-auto h-8 text-xs font-semibold shrink-0 bg-card border-border/80 text-foreground hover:bg-muted gap-1.5 cursor-pointer justify-center shadow-2xs"
                 >
-                  <Camera className="size-3 text-primary" />
-                  <span>Scan Bill</span>
+                  <Sparkles className="size-3 text-primary" />
+                  <span>Scan Bill with OCR</span>
                 </Button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Select Supplier Vendor *</Label>
-                  <select
-                    value={selectedSupplierId}
-                    onChange={(e) => setSelectedSupplierId(e.target.value)}
-                    required
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">-- Select Supplier --</option>
-                    {suppliers.map((sup) => (
-                      <option key={sup.id} value={sup.id}>
-                        {sup.name} ({sup.leadTimeDays}d lead time)
-                      </option>
-                    ))}
-                  </select>
+              {/* Order Metadata Grid */}
+              <div className="space-y-2">
+                <div className={`grid grid-cols-1 ${stores.length > 1 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3 sm:gap-4`}>
+                  {stores.length > 1 && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold flex items-center gap-1.5">
+                        <Building2 className="size-3.5 text-muted-foreground" />
+                        <span>Destination Branch *</span>
+                      </Label>
+                      <Select value={poStoreId} onValueChange={setPoStoreId}>
+                        <SelectTrigger className="w-full h-9 text-xs bg-background">
+                          <SelectValue placeholder="Select destination branch..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stores.map((s) => (
+                            <SelectItem key={s.id} value={s.id} className="text-xs">
+                              {s.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold flex items-center gap-1.5">
+                      <Building2 className="size-3.5 text-muted-foreground" />
+                      <span>Select Supplier Vendor *</span>
+                    </Label>
+                    <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+                      <SelectTrigger className="w-full h-9 text-xs bg-background">
+                        <SelectValue placeholder="Select supplier vendor..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-56">
+                        {suppliers.map((sup) => (
+                          <SelectItem key={sup.id} value={sup.id} className="text-xs">
+                            <span className="font-medium text-foreground">{sup.name}</span>
+                            {sup.leadTimeDays ? (
+                              <span className="text-micro text-muted-foreground ml-1.5 font-mono">
+                                ({sup.leadTimeDays}d lead)
+                              </span>
+                            ) : null}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Order Notes (Optional)</Label>
+                    <Input
+                      placeholder="e.g., Urgent delivery requested"
+                      value={poNotes}
+                      onChange={(e) => setPoNotes(e.target.value)}
+                      className="text-xs h-9 bg-background w-full"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Order Notes (Optional)</Label>
-                  <Input
-                    placeholder="e.g., Urgent delivery requested"
-                    value={poNotes}
-                    onChange={(e) => setPoNotes(e.target.value)}
-                    className="text-xs h-9"
-                  />
-                </div>
+                {/* Selected Supplier Info Strip */}
+                {selectedSupplier && (
+                  <div className="flex items-center gap-2 text-micro text-muted-foreground px-1 pt-0.5">
+                    <span>Distributor: <strong className="text-foreground">{selectedSupplier.name}</strong></span>
+                    {selectedSupplier.contactPhone && (
+                      <>
+                        <span className="text-border">•</span>
+                        <span>Phone: <strong className="text-foreground font-mono">{selectedSupplier.contactPhone}</strong></span>
+                      </>
+                    )}
+                    {selectedSupplier.leadTimeDays ? (
+                      <>
+                        <span className="text-border">•</span>
+                        <span>Lead Time: <strong className="text-foreground">{selectedSupplier.leadTimeDays} days</strong></span>
+                      </>
+                    ) : null}
+                  </div>
+                )}
               </div>
 
-              {/* Line Items List */}
-              <div className="space-y-2 border-t border-border/60 pt-3">
+              {/* Line Items Section */}
+              <div className="space-y-2.5 border-t border-border/60 pt-3.5">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Order Line Items ({poItems.length})
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Order Line Items ({poItems.length})
+                    </Label>
+                    {poItems.length > 0 && (
+                      <Badge variant="outline" className="text-micro py-0 px-1.5 font-mono font-medium">
+                        {totalOrderedUnits} total units
+                      </Badge>
+                    )}
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={handleAddPoItem}
-                    className="gap-1 text-xs h-7 font-semibold"
+                    className="gap-1.5 text-xs h-7.5 font-semibold cursor-pointer"
                   >
-                    <Plus className="size-3" /> Add Product
+                    <Plus className="size-3 text-primary" /> Add Product
                   </Button>
                 </div>
 
                 {poItems.length === 0 ? (
-                  <div className="p-4 border border-dashed border-border rounded-lg text-center text-xs text-muted-foreground">
-                    Click &quot;+ Add Product&quot; to include item quantities and cost prices in this purchase order.
+                  <div className="p-7 border border-dashed border-border/80 rounded-2xl bg-muted/10 text-center flex flex-col items-center justify-center gap-2.5">
+                    <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                      <Package className="size-5" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-semibold text-foreground">No Products in this Order</p>
+                      <p className="text-micro text-muted-foreground max-w-sm">
+                        Add items from your product catalog or automatically extract them from a supplier bill.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleAddPoItem}
+                        className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="size-3.5" />
+                        <span>Add Product</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setIsCreateModalOpen(false);
+                          setIsOcrModalOpen(true);
+                        }}
+                        className="h-8 px-3 text-xs font-semibold gap-1.5 cursor-pointer bg-card hover:bg-muted"
+                      >
+                        <Camera className="size-3.5 text-primary" />
+                        <span>Scan Bill with OCR</span>
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                    {poItems.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs"
-                      >
-                        <select
-                          value={item.productId}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPoItems((prev) =>
-                              prev.map((it, i) => (i === idx ? { ...it, productId: val } : it)),
-                            );
-                          }}
-                          className="w-full sm:flex-1 h-8 rounded border border-input bg-background px-2 text-xs"
+                  <div className="space-y-2">
+                    {/* Desktop Columns Header */}
+                    <div className="hidden sm:grid sm:grid-cols-12 gap-3 px-3 py-1 text-micro font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="col-span-5">Product</div>
+                      <div className="col-span-2 text-center">Expected Qty</div>
+                      <div className="col-span-2 text-right">Unit Cost (PKR)</div>
+                      <div className="col-span-2 text-right">Subtotal</div>
+                      <div className="col-span-1 text-center">Action</div>
+                    </div>
+
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                      {poItems.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className="p-3 sm:p-2.5 rounded-xl bg-card border border-border/80 shadow-2xs space-y-2.5 sm:space-y-0 transition-colors hover:border-primary/40"
                         >
-                          {products.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} ({p.unit})
-                            </option>
-                          ))}
-                        </select>
+                          <div className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:gap-3 sm:items-center">
+                            {/* Product Selector */}
+                            <div className="sm:col-span-5 min-w-0">
+                              <span className="sm:hidden text-micro text-muted-foreground block mb-1 font-medium">
+                                Product #{idx + 1}
+                              </span>
+                              <Select
+                                value={item.productId}
+                                onValueChange={(val) => {
+                                  setPoItems((prev) =>
+                                    prev.map((it) => (it.id === item.id ? { ...it, productId: val } : it)),
+                                  );
+                                }}
+                              >
+                                <SelectTrigger className="h-9 text-xs bg-background w-full">
+                                  <SelectValue placeholder="Select product..." />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-60">
+                                  {products.map((p) => (
+                                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                                      <div className="flex items-center justify-between gap-2 w-full">
+                                        <span className="font-medium text-foreground truncate">{p.name}</span>
+                                        <span className="text-micro text-muted-foreground font-mono shrink-0">
+                                          ({p.unit})
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                          <div className="flex-1 sm:w-24">
-                            <Input
-                              type="number"
-                              min="1"
-                              placeholder="Qty"
-                              value={item.expectedQuantity}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                setPoItems((prev) =>
-                                  prev.map((it, i) => (i === idx ? { ...it, expectedQuantity: val } : it)),
-                                );
-                              }}
-                              className="h-8 text-xs font-bold"
-                            />
+                            {/* Expected Quantity */}
+                            <div className="sm:col-span-2">
+                              <span className="sm:hidden text-micro text-muted-foreground block mb-1 font-medium">Qty</span>
+                              <Input
+                                type="number"
+                                min="1"
+                                placeholder="Qty"
+                                value={item.expectedQuantity || ''}
+                                onChange={(e) => {
+                                  const val = Math.max(1, parseInt(e.target.value, 10) || 0);
+                                  setPoItems((prev) =>
+                                    prev.map((it) => (it.id === item.id ? { ...it, expectedQuantity: val } : it)),
+                                  );
+                                }}
+                                className="h-9 text-xs font-bold text-center bg-background"
+                              />
+                            </div>
+
+                            {/* Unit Cost */}
+                            <div className="sm:col-span-2">
+                              <span className="sm:hidden text-micro text-muted-foreground block mb-1 font-medium">Unit Cost</span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Cost"
+                                value={item.unitCost === 0 ? '0' : item.unitCost || ''}
+                                onChange={(e) => {
+                                  const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                  setPoItems((prev) =>
+                                    prev.map((it) => (it.id === item.id ? { ...it, unitCost: val } : it)),
+                                  );
+                                }}
+                                className="h-9 text-xs font-bold text-right bg-background"
+                              />
+                            </div>
+
+                            {/* Subtotal */}
+                            <div className="sm:col-span-2 flex items-center justify-between sm:justify-end text-right">
+                              <span className="sm:hidden text-micro text-muted-foreground font-medium">Subtotal</span>
+                              <span className="text-xs font-mono font-bold text-foreground">
+                                {formatCurrency((item.expectedQuantity || 0) * (item.unitCost || 0))}
+                              </span>
+                            </div>
+
+                            {/* Delete Action */}
+                            <div className="sm:col-span-1 flex items-center justify-end sm:justify-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemovePoItem(item.id)}
+                                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer"
+                                title="Remove line item"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
                           </div>
-
-                          <div className="flex-1 sm:w-28">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="Unit Cost"
-                              value={item.unitCost}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                setPoItems((prev) =>
-                                  prev.map((it, i) => (i === idx ? { ...it, unitCost: val } : it)),
-                                );
-                              }}
-                              className="h-8 text-xs font-bold"
-                            />
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemovePoItem(idx)}
-                            className="size-8 text-destructive shrink-0 cursor-pointer"
-                          >
-                            &times;
-                          </Button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Total Cost Display */}
-              <div className="flex justify-between items-center py-2.5 px-3 rounded-lg bg-muted/30 border border-border/60 text-sm font-bold">
-                <span>Estimated Order Total:</span>
-                <span className="text-primary text-base tabular-nums">{formatCurrency(calculatedTotalCost)}</span>
+              {/* Total Cost & Quantity Summary Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 px-4 rounded-xl bg-muted/30 border border-border/80 text-xs">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <span>
+                    Items: <strong className="text-foreground font-semibold">{poItems.length}</strong>
+                  </span>
+                  <span className="text-border">•</span>
+                  <span>
+                    Units: <strong className="text-foreground font-semibold">{totalOrderedUnits}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                  <span className="font-semibold text-muted-foreground text-xs">Estimated Order Total:</span>
+                  <strong className="text-primary text-base font-bold tabular-nums">
+                    {formatCurrency(calculatedTotalCost)}
+                  </strong>
+                </div>
               </div>
             </div>
 
@@ -746,7 +950,7 @@ export function PurchasesManager() {
               <Button
                 type="submit"
                 size="sm"
-                disabled={submitting}
+                disabled={submitting || poItems.length === 0 || !selectedSupplierId}
                 className="h-9 px-4 text-xs font-bold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
               >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}

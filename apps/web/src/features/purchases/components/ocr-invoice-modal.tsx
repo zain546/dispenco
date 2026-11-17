@@ -714,7 +714,7 @@ export function OcrInvoiceModal({
                     value={selectedSupplierId}
                     onValueChange={setSelectedSupplierId}
                   >
-                    <SelectTrigger className="h-9 text-xs">
+                    <SelectTrigger className="w-full h-9 text-xs bg-background">
                       <SelectValue placeholder="Select supplier..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -796,7 +796,7 @@ export function OcrInvoiceModal({
                                     handleUpdateItem(idx, 'matchedProductId', val)
                                   }
                                 >
-                                  <SelectTrigger className="h-8.5 text-xs bg-background">
+                                  <SelectTrigger className="w-full h-8.5 text-xs bg-background">
                                     <SelectValue placeholder="Match catalog product..." />
                                   </SelectTrigger>
                                   <SelectContent className="max-h-56">
