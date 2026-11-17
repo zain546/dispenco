@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { purchasesApi } from '../services/purchases-api';
 import {
   usePurchases,
@@ -80,7 +80,7 @@ export function PurchasesManager() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [fetchingOrderId, setFetchingOrderId] = useState<string | null>(null);
+  const [fetchingAction, setFetchingAction] = useState<{ id: string; type: 'receive' | 'details' } | null>(null);
   const activeReceiveReqRef = React.useRef<string | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [activeView, setActiveView] = useState<'orders' | 'suggestions'>('orders');
@@ -134,11 +134,12 @@ export function PurchasesManager() {
     }
   }, []);
 
-  const loadCreateDependencies = async () => {
+  const loadCreateDependencies = async (force = false) => {
+    if (!force && suppliers.length > 0 && products.length > 0) return;
     try {
       const [supRes, prodRes] = await Promise.all([
-        suppliersApi.getSuppliers(),
-        productsApi.getProducts(),
+        !force && suppliers.length > 0 ? Promise.resolve(null) : suppliersApi.getSuppliers(),
+        !force && products.length > 0 ? Promise.resolve(null) : productsApi.getProducts(),
       ]);
       if (supRes && (supRes.success || Array.isArray(supRes.data))) {
         setSuppliers(Array.isArray(supRes.data) ? supRes.data : supRes.data || []);
@@ -383,9 +384,9 @@ export function PurchasesManager() {
   };
 
   const handleOpenReceiveModal = async (orderId: string) => {
-    if (fetchingOrderId) return;
+    if (fetchingAction) return;
     activeReceiveReqRef.current = orderId;
-    setFetchingOrderId(orderId);
+    setFetchingAction({ id: orderId, type: 'receive' });
     try {
       const res = await purchasesApi.getPurchaseById(orderId);
       // Guard against race conditions if user switched orders
@@ -426,15 +427,15 @@ export function PurchasesManager() {
       }
     } finally {
       if (activeReceiveReqRef.current === orderId) {
-        setFetchingOrderId(null);
+        setFetchingAction(null);
       }
     }
   };
 
   const handleOpenDetailsModal = async (orderId: string) => {
-    if (fetchingOrderId) return;
+    if (fetchingAction) return;
     activeReceiveReqRef.current = orderId;
-    setFetchingOrderId(orderId);
+    setFetchingAction({ id: orderId, type: 'details' });
     try {
       const res = await purchasesApi.getPurchaseById(orderId);
       if (activeReceiveReqRef.current !== orderId) return;
@@ -449,7 +450,7 @@ export function PurchasesManager() {
       }
     } finally {
       if (activeReceiveReqRef.current === orderId) {
-        setFetchingOrderId(null);
+        setFetchingAction(null);
       }
     }
   };
@@ -458,7 +459,9 @@ export function PurchasesManager() {
 
   const handleCopyPoNumber = (orderNumber: string) => {
     if (!orderNumber) return;
-    navigator.clipboard.writeText(orderNumber);
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(orderNumber).catch(() => {});
+    }
     setCopiedPoNumber(true);
     toast.success(`PO #${orderNumber} copied to clipboard!`);
     setTimeout(() => setCopiedPoNumber(false), 2000);
@@ -509,31 +512,39 @@ export function PurchasesManager() {
     }
   };
 
-  const calculatedTotalCost = poItems.reduce(
-    (acc, item) => acc + (Number(item.expectedQuantity) || 0) * (Number(item.unitCost) || 0),
-    0,
+  const calculatedTotalCost = useMemo(
+    () => poItems.reduce((acc, item) => acc + (Number(item.expectedQuantity) || 0) * (Number(item.unitCost) || 0), 0),
+    [poItems],
   );
 
-  const totalOrderedUnits = poItems.reduce(
-    (acc, item) => acc + (Number(item.expectedQuantity) || 0),
-    0,
+  const totalOrderedUnits = useMemo(
+    () => poItems.reduce((acc, item) => acc + (Number(item.expectedQuantity) || 0), 0),
+    [poItems],
   );
 
-  const selectedSupplier = suppliers.find((s) => s.id === selectedSupplierId);
+  const selectedSupplier = useMemo(
+    () => suppliers.find((s) => s.id === selectedSupplierId),
+    [suppliers, selectedSupplierId],
+  );
 
-  const totalDetailsExpected = (selectedOrder?.purchaseItems || []).reduce(
-    (acc: number, item: any) => acc + (Number(item.expectedQuantity) || 0),
-    0,
-  );
-  const totalDetailsReceived = (selectedOrder?.purchaseItems || []).reduce(
-    (acc: number, item: any) => acc + (Number(item.receivedQuantity) || 0),
-    0,
-  );
-  const detailsFulfillmentPercent =
-    totalDetailsExpected > 0
-      ? Math.min(100, Math.round((totalDetailsReceived / totalDetailsExpected) * 100))
-      : 0;
-  const detailsLineItemCount = selectedOrder?.purchaseItems?.length || 0;
+  const { totalDetailsExpected, totalDetailsReceived, detailsFulfillmentPercent, detailsLineItemCount } = useMemo(() => {
+    const items = selectedOrder?.purchaseItems || [];
+    const expected = items.reduce(
+      (acc: number, item: any) => acc + (Number(item.expectedQuantity) || 0),
+      0,
+    );
+    const received = items.reduce(
+      (acc: number, item: any) => acc + (Number(item.receivedQuantity) || 0),
+      0,
+    );
+    const percent = expected > 0 ? Math.min(100, Math.round((received / expected) * 100)) : 0;
+    return {
+      totalDetailsExpected: expected,
+      totalDetailsReceived: received,
+      detailsFulfillmentPercent: percent,
+      detailsLineItemCount: items.length,
+    };
+  }, [selectedOrder]);
 
   return (
     <div className="p-3.5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12">
@@ -715,11 +726,11 @@ export function PurchasesManager() {
                       {po.status !== 'RECEIVED' && po.status !== 'CANCELLED' && (
                         <Button
                           size="sm"
-                          disabled={Boolean(fetchingOrderId)}
+                          disabled={Boolean(fetchingAction)}
                           onClick={() => handleOpenReceiveModal(po.id)}
                           className="gap-1.5 text-xs font-bold flex-1 sm:flex-initial h-8.5 justify-center cursor-pointer"
                         >
-                          {fetchingOrderId === po.id ? (
+                          {fetchingAction?.id === po.id && fetchingAction?.type === 'receive' ? (
                             <Loader2 className="size-3.5 animate-spin" />
                           ) : (
                             <FileCheck className="size-3.5" />
@@ -730,11 +741,11 @@ export function PurchasesManager() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={Boolean(fetchingOrderId)}
+                        disabled={Boolean(fetchingAction)}
                         onClick={() => handleOpenDetailsModal(po.id)}
                         className="gap-1.5 text-xs font-semibold flex-1 sm:flex-initial h-8.5 justify-center bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
                       >
-                        {fetchingOrderId === po.id ? (
+                        {fetchingAction?.id === po.id && fetchingAction?.type === 'details' ? (
                           <Loader2 className="size-3.5 animate-spin" />
                         ) : (
                           <Eye className="size-3.5" />

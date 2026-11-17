@@ -197,3 +197,37 @@ test('PurchasesManager uses custom accessible ConfirmDialog rather than native b
     'PurchasesManager must render Order Voided badge for cancelled order line items'
   );
 });
+
+test('PurchasesManager decouples Receive Stock and Details button loading states and memoizes order computations', () => {
+  const purchasesManagerPath = path.join(
+    __dirname,
+    '../../web/src/features/purchases/components/purchases-manager.tsx'
+  );
+  const source = fs.readFileSync(purchasesManagerPath, 'utf8');
+
+  // Verify decoupled loading state with type tag
+  assert.match(
+    source,
+    /fetchingAction\?\.id\s*===\s*po\.id\s*&&\s*fetchingAction\?\.type\s*===\s*'receive'/,
+    'Receive button must only show spinner for its own receive action'
+  );
+
+  assert.match(
+    source,
+    /fetchingAction\?\.id\s*===\s*po\.id\s*&&\s*fetchingAction\?\.type\s*===\s*'details'/,
+    'Details button must only show spinner for its own details action'
+  );
+
+  // Verify computations are memoized
+  assert.match(
+    source,
+    /const\s+calculatedTotalCost\s*=\s*useMemo\(/,
+    'calculatedTotalCost must be memoized'
+  );
+
+  assert.match(
+    source,
+    /const\s+\{\s*totalDetailsExpected,\s*totalDetailsReceived,\s*detailsFulfillmentPercent,\s*detailsLineItemCount\s*\}\s*=\s*useMemo\(/,
+    'Details fulfillment metrics must be memoized'
+  );
+});
