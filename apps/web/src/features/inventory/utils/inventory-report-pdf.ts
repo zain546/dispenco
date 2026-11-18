@@ -13,6 +13,11 @@ export interface InventoryStockReportPdfOptions {
     lowStockCount: number;
     expiringSoonCount: number;
     priorityCount: number;
+    totalPurchaseCost?: number;
+    totalRetailValue?: number;
+    totalPotentialProfit?: number;
+    potentialMarginPercent?: number;
+    totalStockUnits?: number;
   };
   products: Array<{
     id: string;
@@ -192,7 +197,79 @@ export async function generateInventoryStockPdfDoc(options: InventoryStockReport
     doc.text(c.sub, cx + 3, y + 15.5);
   });
 
-  y += cardHeight + 7;
+  y += cardHeight + 4;
+
+  // 3b. Inventory Asset Valuation & Working Capital Box
+  if (summary.totalPurchaseCost !== undefined && summary.totalRetailValue !== undefined && summary.totalRetailValue > 0) {
+    const valBoxHeight = 11.5;
+    doc.setFillColor(241, 245, 249);
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(margin, y, contentWidth, valBoxHeight, 1.5, 1.5, 'FD');
+
+    // Purchase Cost Valuation
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
+    doc.text('TOTAL PURCHASE COST:', margin + 4, y + 4.2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.text(
+      `PKR ${(summary.totalPurchaseCost || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      margin + 4,
+      y + 8.8,
+    );
+
+    // MRP / Retail Valuation
+    const mrpX = margin + 54;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
+    doc.text('TOTAL RETAIL VALUE (MRP):', mrpX, y + 4.2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text(
+      `PKR ${(summary.totalRetailValue || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      mrpX,
+      y + 8.8,
+    );
+
+    // Unrealized Gross Margin
+    const marginX = margin + 112;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
+    doc.text('POTENTIAL GROSS PROFIT:', marginX, y + 4.2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    const profit = (summary.totalRetailValue || 0) - (summary.totalPurchaseCost || 0);
+    const marginPct = summary.totalRetailValue
+      ? ((profit / summary.totalRetailValue) * 100).toFixed(1)
+      : '0';
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.text(
+      `PKR ${profit.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${marginPct}%)`,
+      marginX,
+      y + 8.8,
+    );
+
+    // Total Stock Units
+    const unitsX = margin + 158;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
+    doc.text('TOTAL UNITS:', unitsX, y + 4.2);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.text(`${(summary.totalStockUnits || 0).toLocaleString('en-PK')}`, unitsX, y + 8.8);
+
+    y += valBoxHeight + 5;
+  } else {
+    y += 3;
+  }
 
   // 4. Products Inventory Table
   const colW = {

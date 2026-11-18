@@ -53,6 +53,8 @@ export function DashboardMetrics() {
       stockedCount: s?.stockedCount || 0,
       lowStockCount: s?.lowStockCount || 0,
       expiringSoonCount: s?.expiringSoonCount || 0,
+      totalPurchaseCost: s?.totalPurchaseCost || 0,
+      totalRetailValue: s?.totalRetailValue || 0,
     };
   }, [aggData]);
 
@@ -134,12 +136,18 @@ export function DashboardMetrics() {
         />
       </Link>
 
-      {/* Active Catalog */}
+      {/* Active Catalog & Inventory Valuation */}
       <Link href="/inventory" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
         <StatCard
-          label="Active Catalog"
-          value={formatNumber(metrics.totalProducts)}
-          caption={metrics.totalProducts === 0 ? 'No products registered' : `${formatNumber(metrics.stockedCount)} live products in store`}
+          label="Stock Asset Value"
+          value={metrics.totalPurchaseCost > 0 ? formatCurrency(metrics.totalPurchaseCost) : formatNumber(metrics.totalProducts)}
+          caption={
+            metrics.totalPurchaseCost > 0
+              ? `MRP: ${formatCurrency(metrics.totalRetailValue)} • ${formatNumber(metrics.stockedCount)} stocked`
+              : metrics.totalProducts === 0
+                ? 'No products registered'
+                : `${formatNumber(metrics.stockedCount)} live products in store`
+          }
           icon={PackageCheck}
           variant="default"
           isLoading={isLoading}

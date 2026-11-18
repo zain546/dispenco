@@ -25,6 +25,10 @@ import {
   FileDown,
   ChevronDown,
   FileText,
+  Wallet,
+  Tag,
+  TrendingUp,
+  CircleDollarSign,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +41,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatCurrency, formatNumber } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { productsApi } from '../services/products-api';
 import { useInventoryAggregation } from '../hooks/use-inventory-queries';
@@ -68,6 +72,11 @@ const DEFAULT_AGGREGATION_DATA = {
     unstockedCount: 0,
     priorityUnstockedCount: 0,
     completionPercentage: 100,
+    totalPurchaseCost: 0,
+    totalRetailValue: 0,
+    totalPotentialProfit: 0,
+    potentialMarginPercent: 0,
+    totalStockUnits: 0,
     outOfStockCount: 0,
     lowStockCount: 0,
     expiringSoonCount: 0,
@@ -341,6 +350,120 @@ export function InventoryDashboard() {
           </div>
         }
       />
+
+      {/* Inventory Financial Valuation & Capital Asset Bar */}
+      <div className="rounded-xl border border-border/80 bg-gradient-to-r from-card via-card to-primary/[0.03] p-3.5 sm:p-4 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-border/60">
+          <div className="flex items-center gap-2.5">
+            <div className="size-8 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+              <CircleDollarSign className="size-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xs sm:text-sm font-bold tracking-tight text-foreground">
+                  Inventory Valuation & Working Capital
+                </h2>
+                <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-muted/60 text-muted-foreground border-border/70 font-semibold">
+                  {!isAllStores ? (activeStore?.name || 'Active Branch') : 'Organization-Wide'}
+                </Badge>
+              </div>
+              <p className="text-micro sm:text-xs text-muted-foreground mt-0.5">
+                Consolidated purchase acquisition cost and retail realizable value across all in-stock medicine batches
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto text-micro sm:text-xs text-muted-foreground font-medium shrink-0">
+            <span>In-Stock Items: <strong className="text-foreground">{formatNumber(data.summary.stockedCount ?? 0)}</strong></span>
+            <span>•</span>
+            <span>Total Units: <strong className="text-foreground">{formatNumber(data.summary.totalStockUnits ?? 0)}</strong></span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 pt-3">
+          {/* Tile 1: Total Stock Purchase Cost (Acquisition Price) */}
+          <div className="rounded-lg border border-primary/20 bg-primary/[0.03] p-2.5 sm:p-3 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-micro font-semibold text-muted-foreground uppercase tracking-wider">
+                Total Purchase Cost
+              </span>
+              <div className="size-5 rounded bg-primary/10 text-primary flex items-center justify-center">
+                <Wallet className="size-3" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <div className="text-base sm:text-xl font-black tracking-tight text-foreground tabular-nums">
+                {formatCurrency(data.summary.totalPurchaseCost ?? 0)}
+              </div>
+              <div className="text-[10px] sm:text-micro text-muted-foreground mt-0.5 line-clamp-1">
+                Acquisition capital deployed in stock
+              </div>
+            </div>
+          </div>
+
+          {/* Tile 2: Total Stock MRP / Retail Value */}
+          <div className="rounded-lg border border-success/25 bg-success/[0.03] p-2.5 sm:p-3 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-micro font-semibold text-muted-foreground uppercase tracking-wider">
+                Total Retail Value (MRP)
+              </span>
+              <div className="size-5 rounded bg-success/15 text-success flex items-center justify-center">
+                <Tag className="size-3" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <div className="text-base sm:text-xl font-black tracking-tight text-success tabular-nums">
+                {formatCurrency(data.summary.totalRetailValue ?? 0)}
+              </div>
+              <div className="text-[10px] sm:text-micro text-muted-foreground mt-0.5 line-clamp-1">
+                Gross sales realizable at retail MRP
+              </div>
+            </div>
+          </div>
+
+          {/* Tile 3: Unrealized Gross Profit & Margin */}
+          <div className="rounded-lg border border-border/80 bg-muted/20 p-2.5 sm:p-3 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-micro font-semibold text-muted-foreground uppercase tracking-wider">
+                Potential Gross Profit
+              </span>
+              <div className="size-5 rounded bg-primary/10 text-primary flex items-center justify-center">
+                <TrendingUp className="size-3" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <div className="text-base sm:text-xl font-black tracking-tight text-foreground tabular-nums flex items-baseline gap-1.5 flex-wrap">
+                <span>{formatCurrency(data.summary.totalPotentialProfit ?? 0)}</span>
+              </div>
+              <div className="text-[10px] sm:text-micro text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                <span className="font-semibold text-success">
+                  +{data.summary.potentialMarginPercent ?? 0}%
+                </span>
+                <span>unrealized margin</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tile 4: Stock Position & Units */}
+          <div className="rounded-lg border border-border/80 bg-muted/20 p-2.5 sm:p-3 flex flex-col justify-between">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] sm:text-micro font-semibold text-muted-foreground uppercase tracking-wider">
+                Active Stock Units
+              </span>
+              <div className="size-5 rounded bg-muted text-muted-foreground flex items-center justify-center">
+                <Boxes className="size-3" />
+              </div>
+            </div>
+            <div className="mt-2">
+              <div className="text-base sm:text-xl font-black tracking-tight text-foreground tabular-nums">
+                {formatNumber(data.summary.totalStockUnits ?? 0)}
+              </div>
+              <div className="text-[10px] sm:text-micro text-muted-foreground mt-0.5 line-clamp-1">
+                Across {formatNumber(data.summary.stockedCount ?? 0)} active stocked medicines
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Overview Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
@@ -623,6 +746,20 @@ export function InventoryDashboard() {
                             <>
                               <span>•</span>
                               <span>Nearest Expiry: <strong className="text-foreground">{formatDate(product.earliestExpiryDate)}</strong></span>
+                            </>
+                          )}
+                          {product.avgCostPrice !== undefined && product.avgSellPrice !== undefined && product.avgSellPrice > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>Cost: <strong className="text-foreground">{formatCurrency(product.avgCostPrice)}</strong></span>
+                              <span>•</span>
+                              <span>MRP: <strong className="text-foreground">{formatCurrency(product.avgSellPrice)}</strong></span>
+                              {product.totalRetailValue !== undefined && product.totalRetailValue > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span>Valuation: <strong className="text-success">{formatCurrency(product.totalRetailValue)}</strong></span>
+                                </>
+                              )}
                             </>
                           )}
                         </div>

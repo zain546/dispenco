@@ -553,7 +553,27 @@ export class InventoryService {
 
     const aggregated = products.map((prod) => {
       const totalStock = prod.batches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+      const totalPurchaseCost = prod.batches.reduce(
+        (sum, b) => sum + b.quantityRemaining * Number(b.costPrice || 0),
+        0,
+      );
+      const totalRetailValue = prod.batches.reduce(
+        (sum, b) => sum + b.quantityRemaining * Number(b.sellPrice || 0),
+        0,
+      );
       const earliestBatch = prod.batches[0] || null;
+      const avgCostPrice =
+        totalStock > 0
+          ? totalPurchaseCost / totalStock
+          : earliestBatch
+            ? Number(earliestBatch.costPrice || 0)
+            : 0;
+      const avgSellPrice =
+        totalStock > 0
+          ? totalRetailValue / totalStock
+          : earliestBatch
+            ? Number(earliestBatch.sellPrice || 0)
+            : 0;
 
       let daysUntilEarliestExpiry: number | null = null;
       if (earliestBatch) {
@@ -581,6 +601,10 @@ export class InventoryService {
         barcode: prod.barcode || null,
         lowStockThreshold: threshold,
         totalStock,
+        totalPurchaseCost: Number(totalPurchaseCost.toFixed(2)),
+        totalRetailValue: Number(totalRetailValue.toFixed(2)),
+        avgCostPrice: Number(avgCostPrice.toFixed(2)),
+        avgSellPrice: Number(avgSellPrice.toFixed(2)),
         batchCount: prod.batches.length,
         earliestBatchNumber: earliestBatch ? earliestBatch.batchNumber : null,
         earliestExpiryDate: earliestBatch ? earliestBatch.expiryDate.toISOString() : null,
@@ -621,6 +645,16 @@ export class InventoryService {
     const completionPercentage =
       totalCatalogItems > 0 ? Math.round((stockedCount / totalCatalogItems) * 100) : 100;
 
+    // Financial valuation of all active inventory stock
+    const totalPurchaseCost = aggregated.reduce((sum, p) => sum + p.totalPurchaseCost, 0);
+    const totalRetailValue = aggregated.reduce((sum, p) => sum + p.totalRetailValue, 0);
+    const totalStockUnits = aggregated.reduce((sum, p) => sum + p.totalStock, 0);
+    const totalPotentialProfit = totalRetailValue - totalPurchaseCost;
+    const potentialMarginPercent =
+      totalRetailValue > 0
+        ? Number(((totalPotentialProfit / totalRetailValue) * 100).toFixed(1))
+        : 0;
+
       return {
         totalProducts: filtered.length,
         summary: {
@@ -629,6 +663,11 @@ export class InventoryService {
           unstockedCount,
           priorityUnstockedCount,
           completionPercentage,
+          totalPurchaseCost: Number(totalPurchaseCost.toFixed(2)),
+          totalRetailValue: Number(totalRetailValue.toFixed(2)),
+          totalPotentialProfit: Number(totalPotentialProfit.toFixed(2)),
+          potentialMarginPercent,
+          totalStockUnits,
           outOfStockCount: aggregated.filter((p) => p.isOutofStock).length,
           lowStockCount: aggregated.filter((p) => p.isLowStock).length,
           expiringSoonCount: aggregated.filter((p) => p.isExpiringSoon).length,
