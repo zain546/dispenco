@@ -140,9 +140,9 @@ export function DashboardMetrics() {
       <Link href="/inventory" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
         <StatCard
           label="Stock Asset Value"
-          value={metrics.totalPurchaseCost > 0 ? formatCurrency(metrics.totalPurchaseCost) : formatNumber(metrics.totalProducts)}
+          value={formatCurrency(metrics.totalPurchaseCost)}
           caption={
-            metrics.totalPurchaseCost > 0
+            metrics.totalPurchaseCost > 0 || metrics.totalRetailValue > 0
               ? `MRP: ${formatCurrency(metrics.totalRetailValue)} • ${formatNumber(metrics.stockedCount)} stocked`
               : metrics.totalProducts === 0
                 ? 'No products registered'

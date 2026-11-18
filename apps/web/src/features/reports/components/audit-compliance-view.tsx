@@ -110,7 +110,7 @@ function formatAuditNarrative(log: AuditLogItem): FormattedNarrative {
   const action = log.action.toUpperCase();
 
   if (action === 'PURCHASE_ORDER_RECEIVED') {
-    const poNum = meta.poNumber || log.entityId.slice(0, 8);
+    const poNum = meta.orderNumber || meta.poNumber || log.entityId.slice(0, 8);
     const supplier = meta.supplierName ? ` from ${meta.supplierName}` : '';
     return {
       title: `Stock intake confirmed for Purchase Order #${poNum}`,
@@ -120,7 +120,7 @@ function formatAuditNarrative(log: AuditLogItem): FormattedNarrative {
   }
 
   if (action === 'PURCHASE_ORDER_CREATED') {
-    const poNum = meta.poNumber || log.entityId.slice(0, 8);
+    const poNum = meta.orderNumber || meta.poNumber || log.entityId.slice(0, 8);
     return {
       title: `Initiated Purchase Order #${poNum}`,
       subtitle: meta.supplierName ? `Dispatched procurement order to ${meta.supplierName}` : 'Procurement order drafted.',
@@ -129,11 +129,11 @@ function formatAuditNarrative(log: AuditLogItem): FormattedNarrative {
   }
 
   if (action === 'PURCHASE_ORDER_CANCELLED') {
-    const poNum = meta.poNumber || log.entityId.slice(0, 8);
+    const poNum = meta.orderNumber || meta.poNumber || log.entityId.slice(0, 8);
     return {
       title: `Cancelled Purchase Order #${poNum}`,
       subtitle: 'Procurement transaction aborted.',
-      reason: meta.reason || meta.cancelReason || 'Distributor cancelled',
+      reason: meta.reason || meta.cancelReason,
     };
   }
 
@@ -157,10 +157,17 @@ function formatAuditNarrative(log: AuditLogItem): FormattedNarrative {
   }
 
   if (action === 'SALE_RETURNED' || action === 'SALE_RETURN_PROCESSED') {
-    const saleNum = meta.saleId?.slice(0, 8) || log.entityId.slice(0, 8);
+    const saleNum = meta.receiptNumber || meta.saleNumber || meta.saleId?.slice(0, 8) || log.entityId.slice(0, 8);
+    const restoredQty = meta.quantityRestored ?? meta.itemsRestored;
+    const subtitle =
+      restoredQty !== undefined && Number(restoredQty) > 0
+        ? `${restoredQty} unit(s) restocked into inventory`
+        : meta.itemsCount
+          ? `${meta.itemsCount} item(s) returned (no inventory restocked)`
+          : 'Return processed without inventory restock';
     return {
       title: `Customer product return processed for sale #${saleNum}`,
-      subtitle: meta.itemsCount ? `${meta.itemsCount} unit(s) restocked into inventory` : 'Items returned to branch shelf',
+      subtitle,
       reason: meta.reason,
     };
   }
@@ -745,7 +752,7 @@ export function AuditComplianceView() {
               const ActionIcon = getActionIcon(log.action);
               const formattedTitle = formatActionTitle(log.action);
               const narrative = formatAuditNarrative(log);
-              const isSystem = !log.user?.name || log.user.name.toLowerCase().includes('system');
+              const isSystem = !log.user?.id && !log.user?.name;
 
               return (
                 <div
@@ -859,7 +866,7 @@ export function AuditComplianceView() {
                   const ActionIcon = getActionIcon(log.action);
                   const formattedTitle = formatActionTitle(log.action);
                   const narrative = formatAuditNarrative(log);
-                  const isSystem = !log.user?.name || log.user.name.toLowerCase().includes('system');
+                  const isSystem = !log.user?.id && !log.user?.name;
 
                   return (
                     <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
@@ -1028,7 +1035,7 @@ export function AuditComplianceView() {
             const meta = (selectedLog.metadata as Record<string, any>) || {};
             const keyFields: Array<{ label: string; value: string }> = [];
 
-            if (meta.poNumber) keyFields.push({ label: 'PO Reference', value: `#${meta.poNumber}` });
+            if (meta.orderNumber || meta.poNumber) keyFields.push({ label: 'PO Reference', value: `#${meta.orderNumber || meta.poNumber}` });
             if (meta.receiptNumber || meta.saleNumber) keyFields.push({ label: 'Receipt #', value: `#${meta.receiptNumber || meta.saleNumber}` });
             if (meta.supplierName) keyFields.push({ label: 'Supplier / Vendor', value: String(meta.supplierName) });
             if (meta.customerName) keyFields.push({ label: 'Customer', value: String(meta.customerName) });

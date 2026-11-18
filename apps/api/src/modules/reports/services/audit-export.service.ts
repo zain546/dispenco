@@ -244,7 +244,9 @@ export class AuditExportService implements OnModuleInit {
       } else if (cat === 'pricing') {
         where.action = { in: ['BULK_PRICE_PUSH', 'BROADCAST_SETTING'] };
       }
-    } else if (query.action && query.action !== 'ALL') {
+    }
+
+    if (query.action && query.action !== 'ALL') {
       where.action = query.action;
     }
 
@@ -357,17 +359,18 @@ export class AuditExportService implements OnModuleInit {
 
       case 'PURCHASE_ORDER_RECEIVED':
         severity = 'info';
-        summaryText = `Stock intake received for Purchase Order #${meta.poNumber || log.entityId.slice(0, 8)}${meta.supplierName ? ` from ${meta.supplierName}` : ''}. Batches verified and shelved.`;
+        summaryText = `Stock intake received for Purchase Order #${meta.orderNumber || meta.poNumber || log.entityId.slice(0, 8)}${meta.supplierName ? ` from ${meta.supplierName}` : ''}. Batches verified and shelved.`;
         break;
 
       case 'PURCHASE_ORDER_CREATED':
         severity = 'info';
-        summaryText = `Initiated Purchase Order #${meta.poNumber || log.entityId.slice(0, 8)}${meta.supplierName ? ` to ${meta.supplierName}` : ''}.`;
+        summaryText = `Initiated Purchase Order #${meta.orderNumber || meta.poNumber || log.entityId.slice(0, 8)}${meta.supplierName ? ` to ${meta.supplierName}` : ''}.`;
         break;
 
       case 'PURCHASE_ORDER_CANCELLED':
         severity = 'warning';
-        summaryText = `Cancelled Purchase Order #${meta.poNumber || log.entityId.slice(0, 8)}. Reason: ${meta.reason || meta.cancelReason || 'Distributor cancelled'}`;
+        const cancelReason = meta.reason || meta.cancelReason;
+        summaryText = `Cancelled Purchase Order #${meta.orderNumber || meta.poNumber || log.entityId.slice(0, 8)}.${cancelReason ? ` Reason: ${cancelReason}` : ' No reason recorded.'}`;
         break;
 
       case 'SALE_CREATE':

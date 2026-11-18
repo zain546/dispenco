@@ -1050,8 +1050,10 @@ export class SalesService {
       });
 
       // 5. Restore batch stock quantity atomically
+      let totalPacksRestored = 0;
       for (const item of preparedReturnItems) {
         if (item.packsToRestore > 0) {
+          totalPacksRestored += item.packsToRestore;
           await tx.batch.update({
             where: { id: item.batchId },
             data: {
@@ -1090,6 +1092,7 @@ export class SalesService {
             refundAmount: totalRefund,
             refundMethod,
             itemsCount: preparedReturnItems.length,
+            quantityRestored: totalPacksRestored,
             reason: dto.reason,
           },
         },

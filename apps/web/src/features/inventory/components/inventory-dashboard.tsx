@@ -133,7 +133,7 @@ export function InventoryDashboard() {
     expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
     priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
     unstockedOnly: activeTab === 'unstocked' ? true : undefined,
-    search: search.trim() || undefined,
+    search: (activeTab !== 'full-catalog' && activeTab !== 'expiry-risk') ? (search.trim() || undefined) : undefined,
   });
 
   const data = queryData ?? DEFAULT_AGGREGATION_DATA;
@@ -368,7 +368,9 @@ export function InventoryDashboard() {
                 </Badge>
               </div>
               <p className="text-micro sm:text-xs text-muted-foreground mt-0.5">
-                Consolidated purchase acquisition cost and retail realizable value across all in-stock medicine batches
+                {search.trim() && activeTab !== 'full-catalog' && activeTab !== 'expiry-risk'
+                  ? `Filtered valuation for matches to "${search.trim()}"`
+                  : 'Consolidated purchase acquisition cost and retail realizable value across all in-stock medicine batches'}
               </p>
             </div>
           </div>
@@ -435,8 +437,16 @@ export function InventoryDashboard() {
                 <span>{formatCurrency(data.summary.totalPotentialProfit ?? 0)}</span>
               </div>
               <div className="text-[10px] sm:text-micro text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
-                <span className="font-semibold text-success">
-                  +{data.summary.potentialMarginPercent ?? 0}%
+                <span
+                  className={`font-semibold ${
+                    (data.summary.potentialMarginPercent ?? 0) >= 0
+                      ? 'text-success'
+                      : 'text-destructive'
+                  }`}
+                >
+                  {(data.summary.potentialMarginPercent ?? 0) >= 0
+                    ? `+${data.summary.potentialMarginPercent ?? 0}%`
+                    : `${data.summary.potentialMarginPercent}%`}
                 </span>
                 <span>unrealized margin</span>
               </div>

@@ -208,10 +208,14 @@ export async function generateInventoryStockPdfDoc(options: InventoryStockReport
     doc.roundedRect(margin, y, contentWidth, valBoxHeight, 1.5, 1.5, 'FD');
 
     // Purchase Cost Valuation
+    const isFilteredScope = reportScope === 'low-stock' || reportScope === 'expiring';
+    const costLabel = isFilteredScope ? 'BRANCH-WIDE COST:' : 'TOTAL PURCHASE COST:';
+    const mrpLabel = isFilteredScope ? 'BRANCH-WIDE MRP:' : 'TOTAL RETAIL VALUE (MRP):';
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
-    doc.text('TOTAL PURCHASE COST:', margin + 4, y + 4.2);
+    doc.text(costLabel, margin + 4, y + 4.2);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
@@ -226,7 +230,7 @@ export async function generateInventoryStockPdfDoc(options: InventoryStockReport
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6.5);
     doc.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
-    doc.text('TOTAL RETAIL VALUE (MRP):', mrpX, y + 4.2);
+    doc.text(mrpLabel, mrpX, y + 4.2);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);

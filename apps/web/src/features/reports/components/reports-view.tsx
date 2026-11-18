@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   reportsApi,
@@ -175,24 +175,31 @@ export function ReportsView() {
   const [loadingSaleDetail, setLoadingSaleDetail] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [modalPdfLoading, setModalPdfLoading] = useState(false);
+  const activeReceiptRequestIdRef = useRef<string | null>(null);
 
   const handleOpenReceiptModal = async (saleId: string) => {
+    activeReceiptRequestIdRef.current = saleId;
     setSelectedReceiptIdForModal(saleId);
+    setSaleDetail(null);
     setIsReceiptModalOpen(true);
     setLoadingSaleDetail(true);
     try {
       const res = await salesApi.getSaleById(saleId);
+      if (activeReceiptRequestIdRef.current !== saleId) return;
       if (res?.success && res.sale) {
         setSaleDetail(res.sale);
       } else {
         toast.error('Could not load receipt details');
       }
     } catch (err) {
+      if (activeReceiptRequestIdRef.current !== saleId) return;
       toast.error('Failed to load receipt details', {
         description: getErrorMessage(err),
       });
     } finally {
-      setLoadingSaleDetail(false);
+      if (activeReceiptRequestIdRef.current === saleId) {
+        setLoadingSaleDetail(false);
+      }
     }
   };
 
@@ -201,7 +208,6 @@ export function ReportsView() {
     try {
       setModalPdfLoading(true);
       await downloadThermalReceiptPdf(saleDetail, saleDetail.store?.name);
-      toast.success(`Thermal receipt #${saleDetail.receiptNumber} downloaded!`);
     } catch (err) {
       toast.error('Failed to download thermal receipt', { description: getErrorMessage(err) });
     } finally {
@@ -213,8 +219,13 @@ export function ReportsView() {
     if (!saleDetail) return;
     try {
       setModalPdfLoading(true);
-      await downloadA4TaxInvoicePdf(saleDetail);
-      toast.success(`A4 Tax Invoice #${saleDetail.receiptNumber} downloaded!`);
+      await downloadA4TaxInvoicePdf(saleDetail, {
+        storeName: saleDetail.store?.name ?? undefined,
+        address: saleDetail.store?.address ?? undefined,
+        dslNumber: (saleDetail.store as any)?.dslNumber ?? undefined,
+        ntn: (saleDetail.store as any)?.ntn ?? undefined,
+        phone: (saleDetail.store as any)?.phone ?? undefined,
+      });
     } catch (err) {
       toast.error('Failed to download A4 tax invoice', { description: getErrorMessage(err) });
     } finally {
@@ -477,8 +488,8 @@ export function ReportsView() {
       list = list.filter((tx) => {
         const m = (tx.paymentMethod || '').toUpperCase();
         if (methodFilter === 'RETURNED') return m.includes('RETURN');
-        if (methodFilter === 'DIGITAL') return m.includes('DIGITAL');
-        if (methodFilter === 'CREDIT') return m.includes('CREDIT');
+        if (methodFilter === 'DIGITAL') return !m.includes('RETURN') && m.includes('DIGITAL');
+        if (methodFilter === 'CREDIT') return !m.includes('RETURN') && m.includes('CREDIT');
         if (methodFilter === 'CASH') return !m.includes('RETURN') && !m.includes('DIGITAL') && !m.includes('CREDIT');
         return true;
       });
@@ -1787,7 +1798,17 @@ export function ReportsView() {
       )}
 
       {/* In-Place Receipt Quick View Inspection Dialog */}
-      <Dialog open={isReceiptModalOpen} onOpenChange={setIsReceiptModalOpen}>
+      <Dialog
+        open={isReceiptModalOpen}
+        onOpenChange={(open) => {
+          setIsReceiptModalOpen(open);
+          if (!open) {
+            activeReceiptRequestIdRef.current = null;
+            setSaleDetail(null);
+            setLoadingSaleDetail(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-card text-foreground border-border">
           <DialogHeader className="pb-3 border-b border-border text-left">
             <div className="flex items-center justify-between gap-3">
@@ -1970,7 +1991,7 @@ export function ReportsView() {
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadModalThermal}
-                disabled={!saleDetail || modalPdfLoading}
+                disabled={!saleDetail || loadingSaleDetail || modalPdfLoading}
                 className="flex-1 sm:flex-initial h-8 text-xs font-semibold gap-1.5 cursor-pointer"
               >
                 <Printer className="size-3.5 text-primary" />
@@ -1980,7 +2001,7 @@ export function ReportsView() {
                 variant="outline"
                 size="sm"
                 onClick={handleDownloadModalA4}
-                disabled={!saleDetail || modalPdfLoading}
+                disabled={!saleDetail || loadingSaleDetail || modalPdfLoading}
                 className="flex-1 sm:flex-initial h-8 text-xs font-semibold gap-1.5 cursor-pointer"
               >
                 <FileDown className="size-3.5 text-primary" />

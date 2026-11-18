@@ -238,14 +238,19 @@ function formatVarianceMetrics(flag: AnomalyFlagItem): VarianceMetricsDisplay {
       const capPct = flag.metricBaseline !== null ? Number(flag.metricBaseline) : 5.0;
       const score = flag.statisticalScore !== null ? Number(flag.statisticalScore) : null;
 
+      const multiple =
+        discountPct !== null && capPct > 0
+          ? Number((discountPct / capPct).toFixed(1))
+          : score;
+
       return {
         observedLabel: 'Discount Given',
         observedValue: discountPct !== null ? `${discountPct.toFixed(1)}%` : '--',
         baselineLabel: 'Policy Limit',
         baselineValue: `${capPct.toFixed(1)}% max`,
-        scoreBadge: score
+        scoreBadge: multiple
           ? {
-              label: `${score}x policy limit`,
+              label: `${multiple}x policy limit`,
               className: 'bg-warning/10 text-warning border-warning/30',
             }
           : undefined,
@@ -339,11 +344,15 @@ export function AnomaliesReviewView() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
 
-  const handleCopyReceipt = (num: string) => {
-    navigator.clipboard.writeText(num);
-    setCopiedReceipt(true);
-    toast.success('Receipt reference copied to clipboard');
-    setTimeout(() => setCopiedReceipt(false), 2000);
+  const handleCopyReceipt = async (num: string) => {
+    try {
+      await navigator.clipboard.writeText(num);
+      setCopiedReceipt(true);
+      toast.success('Receipt reference copied to clipboard');
+      setTimeout(() => setCopiedReceipt(false), 2000);
+    } catch {
+      toast.error('Failed to copy to clipboard. Please copy manually.');
+    }
   };
 
   const fetchSummary = useCallback(async () => {

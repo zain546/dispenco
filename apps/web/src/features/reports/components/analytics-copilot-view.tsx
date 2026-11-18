@@ -50,7 +50,7 @@ import {
   reportsApi,
   CopilotQueryResult,
 } from '../services/reports-api';
-import { formatCurrency } from '@/lib/format';
+import { formatCurrency, formatNumber } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { useStore } from '@/context/store-context';
 
@@ -122,6 +122,19 @@ const CATEGORIES = [
   { id: 'stores', label: 'Store Benchmark' },
 ] as const;
 
+function renderBoldText(text: string) {
+  return text.split(/(\*\*.*?\*\*)/g).map((part, index) => {
+    const bold = /^\*\*(.*?)\*\*$/.exec(part);
+    return bold ? (
+      <strong key={index} className="font-bold text-foreground">
+        {bold[1]}
+      </strong>
+    ) : (
+      part
+    );
+  });
+}
+
 function renderNarrative(narrativeText: string) {
   if (!narrativeText) return null;
 
@@ -138,33 +151,13 @@ function renderNarrative(narrativeText: string) {
             <ul key={pIdx} className="space-y-1.5 pl-4 list-disc marker:text-primary">
               {lines.map((line, lIdx) => {
                 const cleaned = line.replace(/^\s*[-*•]\s+/, '').replace(/^\s*\d+\.\s+/, '');
-                return (
-                  <li
-                    key={lIdx}
-                    dangerouslySetInnerHTML={{
-                      __html: cleaned.replace(
-                        /\*\*(.*?)\*\*/g,
-                        '<strong class="font-bold text-foreground">$1</strong>'
-                      ),
-                    }}
-                  />
-                );
+                return <li key={lIdx}>{renderBoldText(cleaned)}</li>;
               })}
             </ul>
           );
         }
 
-        return (
-          <p
-            key={pIdx}
-            dangerouslySetInnerHTML={{
-              __html: para.replace(
-                /\*\*(.*?)\*\*/g,
-                '<strong class="font-bold text-foreground">$1</strong>'
-              ),
-            }}
-          />
-        );
+        return <p key={pIdx}>{renderBoldText(para)}</p>;
       })}
     </div>
   );
@@ -619,152 +612,136 @@ export function AnalyticsCopilotView() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-2">
-                {currentResult.chartData && currentResult.chartData.length > 0 ? (
-                  <div className="h-[280px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      {activeChartType === 'line' ? (
-                        <LineChart data={currentResult.chartData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
-                          <XAxis
-                            dataKey={currentResult.chartData[0]?.date !== undefined ? 'date' : 'name'}
-                            tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={{ stroke: 'var(--border)' }}
-                            tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={{ stroke: 'var(--border)' }}
-                            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'var(--popover)',
-                              borderColor: 'var(--border)',
-                              color: 'var(--popover-foreground)',
-                              borderRadius: '12px',
-                              fontSize: '12px',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                            }}
-                            formatter={(val: unknown) => [
-                              typeof val === 'number' && val > 100 ? formatCurrency(val) : Number(val || 0).toLocaleString(),
-                              'Value',
-                            ]}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey={
-                              currentResult.chartData[0]?.revenue !== undefined
-                                ? 'revenue'
-                                : currentResult.chartData[0]?.value !== undefined
-                                ? 'value'
-                                : 'unitsSold'
-                            }
-                            stroke="var(--primary)"
-                            strokeWidth={2.5}
-                            dot={{ r: 3.5, fill: 'var(--primary)' }}
-                            activeDot={{ r: 6 }}
-                          />
-                        </LineChart>
-                      ) : activeChartType === 'area' ? (
-                        <AreaChart data={currentResult.chartData}>
-                          <defs>
-                            <linearGradient id="copilotGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
-                              <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
-                          <XAxis
-                            dataKey={currentResult.chartData[0]?.date !== undefined ? 'date' : 'name'}
-                            tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={{ stroke: 'var(--border)' }}
-                            tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={{ stroke: 'var(--border)' }}
-                            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'var(--popover)',
-                              borderColor: 'var(--border)',
-                              color: 'var(--popover-foreground)',
-                              borderRadius: '12px',
-                              fontSize: '12px',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                            }}
-                            formatter={(val: unknown) => [
-                              typeof val === 'number' && val > 100 ? formatCurrency(val) : Number(val || 0).toLocaleString(),
-                              'Value',
-                            ]}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey={
-                              currentResult.chartData[0]?.revenue !== undefined
-                                ? 'revenue'
-                                : currentResult.chartData[0]?.value !== undefined
-                                ? 'value'
-                                : 'unitsSold'
-                            }
-                            stroke="var(--primary)"
-                            strokeWidth={2}
-                            fillOpacity={1}
-                            fill="url(#copilotGradient)"
-                          />
-                        </AreaChart>
-                      ) : (
-                        <BarChart data={currentResult.chartData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
-                          <XAxis
-                            dataKey={currentResult.chartData[0]?.name !== undefined ? 'name' : 'date'}
-                            tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={{ stroke: 'var(--border)' }}
-                            interval={0}
-                            tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-                            tickLine={false}
-                            axisLine={{ stroke: 'var(--border)' }}
-                            tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'var(--popover)',
-                              borderColor: 'var(--border)',
-                              color: 'var(--popover-foreground)',
-                              borderRadius: '12px',
-                              fontSize: '12px',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                            }}
-                            formatter={(val: unknown) => [
-                              typeof val === 'number' && val > 100 ? formatCurrency(val) : Number(val || 0).toLocaleString(),
-                              'Value',
-                            ]}
-                          />
-                          <Bar
-                            dataKey={
-                              currentResult.chartData[0]?.revenue !== undefined
-                                ? 'revenue'
-                                : currentResult.chartData[0]?.value !== undefined
-                                ? 'value'
-                                : 'unitsSold'
-                            }
-                            fill="var(--primary)"
-                            radius={[6, 6, 0, 0]}
-                          />
-                        </BarChart>
-                      )}
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
+                {currentResult.chartData && currentResult.chartData.length > 0 ? (() => {
+                  const firstRow = currentResult.chartData[0];
+                  const isCountMetric = firstRow?.unitsSold !== undefined || firstRow?.quantity !== undefined || firstRow?.count !== undefined;
+                  const dataKey = firstRow?.revenue !== undefined ? 'revenue' : firstRow?.value !== undefined ? 'value' : 'unitsSold';
+                  const metricLabel = isCountMetric ? 'Units Sold' : 'Amount';
+                  const tooltipFormatter = (val: unknown) => [
+                    isCountMetric ? formatNumber(Number(val || 0)) : formatCurrency(Number(val || 0)),
+                    metricLabel,
+                  ];
+
+                  return (
+                    <div className="h-[280px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        {activeChartType === 'line' ? (
+                          <LineChart data={currentResult.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
+                            <XAxis
+                              dataKey={firstRow?.date !== undefined ? 'date' : 'name'}
+                              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                              tickLine={false}
+                              axisLine={{ stroke: 'var(--border)' }}
+                              tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
+                            />
+                            <YAxis
+                              tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                              tickLine={false}
+                              axisLine={{ stroke: 'var(--border)' }}
+                              tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'var(--popover)',
+                                borderColor: 'var(--border)',
+                                color: 'var(--popover-foreground)',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              }}
+                              formatter={tooltipFormatter}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey={dataKey}
+                              stroke="var(--primary)"
+                              strokeWidth={2.5}
+                              dot={{ r: 3.5, fill: 'var(--primary)' }}
+                              activeDot={{ r: 6 }}
+                            />
+                          </LineChart>
+                        ) : activeChartType === 'area' ? (
+                          <AreaChart data={currentResult.chartData}>
+                            <defs>
+                              <linearGradient id="copilotGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
+                                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
+                            <XAxis
+                              dataKey={firstRow?.date !== undefined ? 'date' : 'name'}
+                              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                              tickLine={false}
+                              axisLine={{ stroke: 'var(--border)' }}
+                              tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
+                            />
+                            <YAxis
+                              tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                              tickLine={false}
+                              axisLine={{ stroke: 'var(--border)' }}
+                              tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'var(--popover)',
+                                borderColor: 'var(--border)',
+                                color: 'var(--popover-foreground)',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              }}
+                              formatter={tooltipFormatter}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey={dataKey}
+                              stroke="var(--primary)"
+                              strokeWidth={2}
+                              fillOpacity={1}
+                              fill="url(#copilotGradient)"
+                            />
+                          </AreaChart>
+                        ) : (
+                          <BarChart data={currentResult.chartData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.25} stroke="var(--border)" />
+                            <XAxis
+                              dataKey={firstRow?.name !== undefined ? 'name' : 'date'}
+                              tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                              tickLine={false}
+                              axisLine={{ stroke: 'var(--border)' }}
+                              interval={0}
+                              tickFormatter={(val) => (val && val.length > 12 ? `${val.slice(0, 10)}...` : val)}
+                            />
+                            <YAxis
+                              tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                              tickLine={false}
+                              axisLine={{ stroke: 'var(--border)' }}
+                              tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'var(--popover)',
+                                borderColor: 'var(--border)',
+                                color: 'var(--popover-foreground)',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              }}
+                              formatter={tooltipFormatter}
+                            />
+                            <Bar
+                              dataKey={dataKey}
+                              fill="var(--primary)"
+                              radius={[6, 6, 0, 0]}
+                            />
+                          </BarChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
+                  );
+                })() : (
                   <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground border border-dashed rounded-xl">
                     No visual datapoints available for this query timeframe.
                   </div>
