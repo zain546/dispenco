@@ -1,14 +1,29 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GetAuditLogsDto } from '../dto/get-audit-logs.dto';
 import { AuditLogItem, AuditMetricsSummary } from '@dispenco/types';
 import * as Papa from 'papaparse';
 
 @Injectable()
-export class AuditExportService {
+export class AuditExportService implements OnModuleInit {
   private readonly logger = new Logger(AuditExportService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    try {
+      const deleted = await this.prisma.auditLog.deleteMany({
+        where: { action: 'OUTBOUND_MESSAGE_DISPATCHED' },
+      });
+      if (deleted.count > 0) {
+        this.logger.log(
+          `Pruned ${deleted.count} historical telemetry/notification dispatch records from AuditLog table.`,
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Telemetry audit log pruning skipped: ${err.message}`);
+    }
+  }
 
   async getAuditLogs(
     tenantId: string,
@@ -181,7 +196,11 @@ export class AuditExportService {
   }
 
   private buildWhereClause(tenantId: string, query: GetAuditLogsDto): any {
-    const where: any = { tenantId };
+    const where: any = {
+      tenantId,
+      // Always exclude automated outbound message telemetry from the compliance log
+      action: { notIn: ['OUTBOUND_MESSAGE_DISPATCHED'] },
+    };
 
     if (query.category) {
       const cat = query.category.toLowerCase();
@@ -225,9 +244,7 @@ export class AuditExportService {
       } else if (cat === 'pricing') {
         where.action = { in: ['BULK_PRICE_PUSH', 'BROADCAST_SETTING'] };
       }
-    }
-
-    if (query.action && query.action !== 'ALL') {
+    } else if (query.action && query.action !== 'ALL') {
       where.action = query.action;
     }
 

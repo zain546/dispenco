@@ -9,6 +9,7 @@ describe('AuditExportService', () => {
     auditLog: {
       findMany: jest.fn(),
       count: jest.fn(),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
   };
 
