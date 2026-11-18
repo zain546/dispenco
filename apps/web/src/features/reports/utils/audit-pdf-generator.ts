@@ -210,12 +210,16 @@ export async function generateAuditPdf({
     const actorRole = item.user?.role ? `(${item.user.role})` : '';
     pdf.text(`${actorName.slice(0, 15)} ${actorRole}`.slice(0, 22), 105, currentY + 5.5);
 
-    // Narrative Summary
+    // Narrative Summary (fitted strictly to 54 mm column width)
     pdf.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
-    const narrativeTruncated =
-      item.summaryText.length > 40
-        ? item.summaryText.slice(0, 38) + '...'
-        : item.summaryText;
+    const maxColWidth = 54;
+    let narrativeTruncated = item.summaryText;
+    if (pdf.getTextWidth(narrativeTruncated) > maxColWidth) {
+      while (narrativeTruncated.length > 0 && pdf.getTextWidth(narrativeTruncated + '...') > maxColWidth) {
+        narrativeTruncated = narrativeTruncated.slice(0, -1);
+      }
+      narrativeTruncated = narrativeTruncated + '...';
+    }
     pdf.text(narrativeTruncated, 140, currentY + 5.5);
 
     // Bottom border for row

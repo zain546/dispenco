@@ -247,6 +247,11 @@ export const productsApi = {
       unstockedCount: number;
       priorityUnstockedCount: number;
       completionPercentage: number;
+      totalPurchaseCost: number;
+      totalRetailValue: number;
+      totalPotentialProfit: number;
+      potentialMarginPercent: number;
+      totalStockUnits: number;
       outOfStockCount: number;
       lowStockCount: number;
       expiringSoonCount: number;
@@ -261,6 +266,10 @@ export const productsApi = {
       barcode: string | null;
       lowStockThreshold: number;
       totalStock: number;
+      totalPurchaseCost?: number;
+      totalRetailValue?: number;
+      avgCostPrice?: number;
+      avgSellPrice?: number;
       batchCount: number;
       earliestBatchNumber: string | null;
       earliestExpiryDate: string | null;

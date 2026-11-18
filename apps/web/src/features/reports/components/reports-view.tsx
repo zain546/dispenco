@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   reportsApi,
@@ -23,12 +23,21 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatNumber, formatDateTime } from '@/lib/format';
-import { salesApi } from '@/features/sales/services/sales-api';
-import { downloadThermalReceiptPdf } from '@/features/sales/utils/invoice-pdf-generator';
+import { salesApi, SaleDetailResponse } from '@/features/sales/services/sales-api';
+import { downloadThermalReceiptPdf, downloadA4TaxInvoicePdf } from '@/features/sales/utils/invoice-pdf-generator';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { getErrorMessage } from '@/lib/errors';
 import { toast } from 'sonner';
 import {
   TrendingUp,
+  TrendingDown,
   DollarSign,
   ShoppingCart,
   Package,
@@ -55,6 +64,11 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  Printer,
+  RotateCcw,
+  ArrowUpDown,
+  Check,
 } from 'lucide-react';
 import { AnalyticsCopilotView } from './analytics-copilot-view';
 import { AuditComplianceView } from './audit-compliance-view';
@@ -70,6 +84,7 @@ import {
   BarChart,
   Bar,
   Legend,
+  ReferenceLine,
 } from 'recharts';
 
 
@@ -151,6 +166,72 @@ export function ReportsView() {
   const [medicinePage, setMedicinePage] = useState(1);
   const medicinesPerPage = 15;
   const [downloadingSaleId, setDownloadingSaleId] = useState<string | null>(null);
+  const [methodFilter, setMethodFilter] = useState<'all' | 'CASH' | 'DIGITAL' | 'CREDIT' | 'RETURNED'>('all');
+  const [doctorFilter, setDoctorFilter] = useState<'all' | 'prescribed'>('all');
+  const [receiptSort, setReceiptSort] = useState<'newest' | 'oldest' | 'highest' | 'lowest'>('newest');
+
+  const [selectedReceiptIdForModal, setSelectedReceiptIdForModal] = useState<string | null>(null);
+  const [saleDetail, setSaleDetail] = useState<SaleDetailResponse | null>(null);
+  const [loadingSaleDetail, setLoadingSaleDetail] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [modalPdfLoading, setModalPdfLoading] = useState(false);
+  const activeReceiptRequestIdRef = useRef<string | null>(null);
+
+  const handleOpenReceiptModal = async (saleId: string) => {
+    activeReceiptRequestIdRef.current = saleId;
+    setSelectedReceiptIdForModal(saleId);
+    setSaleDetail(null);
+    setIsReceiptModalOpen(true);
+    setLoadingSaleDetail(true);
+    try {
+      const res = await salesApi.getSaleById(saleId);
+      if (activeReceiptRequestIdRef.current !== saleId) return;
+      if (res?.success && res.sale) {
+        setSaleDetail(res.sale);
+      } else {
+        toast.error('Could not load receipt details');
+      }
+    } catch (err) {
+      if (activeReceiptRequestIdRef.current !== saleId) return;
+      toast.error('Failed to load receipt details', {
+        description: getErrorMessage(err),
+      });
+    } finally {
+      if (activeReceiptRequestIdRef.current === saleId) {
+        setLoadingSaleDetail(false);
+      }
+    }
+  };
+
+  const handleDownloadModalThermal = async () => {
+    if (!saleDetail) return;
+    try {
+      setModalPdfLoading(true);
+      await downloadThermalReceiptPdf(saleDetail, saleDetail.store?.name);
+    } catch (err) {
+      toast.error('Failed to download thermal receipt', { description: getErrorMessage(err) });
+    } finally {
+      setModalPdfLoading(false);
+    }
+  };
+
+  const handleDownloadModalA4 = async () => {
+    if (!saleDetail) return;
+    try {
+      setModalPdfLoading(true);
+      await downloadA4TaxInvoicePdf(saleDetail, {
+        storeName: saleDetail.store?.name ?? undefined,
+        address: saleDetail.store?.address ?? undefined,
+        dslNumber: (saleDetail.store as any)?.dslNumber ?? undefined,
+        ntn: (saleDetail.store as any)?.ntn ?? undefined,
+        phone: (saleDetail.store as any)?.phone ?? undefined,
+      });
+    } catch (err) {
+      toast.error('Failed to download A4 tax invoice', { description: getErrorMessage(err) });
+    } finally {
+      setModalPdfLoading(false);
+    }
+  };
 
   const handleDownloadReceipt = async (saleId: string) => {
     try {
@@ -370,19 +451,72 @@ export function ReportsView() {
   
   const transactions = reportData?.transactions || [];
 
+  const methodCounts = useMemo(() => {
+    const counts = { all: transactions.length, cash: 0, digital: 0, credit: 0, returned: 0 };
+    for (const tx of transactions) {
+      const m = (tx.paymentMethod || '').toUpperCase();
+      if (m.includes('RETURN')) {
+        counts.returned++;
+      } else if (m.includes('DIGITAL')) {
+        counts.digital++;
+      } else if (m.includes('CREDIT')) {
+        counts.credit++;
+      } else {
+        counts.cash++;
+      }
+    }
+    return counts;
+  }, [transactions]);
+
   const filteredTransactions = useMemo(() => {
     if (!transactions.length) return [];
-    if (!receiptSearch.trim()) return transactions;
-    const q = receiptSearch.toLowerCase().trim();
-    return transactions.filter(
-      (tx) =>
-        (tx.receiptNumber && tx.receiptNumber.toLowerCase().includes(q)) ||
-        (tx.customerName && tx.customerName.toLowerCase().includes(q)) ||
-        (tx.doctorName && tx.doctorName.toLowerCase().includes(q)) ||
-        (tx.cashierName && tx.cashierName.toLowerCase().includes(q)) ||
-        (tx.paymentMethod && tx.paymentMethod.toLowerCase().includes(q))
-    );
-  }, [transactions, receiptSearch]);
+    let list = transactions;
+
+    if (receiptSearch.trim()) {
+      const q = receiptSearch.toLowerCase().trim();
+      list = list.filter(
+        (tx) =>
+          (tx.receiptNumber && tx.receiptNumber.toLowerCase().includes(q)) ||
+          (tx.customerName && tx.customerName.toLowerCase().includes(q)) ||
+          (tx.doctorName && tx.doctorName.toLowerCase().includes(q)) ||
+          (tx.cashierName && tx.cashierName.toLowerCase().includes(q)) ||
+          (tx.paymentMethod && tx.paymentMethod.toLowerCase().includes(q))
+      );
+    }
+
+    if (methodFilter !== 'all') {
+      list = list.filter((tx) => {
+        const m = (tx.paymentMethod || '').toUpperCase();
+        if (methodFilter === 'RETURNED') return m.includes('RETURN');
+        if (methodFilter === 'DIGITAL') return !m.includes('RETURN') && m.includes('DIGITAL');
+        if (methodFilter === 'CREDIT') return !m.includes('RETURN') && m.includes('CREDIT');
+        if (methodFilter === 'CASH') return !m.includes('RETURN') && !m.includes('DIGITAL') && !m.includes('CREDIT');
+        return true;
+      });
+    }
+
+    if (doctorFilter === 'prescribed') {
+      list = list.filter(
+        (tx) =>
+          tx.doctorName &&
+          tx.doctorName.trim().toLowerCase() !== 'self' &&
+          tx.doctorName.trim().toLowerCase() !== 'walk-in'
+      );
+    }
+
+    return [...list].sort((a, b) => {
+      if (receiptSort === 'oldest') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (receiptSort === 'highest') {
+        return (b.totalAmount || 0) - (a.totalAmount || 0);
+      }
+      if (receiptSort === 'lowest') {
+        return (a.totalAmount || 0) - (b.totalAmount || 0);
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [transactions, receiptSearch, methodFilter, doctorFilter, receiptSort]);
 
   const totalReceiptPages = Math.max(1, Math.ceil(filteredTransactions.length / receiptsPerPage));
   const paginatedTransactions = filteredTransactions.slice(
@@ -465,7 +599,7 @@ export function ReportsView() {
                 size="sm"
                 onClick={handleShareWhatsApp}
                 disabled={loading || !reportData}
-                className="flex-1 sm:flex-initial h-9 px-3.5 gap-1.5 text-xs font-semibold whitespace-nowrap border-emerald-500/35 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 shadow-2xs cursor-pointer justify-center"
+                className="flex-1 sm:flex-initial h-9 px-3.5 gap-1.5 text-xs font-semibold whitespace-nowrap border-success/30 bg-success/10 text-success hover:bg-success/20 shadow-2xs cursor-pointer justify-center"
               >
                 <WhatsAppIcon className="size-3.5 shrink-0" />
                 <span>WhatsApp</span>
@@ -678,7 +812,7 @@ export function ReportsView() {
               title="Net Profit"
               value={formatCurrency(totalProfit)}
               caption={`${profitMargin.toFixed(1)}% margin • Purchasing Cost: ${formatCurrency(totalCost)}`}
-              icon={TrendingUp}
+              icon={totalProfit >= 0 ? TrendingUp : TrendingDown}
               variant={totalProfit >= 0 ? 'success' : 'destructive'}
               isLoading={loading}
             />
@@ -769,7 +903,7 @@ export function ReportsView() {
                             <td className="px-4 py-3 text-right font-bold text-foreground tabular-nums">
                               {formatCurrency(s.totalRevenue)}
                             </td>
-                            <td className="px-4 py-3 text-right font-bold text-emerald-500 tabular-nums">
+                            <td className="px-4 py-3 text-right font-bold text-success tabular-nums">
                               {formatCurrency(sProfit)}
                             </td>
                             <td className="px-4 py-3 text-right font-semibold text-muted-foreground tabular-nums">
@@ -893,11 +1027,12 @@ export function ReportsView() {
                             <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
                           </linearGradient>
                           <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                            <stop offset="5%" stopColor="var(--success)" stopOpacity={0.35} />
+                            <stop offset="95%" stopColor="var(--success)" stopOpacity={0.0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                        <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
                         <XAxis
                           dataKey="date"
                           tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
@@ -940,7 +1075,7 @@ export function ReportsView() {
                           type="monotone"
                           dataKey="profit"
                           name="profit"
-                          stroke="#10b981"
+                          stroke="var(--success)"
                           strokeWidth={2.5}
                           fillOpacity={1}
                           fill="url(#colorProfit)"
@@ -949,6 +1084,7 @@ export function ReportsView() {
                     ) : (
                       <BarChart data={salesOverTime} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                        <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />
                         <XAxis
                           dataKey="date"
                           tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
@@ -979,7 +1115,7 @@ export function ReportsView() {
                           wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }}
                         />
                         <Bar dataKey="revenue" name="revenue" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="profit" name="profit" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="profit" name="profit" fill="var(--success)" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     )}
                   </ResponsiveContainer>
@@ -987,6 +1123,77 @@ export function ReportsView() {
               )}
             </CardContent>
           </Card>
+
+          {/* Register & Payment Tender Reconciliation Bar */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+            <div className="p-3.5 bg-card border border-border/70 rounded-xl shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider">Cash in Drawer</span>
+                <div className="size-6 rounded-md bg-muted/60 flex items-center justify-center text-muted-foreground">
+                  <Banknote className="size-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-base sm:text-lg font-bold text-foreground tabular-nums">
+                  {formatCurrency(reportData?.summary?.paymentBreakdown?.cash?.amount ?? 0)}
+                </div>
+                <div className="text-micro text-muted-foreground mt-0.5">
+                  {reportData?.summary?.paymentBreakdown?.cash?.count ?? 0} {reportData?.summary?.paymentBreakdown?.cash?.count === 1 ? 'sale' : 'sales'} collected
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-card border border-border/70 rounded-xl shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider">Digital / Card</span>
+                <div className="size-6 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                  <Smartphone className="size-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-base sm:text-lg font-bold text-foreground tabular-nums">
+                  {formatCurrency(reportData?.summary?.paymentBreakdown?.digital?.amount ?? 0)}
+                </div>
+                <div className="text-micro text-muted-foreground mt-0.5">
+                  {reportData?.summary?.paymentBreakdown?.digital?.count ?? 0} {reportData?.summary?.paymentBreakdown?.digital?.count === 1 ? 'sale' : 'sales'} processed
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-card border border-border/70 rounded-xl shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider">Customer Khata (Credit)</span>
+                <div className="size-6 rounded-md bg-warning/10 flex items-center justify-center text-warning">
+                  <CreditCard className="size-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-base sm:text-lg font-bold text-foreground tabular-nums">
+                  {formatCurrency(reportData?.summary?.paymentBreakdown?.credit?.amount ?? 0)}
+                </div>
+                <div className="text-micro text-muted-foreground mt-0.5">
+                  {reportData?.summary?.paymentBreakdown?.credit?.count ?? 0} {reportData?.summary?.paymentBreakdown?.credit?.count === 1 ? 'receipt' : 'receipts'} debited
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-card border border-border/70 rounded-xl shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-micro font-semibold text-muted-foreground uppercase tracking-wider">Returns & Discounts</span>
+                <div className="size-6 rounded-md bg-destructive/10 flex items-center justify-center text-destructive">
+                  <RotateCcw className="size-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-base sm:text-lg font-bold text-destructive tabular-nums">
+                  -{formatCurrency(reportData?.summary?.totalReturns ?? 0)}
+                </div>
+                <div className="text-micro text-muted-foreground mt-0.5">
+                  Discounts: {formatCurrency(reportData?.summary?.totalDiscount ?? 0)}
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Bottom Section: Dual Tab Card for Sales Receipts and Medicines Sold */}
           <Card id="sales-receipts-section" className="border-border/60 shadow-2xs">
@@ -1135,6 +1342,70 @@ export function ReportsView() {
                 )}
               </div>
 
+              {/* Segmented Filter Row for Sales Receipts */}
+              {bottomSectionTab === 'receipts' && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-2.5 border-t border-border/60">
+                  <span className="text-micro font-semibold text-muted-foreground mr-1 hidden sm:inline">Method:</span>
+                  {(
+                    [
+                      { key: 'all', label: `All (${methodCounts.all})` },
+                      { key: 'CASH', label: `Cash (${methodCounts.cash})` },
+                      { key: 'DIGITAL', label: `Digital (${methodCounts.digital})` },
+                      { key: 'CREDIT', label: `Khata (${methodCounts.credit})` },
+                      { key: 'RETURNED', label: `Returns (${methodCounts.returned})` },
+                    ] as const
+                  ).map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={() => {
+                        setMethodFilter(chip.key);
+                        setReceiptPage(1);
+                      }}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                        methodFilter === chip.key
+                          ? 'bg-primary text-primary-foreground shadow-2xs'
+                          : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+
+                  <div className="hidden sm:block h-4 w-px bg-border/80 mx-1" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDoctorFilter((curr) => (curr === 'prescribed' ? 'all' : 'prescribed'));
+                      setReceiptPage(1);
+                    }}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
+                      doctorFilter === 'prescribed'
+                        ? 'bg-primary text-primary-foreground shadow-2xs'
+                        : 'bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60'
+                    }`}
+                  >
+                    <Stethoscope className="size-3" />
+                    <span>Doctor Rx Only</span>
+                  </button>
+
+                  <div className="ml-auto flex items-center gap-1.5 text-micro text-muted-foreground bg-muted/30 border border-border/60 px-2.5 py-1 rounded-lg">
+                    <ArrowUpDown className="size-3 text-primary" />
+                    <select
+                      value={receiptSort}
+                      onChange={(e) => setReceiptSort(e.target.value as any)}
+                      className="bg-transparent font-medium text-foreground text-xs cursor-pointer focus:outline-none"
+                    >
+                      <option value="newest" className="bg-popover text-popover-foreground">Newest First</option>
+                      <option value="oldest" className="bg-popover text-popover-foreground">Oldest First</option>
+                      <option value="highest" className="bg-popover text-popover-foreground">Highest Amount</option>
+                      <option value="lowest" className="bg-popover text-popover-foreground">Lowest Amount</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {/* Sub-description */}
               <div className="text-xs text-muted-foreground">
                 {bottomSectionTab === 'receipts' ? (
@@ -1206,15 +1477,15 @@ export function ReportsView() {
                           {paginatedTransactions.map((tx) => (
                             <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
                               <td className="py-3 px-4 font-mono font-semibold text-foreground whitespace-nowrap">
-                                <Link
-                                  href={`/pos/receipt/${tx.id}`}
-                                  target="_blank"
-                                  className="hover:text-primary transition-colors hover:underline inline-flex items-center gap-1.5"
-                                  title="View printable receipt"
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenReceiptModal(tx.id)}
+                                  className="hover:text-primary transition-colors hover:underline inline-flex items-center gap-1.5 cursor-pointer text-left"
+                                  title="Quick view receipt details"
                                 >
                                   <Receipt className="size-3.5 text-primary" />
                                   <span>{tx.receiptNumber}</span>
-                                </Link>
+                                </button>
                               </td>
 
                               <td className="py-3 px-4 text-muted-foreground whitespace-nowrap">
@@ -1277,9 +1548,20 @@ export function ReportsView() {
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    onClick={() => handleOpenReceiptModal(tx.id)}
+                                    className="h-7 px-2 text-xs font-semibold gap-1 text-foreground border-border/70 hover:bg-muted/60 cursor-pointer shadow-2xs"
+                                    title="Quick view receipt details"
+                                  >
+                                    <Eye className="size-3.5 text-primary" />
+                                    <span className="hidden sm:inline">Inspect</span>
+                                  </Button>
+
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => handleDownloadReceipt(tx.id)}
                                     disabled={downloadingSaleId === tx.id}
-                                    className="h-7 px-2.5 text-xs font-semibold gap-1 text-foreground border-border/70 hover:bg-muted/60 cursor-pointer shadow-2xs"
+                                    className="h-7 px-2 text-xs font-semibold gap-1 text-foreground border-border/70 hover:bg-muted/60 cursor-pointer shadow-2xs"
                                     title="Download receipt PDF"
                                   >
                                     {downloadingSaleId === tx.id ? (
@@ -1287,7 +1569,7 @@ export function ReportsView() {
                                     ) : (
                                       <FileDown className="size-3.5 text-primary" />
                                     )}
-                                    <span className="hidden sm:inline">Receipt</span>
+                                    <span className="hidden sm:inline">PDF</span>
                                   </Button>
 
                                   <Button
@@ -1295,7 +1577,7 @@ export function ReportsView() {
                                     variant="ghost"
                                     size="icon"
                                     className="size-7 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
-                                    title="View receipt"
+                                    title="Open full receipt page in new tab"
                                   >
                                     <Link href={`/pos/receipt/${tx.id}`} target="_blank">
                                       <ExternalLink className="size-3.5" />
@@ -1383,7 +1665,7 @@ export function ReportsView() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left border-collapse min-w-[720px]">
+                    <table className="w-full text-xs text-left border-collapse min-w-[760px]">
                       <thead>
                         <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
                           <th className="py-3 px-4 w-12 text-center whitespace-nowrap">#</th>
@@ -1393,6 +1675,7 @@ export function ReportsView() {
                           <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Total Sales</th>
                           <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">Purchasing Cost</th>
                           <th className="py-3 px-4 text-right whitespace-nowrap min-w-[100px]">Profit</th>
+                          <th className="py-3 px-4 text-right whitespace-nowrap min-w-[85px]">Margin</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
@@ -1403,6 +1686,7 @@ export function ReportsView() {
                             item.totalProfit !== undefined
                               ? item.totalProfit
                               : item.totalRevenue - itemCost;
+                          const itemMargin = item.totalRevenue > 0 ? (itemProfit / item.totalRevenue) * 100 : 0;
 
                           return (
                             <tr key={item.productId} className="hover:bg-muted/20 transition-colors">
@@ -1449,8 +1733,21 @@ export function ReportsView() {
                               <td className="py-3 px-4 text-right text-muted-foreground tabular-nums whitespace-nowrap">
                                 {formatCurrency(itemCost)}
                               </td>
-                              <td className="py-3 px-4 text-right font-bold text-emerald-500 tabular-nums whitespace-nowrap">
+                              <td className="py-3 px-4 text-right font-bold text-success tabular-nums whitespace-nowrap">
                                 {formatCurrency(itemProfit)}
+                              </td>
+                              <td className="py-3 px-4 text-right whitespace-nowrap">
+                                <span
+                                  className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-micro font-bold tabular-nums ${
+                                    itemMargin >= 20
+                                      ? 'bg-success/10 text-success'
+                                      : itemMargin >= 0
+                                      ? 'bg-warning/10 text-warning'
+                                      : 'bg-destructive/10 text-destructive'
+                                  }`}
+                                >
+                                  {itemMargin.toFixed(1)}%
+                                </span>
                               </td>
                             </tr>
                           );
@@ -1499,6 +1796,229 @@ export function ReportsView() {
           </Card>
         </>
       )}
+
+      {/* In-Place Receipt Quick View Inspection Dialog */}
+      <Dialog
+        open={isReceiptModalOpen}
+        onOpenChange={(open) => {
+          setIsReceiptModalOpen(open);
+          if (!open) {
+            activeReceiptRequestIdRef.current = null;
+            setSaleDetail(null);
+            setLoadingSaleDetail(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-card text-foreground border-border">
+          <DialogHeader className="pb-3 border-b border-border text-left">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Receipt className="size-5 text-primary" />
+                <DialogTitle className="text-base sm:text-lg font-bold font-mono">
+                  {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
+                </DialogTitle>
+              </div>
+              {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || saleDetail.status)}
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              {saleDetail ? (
+                <span>
+                  Recorded on {formatDateTime(saleDetail.createdAt)} • {saleDetail.store?.name || 'Main Pharmacy'}
+                </span>
+              ) : (
+                'Loading transaction details...'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingSaleDetail ? (
+            <div className="py-12 space-y-3">
+              <Skeleton className="h-6 w-3/4 mx-auto" />
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : saleDetail ? (
+            <div className="space-y-4 pt-2">
+              {/* Customer, Cashier, Doctor Meta */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-muted/30 border border-border/70 text-xs">
+                <div>
+                  <span className="text-micro text-muted-foreground block font-medium">Customer</span>
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                    <User className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{saleDetail.customer?.name || 'Walk-in Customer'}</span>
+                  </div>
+                  {saleDetail.customer?.phone && (
+                    <span className="text-micro text-muted-foreground block font-mono">
+                      {saleDetail.customer.phone}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-micro text-muted-foreground block font-medium">Cashier / Staff</span>
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                    <User className="size-3.5 text-primary/70 shrink-0" />
+                    <span className="truncate">{saleDetail.user?.name || 'Staff'}</span>
+                  </div>
+                  {saleDetail.user?.email && (
+                    <span className="text-micro text-muted-foreground block truncate">
+                      {saleDetail.user.email}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <span className="text-micro text-muted-foreground block font-medium">Prescriber / Doctor</span>
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                    <Stethoscope className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{saleDetail.doctorName || 'Self / OTC'}</span>
+                  </div>
+                  <span className="text-micro text-muted-foreground block">
+                    {saleDetail.doctorName ? 'Prescription Dispense' : 'Over The Counter'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Line Items Table */}
+              <div className="border border-border/70 rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/70">
+                      <tr>
+                        <th className="py-2.5 px-3">Item / Medicine</th>
+                        <th className="py-2.5 px-3">Batch & Expiry</th>
+                        <th className="py-2.5 px-3 text-right">Price</th>
+                        <th className="py-2.5 px-3 text-center">Qty</th>
+                        <th className="py-2.5 px-3 text-right">Disc</th>
+                        <th className="py-2.5 px-3 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {saleDetail.items.map((item) => (
+                        <tr key={item.id} className="hover:bg-muted/20">
+                          <td className="py-2.5 px-3 font-medium text-foreground">
+                            <div>{item.productName}</div>
+                            {item.genericName && (
+                              <div className="text-micro text-muted-foreground truncate max-w-[180px]">
+                                {item.genericName}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
+                            <div>{item.batchNumber || '—'}</div>
+                            {item.expiryDate && (
+                              <div className="text-micro">{item.expiryDate.split('T')[0]}</div>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums text-muted-foreground">
+                            {formatCurrency(item.unitPrice)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center tabular-nums font-semibold text-foreground">
+                            {item.quantity} {item.unit || ''}
+                          </td>
+                          <td className="py-2.5 px-3 text-right tabular-nums">
+                            {item.discount > 0 ? (
+                              <span className="text-success font-medium">-{formatCurrency(item.discount)}</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-foreground tabular-nums">
+                            {formatCurrency(item.lineTotal)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Financial Breakdown */}
+              <div className="p-3 bg-muted/20 border border-border/70 rounded-xl space-y-1.5 text-xs">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Gross Subtotal:</span>
+                  <span className="tabular-nums font-medium text-foreground">
+                    {formatCurrency(
+                      saleDetail.items.reduce((sum, it) => sum + it.unitPrice * it.quantity, 0)
+                    )}
+                  </span>
+                </div>
+                {saleDetail.discountAmount > 0 && (
+                  <div className="flex justify-between text-success">
+                    <span>Discount Applied:</span>
+                    <span className="tabular-nums font-semibold">
+                      -{formatCurrency(saleDetail.discountAmount)}
+                    </span>
+                  </div>
+                )}
+                {saleDetail.taxAmount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Tax:</span>
+                    <span className="tabular-nums font-medium text-foreground">
+                      {formatCurrency(saleDetail.taxAmount)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold border-t border-border pt-2 text-foreground">
+                  <span>Net Paid Amount:</span>
+                  <span className="tabular-nums text-primary text-base">
+                    {formatCurrency(saleDetail.totalAmount)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Returns on this sale if any */}
+              {saleDetail.returns && saleDetail.returns.length > 0 && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 text-xs space-y-1.5">
+                  <div className="font-bold text-destructive flex items-center gap-1.5">
+                    <RotateCcw className="size-3.5" />
+                    <span>Return / Refund Issued</span>
+                  </div>
+                  {saleDetail.returns.map((ret) => (
+                    <div key={ret.id} className="flex justify-between items-center text-micro">
+                      <span>{ret.returnNumber} ({ret.itemsCount} items returned - {ret.reason})</span>
+                      <span className="font-bold text-destructive">-{formatCurrency(ret.refundAmount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2 justify-between items-center">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadModalThermal}
+                disabled={!saleDetail || loadingSaleDetail || modalPdfLoading}
+                className="flex-1 sm:flex-initial h-8 text-xs font-semibold gap-1.5 cursor-pointer"
+              >
+                <Printer className="size-3.5 text-primary" />
+                <span>Thermal Receipt</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadModalA4}
+                disabled={!saleDetail || loadingSaleDetail || modalPdfLoading}
+                className="flex-1 sm:flex-initial h-8 text-xs font-semibold gap-1.5 cursor-pointer"
+              >
+                <FileDown className="size-3.5 text-primary" />
+                <span>A4 Tax Invoice</span>
+              </Button>
+            </div>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setIsReceiptModalOpen(false)}
+              className="w-full sm:w-auto h-8 text-xs font-semibold cursor-pointer"
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

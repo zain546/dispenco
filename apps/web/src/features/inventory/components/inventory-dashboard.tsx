@@ -25,6 +25,8 @@ import {
   FileDown,
   ChevronDown,
   FileText,
+  Wallet,
+  TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +39,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { TableSkeleton } from '@/components/ui/table-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatCurrency, formatNumber } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { productsApi } from '../services/products-api';
 import { useInventoryAggregation } from '../hooks/use-inventory-queries';
@@ -68,6 +70,11 @@ const DEFAULT_AGGREGATION_DATA = {
     unstockedCount: 0,
     priorityUnstockedCount: 0,
     completionPercentage: 100,
+    totalPurchaseCost: 0,
+    totalRetailValue: 0,
+    totalPotentialProfit: 0,
+    potentialMarginPercent: 0,
+    totalStockUnits: 0,
     outOfStockCount: 0,
     lowStockCount: 0,
     expiringSoonCount: 0,
@@ -124,7 +131,7 @@ export function InventoryDashboard() {
     expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
     priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
     unstockedOnly: activeTab === 'unstocked' ? true : undefined,
-    search: search.trim() || undefined,
+    search: (activeTab !== 'full-catalog' && activeTab !== 'expiry-risk') ? (search.trim() || undefined) : undefined,
   });
 
   const data = queryData ?? DEFAULT_AGGREGATION_DATA;
@@ -215,12 +222,12 @@ export function InventoryDashboard() {
           </Button>
         }
         actions={
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
             {/* 1. Primary Action: Receive Stock */}
             <Button
               asChild
               size="sm"
-              className="h-9 px-3.5 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-center cursor-pointer whitespace-nowrap"
+              className="h-9 px-3.5 gap-1.5 font-bold text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs justify-center cursor-pointer whitespace-nowrap w-full sm:w-auto"
             >
               <Link href="/inventory/receive">
                 <Boxes className="size-4 shrink-0" />
@@ -228,104 +235,110 @@ export function InventoryDashboard() {
               </Link>
             </Button>
 
-            {/* 2. Catalog Action: Add Product */}
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="h-9 px-3.5 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
-            >
-              <Link href="/inventory/new">
-                <Plus className="size-3.5 text-primary shrink-0" />
-                <span>Add Product</span>
-              </Link>
-            </Button>
+            {/* Secondary Actions: Compact 3-Column on Mobile, Inline Flex on Desktop */}
+            <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+              {/* 2. Catalog Action: Add Product */}
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-9 px-2 sm:px-3.5 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
+              >
+                <Link href="/inventory/new">
+                  <Plus className="size-3.5 text-primary shrink-0" />
+                  <span className="hidden sm:inline">Add Product</span>
+                  <span className="sm:hidden">Add</span>
+                </Link>
+              </Button>
 
-            {/* 3. Data Intake: Import CSV */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setImportModalOpen(true)}
-              className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
-            >
-              <FileSpreadsheet className="size-3.5 text-muted-foreground shrink-0" />
-              <span>Import CSV</span>
-            </Button>
+              {/* 3. Data Intake: Import CSV */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setImportModalOpen(true)}
+                className="h-9 px-2 sm:px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
+              >
+                <FileSpreadsheet className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="hidden sm:inline">Import CSV</span>
+                <span className="sm:hidden">Import</span>
+              </Button>
 
-            {/* 4. Document Export: Export PDF with Dropdown Options */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isExportingPdf}
-                  className="h-9 px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
-                  title="Export inventory stock report in PDF"
-                >
-                  {isExportingPdf ? (
-                    <Loader2 className="size-3.5 animate-spin text-primary shrink-0" />
-                  ) : (
-                    <FileDown className="size-3.5 text-primary shrink-0" />
-                  )}
-                  <span>Export PDF</span>
-                  <ChevronDown className="size-3 text-muted-foreground shrink-0" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel className="text-xs font-bold text-muted-foreground">
-                  Stock PDF Reports
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => handleExportStockPdf('all')}
-                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
-                >
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <FileText className="size-3.5 text-primary shrink-0" />
-                    <span>Entire Stock Report (All Items)</span>
-                  </div>
-                  <span className="text-micro text-muted-foreground">
-                    Complete catalog with all active batches and stock levels
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleExportStockPdf('in-stock')}
-                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
-                >
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Boxes className="size-3.5 text-success shrink-0" />
-                    <span>In-Stock Items Only</span>
-                  </div>
-                  <span className="text-micro text-muted-foreground">
-                    Medicines currently holding active non-zero stock
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleExportStockPdf('low-stock')}
-                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
-                >
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <AlertTriangle className="size-3.5 text-warning shrink-0" />
-                  <span>Low Stock / Reorder Sheet</span>
-                  </div>
-                  <span className="text-micro text-muted-foreground">
-                    Depleted items needing purchase reorders
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleExportStockPdf('expiring')}
-                  className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
-                >
-                  <div className="font-semibold text-foreground flex items-center gap-1.5">
-                    <Clock className="size-3.5 text-destructive shrink-0" />
-                    <span>Expiring Soon (&lt; 180 Days)</span>
-                  </div>
-                  <span className="text-micro text-muted-foreground">
-                    Batches requiring supplier return or markdown
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              {/* 4. Document Export: Export PDF with Dropdown Options */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isExportingPdf}
+                    className="h-9 px-2 sm:px-3 gap-1.5 font-semibold text-xs bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs justify-center cursor-pointer whitespace-nowrap"
+                    title="Export inventory stock report in PDF"
+                  >
+                    {isExportingPdf ? (
+                      <Loader2 className="size-3.5 animate-spin text-primary shrink-0" />
+                    ) : (
+                      <FileDown className="size-3.5 text-primary shrink-0" />
+                    )}
+                    <span className="hidden sm:inline">Export PDF</span>
+                    <span className="sm:hidden">PDF</span>
+                    <ChevronDown className="size-3 text-muted-foreground shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel className="text-xs font-bold text-muted-foreground">
+                    Stock PDF Reports
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleExportStockPdf('all')}
+                    className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                  >
+                    <div className="font-semibold text-foreground flex items-center gap-1.5">
+                      <FileText className="size-3.5 text-primary shrink-0" />
+                      <span>Entire Stock Report (All Items)</span>
+                    </div>
+                    <span className="text-micro text-muted-foreground">
+                      Complete catalog with all active batches and stock levels
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExportStockPdf('in-stock')}
+                    className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                  >
+                    <div className="font-semibold text-foreground flex items-center gap-1.5">
+                      <Boxes className="size-3.5 text-success shrink-0" />
+                      <span>In-Stock Items Only</span>
+                    </div>
+                    <span className="text-micro text-muted-foreground">
+                      Medicines currently holding active non-zero stock
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExportStockPdf('low-stock')}
+                    className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                  >
+                    <div className="font-semibold text-foreground flex items-center gap-1.5">
+                      <AlertTriangle className="size-3.5 text-warning shrink-0" />
+                      <span>Low Stock / Reorder Sheet</span>
+                    </div>
+                    <span className="text-micro text-muted-foreground">
+                      Depleted items needing purchase reorders
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExportStockPdf('expiring')}
+                    className="text-xs py-2 cursor-pointer flex flex-col items-start gap-0.5"
+                  >
+                    <div className="font-semibold text-foreground flex items-center gap-1.5">
+                      <Clock className="size-3.5 text-destructive shrink-0" />
+                      <span>Expiring Soon (&lt; 180 Days)</span>
+                    </div>
+                    <span className="text-micro text-muted-foreground">
+                      Batches requiring supplier return or markdown
+                    </span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             {/* 5. Desktop Refresh Button on the right side */}
             <Button
@@ -342,121 +355,182 @@ export function InventoryDashboard() {
         }
       />
 
-      {/* Overview Metric Cards */}
+      {/* Unified Executive KPI Strip: Capital Asset Valuation & Real-Time Operational Signals */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-        {/* Branch In-Stock / Total Catalog */}
+        {/* 1. Stock Asset Valuation & Retail Realizable Potential */}
+        <div className="relative overflow-hidden rounded-xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/[0.03] p-3 sm:p-4 flex flex-col justify-between shadow-2xs hover:border-primary/40 transition-all">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-semibold text-foreground/85 truncate">
+                Stock Valuation
+              </span>
+              <Badge variant="outline" className="text-[10px] py-0 px-1 font-semibold text-muted-foreground border-border/60">
+                {!isAllStores ? (activeStore?.name || 'Branch') : 'All'}
+              </Badge>
+              {search.trim() && activeTab !== 'full-catalog' && activeTab !== 'expiry-risk' && (
+                <Badge variant="outline" className="text-[9px] py-0 px-1 text-primary border-primary/30 bg-primary/5">
+                  Filtered
+                </Badge>
+              )}
+            </div>
+            <div className="size-7 sm:size-8 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+              <Wallet className="size-3.5 sm:size-4" />
+            </div>
+          </div>
+
+          <div className="mt-2.5 sm:mt-3">
+            <div className="text-lg sm:text-2xl font-black tracking-tight text-foreground tabular-nums">
+              {formatCurrency(data.summary.totalPurchaseCost ?? 0)}
+            </div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+              <span>MRP: <strong className="text-foreground font-semibold">{formatCurrency(data.summary.totalRetailValue ?? 0)}</strong></span>
+              <span className="text-border">•</span>
+              <span
+                className={`font-semibold flex items-center gap-0.5 ${
+                  (data.summary.potentialMarginPercent ?? 0) >= 0
+                    ? 'text-success'
+                    : 'text-destructive'
+                }`}
+              >
+                {(data.summary.potentialMarginPercent ?? 0) >= 0 ? (
+                  <TrendingUp className="size-3 shrink-0" />
+                ) : null}
+                {(data.summary.potentialMarginPercent ?? 0) >= 0
+                  ? `+${data.summary.potentialMarginPercent ?? 0}%`
+                  : `${data.summary.potentialMarginPercent}%`}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Available In-Stock Medicines & Active Units */}
         <div
           onClick={() => setActiveTab(!isAllStores ? 'in-stock' : 'full-catalog')}
-          className={`relative overflow-hidden rounded-xl border p-3 sm:p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
+          className={`relative overflow-hidden rounded-xl border p-3 sm:p-4 flex flex-col justify-between cursor-pointer transition-all ${
             activeTab === 'in-stock' || (isAllStores && activeTab === 'full-catalog')
-              ? 'ring-2 ring-primary/50 border-primary bg-primary/10 shadow-xs'
-              : 'border-primary/20 bg-gradient-to-br from-card via-card to-primary/[0.04] hover:border-primary/40'
+              ? 'ring-1 ring-primary/50 border-primary bg-primary/[0.04] shadow-2xs'
+              : 'border-border/80 bg-gradient-to-br from-card via-card to-success/[0.02] hover:border-primary/40 hover:bg-muted/30 shadow-2xs'
           }`}
         >
-          <div className="flex items-start justify-between gap-1.5">
-            <span className="text-xs font-semibold text-foreground/85 leading-snug">
-              {!isAllStores ? 'Branch In-Stock' : 'Total Catalog'}
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-xs font-semibold text-foreground/85">
+              {!isAllStores ? 'Available In-Stock' : 'Master Catalog'}
             </span>
-            <div className="size-7 sm:size-8 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+            <div className="size-7 sm:size-8 rounded-lg bg-success/10 text-success ring-1 ring-success/20 flex items-center justify-center shrink-0">
               <Boxes className="size-3.5 sm:size-4" />
             </div>
           </div>
-          <div className="mt-2.5 sm:mt-3 flex items-baseline justify-between gap-1.5">
-            <strong className="text-xl sm:text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
-              {!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
-            </strong>
-            <span className="text-[10px] font-semibold text-primary bg-primary/20 border border-primary/30 px-1.5 py-0.5 rounded-md shrink-0">
-              {!isAllStores ? `of ${data.summary.totalCatalogItems} items` : 'Catalog'}
-            </span>
-          </div>
-        </div>
-
-        {/* Top Sellers */}
-        <div
-          onClick={() => setActiveTab('priority-top-sellers')}
-          className={`relative overflow-hidden rounded-xl border p-3 sm:p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
-            activeTab === 'priority-top-sellers'
-              ? 'ring-2 ring-warning/50 border-warning bg-warning/10 shadow-xs'
-              : 'border-warning/25 bg-gradient-to-br from-card via-card to-warning/[0.04] hover:border-warning/45'
-          }`}
-        >
-          <div className="flex items-start justify-between gap-1.5">
-            <span className="text-xs font-semibold text-foreground/85 leading-snug">
-              Top Sellers
-            </span>
-            <div className="size-7 sm:size-8 rounded-lg bg-warning/10 text-warning ring-1 ring-warning/20 flex items-center justify-center shrink-0">
-              <Star className="size-3.5 sm:size-4 fill-warning/30" />
+          <div className="mt-2.5 sm:mt-3">
+            <div className="flex items-baseline justify-between gap-1.5">
+              <div className="text-lg sm:text-2xl font-black tracking-tight text-foreground tabular-nums">
+                {!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
+                <span className="text-xs sm:text-sm font-semibold text-muted-foreground ml-1">Items</span>
+              </div>
+              <span className="text-[10px] font-semibold text-success bg-success/15 border border-success/25 px-1.5 py-0.5 rounded-md shrink-0">
+                Active
+              </span>
+            </div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 truncate">
+              {formatNumber(data.summary.totalStockUnits ?? 0)} physical units on hand
             </div>
           </div>
-          <div className="mt-2.5 sm:mt-3 flex items-baseline justify-between gap-1.5">
-            <strong className={`text-xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${
-              data.summary.priorityCount > 0 ? 'text-warning' : 'text-foreground/85'
-            }`}>
-              {data.summary.priorityCount}
-            </strong>
-            <span className="text-[10px] font-semibold text-warning bg-warning/10 border border-warning/20 px-1.5 py-0.5 rounded-md shrink-0">
-              Priority
-            </span>
-          </div>
         </div>
 
-        {/* Expiring Soon */}
+        {/* 3. Expiring Soon Batches (< 180 Days FEFO Alert) */}
         <div
           onClick={() => setActiveTab('expiring-soon')}
-          className={`relative overflow-hidden rounded-xl border p-3 sm:p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
+          className={`relative overflow-hidden rounded-xl border p-3 sm:p-4 flex flex-col justify-between cursor-pointer transition-all ${
             activeTab === 'expiring-soon'
-              ? 'ring-2 ring-destructive/50 border-destructive bg-destructive/10 shadow-xs'
-              : 'border-destructive/25 bg-gradient-to-br from-card via-card to-destructive/[0.06] hover:border-destructive/45'
+              ? 'ring-1 ring-destructive/50 border-destructive bg-destructive/[0.04] shadow-2xs'
+              : 'border-border/80 bg-gradient-to-br from-card via-card to-destructive/[0.02] hover:border-destructive/40 hover:bg-muted/30 shadow-2xs'
           }`}
         >
-          <div className="flex items-start justify-between gap-1.5">
-            <span className="text-xs font-semibold text-foreground/85 leading-snug">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-xs font-semibold text-foreground/85">
               Expiring Soon
             </span>
-            <div className="size-7 sm:size-8 rounded-lg bg-destructive/10 text-destructive ring-1 ring-destructive/20 flex items-center justify-center shrink-0">
+            <div
+              className={`size-7 sm:size-8 rounded-lg flex items-center justify-center shrink-0 ring-1 ${
+                data.summary.expiringSoonCount > 0
+                  ? 'bg-destructive/10 text-destructive ring-destructive/20'
+                  : 'bg-muted text-muted-foreground ring-border/50'
+              }`}
+            >
               <Clock className="size-3.5 sm:size-4" />
             </div>
           </div>
-          <div className="mt-2.5 sm:mt-3 flex items-baseline justify-between gap-1.5">
-            <strong className="text-xl sm:text-3xl font-extrabold tracking-tight text-destructive tabular-nums">
-              {data.summary.expiringSoonCount}
-            </strong>
-            <span className="text-[10px] font-semibold text-destructive bg-destructive/15 border border-destructive/25 px-1.5 py-0.5 rounded-md shrink-0">
-              &lt; 180 Days
-            </span>
+          <div className="mt-2.5 sm:mt-3">
+            <div className="flex items-baseline justify-between gap-1.5">
+              <div
+                className={`text-lg sm:text-2xl font-black tracking-tight tabular-nums ${
+                  data.summary.expiringSoonCount > 0 ? 'text-destructive' : 'text-foreground'
+                }`}
+              >
+                {data.summary.expiringSoonCount}
+                <span className="text-xs sm:text-sm font-semibold text-muted-foreground ml-1">Batches</span>
+              </div>
+              <span
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
+                  data.summary.expiringSoonCount > 0
+                    ? 'text-destructive bg-destructive/15 border-destructive/25'
+                    : 'text-muted-foreground bg-muted/60 border-border/60'
+                }`}
+              >
+                &lt; 180 Days
+              </span>
+            </div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 truncate">
+              {data.summary.expiringSoonCount > 0 ? 'FEFO markdown / return needed' : 'Zero near-expiry risk'}
+            </div>
           </div>
         </div>
 
-        {/* Low Stock Alerts */}
+        {/* 4. Low Stock & Depleted Inventory Restock Alerts */}
         <div
           onClick={() => setActiveTab('low-stock')}
-          className={`relative overflow-hidden rounded-xl border p-3 sm:p-3.5 flex flex-col justify-between cursor-pointer transition-all ${
+          className={`relative overflow-hidden rounded-xl border p-3 sm:p-4 flex flex-col justify-between cursor-pointer transition-all ${
             activeTab === 'low-stock'
-              ? 'ring-2 ring-warning/50 border-warning bg-warning/10 shadow-xs'
-              : 'border-warning/20 bg-gradient-to-br from-card via-card to-warning/[0.04] hover:border-warning/40'
+              ? 'ring-1 ring-warning/50 border-warning bg-warning/[0.04] shadow-2xs'
+              : 'border-border/80 bg-gradient-to-br from-card via-card to-warning/[0.02] hover:border-warning/40 hover:bg-muted/30 shadow-2xs'
           }`}
         >
-          <div className="flex items-start justify-between gap-1.5">
-            <span className="text-xs font-semibold text-foreground/85 leading-snug">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-xs font-semibold text-foreground/85">
               Low Stock Alerts
             </span>
-            <div className="size-7 sm:size-8 rounded-lg bg-warning/10 text-warning ring-1 ring-warning/20 flex items-center justify-center shrink-0">
+            <div
+              className={`size-7 sm:size-8 rounded-lg flex items-center justify-center shrink-0 ring-1 ${
+                data.summary.lowStockCount > 0
+                  ? 'bg-warning/10 text-warning ring-warning/20'
+                  : 'bg-muted text-muted-foreground ring-border/50'
+              }`}
+            >
               <AlertTriangle className="size-3.5 sm:size-4" />
             </div>
           </div>
-          <div className="mt-2.5 sm:mt-3 flex items-baseline justify-between gap-1.5">
-            <strong className={`text-xl sm:text-3xl font-extrabold tracking-tight tabular-nums ${
-              data.summary.lowStockCount > 0 ? 'text-warning' : 'text-foreground/85'
-            }`}>
-              {data.summary.lowStockCount}
-            </strong>
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
-              data.summary.lowStockCount > 0
-                ? 'text-warning bg-warning/15 border-warning/25'
-                : 'text-muted-foreground bg-muted/60 border-border/60'
-            }`}>
-              {data.summary.lowStockCount > 0 ? 'Needs Restock' : 'Healthy'}
-            </span>
+          <div className="mt-2.5 sm:mt-3">
+            <div className="flex items-baseline justify-between gap-1.5">
+              <div
+                className={`text-lg sm:text-2xl font-black tracking-tight tabular-nums ${
+                  data.summary.lowStockCount > 0 ? 'text-warning' : 'text-foreground'
+                }`}
+              >
+                {data.summary.lowStockCount}
+                <span className="text-xs sm:text-sm font-semibold text-muted-foreground ml-1">Items</span>
+              </div>
+              <span
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
+                  data.summary.lowStockCount > 0
+                    ? 'text-warning bg-warning/15 border-warning/25'
+                    : 'text-muted-foreground bg-muted/60 border-border/60'
+                }`}
+              >
+                {data.summary.lowStockCount > 0 ? 'Needs Restock' : 'Healthy'}
+              </span>
+            </div>
+            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 truncate">
+              {data.summary.lowStockCount > 0 ? 'Reorder threshold triggered' : 'All stock levels healthy'}
+            </div>
           </div>
         </div>
       </div>
@@ -505,7 +579,7 @@ export function InventoryDashboard() {
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search exceptions..."
+                placeholder="Search medicines & inventory..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 h-9 text-xs"
@@ -623,6 +697,20 @@ export function InventoryDashboard() {
                             <>
                               <span>•</span>
                               <span>Nearest Expiry: <strong className="text-foreground">{formatDate(product.earliestExpiryDate)}</strong></span>
+                            </>
+                          )}
+                          {product.avgCostPrice !== undefined && product.avgSellPrice !== undefined && product.avgSellPrice > 0 && (
+                            <>
+                              <span>•</span>
+                              <span>Cost: <strong className="text-foreground">{formatCurrency(product.avgCostPrice)}</strong></span>
+                              <span>•</span>
+                              <span>MRP: <strong className="text-foreground">{formatCurrency(product.avgSellPrice)}</strong></span>
+                              {product.totalRetailValue !== undefined && product.totalRetailValue > 0 && (
+                                <>
+                                  <span>•</span>
+                                  <span>Valuation: <strong className="text-success">{formatCurrency(product.totalRetailValue)}</strong></span>
+                                </>
+                              )}
                             </>
                           )}
                         </div>

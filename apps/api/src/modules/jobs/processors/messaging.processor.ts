@@ -33,29 +33,11 @@ export class MessagingProcessor extends WorkerHost {
     } else {
       result = await this.messagingProvider.sendWhatsApp(recipientPhone, messageText, mediaUrl);
     }
-
-    // Log to AuditLog if tenantId provided
-    if (tenantId) {
-      try {
-        await this.prisma.auditLog.create({
-          data: {
-            tenantId,
-            action: 'OUTBOUND_MESSAGE_DISPATCHED',
-            entityType: 'Notification',
-            entityId: result.messageId,
-            metadata: {
-              channel,
-              recipient: recipientPhone,
-              status: result.status,
-              success: result.success,
-              metadata: metadata || {},
-            },
-          },
-        });
-      } catch (err: any) {
-        this.logger.warn(`Failed to log audit entry for message ${result.messageId}: ${err.message}`);
-      }
-    }
+ 
+    // Operational telemetry is logged to processor logger only, preserving Compliance AuditLog for regulatory events
+    this.logger.debug(
+      `Outbound ${channel} message dispatched for ${recipientPhone}: messageId=${result?.messageId || 'unknown'}, status=${result?.status || 'dispatched'}`
+    );
 
     return result;
   }

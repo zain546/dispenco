@@ -23,6 +23,10 @@ import {
   Building2,
   User,
   X,
+  Copy,
+  Check,
+  Lock,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -118,6 +122,34 @@ const SEVERITY_CONFIG: Record<
   },
 };
 
+const QUICK_RATIONALE_PRESETS: Record<AnomalyType, string[]> = {
+  [AnomalyType.BELOW_COST_SALE]: [
+    'Authorized clearance write-down on short-dated stock',
+    'Customer price match authorized by pharmacy manager',
+    'Catalog acquisition cost reconciliation error corrected',
+  ],
+  [AnomalyType.AFTER_HOURS_SALE]: [
+    'Authorized emergency patient after-hours dispensation',
+    'Staff register end-of-day reconciliation transaction',
+    'Doctor urgent off-hours prescription fulfillment',
+  ],
+  [AnomalyType.EXCESSIVE_DISCOUNT]: [
+    'Authorized bulk / institutional patient loyalty concession',
+    'Senior citizen / compassionate discount authorized by owner',
+    'Cashier discount policy refresher training completed',
+  ],
+  [AnomalyType.HIGH_VOID_RATE]: [
+    'Cashier re-trained on POS returns and register workflow',
+    'Hardware barcode scanner latency caused duplicated entries',
+    'Customer abandoned counter before completing payment',
+  ],
+  [AnomalyType.REPETITIVE_SHRINKAGE]: [
+    'Physical shelf count audit performed; stock reconciled',
+    'Damaged packaging batch written off per supplier protocol',
+    'Expired cold-chain disposal documented in compliance log',
+  ],
+};
+
 function renderStatusBadge(status: AnomalyStatus) {
   switch (status) {
     case AnomalyStatus.FLAGGED:
@@ -149,6 +181,142 @@ function renderStatusBadge(status: AnomalyStatus) {
   }
 }
 
+interface VarianceMetricsDisplay {
+  observedLabel: string;
+  observedValue: string;
+  baselineLabel: string;
+  baselineValue: string;
+  scoreBadge?: {
+    label: string;
+    className?: string;
+  };
+  extraNote?: string;
+}
+
+function formatVarianceMetrics(flag: AnomalyFlagItem): VarianceMetricsDisplay {
+  const meta = (flag.metadata as Record<string, any>) || {};
+
+  switch (flag.type) {
+    case AnomalyType.BELOW_COST_SALE: {
+      const unitPrice = flag.metricObserved !== null ? Number(flag.metricObserved) : null;
+      const costPrice = flag.metricBaseline !== null ? Number(flag.metricBaseline) : null;
+      const score = flag.statisticalScore !== null ? Number(flag.statisticalScore) : null;
+      const deficit = costPrice !== null && unitPrice !== null ? costPrice - unitPrice : null;
+
+      return {
+        observedLabel: 'Sale Price',
+        observedValue: unitPrice !== null ? `PKR ${unitPrice.toFixed(2)}` : '--',
+        baselineLabel: 'Batch Cost',
+        baselineValue: costPrice !== null ? `PKR ${costPrice.toFixed(2)}` : '--',
+        scoreBadge: score
+          ? {
+              label: `${score}x below cost`,
+              className: 'bg-destructive/10 text-destructive border-destructive/25',
+            }
+          : undefined,
+        extraNote: deficit && deficit > 0 ? `Margin Deficit: -PKR ${deficit.toFixed(2)}/unit` : undefined,
+      };
+    }
+
+    case AnomalyType.AFTER_HOURS_SALE: {
+      const timeStr = meta.checkoutTimePkt || (flag.metricObserved !== null ? `${String(flag.metricObserved).padStart(2, '0')}:00 PKT` : 'Night');
+      return {
+        observedLabel: 'Checkout Time',
+        observedValue: timeStr,
+        baselineLabel: 'Operating Hours',
+        baselineValue: 'Until 18:00 PKT',
+        scoreBadge: {
+          label: 'After-Hours Checkout',
+          className: 'bg-primary/10 text-primary border-primary/25',
+        },
+        extraNote: meta.totalAmount ? `Total: PKR ${Number(meta.totalAmount).toLocaleString()}` : undefined,
+      };
+    }
+
+    case AnomalyType.EXCESSIVE_DISCOUNT: {
+      const discountPct = flag.metricObserved !== null ? Number(flag.metricObserved) : null;
+      const capPct = flag.metricBaseline !== null ? Number(flag.metricBaseline) : 5.0;
+      const score = flag.statisticalScore !== null ? Number(flag.statisticalScore) : null;
+
+      const multiple =
+        discountPct !== null && capPct > 0
+          ? Number((discountPct / capPct).toFixed(1))
+          : score;
+
+      return {
+        observedLabel: 'Discount Given',
+        observedValue: discountPct !== null ? `${discountPct.toFixed(1)}%` : '--',
+        baselineLabel: 'Policy Limit',
+        baselineValue: `${capPct.toFixed(1)}% max`,
+        scoreBadge: multiple
+          ? {
+              label: `${multiple}x policy limit`,
+              className: 'bg-warning/10 text-warning border-warning/30',
+            }
+          : undefined,
+        extraNote: meta.discountAmount ? `Discount: PKR ${Number(meta.discountAmount).toFixed(2)}` : undefined,
+      };
+    }
+
+    case AnomalyType.HIGH_VOID_RATE: {
+      const voidRate = flag.metricObserved !== null ? Number(flag.metricObserved) : null;
+      const avgRate = flag.metricBaseline !== null ? Number(flag.metricBaseline) : null;
+      const score = flag.statisticalScore !== null ? Number(flag.statisticalScore) : null;
+
+      return {
+        observedLabel: 'Staff Void Rate',
+        observedValue: voidRate !== null ? `${voidRate.toFixed(1)}%` : '--',
+        baselineLabel: 'Store Average',
+        baselineValue: avgRate !== null ? `${avgRate.toFixed(1)}% avg` : '--',
+        scoreBadge: score
+          ? {
+              label: `${score}x store avg`,
+              className: 'bg-warning/10 text-warning border-warning/30',
+            }
+          : undefined,
+        extraNote:
+          meta.voidedTransactions && meta.totalTransactions
+            ? `${meta.voidedTransactions} voids / ${meta.totalTransactions} transactions`
+            : undefined,
+      };
+    }
+
+    case AnomalyType.REPETITIVE_SHRINKAGE: {
+      const count = flag.metricObserved !== null ? Number(flag.metricObserved) : null;
+      const limit = flag.metricBaseline !== null ? Number(flag.metricBaseline) : 1;
+      const score = flag.statisticalScore !== null ? Number(flag.statisticalScore) : null;
+
+      return {
+        observedLabel: 'Manual Write-offs',
+        observedValue: count !== null ? `${count} incidents` : '--',
+        baselineLabel: 'Standard Limit',
+        baselineValue: `Max ${limit} per 14d`,
+        scoreBadge: score
+          ? {
+              label: `${score}x threshold`,
+              className: 'bg-destructive/10 text-destructive border-destructive/25',
+            }
+          : undefined,
+      };
+    }
+
+    default: {
+      return {
+        observedLabel: 'Observed',
+        observedValue: flag.metricObserved !== null && flag.metricObserved !== undefined ? String(flag.metricObserved) : '--',
+        baselineLabel: 'Baseline',
+        baselineValue: flag.metricBaseline !== null && flag.metricBaseline !== undefined ? String(flag.metricBaseline) : '--',
+        scoreBadge: flag.statisticalScore
+          ? {
+              label: `Score: ${flag.statisticalScore}x`,
+              className: 'bg-muted text-foreground border-border/70',
+            }
+          : undefined,
+      };
+    }
+  }
+}
+
 export function AnomaliesReviewView() {
   const { activeStore, activeStoreId, isAllStores } = useStore();
 
@@ -174,6 +342,18 @@ export function AnomaliesReviewView() {
   );
   const [resolutionNote, setResolutionNote] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [copiedReceipt, setCopiedReceipt] = useState(false);
+
+  const handleCopyReceipt = async (num: string) => {
+    try {
+      await navigator.clipboard.writeText(num);
+      setCopiedReceipt(true);
+      toast.success('Receipt reference copied to clipboard');
+      setTimeout(() => setCopiedReceipt(false), 2000);
+    } catch {
+      toast.error('Failed to copy to clipboard. Please copy manually.');
+    }
+  };
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -283,7 +463,7 @@ export function AnomaliesReviewView() {
   return (
     <div className="space-y-6">
       {/* Top Banner & Header: streamlined and responsive */}
-      <Card className="border border-border/80 sm:border-primary/20 bg-muted/20 sm:bg-linear-to-r sm:from-primary/5 sm:via-primary/10 sm:to-background shadow-xs overflow-hidden">
+      <Card className="border border-border/80 sm:border-primary/20 bg-muted/20 sm:bg-gradient-to-r sm:from-primary/5 sm:via-primary/10 sm:to-background shadow-xs overflow-hidden">
         <CardContent className="p-3 sm:p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center sm:items-start gap-2.5 sm:gap-3.5">
             <div className="size-9 sm:size-11 md:size-12 rounded-xl sm:rounded-2xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-xs ring-2 sm:ring-4 ring-primary/5">
@@ -296,9 +476,10 @@ export function AnomaliesReviewView() {
                 </h3>
                 <Badge
                   variant="outline"
-                  className="bg-primary/10 text-primary border-primary/25 text-[10px] sm:text-micro font-semibold px-1.5 py-0"
+                  className="bg-primary/15 text-primary border-primary/30 text-[10px] sm:text-micro font-mono font-semibold px-2 py-0.5 tracking-wider gap-1 shadow-2xs"
                 >
-                  Statistical Baselines
+                  <Sparkles className="size-2.5" />
+                  Continuous Statistical Baselines
                 </Badge>
               </div>
               <p className="text-micro sm:text-xs text-muted-foreground mt-0.5 leading-relaxed hidden sm:block max-w-2xl">
@@ -671,6 +852,38 @@ export function AnomaliesReviewView() {
                         {flag.description}
                       </p>
 
+                      {/* Mobile Metric Summary */}
+                      {(() => {
+                        const vm = formatVarianceMetrics(flag);
+                        return (
+                          <div className="p-2.5 rounded-xl bg-muted/30 border border-border/50 text-xs space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-muted-foreground text-micro">{vm.observedLabel}:</span>
+                              <span className="font-semibold text-foreground tabular-nums">{vm.observedValue}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 text-micro">
+                              <span className="text-muted-foreground">{vm.baselineLabel}:</span>
+                              <span className="font-medium text-foreground/85 tabular-nums">{vm.baselineValue}</span>
+                            </div>
+                            {(vm.scoreBadge || vm.extraNote) && (
+                              <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40 text-[10px]">
+                                {vm.scoreBadge ? (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[9px] px-1.5 py-0 font-semibold tabular-nums ${vm.scoreBadge.className || ''}`}
+                                  >
+                                    {vm.scoreBadge.label}
+                                  </Badge>
+                                ) : <span />}
+                                {vm.extraNote && (
+                                  <span className="text-muted-foreground font-medium">{vm.extraNote}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border/40">
                         <div className="flex items-center gap-2 min-w-0">
                           {renderStatusBadge(flag.status)}
@@ -757,53 +970,53 @@ export function AnomaliesReviewView() {
                           </TableCell>
 
                           <TableCell className="text-xs">
-                            {flag.metricObserved !== null &&
-                            flag.metricObserved !== undefined ? (
-                              <div className="space-y-1 tabular-nums text-xs">
-                                <div className="flex items-center gap-1.5 text-foreground font-semibold">
-                                  <span className="text-muted-foreground font-normal">
-                                    Observed:
-                                  </span>
-                                  <span>{flag.metricObserved}</span>
-                                </div>
-                                {flag.metricBaseline !== null &&
-                                  flag.metricBaseline !== undefined && (
-                                    <div className="text-muted-foreground text-micro">
-                                      <span>Baseline: </span>
-                                      <span>{flag.metricBaseline}</span>
-                                    </div>
-                                  )}
-                                {flag.statisticalScore !== null &&
-                                  flag.statisticalScore !== undefined && (
+                            {(() => {
+                              const vm = formatVarianceMetrics(flag);
+                              return (
+                                <div className="space-y-1 text-xs">
+                                  <div className="flex items-center gap-1.5 text-foreground font-semibold">
+                                    <span className="text-muted-foreground font-normal text-micro">
+                                      {vm.observedLabel}:
+                                    </span>
+                                    <span className="tabular-nums">{vm.observedValue}</span>
+                                  </div>
+                                  <div className="text-muted-foreground text-micro flex items-center gap-1.5">
+                                    <span>{vm.baselineLabel}:</span>
+                                    <span className="tabular-nums font-medium text-foreground/80">
+                                      {vm.baselineValue}
+                                    </span>
+                                  </div>
+                                  {vm.scoreBadge && (
                                     <Badge
-                                      variant="secondary"
-                                      className="text-micro px-1 py-0"
+                                      variant="outline"
+                                      className={`text-[10px] px-1.5 py-0 font-semibold tabular-nums mt-0.5 ${vm.scoreBadge.className || ''}`}
                                     >
-                                      Score: {flag.statisticalScore}x
+                                      {vm.scoreBadge.label}
                                     </Badge>
                                   )}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">
-                                Standard threshold
-                              </span>
-                            )}
+                                  {vm.extraNote && (
+                                    <div className="text-[10px] text-muted-foreground font-medium">
+                                      {vm.extraNote}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </TableCell>
 
                           <TableCell className="text-xs space-y-1">
-                            <div className="flex items-center gap-1.5 font-medium text-foreground">
-                              <User className="size-3.5 text-muted-foreground shrink-0" />
-                              <span>
-                                {flag.user?.name || 'Automated Activity'}
+                            <div className="flex items-center gap-2 font-medium text-foreground">
+                              <div className="size-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-[10px]">
+                                {flag.user?.name ? flag.user.name.slice(0, 1).toUpperCase() : 'S'}
+                              </div>
+                              <span className="truncate max-w-[130px]">
+                                {flag.user?.name || 'System Recorded'}
                               </span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-muted-foreground text-micro">
+                            <div className="flex items-center gap-1 text-muted-foreground text-micro pl-1">
                               <Building2 className="size-3 shrink-0" />
-                              <span>
-                                {flag.storeName ||
-                                  (activeStore
-                                    ? activeStore.name
-                                    : 'All Stores')}
+                              <span className="truncate max-w-[140px]">
+                                {flag.storeName || (activeStore ? activeStore.name : 'Main Store')}
                               </span>
                             </div>
                           </TableCell>
@@ -881,208 +1094,314 @@ export function AnomaliesReviewView() {
         open={!!selectedFlag}
         onOpenChange={(open) => !open && setSelectedFlag(null)}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-primary/10 text-primary">
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 shadow-2xl bg-card">
+          <DialogHeader className="p-4 sm:p-5 pr-12 border-b border-border/70 bg-muted/20 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="size-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center shrink-0 shadow-xs ring-2 ring-primary/5">
                 <FileCheck2 className="size-5" />
-              </span>
-              <div>
-                <DialogTitle className="text-base font-bold">
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base sm:text-lg font-bold text-foreground leading-tight">
                   Operational Discrepancy Review
                 </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Review statistical variance evidence and log managerial
-                  resolution rationale.
+                <DialogDescription className="text-micro sm:text-xs text-muted-foreground pt-0.5">
+                  Review statistical variance evidence and log managerial resolution rationale.
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          {selectedFlag && (
-            <div className="space-y-4 py-2">
-              {/* Evidence Overview Box */}
-              <div className="p-4 rounded-lg border border-border/70 bg-muted/30 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h4 className="font-semibold text-sm text-foreground">
-                      {selectedFlag.title}
-                    </h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {selectedFlag.description}
-                    </p>
-                  </div>
-                  {SEVERITY_CONFIG[selectedFlag.severity] && (
-                    <StatusBadge
-                      variant={
-                        SEVERITY_CONFIG[selectedFlag.severity].variant
-                      }
-                      size="xs"
-                    >
-                      {SEVERITY_CONFIG[selectedFlag.severity].label}
-                    </StatusBadge>
-                  )}
-                </div>
+          {selectedFlag && (() => {
+            const cfg = TYPE_CONFIG[selectedFlag.type] || {
+              label: selectedFlag.type,
+              icon: AlertTriangle,
+              color: 'text-muted-foreground bg-muted',
+              desc: '',
+            };
+            const Icon = cfg.icon;
+            const meta = (selectedFlag.metadata as Record<string, any>) || {};
+            const presets = QUICK_RATIONALE_PRESETS[selectedFlag.type] || [];
+            const contextTiles: Array<{ label: string; value: string; isCopyable?: boolean }> = [];
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-border/40 text-xs">
-                  <div>
-                    <span className="text-muted-foreground block text-micro">
-                      Staff Involved
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {selectedFlag.user?.name || 'System Recorded'}
-                    </span>
-                    {selectedFlag.user?.email && (
-                      <span className="text-muted-foreground block text-micro">
-                        {selectedFlag.user.email}
-                      </span>
+            if (meta.receiptNumber) contextTiles.push({ label: 'Receipt Reference', value: String(meta.receiptNumber), isCopyable: true });
+            if (meta.checkoutTimePkt) contextTiles.push({ label: 'Checkout Time', value: `${meta.checkoutTimePkt} PKT` });
+            if (meta.totalAmount !== undefined) contextTiles.push({ label: 'Total Amount', value: `PKR ${Number(meta.totalAmount).toLocaleString()}` });
+            if (meta.discountAmount !== undefined) contextTiles.push({ label: 'Discount Amount', value: `PKR ${Number(meta.discountAmount).toFixed(2)}` });
+            if (meta.grossAmount !== undefined) contextTiles.push({ label: 'Gross Sale', value: `PKR ${Number(meta.grossAmount).toFixed(2)}` });
+            if (meta.discountPercentage !== undefined) contextTiles.push({ label: 'Discount Rate', value: `${meta.discountPercentage}%` });
+            if (meta.voidedTransactions !== undefined && meta.totalTransactions !== undefined) {
+              contextTiles.push({ label: 'Void Ratio', value: `${meta.voidedTransactions} / ${meta.totalTransactions} sales` });
+            }
+            if (meta.storeAvgRatePercent !== undefined) contextTiles.push({ label: 'Store Average', value: `${meta.storeAvgRatePercent}%` });
+            if (meta.adjustmentCount !== undefined) contextTiles.push({ label: 'Write-off Incidents', value: `${meta.adjustmentCount} times` });
+
+            return (
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 custom-scrollbar">
+                {/* Evidence Overview Box */}
+                <div className="p-4 sm:p-4.5 rounded-2xl border border-border/70 bg-muted/20 space-y-3.5 shadow-2xs">
+                  {/* Category Pill + Severity Row */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-lg border ${cfg.color} shrink-0`}>
+                        <Icon className="size-3.5" />
+                      </div>
+                      <Badge variant="secondary" className="font-semibold text-micro uppercase tracking-wider bg-muted/80 text-foreground">
+                        {cfg.label}
+                      </Badge>
+                    </div>
+
+                    {SEVERITY_CONFIG[selectedFlag.severity] && (
+                      <StatusBadge
+                        variant={SEVERITY_CONFIG[selectedFlag.severity].variant}
+                        size="xs"
+                        className="shrink-0"
+                      >
+                        {SEVERITY_CONFIG[selectedFlag.severity].label}
+                      </StatusBadge>
                     )}
                   </div>
 
-                  <div>
-                    <span className="text-muted-foreground block text-micro">
-                      Store Location
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {selectedFlag.storeName || 'Primary Store'}
-                    </span>
+                  {/* Title & Description */}
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm sm:text-base text-foreground leading-snug">
+                      {selectedFlag.title}
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {selectedFlag.description}
+                    </p>
                   </div>
 
-                  <div>
-                    <span className="text-muted-foreground block text-micro">
-                      Detected On
-                    </span>
-                    <span className="font-medium text-foreground tabular-nums">
-                      {new Date(selectedFlag.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Metadata JSON tags */}
-                {selectedFlag.metadata &&
-                  Object.keys(selectedFlag.metadata).length > 0 && (
-                    <div className="pt-2 border-t border-border/40">
-                      <span className="text-muted-foreground block text-micro mb-1">
-                        Transaction Context Evidence:
+                  {/* Staff, Location & Timestamp Meta Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2.5 border-t border-border/50 text-xs">
+                    <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Staff Involved
                       </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {Object.entries(selectedFlag.metadata).map(
-                          ([k, v]) => (
-                            <Badge
-                              key={k}
-                              variant="secondary"
-                              className="text-micro tabular-nums px-1.5 py-0"
-                            >
-                              {k}: {String(v)}
-                            </Badge>
-                          ),
-                        )}
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <div className="size-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-[10px]">
+                          {selectedFlag.user?.name ? selectedFlag.user.name.slice(0, 1).toUpperCase() : 'S'}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-semibold text-foreground truncate block text-xs">
+                            {selectedFlag.user?.name || 'System Recorded'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Store Location
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Building2 className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-semibold text-foreground truncate text-xs">
+                          {selectedFlag.storeName || (activeStore ? activeStore.name : 'Primary Branch')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-card border border-border/60">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Detected On
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Clock className="size-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-semibold text-foreground tabular-nums whitespace-nowrap text-xs">
+                          {new Date(selectedFlag.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+                          {new Date(selectedFlag.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Structured Context Evidence */}
+                  {contextTiles.length > 0 && (
+                    <div className="pt-2.5 border-t border-border/50 space-y-1.5">
+                      <span className="text-muted-foreground block text-micro font-semibold uppercase tracking-wider">
+                        Transaction Context Evidence
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {contextTiles.map((tile, idx) => (
+                          <div key={idx} className="p-2.5 rounded-xl bg-card border border-border/70 shadow-2xs">
+                            <span className="text-[10px] text-muted-foreground uppercase font-semibold block">
+                              {tile.label}
+                            </span>
+                            <div className="flex items-center justify-between gap-1 mt-0.5">
+                              <span className="text-xs font-bold text-foreground font-mono select-all break-all">
+                                {tile.value}
+                              </span>
+                              {tile.isCopyable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyReceipt(tile.value)}
+                                  className="text-muted-foreground hover:text-primary transition-colors cursor-pointer shrink-0 p-0.5"
+                                  title="Copy reference"
+                                >
+                                  {copiedReceipt ? (
+                                    <Check className="size-3 text-success" />
+                                  ) : (
+                                    <Copy className="size-3" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
-              </div>
-
-              {/* Status Selector */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Manager Review Decision
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {[
-                    {
-                      status: AnomalyStatus.UNDER_REVIEW,
-                      label: 'Investigating',
-                      desc: 'Interviewing staff or reviewing register data',
-                    },
-                    {
-                      status: AnomalyStatus.RESOLVED,
-                      label: 'Resolved',
-                      desc: 'Authorized variance or resolved procedural error',
-                    },
-                    {
-                      status: AnomalyStatus.DISMISSED,
-                      label: 'Dismissed',
-                      desc: 'False positive or non-actionable variance',
-                    },
-                  ].map((opt) => (
-                    <button
-                      type="button"
-                      key={opt.status}
-                      onClick={() => setResolutionStatus(opt.status)}
-                      className={`p-2.5 rounded-lg border text-left transition-all ${
-                        resolutionStatus === opt.status
-                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                          : 'border-border/60 hover:bg-muted/40'
-                      }`}
-                    >
-                      <div className="font-semibold text-xs text-foreground">
-                        {opt.label}
-                      </div>
-                      <div className="text-micro text-muted-foreground leading-tight mt-0.5">
-                        {opt.desc}
-                      </div>
-                    </button>
-                  ))}
                 </div>
-              </div>
 
-              {/* Resolution Note Textarea */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                  <span>Manager Resolution Rationale</span>
-                  <span className="text-micro text-muted-foreground font-normal">
-                    Logged in tamper-proof compliance audit trail
-                  </span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={resolutionNote}
-                  onChange={(e) => setResolutionNote(e.target.value)}
-                  placeholder="e.g. Authorized clearance sale approved for short-dated stock; or Cashier completed returns policy refresher session."
-                  className="w-full text-xs p-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              {/* Previous Review Info if already reviewed */}
-              {selectedFlag.reviewedBy && (
-                <div className="p-2.5 rounded-md bg-muted/40 text-xs text-muted-foreground flex items-center gap-2">
-                  <CheckCircle2 className="size-4 text-success shrink-0" />
-                  <span>
-                    Previously reviewed by{' '}
-                    <strong className="text-foreground">
-                      {selectedFlag.reviewedBy.name}
-                    </strong>{' '}
-                    on{' '}
-                    {selectedFlag.reviewedAt
-                      ? new Date(selectedFlag.reviewedAt).toLocaleString()
-                      : 'earlier date'}
-                    .
-                  </span>
+                {/* Status Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-foreground">
+                    Manager Review Decision
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      {
+                        status: AnomalyStatus.UNDER_REVIEW,
+                        label: 'Investigating',
+                        desc: 'Interviewing staff or reviewing register data',
+                        icon: Clock,
+                        activeClass: 'border-info/60 bg-info/10 text-info ring-1 ring-info/50',
+                      },
+                      {
+                        status: AnomalyStatus.RESOLVED,
+                        label: 'Resolved & Authorized',
+                        desc: 'Authorized variance or resolved procedural error',
+                        icon: CheckCircle2,
+                        activeClass: 'border-success/60 bg-success/10 text-success ring-1 ring-success/50',
+                      },
+                      {
+                        status: AnomalyStatus.DISMISSED,
+                        label: 'Dismissed',
+                        desc: 'False positive or non-actionable variance',
+                        icon: X,
+                        activeClass: 'border-muted-foreground/50 bg-muted text-foreground ring-1 ring-border',
+                      },
+                    ].map((opt) => {
+                      const ButtonIcon = opt.icon;
+                      const isSelected = resolutionStatus === opt.status;
+                      return (
+                        <button
+                          type="button"
+                          key={opt.status}
+                          onClick={() => setResolutionStatus(opt.status)}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? opt.activeClass
+                              : 'border-border/60 hover:bg-muted/40 text-foreground'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 font-semibold text-xs">
+                            <ButtonIcon className="size-3.5" />
+                            <span>{opt.label}</span>
+                          </div>
+                          <div className="text-micro text-muted-foreground leading-tight mt-1">
+                            {opt.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
+
+                {/* Resolution Note Textarea with Quick Presets */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">
+                      Manager Resolution Rationale
+                    </label>
+                    <span className="text-micro text-muted-foreground font-normal flex items-center gap-1">
+                      <Lock className="size-2.5 text-primary" />
+                      Logged in immutable compliance audit trail
+                    </span>
+                  </div>
+
+                  <textarea
+                    rows={3}
+                    value={resolutionNote}
+                    onChange={(e) => setResolutionNote(e.target.value)}
+                    placeholder="Document resolution findings, authorization rationale, or staff coaching details..."
+                    className="w-full text-xs p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary leading-relaxed custom-scrollbar shadow-2xs"
+                  />
+
+                  {/* Suggested Rationale Presets */}
+                  {presets.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                        Quick Presets (Click to insert):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {presets.map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setResolutionNote(preset)}
+                            className="text-micro px-2.5 py-1 rounded-lg bg-card border border-border/70 hover:border-primary/40 hover:bg-muted text-muted-foreground hover:text-foreground transition-all text-left cursor-pointer shadow-2xs"
+                          >
+                            + {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Previous Review Info if already reviewed */}
+                {selectedFlag.reviewedBy && (
+                  <div className="p-3 rounded-xl bg-muted/40 text-xs text-muted-foreground flex items-center gap-2 border border-border/50">
+                    <CheckCircle2 className="size-4 text-success shrink-0" />
+                    <span>
+                      Previously reviewed by{' '}
+                      <strong className="text-foreground">
+                        {selectedFlag.reviewedBy.name}
+                      </strong>{' '}
+                      on{' '}
+                      {selectedFlag.reviewedAt
+                        ? new Date(selectedFlag.reviewedAt).toLocaleString()
+                        : 'earlier date'}
+                      .
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="p-3.5 sm:p-4 border-t border-border/70 bg-muted/20 shrink-0 flex flex-row items-center justify-between gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 text-micro text-muted-foreground">
+              <Lock className="size-3 text-primary" />
+              <span>Immutable DRAP/Compliance Log</span>
             </div>
-          )}
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedFlag(null)}
-              disabled={isSubmittingReview}
-              className="text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSubmitResolution}
-              disabled={isSubmittingReview}
-              className="text-xs font-semibold"
-            >
-              {isSubmittingReview
-                ? 'Saving Resolution...'
-                : 'Confirm & Save Resolution'}
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedFlag(null)}
+                disabled={isSubmittingReview}
+                className="h-8.5 px-3 text-xs font-semibold cursor-pointer shadow-2xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSubmitResolution}
+                disabled={isSubmittingReview}
+                className="h-8.5 px-3.5 text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-xs cursor-pointer gap-1.5"
+              >
+                {isSubmittingReview ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Confirm &amp; Save Resolution</span>
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

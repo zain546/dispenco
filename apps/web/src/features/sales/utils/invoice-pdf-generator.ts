@@ -45,8 +45,13 @@ export async function downloadA4TaxInvoicePdf(
       branding?.address ||
       (sale as any).store?.address ||
       'Main Commercial Area, Healthcare District';
-    const dslNo = branding?.dslNumber || 'DSL-PH-09281-R';
-    const ntnNo = branding?.ntn || 'NTN: 8291044-7';
+    const dslNo =
+      branding?.dslNumber ||
+      (sale as any).store?.dslNumber ||
+      (sale as any).store?.licenseNumber ||
+      null;
+    const ntnNo = branding?.ntn || (sale as any).store?.ntn || null;
+    const phoneNo = branding?.phone || (sale as any).store?.phone || null;
     const currency = (sale as any).store?.currency || 'PKR';
     const isVoided = sale.status === 'VOIDED';
 
@@ -72,14 +77,22 @@ export async function downloadA4TaxInvoicePdf(
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
     pdf.setTextColor(mutedColor[0], mutedColor[1], mutedColor[2]);
-    pdf.text(`${storeAddress} • Phone: ${branding?.phone || '+92 300 0000000'}`, 14, currentY);
+    const phonePart = phoneNo ? ` • Phone: ${phoneNo}` : '';
+    pdf.text(`${storeAddress}${phonePart}`, 14, currentY);
 
     pdf.setFont('helvetica', 'bold');
     pdf.text(`ORIGINAL FOR RECIPIENT`, 196, currentY, { align: 'right' });
     currentY += 4.5;
 
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(`Licence No: ${dslNo} | ${ntnNo}`, 14, currentY);
+    const credParts = [
+      dslNo ? `Licence No: ${dslNo}` : null,
+      ntnNo ? (ntnNo.toUpperCase().startsWith('NTN') ? ntnNo : `NTN: ${ntnNo}`) : null,
+    ].filter(Boolean);
+
+    if (credParts.length > 0) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(credParts.join(' | '), 14, currentY);
+    }
 
     if (isVoided) {
       pdf.setFont('helvetica', 'bold');
