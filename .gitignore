@@ -27,9 +27,14 @@ pnpm-debug.log*
 .env.production.local
 *.key
 *.pem
+*.age
+*.dump
+*.dump.gz
+/backups
 /doc
 /teacher-portal
 
 # Private live pharmacy stock data & seed script
 StockList02-11-2026.pdf
 apps/api/prisma/seed-live-stock.ts
+/.agents/
