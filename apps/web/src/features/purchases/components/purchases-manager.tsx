@@ -646,7 +646,7 @@ export function PurchasesManager() {
       ) : (
         <>
           {/* Filter Tabs */}
-          <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-1">
+          <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 custom-scrollbar pb-1">
             <div className="flex items-center gap-1.5 w-max">
               {['ALL', 'PENDING', 'PARTIAL', 'RECEIVED', 'CANCELLED'].map((st) => (
                 <Button
@@ -715,22 +715,23 @@ export function PurchasesManager() {
                   <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-1.5 min-w-0">
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="font-mono text-sm font-bold text-primary">{po.orderNumber}</span>
+                        <span className="font-mono text-sm font-bold text-primary whitespace-nowrap">{po.orderNumber}</span>
                         {getStatusBadge(po.status)}
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="size-3" />
+                        <span className="text-xs text-muted-foreground flex items-center gap-1 whitespace-nowrap">
+                          <Calendar className="size-3 shrink-0" />
                           {formatDate(po.createdAt)}
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-x-4 gap-y-1 text-xs text-muted-foreground flex-wrap pt-0.5">
                         <span className="flex items-center gap-1 font-medium text-foreground">
-                          <Building2 className="size-3.5 text-primary" /> {po.supplierName}
+                          <Building2 className="size-3.5 text-primary shrink-0" />
+                          <span className="truncate max-w-[200px] sm:max-w-none">{po.supplierName}</span>
                         </span>
-                        <span className="flex items-center gap-1">
-                          <Layers className="size-3.5" /> {po.itemCount} Product Items
+                        <span className="flex items-center gap-1 whitespace-nowrap">
+                          <Layers className="size-3.5 text-muted-foreground shrink-0" /> {po.itemCount} Items
                         </span>
-                        <span className="flex items-center gap-1 font-bold text-foreground tabular-nums">
-                          <DollarSign className="size-3.5 text-success" /> {formatCurrency(po.totalCost)}
+                        <span className="flex items-center gap-1 font-bold text-foreground tabular-nums whitespace-nowrap">
+                          <DollarSign className="size-3.5 text-success shrink-0" /> {formatCurrency(po.totalCost)}
                         </span>
                       </div>
                     </div>

@@ -29,7 +29,7 @@ export function ThemeToggle() {
       <Button
         variant="ghost"
         size="icon"
-        className="size-8 rounded-lg text-muted-foreground"
+        className="size-8.5 rounded-lg text-muted-foreground"
         aria-label="Toggle theme"
         disabled
       >
@@ -48,7 +48,7 @@ export function ThemeToggle() {
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
-            className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="size-8.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >

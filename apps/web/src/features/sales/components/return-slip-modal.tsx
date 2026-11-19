@@ -168,16 +168,16 @@ export function ReturnSlipModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl w-full max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="p-4 sm:p-5 border-b border-border flex flex-row items-center justify-between">
-          <div className="space-y-0.5">
+      <DialogContent className="w-[calc(100vw-20px)] sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl sm:rounded-xl">
+        <DialogHeader className="p-4 sm:p-5 pr-11 sm:pr-14 border-b border-border/80 bg-muted/20 flex flex-row items-center justify-between text-left shrink-0">
+          <div className="space-y-0.5 min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <RotateCcw className="size-4.5 text-primary" />
-              <DialogTitle className="text-base font-bold">
+              <RotateCcw className="size-4.5 text-primary shrink-0" />
+              <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate">
                 Sales Return Slip / Credit Memo
               </DialogTitle>
             </div>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-micro sm:text-xs text-muted-foreground line-clamp-1">
               Official stock return memorandum and refund voucher
             </DialogDescription>
           </div>
@@ -187,7 +187,7 @@ export function ReturnSlipModal({
               variant="outline"
               size="sm"
               onClick={handlePrint}
-              className="h-8 text-xs gap-1.5 font-medium cursor-pointer"
+              className="h-8 text-xs gap-1.5 font-medium cursor-pointer shrink-0"
             >
               <Printer className="size-3.5 text-primary" />
               <span>Print Slip</span>
@@ -254,7 +254,7 @@ export function ReturnSlipModal({
                 <span>Returned Medicines</span>
                 <span>{totalUnits} Units</span>
               </div>
-              <div className="border border-border/70 rounded-lg overflow-hidden">
+              <div className="border border-border/70 rounded-lg overflow-x-auto custom-scrollbar">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/50 text-muted-foreground border-b border-border/60">
                     <tr>

@@ -41,7 +41,7 @@ function getPaymentBadge(method: string) {
   const m = method.toUpperCase();
   if (m === 'DIGITAL') {
     return (
-      <Badge variant="outline" className="text-micro font-medium gap-1 border-primary/30 text-primary bg-primary/5">
+      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-primary/30 text-primary bg-primary/5 px-1.5 py-0">
         <Smartphone className="size-2.5" />
         Digital
       </Badge>
@@ -49,14 +49,14 @@ function getPaymentBadge(method: string) {
   }
   if (m === 'CREDIT') {
     return (
-      <Badge variant="outline" className="text-micro font-medium gap-1 border-warning/30 text-warning bg-warning/5">
+      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-warning/30 text-warning bg-warning/5 px-1.5 py-0">
         <CreditCard className="size-2.5" />
         Khata
       </Badge>
     );
   }
   return (
-    <Badge variant="secondary" className="text-micro font-medium gap-1">
+    <Badge variant="secondary" className="text-[10px] font-medium gap-1 bg-muted/60 text-muted-foreground border border-border/40 px-1.5 py-0">
       <Banknote className="size-2.5 text-muted-foreground" />
       Cash
     </Badge>
@@ -96,13 +96,13 @@ export function RecentSalesWidget() {
   };
 
   return (
-    <Card className="border-border/70 shadow-2xs overflow-hidden flex flex-col justify-between">
-      <CardHeader className="p-3.5 sm:p-4 pb-3 border-b border-border/50 flex flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Receipt className="size-4" />
+    <Card className="rounded-2xl border-border/80 bg-card shadow-xs overflow-hidden flex flex-col justify-between">
+      <CardHeader className="p-3 sm:p-4 pb-2.5 sm:pb-3 border-b border-border/70 flex flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="size-7 rounded-lg bg-muted/80 text-foreground flex items-center justify-center shrink-0 border border-border/60">
+            <Receipt className="size-3.5 text-muted-foreground" />
           </div>
-          <CardTitle className="text-sm font-bold text-foreground leading-none truncate">
+          <CardTitle className="text-xs sm:text-sm font-semibold text-foreground leading-none truncate">
             Recent Sales
           </CardTitle>
         </div>
@@ -114,12 +114,12 @@ export function RecentSalesWidget() {
             size="icon"
             onClick={() => refetch()}
             disabled={isRefreshing || isLoading}
-            className="size-8 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer"
+            className="size-7 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
             title="Refresh recent sales feed"
           >
-            <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
+            <RefreshCw className={`size-3 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
           </Button>
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs px-2.5 font-medium gap-1 shadow-2xs cursor-pointer">
+          <Button asChild variant="outline" size="sm" className="h-7 text-xs px-2.5 font-medium gap-1 border-border/70 shadow-2xs cursor-pointer">
             <Link href="/reports?tab=receipts#sales-receipts-section">
               <span>View All</span>
               <ArrowRight className="size-3 text-muted-foreground" />
@@ -132,7 +132,7 @@ export function RecentSalesWidget() {
         {isLoading ? (
           <div className="p-4 space-y-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
+              <div key={i} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
                 <div className="space-y-1">
                   <Skeleton className="h-4 w-28" />
                   <Skeleton className="h-3 w-40" />
@@ -143,18 +143,18 @@ export function RecentSalesWidget() {
           </div>
         ) : sales.length === 0 ? (
           <div className="py-12 px-4 text-center space-y-3">
-            <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
-              <ShoppingCart className="size-5" />
+            <div className="size-10 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground border border-border/60">
+              <ShoppingCart className="size-4" />
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-foreground">No Transactions Yet</p>
+              <p className="text-xs font-medium text-foreground">No Transactions Yet</p>
               <p className="text-micro text-muted-foreground max-w-xs mx-auto">
                 No counter sales have been recorded for this store branch today.
               </p>
             </div>
-            <Button asChild size="sm" className="h-8 text-xs font-medium gap-1.5 shadow-2xs">
+            <Button asChild size="sm" className="h-7.5 text-xs font-medium gap-1.5 shadow-2xs">
               <Link href="/pos">
-                <ShoppingCart className="size-3.5" />
+                <ShoppingCart className="size-3" />
                 <span>Open POS Counter</span>
               </Link>
             </Button>
@@ -162,36 +162,29 @@ export function RecentSalesWidget() {
         ) : (
           <>
             {/* Mobile Touch Card List (< sm) */}
-            <div className="block sm:hidden divide-y divide-border/40">
+            <div className="block sm:hidden divide-y divide-border/60">
               {sales.map((s) => {
                 const compactReceipt = s.receiptNumber?.replace(/^REC-\d{8}-/, '#') || s.receiptNumber;
 
                 return (
                   <div
                     key={s.id}
-                    className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 transition-colors"
+                    className="p-3 flex items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
                   >
-                    <Link
-                      href={`/pos/receipt/${s.id}`}
-                      className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-primary/20"
-                    >
-                      {s.customerName ? s.customerName.charAt(0).toUpperCase() : <Receipt className="size-4" />}
-                    </Link>
-
                     <Link href={`/pos/receipt/${s.id}`} className="min-w-0 flex-1 space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-xs text-foreground truncate max-w-[130px]">
-                          {s.customerName || 'Walk-in'}
+                        <span className="font-medium text-xs text-foreground truncate max-w-[140px]">
+                          {s.customerName || 'Walk-in Customer'}
                         </span>
                         {getPaymentBadge(s.paymentMethod || 'CASH')}
                       </div>
-                      <p className="text-micro text-muted-foreground truncate font-mono">
+                      <p className="text-[11px] text-muted-foreground truncate font-mono">
                         {compactReceipt} • {formatRelativeTime(s.createdAt)}
                       </p>
                     </Link>
 
-                    <div className="text-right shrink-0 flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-foreground tabular-nums">
+                    <div className="text-right shrink-0 flex items-center gap-1">
+                      <span className="text-xs font-semibold text-foreground tabular-nums">
                         {formatCurrency(s.totalAmount)}
                       </span>
                       <Button
@@ -199,7 +192,7 @@ export function RecentSalesWidget() {
                         size="icon"
                         onClick={() => handleDownloadReceipt(s.id)}
                         disabled={downloadingSaleId === s.id}
-                        className="size-7 text-muted-foreground hover:text-primary rounded-md cursor-pointer"
+                        className="size-7 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
                         title="Download receipt PDF"
                       >
                         {downloadingSaleId === s.id ? (
@@ -229,22 +222,22 @@ export function RecentSalesWidget() {
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-border/50 bg-muted/30 text-muted-foreground font-semibold text-micro uppercase tracking-wider">
-                    <th className="py-2.5 px-4">Receipt</th>
-                    <th className="py-2.5 px-4">Customer</th>
-                    <th className="py-2.5 px-3">Method</th>
-                    <th className="py-2.5 px-3">Time</th>
-                    <th className="py-2.5 px-4 text-right">Amount</th>
-                    <th className="py-2.5 px-4 text-right">Action</th>
+                  <tr className="border-b border-border/70 bg-muted/35 text-muted-foreground font-medium text-micro uppercase tracking-wider">
+                    <th className="py-2.5 px-4 font-medium">Receipt</th>
+                    <th className="py-2.5 px-4 font-medium">Customer</th>
+                    <th className="py-2.5 px-3 font-medium">Method</th>
+                    <th className="py-2.5 px-3 font-medium">Time</th>
+                    <th className="py-2.5 px-4 text-right font-medium">Amount</th>
+                    <th className="py-2.5 px-4 text-right font-medium">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/40">
+                <tbody className="divide-y divide-border/50">
                   {sales.map((s) => (
-                    <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="py-2.5 px-4 font-mono font-medium text-xs text-foreground whitespace-nowrap">
+                    <tr key={s.id} className="hover:bg-muted/20 transition-colors group">
+                      <td className="py-2.5 px-4 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
                         <Link
                           href={`/pos/receipt/${s.id}`}
-                          className="hover:text-primary transition-colors hover:underline"
+                          className="hover:text-primary transition-colors text-foreground"
                           title="View printable receipt"
                         >
                           {s.receiptNumber}
@@ -254,7 +247,7 @@ export function RecentSalesWidget() {
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-1.5">
                           <User className="size-3 text-muted-foreground shrink-0" />
-                          <span className="truncate max-w-32 font-medium text-foreground">
+                          <span className="truncate max-w-36 font-medium text-foreground">
                             {s.customerName || 'Walk-in'}
                           </span>
                         </div>
@@ -268,24 +261,24 @@ export function RecentSalesWidget() {
                         {formatRelativeTime(s.createdAt)}
                       </td>
 
-                      <td className="py-2.5 px-4 text-right font-bold text-foreground tabular-nums">
+                      <td className="py-2.5 px-4 text-right font-semibold text-foreground tabular-nums">
                         {formatCurrency(s.totalAmount)}
                       </td>
 
                       <td className="py-2.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDownloadReceipt(s.id)}
                             disabled={downloadingSaleId === s.id}
-                            className="size-7 text-muted-foreground hover:text-primary rounded-md cursor-pointer"
+                            className="size-7 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
                             title="Download receipt PDF"
                           >
                             {downloadingSaleId === s.id ? (
-                              <Loader2 className="size-3.5 animate-spin text-primary" />
+                              <Loader2 className="size-3 animate-spin text-primary" />
                             ) : (
-                              <FileDown className="size-3.5" />
+                              <FileDown className="size-3" />
                             )}
                           </Button>
                           <Button
@@ -296,7 +289,7 @@ export function RecentSalesWidget() {
                             title="View receipt"
                           >
                             <Link href={`/pos/receipt/${s.id}`}>
-                              <ExternalLink className="size-3.5" />
+                              <ExternalLink className="size-3" />
                             </Link>
                           </Button>
                         </div>

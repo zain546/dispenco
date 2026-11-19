@@ -196,7 +196,7 @@ export function CustomerModal({
                     placeholder="0"
                     value={initialBalance}
                     onChange={(e) => setInitialBalance(e.target.value)}
-                    className="h-9 text-sm pr-12 font-mono"
+                    className="h-9 text-sm pr-12 font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">
                     PKR

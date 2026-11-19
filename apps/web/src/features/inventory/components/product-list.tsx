@@ -277,11 +277,11 @@ function ProductTableRow({
   const isPriority = Boolean((product.attributes as Record<string, unknown>)?.isPriority);
 
   return (
-    <tr className="hover:bg-muted/30 transition-colors">
+    <tr className="hover:bg-muted/25 transition-colors">
       {/* Product & Icon */}
       <td className="py-3 px-4">
         <div className="flex items-center gap-2.5">
-          <div className="size-7 rounded-md bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/40">
+          <div className="size-7 rounded-lg bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/60">
             <CategoryIcon className="size-3.5" />
           </div>
           <div className="min-w-0">
@@ -792,7 +792,7 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
       )}
 
       {/* Search & Filter Bar */}
-      <Card className="shadow-xs border-border">
+      <Card className="shadow-2xs border-border/80 bg-card rounded-2xl">
         <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
           {/* Search Input */}
           <div className="relative w-full sm:max-w-md">
@@ -899,11 +899,11 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
         /* Product Table / Cards */
         <div className="space-y-4">
           {/* Desktop Data Table */}
-          <div className="hidden md:block rounded-lg border border-border bg-card shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="hidden md:block rounded-2xl border border-border/80 bg-card shadow-xs overflow-hidden">
+            <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
-                  <tr className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
+                  <tr className="bg-muted/30 border-b border-border/70 text-muted-foreground uppercase tracking-wider text-micro font-semibold">
                     <th className="py-3 px-4">Medicine / Product</th>
                     <th className="py-3 px-4">Category & Unit</th>
                     <th className="py-3 px-4">Stock Level</th>
@@ -912,7 +912,7 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border/50">
                   {products.map((prod) => (
                     <ProductTableRow
                       key={prod.id}

@@ -359,14 +359,14 @@ export function RolesList({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-border bg-muted/40 text-foreground font-semibold">
+                  <tr className="border-b border-border/70 bg-muted/30 text-muted-foreground uppercase tracking-wider text-micro font-semibold">
                     <th className="py-3 px-4 min-w-56">Permission & Capability</th>
                     {roles.map((r) => {
                       const isOwner = r.name.toLowerCase() === 'owner';
                       return (
                         <th key={r.id} className="py-3 px-3 text-center min-w-28">
                           <div className="flex flex-col items-center gap-0.5">
-                            <span className="font-bold text-xs">{r.name}</span>
+                            <span className="font-bold text-xs text-foreground">{r.name}</span>
                             <span className="text-micro text-muted-foreground font-normal font-mono">
                               {isOwner ? 'All 18' : `${r.permissions.length} perms`}
                             </span>
@@ -376,7 +376,7 @@ export function RolesList({
                     })}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-border/50">
                   {PERMISSION_CATEGORIES.map((cat) => (
                     <React.Fragment key={cat.id}>
                       {/* Category Header Row */}
@@ -391,7 +391,7 @@ export function RolesList({
 
                       {/* Permission Rows */}
                       {cat.permissions.map((perm) => (
-                        <tr key={perm.code} className="hover:bg-muted/30 transition-colors">
+                        <tr key={perm.code} className="hover:bg-muted/25 transition-colors">
                           <td className="py-2.5 px-4">
                             <p className="font-medium text-xs text-foreground">
                               {perm.name}

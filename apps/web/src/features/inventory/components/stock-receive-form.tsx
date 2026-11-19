@@ -371,7 +371,7 @@ export function StockReceiveForm() {
                 </div>
 
                 {matchingProducts.length > 0 && (
-                  <div className="border border-border rounded-lg bg-card shadow-md divide-y divide-border overflow-hidden">
+                  <div className="border border-border/80 rounded-2xl bg-card shadow-xl divide-y divide-border/60 overflow-hidden">
                     {matchingProducts.map((prod) => {
                       const itemConfig = getMedicineIconConfig(prod.category, prod.name, prod.unit);
                       const ItemIcon = itemConfig.Icon;
@@ -461,7 +461,7 @@ export function StockReceiveForm() {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value === '' ? '' : Math.max(1, Number(e.target.value)))}
                 placeholder="e.g. 50"
-                className="h-9 text-xs sm:text-sm font-bold text-foreground"
+                className="h-9 text-xs sm:text-sm font-bold text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 required
               />
             </div>
@@ -525,7 +525,7 @@ export function StockReceiveForm() {
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
                   placeholder="e.g. 150.00"
-                  className="h-9 text-xs sm:text-sm"
+                  className="h-9 text-xs sm:text-sm font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   required
                 />
               </div>
@@ -544,7 +544,7 @@ export function StockReceiveForm() {
                   value={sellPrice}
                   onChange={(e) => setSellPrice(e.target.value === '' ? '' : Math.max(0, Number(e.target.value)))}
                   placeholder="e.g. 180.00"
-                  className="h-9 text-xs sm:text-sm font-semibold text-primary"
+                  className="h-9 text-xs sm:text-sm font-semibold text-primary font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   required
                 />
               </div>
@@ -651,7 +651,7 @@ export function StockReceiveForm() {
                 value={vendorName}
                 onChange={(e) => setVendorName(e.target.value)}
                 placeholder="e.g. GSK Distributor Ltd."
-                className="h-9 text-xs sm:text-sm"
+                className="h-9 sm:h-10 text-xs sm:text-sm"
               />
             </div>
 
@@ -666,7 +666,7 @@ export function StockReceiveForm() {
                 value={rackNumber}
                 onChange={(e) => setRackNumber(e.target.value)}
                 placeholder="e.g. Shelf B-4"
-                className="h-9 text-xs sm:text-sm"
+                className="h-9 sm:h-10 text-xs sm:text-sm"
               />
             </div>
 
@@ -681,7 +681,7 @@ export function StockReceiveForm() {
                 value={purchaseInvoiceNumber}
                 onChange={(e) => setPurchaseInvoiceNumber(e.target.value)}
                 placeholder="e.g. INV-90412"
-                className="h-9 text-xs sm:text-sm font-mono"
+                className="h-9 sm:h-10 text-xs sm:text-sm font-mono"
               />
             </div>
 
@@ -695,7 +695,7 @@ export function StockReceiveForm() {
                 type="date"
                 value={purchaseInvoiceDate}
                 onChange={(e) => setPurchaseInvoiceDate(e.target.value)}
-                className="h-9 text-xs sm:text-sm"
+                className="h-9 sm:h-10 text-xs sm:text-sm"
               />
             </div>
           </CardContent>

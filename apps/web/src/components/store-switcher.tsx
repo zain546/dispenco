@@ -47,20 +47,20 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
       <>
         <div
           className={cn(
-            'flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg border border-border/70 bg-muted/40 text-xs font-semibold text-foreground min-w-0 max-w-[155px] xs:max-w-[190px] sm:max-w-[260px] shadow-2xs',
+            'h-8.5 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 rounded-lg border border-border/80 bg-card text-xs font-medium text-foreground min-w-0 max-w-[155px] xs:max-w-[190px] sm:max-w-[260px] shadow-xs',
             className
           )}
         >
-          <div className="size-5 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Store className="size-3.5" />
+          <div className="size-5 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+            <Store className="size-3" />
           </div>
-          <span className="truncate font-semibold text-foreground text-left min-w-0 flex-1">
+          <span className="truncate font-medium text-foreground text-left min-w-0 flex-1">
             {displayTitle}
           </span>
           {canManageStores && (
             <button
               onClick={() => setCreateModalOpen(true)}
-              className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded shrink-0"
+              className="text-muted-foreground hover:text-primary transition-colors p-0.5 rounded shrink-0 cursor-pointer"
               title="Add a 2nd branch store to unlock multi-store features"
             >
               <PlusCircle className="size-3.5" />
@@ -82,21 +82,21 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
             role="combobox"
             aria-label="Select a store branch"
             className={cn(
-              'h-9 gap-1.5 sm:gap-2 px-2 sm:px-3 text-xs sm:text-sm font-medium border-border/80 hover:bg-accent/60 hover:text-accent-foreground transition-all min-w-0 max-w-[155px] xs:max-w-[190px] sm:max-w-[260px] justify-between shadow-2xs',
+              'h-8.5 rounded-lg gap-1.5 sm:gap-2 px-2.5 sm:px-3 text-xs font-medium border-border/80 bg-card hover:bg-muted/40 transition-all min-w-0 max-w-[155px] xs:max-w-[190px] sm:max-w-[260px] justify-between shadow-xs',
               className
             )}
           >
             <div className="flex items-center gap-2 truncate min-w-0">
               {isAllStores ? (
-                <div className="size-5 rounded-md bg-primary/15 text-primary flex items-center justify-center shrink-0">
-                  <Layers className="size-3.5" />
+                <div className="size-5 rounded-md bg-primary/15 text-primary flex items-center justify-center shrink-0 border border-primary/25">
+                  <Layers className="size-3" />
                 </div>
               ) : (
-                <div className="size-5 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <Store className="size-3.5" />
+                <div className="size-5 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                  <Store className="size-3" />
                 </div>
               )}
-              <span className="truncate font-semibold text-foreground text-left">
+              <span className="truncate font-medium text-foreground text-left">
                 {displayTitle}
               </span>
             </div>
@@ -104,7 +104,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
           </Button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="start" className="w-64 sm:w-72 p-1.5 shadow-md">
+        <DropdownMenuContent align="start" className="w-64 sm:w-72 p-1.5 rounded-xl border border-border/80 bg-popover shadow-xl">
           <DropdownMenuLabel className="text-micro font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1 flex items-center justify-between">
             <span>Branches & Outlets</span>
             <Badge variant="secondary" className="text-micro px-1.5 py-0 h-4 font-semibold">

@@ -37,10 +37,10 @@ export function ConnectivityIndicator() {
           <button
             type="button"
             className={cn(
-              'h-8 rounded-lg transition-colors cursor-pointer select-none flex items-center justify-center',
+              'h-8.5 rounded-lg transition-colors cursor-pointer select-none flex items-center justify-center',
               isOnline
-                ? 'w-8 sm:w-auto sm:px-2.5 sm:gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 sm:border sm:border-border/60 sm:bg-muted/30'
-                : 'px-2.5 gap-1.5 bg-warning/10 text-warning border border-warning/30 animate-pulse'
+                ? 'size-8.5 sm:size-auto sm:h-8.5 sm:px-2.5 sm:gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/60 sm:border sm:border-border/60 sm:bg-muted/30'
+                : 'h-8.5 px-2.5 gap-1.5 bg-warning/10 text-warning border border-warning/30 animate-pulse'
             )}
             aria-label={isOnline ? 'Cloud connected' : 'Offline local mode'}
           >

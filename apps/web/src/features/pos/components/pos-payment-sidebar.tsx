@@ -111,28 +111,28 @@ export function PosPaymentSidebar({
 
   return (
     <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-4 self-start">
-      <Card id="payment-summary-card" className="shadow-xs border-border/80 bg-card overflow-hidden scroll-mt-20 flex flex-col max-h-[calc(100vh-2rem)]">
-        <CardHeader className="p-3.5 pb-2.5 border-b border-border/60 shrink-0">
-          <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
+      <Card id="payment-summary-card" className="shadow-2xs border-border/70 bg-card overflow-hidden scroll-mt-20 flex flex-col lg:max-h-[calc(100vh-2rem)]">
+        <CardHeader className="p-3.5 pb-2.5 border-b border-border/70 shrink-0">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
             <Banknote className="size-4 text-primary shrink-0" />
             <span>Payment Summary</span>
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Select payment method and complete customer checkout.
+            Select payment method and finalize customer checkout.
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="p-3.5 space-y-3 overflow-y-auto flex-1 min-h-0">
+        <CardContent className="p-3.5 space-y-2.5 lg:overflow-y-auto flex-1 min-h-0 overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {/* Customer Account & Khata Credit Section */}
           <div className="space-y-2" ref={customerSearchRef}>
             <div className="flex items-center justify-between gap-1.5">
               <div className="flex items-center gap-1.5 min-w-0">
                 <User className="size-3.5 text-primary shrink-0" />
-                <Label className="text-xs font-semibold text-foreground whitespace-nowrap">
+                <Label className="text-xs font-medium text-foreground whitespace-nowrap">
                   Customer
                 </Label>
                 {paymentMethod === 'CREDIT' && !selectedCustomer && (
-                  <span className="text-micro font-semibold text-warning bg-warning/10 border border-warning/20 px-1.5 py-0.5 rounded-sm whitespace-nowrap">
+                  <span className="text-micro font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded whitespace-nowrap">
                     Required
                   </span>
                 )}
@@ -142,7 +142,7 @@ export function PosPaymentSidebar({
                 variant="ghost"
                 size="sm"
                 onClick={onOpenAddCustomerModal}
-                className="h-6 px-1.5 text-micro gap-1 text-primary hover:text-primary hover:bg-primary/10 shrink-0 font-medium whitespace-nowrap cursor-pointer"
+                className="h-6.5 px-2 text-micro gap-1 text-primary hover:text-primary hover:bg-primary/10 shrink-0 font-medium whitespace-nowrap cursor-pointer rounded-md"
               >
                 <UserPlus className="size-3" />
                 <span>New</span>
@@ -151,20 +151,20 @@ export function PosPaymentSidebar({
 
             {selectedCustomer ? (
               /* Selected Customer Card */
-              <div className="p-2.5 rounded-xl border border-primary/30 bg-primary/5 flex items-center justify-between gap-2">
+              <div className="p-2.5 rounded-xl border border-primary/25 bg-primary/5 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="size-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                  <div className="size-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-semibold text-xs shrink-0">
                     {selectedCustomer.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-xs font-bold text-foreground truncate">{selectedCustomer.name}</p>
+                      <p className="text-xs font-semibold text-foreground truncate">{selectedCustomer.name}</p>
                       {(() => {
                         const badge = getKhataBalanceBadge(selectedCustomer.creditBalance);
                         return (
                           <Badge
                             variant={badge.variant}
-                            className={`text-micro py-0 px-1.5 h-4.5 shrink-0 ${badge.className}`}
+                            className={`text-micro py-0 px-1.5 h-4.5 shrink-0 font-medium ${badge.className}`}
                           >
                             {badge.label}
                           </Badge>
@@ -174,7 +174,7 @@ export function PosPaymentSidebar({
                     {selectedCustomer.phone && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Phone className="size-2.5" />
-                        <span>{selectedCustomer.phone}</span>
+                        <span className="font-mono">{selectedCustomer.phone}</span>
                       </p>
                     )}
                   </div>
@@ -214,7 +214,7 @@ export function PosPaymentSidebar({
                         onCustomerDropdownOpenChange(true);
                       }
                     }}
-                    className="h-9 pl-8 pr-8 text-xs"
+                    className="h-8.5 pl-8 pr-8 text-xs bg-background/50 border-border/70 rounded-lg focus-visible:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/20"
                   />
                   {isCustomerSearching && (
                     <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground animate-spin" />
@@ -246,18 +246,18 @@ export function PosPaymentSidebar({
                             onCustomerSearchChange('');
                             onCustomerDropdownOpenChange(false);
                           }}
-                          className="w-full text-left p-2 rounded-lg hover:bg-muted/80 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                          className="w-full text-left p-2 rounded-lg hover:bg-muted/60 transition-colors flex items-center justify-between gap-2 cursor-pointer"
                         >
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-foreground truncate">{cust.name}</p>
-                            <p className="text-xs text-muted-foreground">{cust.phone || 'No phone'}</p>
+                            <p className="text-xs font-semibold text-foreground truncate">{cust.name}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{cust.phone || 'No phone'}</p>
                           </div>
                           {(() => {
                             const badge = getKhataBalanceBadge(cust.creditBalance);
                             return (
                               <Badge
                                 variant={badge.variant}
-                                className={`text-micro py-0 px-1.5 h-4.5 shrink-0 ${badge.className}`}
+                                className={`text-micro py-0 px-1.5 h-4.5 shrink-0 font-medium ${badge.className}`}
                               >
                                 {badge.label}
                               </Badge>
@@ -275,13 +275,13 @@ export function PosPaymentSidebar({
                     placeholder="Walk-in name"
                     value={customerName}
                     onChange={(e) => onCustomerNameChange(e.target.value)}
-                    className="h-8 text-xs bg-muted/20 border-border/70"
+                    className="h-8.5 text-xs bg-muted/20 border-border/60 rounded-lg"
                   />
                   <Input
                     placeholder="Phone (optional)"
                     value={customerPhone}
                     onChange={(e) => onCustomerPhoneChange(e.target.value)}
-                    className="h-8 text-xs bg-muted/20 border-border/70"
+                    className="h-8.5 text-xs bg-muted/20 border-border/60 rounded-lg font-mono"
                   />
                 </div>
               </div>
@@ -293,16 +293,16 @@ export function PosPaymentSidebar({
             <div className="flex items-center justify-between gap-1.5">
               <div className="flex items-center gap-1.5 min-w-0">
                 <Stethoscope className="size-3.5 text-primary shrink-0" />
-                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5 whitespace-nowrap">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1.5 whitespace-nowrap">
                   <span>Prescriber</span>
                 </Label>
                 {hasControlledMedicine && (
-                  <span className="text-[10px] font-semibold text-destructive bg-destructive/10 border border-destructive/20 px-1.5 py-0.5 rounded-sm whitespace-nowrap">
+                  <span className="text-[10px] font-medium text-destructive bg-destructive/10 border border-destructive/20 px-1.5 py-0.2 rounded whitespace-nowrap">
                     Rx Required
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-0.5 p-0.5 bg-muted/40 border border-border/60 rounded-md">
+              <div className="flex items-center gap-0.5 p-0.5 bg-muted/50 border border-border/70 rounded-lg">
                 <button
                   type="button"
                   disabled={hasControlledMedicine}
@@ -312,12 +312,12 @@ export function PosPaymentSidebar({
                       onDoctorNameChange('Self');
                     }
                   }}
-                  className={`h-5.5 px-2 text-micro font-bold rounded transition-all whitespace-nowrap ${
+                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all whitespace-nowrap ${
                     hasControlledMedicine
                       ? 'text-muted-foreground/40 cursor-not-allowed'
                       : isSelfDoctor
-                        ? 'bg-primary text-primary-foreground shadow-2xs cursor-pointer'
-                        : 'text-muted-foreground hover:text-foreground cursor-pointer'
+                        ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs cursor-pointer'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent cursor-pointer'
                   }`}
                   title={hasControlledMedicine ? 'Controlled medicine requires prescribing doctor' : 'Over the counter'}
                 >
@@ -331,10 +331,10 @@ export function PosPaymentSidebar({
                       onDoctorNameChange('Dr. ');
                     }
                   }}
-                  className={`h-5.5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
+                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all cursor-pointer whitespace-nowrap ${
                     !isSelfDoctor
-                      ? 'bg-primary text-primary-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent'
                   }`}
                 >
                   Doctor
@@ -349,7 +349,7 @@ export function PosPaymentSidebar({
                   placeholder="Enter Dr. Name (e.g. Dr. Asif)"
                   value={doctorName}
                   onChange={(e) => onDoctorNameChange(e.target.value)}
-                  className="h-8 text-xs pr-14"
+                  className="h-8.5 text-xs pr-12 bg-background/50 border-border/70 rounded-lg"
                 />
                 {!hasControlledMedicine && (
                   <button
@@ -358,7 +358,7 @@ export function PosPaymentSidebar({
                       onIsSelfDoctorChange(true);
                       onDoctorNameChange('Self');
                     }}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-micro text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded bg-muted/50 cursor-pointer font-medium"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-micro text-muted-foreground hover:text-primary px-1.5 py-0.5 rounded bg-muted/60 cursor-pointer font-medium"
                   >
                     Self
                   </button>
@@ -370,18 +370,18 @@ export function PosPaymentSidebar({
           {/* Overall Discount Toggle */}
           <div className="space-y-1.5 pt-2 border-t border-border/60">
             <div className="flex items-center justify-between text-xs gap-1.5">
-              <Label className="font-semibold text-foreground flex items-center gap-1.5 whitespace-nowrap">
-                <Tag className="size-3.5 text-muted-foreground shrink-0" />
+              <Label className="font-medium text-foreground flex items-center gap-1.5 whitespace-nowrap">
+                <Tag className="size-3.5 text-primary shrink-0" />
                 <span>Order Discount</span>
               </Label>
-              <div className="flex items-center gap-0.5 p-0.5 bg-muted/40 border border-border/60 rounded-md">
+              <div className="flex items-center gap-0.5 p-0.5 bg-muted/50 border border-border/70 rounded-lg">
                 <button
                   type="button"
                   onClick={() => onOverallDiscountTypeChange('FLAT')}
-                  className={`h-5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
+                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all cursor-pointer whitespace-nowrap ${
                     overallDiscountType === 'FLAT'
-                      ? 'bg-primary text-primary-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent'
                   }`}
                 >
                   Flat PKR
@@ -389,10 +389,10 @@ export function PosPaymentSidebar({
                 <button
                   type="button"
                   onClick={() => onOverallDiscountTypeChange('PERCENT')}
-                  className={`h-5 px-2 text-micro font-bold rounded transition-all cursor-pointer whitespace-nowrap ${
+                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all cursor-pointer whitespace-nowrap ${
                     overallDiscountType === 'PERCENT'
-                      ? 'bg-primary text-primary-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent'
                   }`}
                 >
                   Percent %
@@ -419,7 +419,7 @@ export function PosPaymentSidebar({
                       : Math.max(0, parsed);
                   onOverallDiscountChange(clamped);
                 }}
-                className="h-8 text-xs bg-muted/20 border-border/70 pr-7 font-mono"
+                className="h-8.5 text-xs bg-muted/20 border-border/70 pr-7 font-mono rounded-lg"
               />
               {overallDiscount > 0 && (
                 <button
@@ -436,7 +436,7 @@ export function PosPaymentSidebar({
 
           {/* Payment Method Selector */}
           <div className="space-y-2 pt-2 border-t border-border/60">
-            <Label className="text-xs font-semibold text-foreground">Payment Method</Label>
+            <Label className="text-xs font-medium text-foreground">Payment Method</Label>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { id: 'CASH', label: 'Cash', icon: Banknote },
@@ -463,25 +463,25 @@ export function PosPaymentSidebar({
                     className={`h-10 rounded-lg border text-xs flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
                       isActive
                         ? hasAdvance
-                          ? 'bg-success/10 border-success/60 text-success font-bold shadow-2xs ring-1 ring-success/30'
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 font-semibold shadow-2xs ring-1 ring-emerald-500/20'
                           : isCredit
-                          ? 'bg-warning/10 border-warning/60 text-warning font-bold shadow-2xs ring-1 ring-warning/30'
-                          : 'bg-primary/10 border-primary text-primary font-bold shadow-2xs ring-1 ring-primary/30'
+                          ? 'bg-amber-500/10 border-amber-500/40 text-amber-500 font-semibold shadow-2xs ring-1 ring-amber-500/20'
+                          : 'bg-primary/10 border-primary/40 text-primary font-semibold shadow-2xs ring-1 ring-primary/20'
                         : hasAdvance
-                        ? 'bg-success/5 border-success/30 text-success hover:bg-success/10 font-medium'
-                        : 'bg-card border-border/80 text-muted-foreground hover:bg-muted/40 hover:text-foreground font-medium'
+                        ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10 font-normal'
+                        : 'bg-card border-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground font-normal'
                     }`}
                   >
                     <Icon
                       className={`size-3.5 ${
                         isActive
                           ? hasAdvance
-                            ? 'text-success'
+                            ? 'text-emerald-500'
                             : isCredit
-                            ? 'text-warning'
+                            ? 'text-amber-500'
                             : 'text-primary'
                           : hasAdvance
-                          ? 'text-success'
+                          ? 'text-emerald-500'
                           : 'text-muted-foreground'
                       }`}
                     />
@@ -498,13 +498,13 @@ export function PosPaymentSidebar({
               <div
                 className={`p-2.5 rounded-lg border space-y-1.5 text-xs ${
                   Number(selectedCustomer.creditBalance) < 0
-                    ? 'border-success/30 bg-success/5'
-                    : 'border-warning/30 bg-warning/5'
+                    ? 'border-emerald-500/25 bg-emerald-500/5'
+                    : 'border-amber-500/25 bg-amber-500/5'
                 }`}
               >
                 <div
-                  className={`flex items-center justify-between font-semibold text-micro ${
-                    Number(selectedCustomer.creditBalance) < 0 ? 'text-success' : 'text-warning'
+                  className={`flex items-center justify-between font-medium text-micro ${
+                    Number(selectedCustomer.creditBalance) < 0 ? 'text-emerald-500' : 'text-amber-500'
                   }`}
                 >
                   <span className="flex items-center gap-1.5">
@@ -515,7 +515,7 @@ export function PosPaymentSidebar({
                         : 'Khata Ledger'}
                     </span>
                   </span>
-                  <span className="truncate max-w-[140px] font-bold">{selectedCustomer.name}</span>
+                  <span className="truncate max-w-[140px] font-semibold">{selectedCustomer.name}</span>
                 </div>
                 {(() => {
                   const curBal = Number(selectedCustomer.creditBalance) || 0;
@@ -526,16 +526,16 @@ export function PosPaymentSidebar({
                       <div className="flex justify-between">
                         <span>{curBal < 0 ? 'Available Advance Credit:' : 'Current Debt:'}</span>
                         <span
-                          className={`font-semibold ${
-                            curBal < 0 ? 'text-success' : curBal > 0 ? 'text-destructive' : 'text-foreground'
+                          className={`font-mono font-medium ${
+                            curBal < 0 ? 'text-emerald-500' : curBal > 0 ? 'text-destructive' : 'text-foreground'
                           }`}
                         >
                           {Math.abs(curBal).toLocaleString()} PKR
                         </span>
                       </div>
-                      <div className="flex justify-between font-semibold text-foreground">
+                      <div className="flex justify-between font-medium text-foreground">
                         <span>{newBal < 0 ? 'Remaining Advance:' : 'New Total Debt:'}</span>
-                        <span className={`font-bold ${newBal < 0 ? 'text-success' : 'text-warning'}`}>
+                        <span className={`font-mono font-semibold ${newBal < 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
                           {Math.abs(newBal).toLocaleString()} PKR
                         </span>
                       </div>
@@ -555,9 +555,9 @@ export function PosPaymentSidebar({
 
           {/* Cash Tendered & Change Due Calculator */}
           {paymentMethod === 'CASH' && (
-            <div className="p-3 rounded-xl bg-muted/40 border border-border/80 space-y-2">
+            <div className="p-3 rounded-xl bg-muted/20 border border-border/70 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-foreground">Cash Received:</span>
+                <span className="font-medium text-foreground">Cash Received:</span>
                 <div className="relative">
                   <Input
                     ref={cashInputRef}
@@ -565,7 +565,7 @@ export function PosPaymentSidebar({
                     placeholder="0.00"
                     value={cashTendered}
                     onChange={(e) => onCashTenderedChange(e.target.value)}
-                    className="h-8 w-28 text-xs text-right font-bold pr-6"
+                    className="h-8.5 w-28 text-xs text-right font-semibold font-mono pr-6 bg-background/50 border-border/70 rounded-lg"
                   />
                   {cashTendered && (
                     <button
@@ -589,7 +589,7 @@ export function PosPaymentSidebar({
                     variant="outline"
                     size="sm"
                     onClick={() => onCashTenderedChange(amt.toString())}
-                    className="h-6 text-micro px-1.5 font-medium cursor-pointer"
+                    className="h-7 text-xs px-2.5 font-mono font-medium cursor-pointer rounded-md border-border/70 bg-card hover:bg-muted/50 text-foreground"
                   >
                     {amt}
                   </Button>
@@ -599,33 +599,33 @@ export function PosPaymentSidebar({
                   variant="outline"
                   size="sm"
                   onClick={() => onCashTenderedChange(Math.ceil(totals.grandTotal).toString())}
-                  className="h-6 text-micro px-2 font-bold text-primary cursor-pointer hover:bg-primary/10"
+                  className="h-7 text-xs px-2.5 font-semibold text-primary cursor-pointer hover:bg-primary/10 bg-primary/5 border-primary/20 rounded-md"
                 >
                   Exact
                 </Button>
               </div>
 
               {tenderedNum > 0 && (
-                <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 font-bold">
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 font-medium">
                   {tenderedNum < totals.grandTotal ? (
                     <>
-                      <span className="text-warning flex items-center gap-1 text-micro">
+                      <span className="text-amber-500 flex items-center gap-1 text-micro">
                         <AlertCircle className="size-3 shrink-0" />
                         <span>Shortage / Remaining:</span>
                       </span>
-                      <span className="text-warning font-mono">
+                      <span className="text-amber-500 font-mono font-semibold">
                         {(totals.grandTotal - tenderedNum).toFixed(2)} PKR
                       </span>
                     </>
                   ) : tenderedNum === totals.grandTotal ? (
                     <>
-                      <span className="text-success text-micro">Exact Cash Tendered:</span>
-                      <span className="text-success font-mono">0.00 PKR</span>
+                      <span className="text-emerald-500 text-micro">Exact Cash Tendered:</span>
+                      <span className="text-emerald-500 font-mono font-semibold">0.00 PKR</span>
                     </>
                   ) : (
                     <>
                       <span className="text-muted-foreground text-micro">Change Due:</span>
-                      <span className="text-success font-mono text-sm font-extrabold">
+                      <span className="text-emerald-500 font-mono text-sm font-semibold tabular-nums">
                         {changeDue.toFixed(2)} PKR
                       </span>
                     </>
@@ -637,29 +637,29 @@ export function PosPaymentSidebar({
         </CardContent>
 
         {/* Pinned Bottom Financial Totals & Primary Action CTA */}
-        <div className="p-3.5 pt-2.5 border-t border-border/80 bg-card/95 backdrop-blur-xs shrink-0 space-y-2.5">
+        <div className="p-3.5 pt-2.5 border-t border-border/70 bg-card/95 backdrop-blur-xs shrink-0 space-y-2.5">
           {/* Financial Totals Breakdown */}
           <div className="space-y-1 text-xs">
-            <div className="flex justify-between text-muted-foreground text-micro">
+            <div className="flex justify-between text-muted-foreground text-micro font-normal">
               <span>Subtotal:</span>
-              <span className="font-medium text-foreground">{totals.subtotal.toFixed(2)} PKR</span>
+              <span className="font-mono text-foreground">{totals.subtotal.toFixed(2)} PKR</span>
             </div>
             {totals.totalDiscount > 0 && (
-              <div className="flex justify-between text-success text-micro">
+              <div className="flex justify-between text-emerald-500 text-micro font-normal">
                 <span>Discount:</span>
-                <span className="font-semibold">-{totals.totalDiscount.toFixed(2)} PKR</span>
+                <span className="font-mono font-medium">-{totals.totalDiscount.toFixed(2)} PKR</span>
               </div>
             )}
             {totals.taxTotal > 0 && (
-              <div className="flex justify-between text-muted-foreground text-micro">
+              <div className="flex justify-between text-muted-foreground text-micro font-normal">
                 <span>Tax:</span>
-                <span className="font-medium text-foreground">+{totals.taxTotal.toFixed(2)} PKR</span>
+                <span className="font-mono text-foreground">+{totals.taxTotal.toFixed(2)} PKR</span>
               </div>
             )}
 
-            <div className="flex justify-between text-base font-extrabold pt-1.5 border-t border-border/80 text-foreground">
+            <div className="flex justify-between text-sm font-semibold pt-1.5 border-t border-border/70 text-foreground">
               <span>Grand Total:</span>
-              <span className="text-primary">{totals.grandTotal.toFixed(2)} PKR</span>
+              <span className="text-primary font-mono text-base font-bold tabular-nums">{totals.grandTotal.toFixed(2)} PKR</span>
             </div>
           </div>
 
@@ -668,12 +668,12 @@ export function PosPaymentSidebar({
             type="button"
             onClick={onCheckout}
             disabled={isBlocked}
-            className={`w-full h-11 text-sm font-bold shadow-md gap-2 cursor-pointer transition-all ${
+            className={`w-full h-11 text-sm font-semibold shadow-md gap-2 transition-all active:scale-[0.99] rounded-lg ${
               cart.length === 0
-                ? 'opacity-60 cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted'
+                ? 'cursor-not-allowed bg-muted/80 text-muted-foreground border border-border/80 hover:bg-muted/80'
                 : isKhataBlocked
-                ? 'bg-warning/15 text-warning border border-warning/30 cursor-not-allowed hover:bg-warning/15'
-                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30 cursor-not-allowed hover:bg-amber-500/15'
+                : 'bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer shadow-[0_0_16px_rgba(20,184,166,0.25)] dark:shadow-[0_0_20px_rgba(45,212,191,0.25)]'
             }`}
           >
             {isSubmitting ? (
@@ -691,7 +691,7 @@ export function PosPaymentSidebar({
               </>
             ) : (
               <>
-                <span>Complete Sale <span className="hidden md:inline">(F9)</span></span>
+                <span>Complete Sale <span className="hidden md:inline font-mono font-normal opacity-80">(F9)</span></span>
                 <ArrowRight className="size-4" />
               </>
             )}

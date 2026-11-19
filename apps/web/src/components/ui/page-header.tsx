@@ -26,7 +26,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60',
+        'flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/70',
         className,
       )}
     >
@@ -34,12 +34,12 @@ export function PageHeader({
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 flex-wrap min-w-0">
             {Icon && (
-              <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
                 <Icon className="size-4.5" />
               </div>
             )}
             {leftBadge}
-            <h1 className="text-lg sm:text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
               {title}
             </h1>
             {badge}

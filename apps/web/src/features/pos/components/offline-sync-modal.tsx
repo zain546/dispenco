@@ -227,44 +227,51 @@ export function OfflineSyncModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-20px)] sm:max-w-2xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden rounded-2xl sm:rounded-xl gap-3 sm:gap-4">
-          <DialogHeader className="pr-10 sm:pr-12">
-            <div className="flex items-start gap-3">
-              <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <Database className="size-5" />
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[85vh] flex flex-col p-3.5 sm:p-5 overflow-hidden rounded-2xl sm:rounded-xl gap-2.5 sm:gap-3.5 shadow-2xl border-border/80">
+          <DialogHeader className="pr-10">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 sm:size-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-2xs">
+                <Database className="size-4 sm:size-4.5" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <DialogTitle className="text-base sm:text-lg font-bold">
-                    Local-First POS & Offline Queue
+                  <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">
+                    <span className="sm:hidden">Offline Queue</span>
+                    <span className="hidden sm:inline">Local-First POS &amp; Offline Queue</span>
                   </DialogTitle>
-                  <StatusBadge variant={isOnline ? 'success' : 'danger'}>
-                    {isOnline ? 'Online' : 'Offline'}
-                  </StatusBadge>
+                  <Badge
+                    variant="outline"
+                    className={`text-micro font-medium px-2 py-0.5 rounded-full ${
+                      isOnline
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25'
+                    }`}
+                  >
+                    ● {isOnline ? 'Online' : 'Offline'}
+                  </Badge>
                 </div>
-                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5">
-                  IndexedDB local catalog cache & opportunistic sync with conflict resolution
+                <DialogDescription className="text-micro text-muted-foreground mt-0.5 line-clamp-1">
+                  <span className="sm:hidden">Offline catalog &amp; transaction sync</span>
+                  <span className="hidden sm:inline">IndexedDB local catalog cache &amp; opportunistic sync with cloud</span>
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          {/* Local Catalog Cache Banner */}
-          <div className="p-3 sm:p-3.5 bg-muted/30 rounded-xl border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <PackageCheck className="size-4" />
+          {/* Local Catalog Cache Strip */}
+          <div className="px-3 py-2 sm:py-2.5 bg-card rounded-xl border border-border/70 shadow-2xs flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-2xs">
+                <PackageCheck className="size-3.5" />
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-foreground">Local Catalog Cache:</span>
-                  <span className="text-muted-foreground">
-                    {status ? `${status.cachedProductsCount} medicines cached` : 'Loading cache...'}
-                  </span>
-                </div>
+              <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                <span className="font-semibold text-foreground text-xs">Catalog:</span>
+                <span className="text-muted-foreground font-mono text-xs">
+                  {status ? `${status.cachedProductsCount} items` : 'Loading...'}
+                </span>
                 {status?.lastSyncedAt && (
-                  <span className="text-[11px] text-muted-foreground/80 block mt-0.5">
-                    Last synced: {new Date(status.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <span className="text-micro text-muted-foreground/70 hidden xs:inline font-mono">
+                    • {new Date(status.lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
               </div>
@@ -275,57 +282,37 @@ export function OfflineSyncModal({
               size="sm"
               onClick={handleSyncCatalog}
               disabled={!isOnline || isCatalogSyncing}
-              className="h-8 text-xs font-semibold gap-1.5 shrink-0 w-full sm:w-auto justify-center"
+              className="h-7 px-2.5 text-xs font-medium gap-1 shrink-0 rounded-lg border-border/80 bg-background hover:bg-muted/60 text-foreground cursor-pointer shadow-2xs transition-colors"
             >
-              <RefreshCw className={`size-3.5 ${isCatalogSyncing ? 'animate-spin' : ''}`} />
-              <span>{isCatalogSyncing ? 'Updating Cache...' : 'Refresh Catalog Cache'}</span>
+              <RefreshCw className={`size-3 ${isCatalogSyncing ? 'animate-spin' : ''}`} />
+              <span>{isCatalogSyncing ? 'Syncing...' : 'Update'}</span>
             </Button>
           </div>
 
-          {/* Summary Badges */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            {/* Pending Sync */}
-            <div className="relative overflow-hidden rounded-xl border border-warning/25 bg-gradient-to-br from-card to-warning/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-warning leading-tight">
-                  Pending Sync
-                </span>
-                <Clock className="size-3.5 text-warning shrink-0 hidden xs:block" />
-              </div>
-              <strong className="text-xl sm:text-2xl font-extrabold text-warning mt-1 block tabular-nums">
+          {/* 3-Column Minimalist Metrics Bar */}
+          <div className="grid grid-cols-3 divide-x divide-border/60 rounded-xl border border-border/70 bg-card p-2 text-center shadow-2xs">
+            <div className="px-1 space-y-0.5">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Pending</span>
+              <span className={`font-mono font-bold text-base sm:text-lg block tabular-nums leading-none pt-0.5 ${pendingCount > 0 ? 'text-amber-500' : 'text-foreground'}`}>
                 {pendingCount}
-              </strong>
+              </span>
             </div>
-
-            {/* Stock Conflicts */}
-            <div className="relative overflow-hidden rounded-xl border border-destructive/25 bg-gradient-to-br from-card to-destructive/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-destructive leading-tight">
-                  Conflicts
-                </span>
-                <ShieldAlert className="size-3.5 text-destructive shrink-0 hidden xs:block" />
-              </div>
-              <strong className="text-xl sm:text-2xl font-extrabold text-destructive mt-1 block tabular-nums">
+            <div className="px-1 space-y-0.5">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Conflicts</span>
+              <span className={`font-mono font-bold text-base sm:text-lg block tabular-nums leading-none pt-0.5 ${conflictCount > 0 ? 'text-rose-500' : 'text-foreground'}`}>
                 {conflictCount}
-              </strong>
+              </span>
             </div>
-
-            {/* Synced */}
-            <div className="relative overflow-hidden rounded-xl border border-success/25 bg-gradient-to-br from-card to-success/[0.06] p-2.5 sm:p-3 flex flex-col justify-between">
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-[11px] sm:text-xs font-semibold text-success leading-tight">
-                  Synced
-                </span>
-                <CheckCircle2 className="size-3.5 text-success shrink-0 hidden xs:block" />
-              </div>
-              <strong className="text-xl sm:text-2xl font-extrabold text-success mt-1 block tabular-nums">
+            <div className="px-1 space-y-0.5">
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Synced</span>
+              <span className={`font-mono font-bold text-base sm:text-lg block tabular-nums leading-none pt-0.5 ${syncedCount > 0 ? 'text-emerald-500' : 'text-foreground'}`}>
                 {syncedCount}
-              </strong>
+              </span>
             </div>
           </div>
 
           {/* Transactions List */}
-          <div className="flex-1 overflow-y-auto space-y-2 py-1 max-h-[40vh] divide-y divide-border/60">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 py-1 divide-y divide-border/60">
             {isLoading ? (
               <div className="py-10 text-center text-muted-foreground flex flex-col items-center gap-2">
                 <Loader2 className="size-6 animate-spin text-primary" />
@@ -333,14 +320,12 @@ export function OfflineSyncModal({
               </div>
             ) : records.length === 0 ? (
               <div className="py-6 sm:py-8 text-center text-muted-foreground space-y-2 flex flex-col items-center justify-center">
-                <div className="size-11 rounded-full bg-success/10 text-success flex items-center justify-center">
+                <div className="size-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shadow-2xs">
                   <CheckCircle2 className="size-5" />
                 </div>
-                <div>
-                  <p className="font-bold text-sm text-foreground">Local Transaction Queue Clean</p>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto mt-0.5">
-                    All POS checkouts are fully synchronized with the cloud backend.
-                  </p>
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-xs sm:text-sm text-foreground">Queue Clean</p>
+                  <p className="text-micro text-muted-foreground">All checkouts synchronized with cloud.</p>
                 </div>
               </div>
             ) : (
@@ -348,34 +333,34 @@ export function OfflineSyncModal({
                 <div key={rec.id} className="pt-2.5 first:pt-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-bold text-xs text-foreground">{rec.localReceiptNumber}</span>
+                      <span className="font-mono font-semibold text-xs text-foreground">{rec.localReceiptNumber}</span>
                       {rec.clientTxId && (
-                        <span className="font-mono text-micro text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        <span className="font-mono text-micro text-muted-foreground bg-muted/60 border border-border/60 px-1.5 py-0.5 rounded">
                           UUID: {rec.clientTxId.slice(0, 8)}...
                         </span>
                       )}
-                      <StatusBadge
-                        variant={
+                      <Badge
+                        variant="outline"
+                        className={`text-micro font-medium px-2 py-0.5 rounded-full ${
                           rec.status === 'pending_sync'
-                            ? 'warning'
+                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25'
                             : rec.status === 'conflict'
-                            ? 'danger'
-                            : 'success'
-                        }
-                        size="xs"
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25'
+                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
+                        }`}
                       >
                         {rec.status === 'pending_sync' ? 'Pending Sync' : rec.status === 'conflict' ? 'Stock Conflict' : 'Synced'}
-                      </StatusBadge>
-                      <span className="text-xs font-bold text-primary">{rec.totals.grandTotal.toFixed(2)} PKR</span>
+                      </Badge>
+                      <span className="text-xs font-semibold font-mono tabular-nums text-foreground">{rec.totals.grandTotal.toFixed(2)} PKR</span>
                     </div>
 
                     <p className="text-micro text-muted-foreground">
-                      Items: {rec.payload.items.length} | Payment: {rec.payload.paymentMethod} | Date:{' '}
+                      Items: {rec.payload.items.length} • Payment: {rec.payload.paymentMethod} • Date:{' '}
                       {new Date(rec.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
 
                     {rec.errorReason && (
-                      <div className="flex items-start gap-1.5 text-micro text-destructive bg-destructive/10 border border-destructive/20 p-1.5 rounded-md mt-1">
+                      <div className="flex items-start gap-1.5 text-micro text-destructive bg-destructive/10 border border-destructive/20 p-2 rounded-lg mt-1">
                         <ShieldAlert className="size-3.5 shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold">Conflict: </span>
@@ -403,11 +388,11 @@ export function OfflineSyncModal({
                           variant="outline"
                           size="sm"
                           onClick={() => handleResolveConflict(rec.id!, 'CANCEL')}
-                          className="h-7 px-2 text-micro gap-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                          className="h-7.5 px-2.5 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer font-medium"
                           title="Cancel sale and restore local stock"
                         >
                           <XCircle className="size-3" />
-                          <span>Cancel & Restore</span>
+                          <span>Cancel</span>
                         </Button>
                       </div>
                     )}
@@ -415,9 +400,9 @@ export function OfflineSyncModal({
                     {rec.id && (
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => setRecordToDelete(rec.id!)}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        className="size-7.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                         title="Delete record from queue"
                         aria-label="Delete offline record"
                       >
@@ -430,24 +415,24 @@ export function OfflineSyncModal({
             )}
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-t border-border/80 pt-3">
+          <DialogFooter className="flex flex-row items-center justify-between gap-2 border-t border-border/70 pt-2.5 shrink-0">
             {syncedCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleClearSynced}
-                className="text-xs text-muted-foreground hover:text-foreground h-8.5 px-2 order-2 sm:order-1"
+                className="text-xs text-muted-foreground hover:text-foreground h-8 px-2 rounded-lg cursor-pointer font-medium"
               >
-                Clear Synced ({syncedCount})
+                Clear ({syncedCount})
               </Button>
             )}
 
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end ml-auto order-1 sm:order-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end ml-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onOpenChange(false)}
-                className="h-8.5 text-xs font-semibold flex-1 sm:flex-initial"
+                className="h-8.5 px-3 text-xs font-medium rounded-lg border-border/80 bg-card hover:bg-muted/60 text-foreground cursor-pointer flex-1 sm:flex-initial shadow-2xs"
               >
                 Close
               </Button>
@@ -456,10 +441,17 @@ export function OfflineSyncModal({
                 size="sm"
                 onClick={handleSyncAllSales}
                 disabled={!isOnline || isSyncing || pendingCount === 0}
-                className="h-8.5 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs flex-1 sm:flex-initial"
+                className={`h-8.5 px-3 text-xs font-semibold gap-1.5 rounded-lg transition-all flex-1 sm:flex-initial shadow-2xs ${
+                  !isOnline || isSyncing || pendingCount === 0
+                    ? 'bg-muted/80 text-muted-foreground border border-border/80 cursor-not-allowed opacity-80'
+                    : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_15px_rgba(20,184,166,0.3)] cursor-pointer'
+                }`}
               >
                 <RefreshCw className={`size-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Syncing...' : `Sync All Pending (${pendingCount})`}</span>
+                <span>
+                  <span className="sm:hidden">{isSyncing ? 'Syncing...' : `Sync (${pendingCount})`}</span>
+                  <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : `Sync All Pending (${pendingCount})`}</span>
+                </span>
               </Button>
             </div>
           </DialogFooter>

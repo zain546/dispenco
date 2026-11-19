@@ -107,14 +107,14 @@ export function ReturnsManager() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => refetch()}
             disabled={isLoading}
-            className="h-9 gap-1.5 text-xs font-medium cursor-pointer whitespace-nowrap"
+            className="flex-1 sm:flex-initial h-9 gap-1.5 text-xs font-medium cursor-pointer whitespace-nowrap"
           >
             <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -125,7 +125,7 @@ export function ReturnsManager() {
             variant="default"
             size="sm"
             onClick={() => setIsCreateOpen(true)}
-            className="h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-xs whitespace-nowrap"
+            className="flex-1 sm:flex-initial h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-xs whitespace-nowrap"
           >
             <Plus className="size-4" />
             <span>Process Return</span>
@@ -134,7 +134,7 @@ export function ReturnsManager() {
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
           title="Total Returns"
           value={isError ? '—' : totalReturnsMetric}
@@ -177,7 +177,7 @@ export function ReturnsManager() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="pl-9 h-9 text-xs bg-background"
+              className="pl-9 h-9 text-xs bg-card/60 dark:bg-card/40 border-border/80"
             />
           </div>
 
@@ -188,7 +188,7 @@ export function ReturnsManager() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-44 h-9 text-xs bg-background">
+            <SelectTrigger className="w-full sm:w-44 h-9 text-xs bg-card/60 dark:bg-card/40 border-border/80">
               <SelectValue placeholder="All Refund Methods" />
             </SelectTrigger>
             <SelectContent>
@@ -217,7 +217,7 @@ export function ReturnsManager() {
       </div>
 
       {/* Main Returns Table / List */}
-      <div className="border border-border/80 rounded-xl bg-card shadow-2xs overflow-hidden">
+      <div className="border border-border/80 rounded-2xl bg-card shadow-2xs overflow-hidden">
         {isLoading && returns.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className="size-8 animate-spin text-primary" />
@@ -261,9 +261,9 @@ export function ReturnsManager() {
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-xs">
-              <thead className="bg-muted/40 text-muted-foreground border-b border-border/70">
+              <thead className="bg-muted/30 text-muted-foreground border-b border-border/70 uppercase tracking-wider text-micro font-semibold">
                 <tr>
                   <th className="py-3 px-4 text-left font-semibold">Return & Date</th>
                   <th className="py-3 px-4 text-left font-semibold">Original Receipt</th>

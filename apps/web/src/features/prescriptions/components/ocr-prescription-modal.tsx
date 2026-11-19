@@ -351,49 +351,49 @@ export function OcrPrescriptionModal({
     >
       <DialogContent className="w-[calc(100vw-20px)] sm:max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
         {/* Header */}
-        <DialogHeader className="p-3.5 sm:p-6 pr-11 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0 text-left">
+        <DialogHeader className="p-3.5 sm:p-5 pr-11 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0 text-left">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
-              <div className="size-8 sm:size-10 rounded-lg sm:rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-                <FileText className="size-4 sm:size-5" />
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="size-8 sm:size-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <FileText className="size-4 sm:size-4.5" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <DialogTitle className="text-sm sm:text-lg font-bold text-foreground">
+                <div className="flex items-center gap-2">
+                  <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate">
                     {initialMode === 'manual' && step === 'review'
                       ? 'Create New Clinical Prescription'
                       : 'Prescription OCR & Verification'}
                   </DialogTitle>
                   <Badge
                     variant="outline"
-                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold hidden xs:inline-flex"
+                    className="bg-primary/10 text-primary border-primary/20 text-micro font-semibold hidden md:inline-flex"
                   >
                     Clinical Compliance
                   </Badge>
                 </div>
-                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5 line-clamp-1 leading-normal">
                   {initialMode === 'manual' && step === 'review'
-                    ? 'Enter verified patient clinical details, prescribing physician credentials, and medication schedule.'
-                    : 'Scan doctor slips to automatically extract patient details, dosage directions, and cross-reference controlled substances.'}
+                    ? 'Enter verified patient details, physician credentials, and clinical medication schedule.'
+                    : 'Scan doctor slips to automatically extract patient details, dosage, and controlled substances.'}
                 </DialogDescription>
               </div>
             </div>
             {step === 'review' && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => setStep('upload')}
-                className="gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 h-8"
+                className="hidden sm:inline-flex gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 h-8 px-2.5 shadow-2xs cursor-pointer"
               >
-                <RefreshCw className="size-3.5" />
-                <span className="hidden sm:inline">Upload Slip</span>
+                <UploadCloud className="size-3.5" />
+                <span>Upload Slip</span>
               </Button>
             )}
           </div>
         </DialogHeader>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 sm:p-6 space-y-4 sm:space-y-5">
           {step === 'upload' ? (
             <div className="space-y-4 sm:space-y-6">
               {/* Dropzone */}
@@ -474,16 +474,18 @@ export function OcrPrescriptionModal({
             </div>
           ) : (
             /* Review & Edit Step */
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-5">
               {/* Controlled Substance Alert Banner */}
               {hasControlledSubstances && (
-                <div className="p-3.5 rounded-xl border border-destructive/30 bg-destructive/10 flex items-start gap-3">
-                  <ShieldAlert className="size-5 text-destructive shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="font-bold text-xs text-destructive">
+                <div className="p-3 sm:p-3.5 rounded-xl border border-destructive/40 bg-destructive/10 flex items-start gap-3">
+                  <div className="p-1 rounded-md bg-destructive/20 text-destructive shrink-0 mt-0.5">
+                    <ShieldAlert className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h5 className="text-xs font-bold text-destructive">
                       Controlled Substance Schedule Warning
                     </h5>
-                    <p className="text-micro text-destructive/90 mt-0.5">
+                    <p className="text-micro text-destructive/90 mt-0.5 leading-relaxed">
                       This prescription contains medicines designated as controlled substances. Ensure prescribing doctor license # and patient CNIC are recorded before dispensing.
                     </p>
                   </div>
@@ -491,56 +493,59 @@ export function OcrPrescriptionModal({
               )}
 
               {/* Patient Information Section */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <User className="size-3.5" />
+              <div className="p-3 sm:p-4 rounded-xl border border-border/70 bg-card space-y-3">
+                <h4 className="text-micro font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <User className="size-3.5 text-primary" />
                   <span>Patient Information</span>
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="sm:col-span-2 space-y-1">
-                    <Label className="text-xs font-semibold">Patient Full Name *</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                  {/* Row 1 */}
+                  <div className="col-span-2 sm:col-span-2 space-y-1">
+                    <Label className="text-xs font-semibold text-foreground">Patient Full Name *</Label>
                     <Input
                       type="text"
                       value={patientName}
                       onChange={(e) => setPatientName(e.target.value)}
                       placeholder="e.g. Muhammad Tariq"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Phone Number</Label>
+                  <div className="col-span-2 sm:col-span-2 space-y-1">
+                    <Label className="text-xs font-semibold text-foreground">Phone Number</Label>
                     <Input
                       type="text"
                       value={patientPhone}
                       onChange={(e) => setPatientPhone(e.target.value)}
-                      placeholder="+92 300..."
-                      className="h-8 text-xs"
+                      placeholder="+92 300 1234567"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Age</Label>
-                    <Input
-                      type="number"
-                      value={patientAge}
-                      onChange={(e) => setPatientAge(e.target.value ? Number(e.target.value) : '')}
-                      placeholder="Age"
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div className="sm:col-span-2 space-y-1">
-                    <Label className="text-xs font-semibold">National ID / CNIC</Label>
+
+                  {/* Row 2 */}
+                  <div className="col-span-2 sm:col-span-2 space-y-1">
+                    <Label className="text-xs font-semibold text-foreground">National ID / CNIC</Label>
                     <Input
                       type="text"
                       value={patientCnic}
                       onChange={(e) => setPatientCnic(e.target.value)}
                       placeholder="e.g. 35201-XXXXXXX-X"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold">Gender</Label>
+                  <div className="col-span-1 sm:col-span-1 space-y-1">
+                    <Label className="text-xs font-semibold text-foreground">Age</Label>
+                    <Input
+                      type="number"
+                      value={patientAge}
+                      onChange={(e) => setPatientAge(e.target.value ? Number(e.target.value) : '')}
+                      placeholder="Age"
+                      className="h-8 text-xs bg-background [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                  <div className="col-span-1 sm:col-span-1 space-y-1">
+                    <Label className="text-xs font-semibold text-foreground">Gender</Label>
                     <Select value={patientGender} onValueChange={setPatientGender}>
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger className="h-8 text-xs bg-background">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -554,78 +559,78 @@ export function OcrPrescriptionModal({
               </div>
 
               {/* Doctor Information Section */}
-              <div className="space-y-3 border-t border-border/60 pt-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Building2 className="size-3.5" />
+              <div className="p-3 sm:p-4 rounded-xl border border-border/70 bg-card space-y-3">
+                <h4 className="text-micro font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Building2 className="size-3.5 text-primary" />
                   <span>Prescribing Physician / Doctor</span>
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                  <div className="col-span-2 sm:col-span-1 space-y-1">
                     <Label className="text-xs font-semibold">Doctor Name *</Label>
                     <Input
                       type="text"
                       value={doctorName}
                       onChange={(e) => setDoctorName(e.target.value)}
                       placeholder="Dr. Full Name"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="col-span-1 space-y-1">
                     <Label className="text-xs font-semibold">Medical License / PMC #</Label>
                     <Input
                       type="text"
                       value={doctorLicenseNumber}
                       onChange={(e) => setDoctorLicenseNumber(e.target.value)}
                       placeholder="PMC-XXXXX-P"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="col-span-1 space-y-1">
                     <Label className="text-xs font-semibold">Hospital / Clinic</Label>
                     <Input
                       type="text"
                       value={doctorHospital}
                       onChange={(e) => setDoctorHospital(e.target.value)}
                       placeholder="Hospital Name"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="col-span-1 space-y-1">
                     <Label className="text-xs font-semibold">Prescription Date</Label>
                     <Input
                       type="date"
                       value={prescriptionDate}
                       onChange={(e) => setPrescriptionDate(e.target.value)}
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="col-span-1 space-y-1">
                     <Label className="text-xs font-semibold">Expiry Date (Valid Until)</Label>
                     <Input
                       type="date"
                       value={expiryDate}
                       onChange={(e) => setExpiryDate(e.target.value)}
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="col-span-2 sm:col-span-1 space-y-1">
                     <Label className="text-xs font-semibold">Diagnosis / Indication</Label>
                     <Input
                       type="text"
                       value={diagnosis}
                       onChange={(e) => setDiagnosis(e.target.value)}
                       placeholder="e.g. Upper Respiratory Infection"
-                      className="h-8 text-xs"
+                      className="h-8 text-xs bg-background"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Prescribed Items Table */}
-              <div className="space-y-3 border-t border-border/60 pt-4">
+              {/* Prescribed Items */}
+              <div className="p-3 sm:p-4 rounded-xl border border-border/70 bg-card space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Pill className="size-3.5" />
+                  <h4 className="text-micro font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Pill className="size-3.5 text-primary" />
                     <span>Prescribed Medicines ({items.length})</span>
                   </h4>
                   <Button
@@ -633,17 +638,173 @@ export function OcrPrescriptionModal({
                     variant="outline"
                     size="sm"
                     onClick={handleAddItem}
-                    className="gap-1.5 text-xs h-7"
+                    className="gap-1.5 text-xs h-7.5 px-2.5 cursor-pointer"
                   >
                     <Plus className="size-3" />
                     <span>Add Medicine</span>
                   </Button>
                 </div>
 
-                <div className="border border-border rounded-xl overflow-hidden shadow-2xs">
-                  <div className="overflow-x-auto">
+                {/* Mobile Cards for Prescribed Items */}
+                <div className="space-y-3 sm:hidden">
+                  {items.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className="p-3 rounded-lg border border-border/60 bg-muted/20 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-micro font-bold text-muted-foreground">
+                            #{idx + 1}
+                          </span>
+                          {item.isControlledSubstance && (
+                            <Badge variant="destructive" className="text-micro px-1.5 py-0">
+                              Controlled
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveItem(idx)}
+                          className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-micro font-semibold text-muted-foreground">
+                          Catalog Medicine *
+                        </Label>
+                        <Select
+                          value={item.matchedProductId || ''}
+                          onValueChange={(val) =>
+                            handleUpdateItem(idx, 'matchedProductId', val)
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-background">
+                            <SelectValue placeholder="Select catalog medicine..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-56">
+                            {products.map((p) => (
+                              <SelectItem key={p.id} value={p.id} className="text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{p.name} ({p.unit})</span>
+                                  {p.isControlledSubstance && (
+                                    <Badge variant="destructive" className="text-micro px-1 py-0">
+                                      Rx
+                                    </Badge>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {item.rawMedicineName && item.rawMedicineName !== item.matchedProductName && (
+                          <p className="text-micro text-muted-foreground">
+                            OCR recognized: &quot;{item.rawMedicineName}&quot;
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-micro font-semibold text-muted-foreground">Dosage</Label>
+                          <Input
+                            type="text"
+                            value={item.dosage || ''}
+                            onChange={(e) =>
+                              handleUpdateItem(idx, 'dosage', e.target.value)
+                            }
+                            placeholder="e.g. 1 Tablet"
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-micro font-semibold text-muted-foreground">Frequency</Label>
+                          <Input
+                            type="text"
+                            value={item.frequency || ''}
+                            onChange={(e) =>
+                              handleUpdateItem(idx, 'frequency', e.target.value)
+                            }
+                            placeholder="e.g. Twice daily"
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-micro font-semibold text-muted-foreground">Days</Label>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={
+                              item.durationDays !== undefined && item.durationDays !== null
+                                ? String(item.durationDays)
+                                : ''
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              if (raw === '') {
+                                handleUpdateItem(idx, 'durationDays', '');
+                                return;
+                              }
+                              if (!/^\d+$/.test(raw)) return;
+                              handleUpdateItem(idx, 'durationDays', Number(raw));
+                            }}
+                            placeholder="Days"
+                            className="h-8 text-xs tabular-nums bg-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-micro font-semibold text-muted-foreground">Quantity</Label>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={
+                              item.quantityPrescribed !== undefined &&
+                              item.quantityPrescribed !== null
+                                ? String(item.quantityPrescribed)
+                                : '10'
+                            }
+                            onChange={(e) => {
+                              const raw = e.target.value.trim();
+                              if (raw === '') {
+                                handleUpdateItem(idx, 'quantityPrescribed', '');
+                                return;
+                              }
+                              if (!/^\d+$/.test(raw)) return;
+                              handleUpdateItem(idx, 'quantityPrescribed', Number(raw));
+                            }}
+                            placeholder="Qty"
+                            className="h-8 text-xs font-semibold tabular-nums bg-background"
+                          />
+                        </div>
+                        <div className="col-span-2 space-y-1">
+                          <Label className="text-micro font-semibold text-muted-foreground">Instructions</Label>
+                          <Input
+                            type="text"
+                            value={item.instructions || ''}
+                            onChange={(e) =>
+                              handleUpdateItem(idx, 'instructions', e.target.value)
+                            }
+                            placeholder="e.g. After meals"
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden sm:block border border-border rounded-xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-xs tracking-wider">
+                      <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro tracking-wider">
                         <tr>
                           <th className="py-2.5 px-3 w-10 text-center">#</th>
                           <th className="py-2.5 px-3 min-w-[220px]">Catalog Match</th>
@@ -680,7 +841,7 @@ export function OcrPrescriptionModal({
                                         <div className="flex items-center gap-1.5">
                                           <span>{p.name} ({p.unit})</span>
                                           {p.isControlledSubstance && (
-                                            <Badge variant="destructive" className="text-xs px-1 py-0">
+                                            <Badge variant="destructive" className="text-micro px-1 py-0">
                                               Rx Schedule
                                             </Badge>
                                           )}
@@ -689,10 +850,10 @@ export function OcrPrescriptionModal({
                                     ))}
                                   </SelectContent>
                                 </Select>
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-1.5 text-micro text-muted-foreground">
                                   <span>OCR: &quot;{item.rawMedicineName}&quot;</span>
                                   {item.isControlledSubstance && (
-                                    <Badge variant="destructive" className="text-xs px-1 py-0">
+                                    <Badge variant="destructive" className="text-micro px-1 py-0">
                                       Controlled
                                     </Badge>
                                   )}
@@ -819,10 +980,10 @@ export function OcrPrescriptionModal({
                     </table>
                   </div>
 
-                  <div className="p-3 bg-muted/30 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
-                    <AlertTriangle className="size-4 text-warning shrink-0" />
+                  <div className="p-3 bg-muted/30 border-t border-border flex items-center gap-2 text-micro text-muted-foreground">
+                    <AlertTriangle className="size-3.5 text-warning shrink-0" />
                     <span>
-                      Explicit human pharmacist confirmation is required. Verify that medicine strengths match the doctor slip before saving.
+                      Pharmacist verification required: Confirm that medicine strengths match the physician slip before dispensing.
                     </span>
                   </div>
                 </div>
@@ -832,7 +993,7 @@ export function OcrPrescriptionModal({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-3.5 sm:p-5 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-between gap-2 shrink-0">
+        <DialogFooter className="p-3.5 sm:p-4 border-t border-border/60 bg-muted/20 flex flex-row items-center justify-between gap-2 shrink-0">
           <Button
             type="button"
             variant="outline"
@@ -841,7 +1002,7 @@ export function OcrPrescriptionModal({
               resetState();
               onOpenChange(false);
             }}
-            className="text-xs h-9 px-3"
+            className="text-xs h-9 px-3.5 cursor-pointer"
           >
             Cancel
           </Button>
@@ -852,7 +1013,7 @@ export function OcrPrescriptionModal({
               size="sm"
               disabled={isSaving}
               onClick={handleConfirmSave}
-              className="gap-1.5 sm:gap-2 text-xs font-bold h-9 px-3 sm:px-4"
+              className="gap-1.5 sm:gap-2 text-xs font-semibold h-9 px-3 sm:px-4 cursor-pointer shadow-xs"
             >
               {isSaving ? (
                 <>
@@ -861,9 +1022,8 @@ export function OcrPrescriptionModal({
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="size-4" />
-                  <span className="hidden xs:inline">Confirm & Save Verified Prescription</span>
-                  <span className="xs:hidden">Confirm & Save</span>
+                  <CheckCircle2 className="size-4 shrink-0" />
+                  <span>Confirm & Save</span>
                 </>
               )}
             </Button>

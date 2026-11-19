@@ -53,24 +53,24 @@ export function SettingsHub() {
             onValueChange={handleTabChange}
             className="w-full sm:w-auto"
           >
-            <TabsList className="grid w-full sm:w-[440px] grid-cols-3 h-9 p-1 bg-muted/60 rounded-xl border border-border/60">
+            <TabsList className="grid w-full sm:w-[440px] grid-cols-3 h-9 p-1 bg-muted/60 rounded-xl border border-border/70">
               <TabsTrigger
                 value="team"
-                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-2xs transition-all cursor-pointer"
               >
                 <Users className="size-3.5" />
                 <span>Team</span>
               </TabsTrigger>
               <TabsTrigger
                 value="billing"
-                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-2xs transition-all cursor-pointer"
               >
                 <CreditCard className="size-3.5" />
                 <span>Billing</span>
               </TabsTrigger>
               <TabsTrigger
                 value="integrations"
-                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs transition-all cursor-pointer"
+                className="gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-semibold rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-2xs transition-all cursor-pointer"
               >
                 <Key className="size-3.5" />
                 <span>API</span>

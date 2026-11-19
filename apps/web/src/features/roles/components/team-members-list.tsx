@@ -289,7 +289,7 @@ export function TeamMembersList({
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
+                    <tr className="border-b border-border/70 bg-muted/30 text-muted-foreground uppercase tracking-wider text-micro font-semibold">
                       <th className="py-3 px-4">Employee</th>
                       <th className="py-3 px-4">Assigned Role</th>
                       <th className="py-3 px-4">Contact</th>
@@ -298,7 +298,7 @@ export function TeamMembersList({
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-border/50">
                     {filteredUsers.map((u) => {
                       const isSelf = u.id === currentUser?.id;
                       const matchedRole = roles.find(
@@ -310,7 +310,7 @@ export function TeamMembersList({
                       return (
                         <tr
                           key={u.id}
-                          className="hover:bg-muted/20 transition-colors"
+                          className="hover:bg-muted/25 transition-colors"
                         >
                           {/* Name & Avatar */}
                           <td className="py-3 px-4">

@@ -164,7 +164,7 @@ export function CustomerList() {
       />
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
           label="Total Registered"
           value={summary.totalCustomers}
@@ -207,7 +207,7 @@ export function CustomerList() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            className="pl-9 h-9 text-xs bg-background"
+            className="pl-9 h-9 text-xs bg-card/60 dark:bg-card/40 border-border/80"
           />
         </div>
 
@@ -347,9 +347,9 @@ export function CustomerList() {
               }
             />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full text-xs text-left">
-                <thead className="bg-muted/40 border-b border-border/70 text-micro text-muted-foreground font-semibold uppercase tracking-wider">
+                <thead className="bg-muted/30 border-b border-border/70 text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                   <tr>
                     <th className="py-3 px-4">Customer</th>
                     <th className="py-3 px-4">Contact Phone</th>
@@ -359,13 +359,13 @@ export function CustomerList() {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/40">
+                <tbody className="divide-y divide-border/50">
                   {data?.data.map((c) => {
                     const balance = Number(c.creditBalance) || 0;
                     const hasDebt = balance > 0;
 
                     return (
-                      <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                      <tr key={c.id} className="hover:bg-muted/25 transition-colors">
                         {/* Name & Avatar */}
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2.5">

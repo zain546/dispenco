@@ -164,7 +164,7 @@ export default function DashboardLayout({
         return (
           <div key={group.label} className="space-y-1">
             {!isCollapsedNav ? (
-              <div className="text-overline text-muted-foreground/70 px-3 py-1 font-semibold select-none">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 px-3 py-1 select-none">
                 {group.label}
               </div>
             ) : gIdx > 0 ? (
@@ -183,11 +183,11 @@ export default function DashboardLayout({
                     href={item.href}
                     onClick={() => inMobile && setMobileOpen(false)}
                     className={cn(
-                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors',
+                      'flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150',
                       isCollapsedNav ? 'justify-center px-0 h-9' : 'justify-start h-9',
                       isActive
-                        ? 'bg-primary/10 text-primary font-semibold'
-                        : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                        ? 'bg-primary/15 text-primary border border-primary/25 shadow-xs dark:bg-white/[0.08] dark:text-white dark:border-white/10 font-semibold'
+                        : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground border border-transparent'
                     )}
                   >
                     <Icon className="size-4 shrink-0" />
@@ -263,29 +263,29 @@ export default function DashboardLayout({
                   variant="ghost"
                   size="icon"
                   onClick={toggleSidebar}
-                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent shrink-0"
+                  className="size-7.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent shrink-0"
                   aria-label="Collapse Sidebar"
                   title="Collapse Sidebar"
                 >
-                  <ChevronLeft className="size-4" />
+                  <ChevronLeft className="size-3.5" />
                 </Button>
               </div>
             )}
 
             {/* Scrollable Navigation */}
-            <div className="mt-4 flex-1 flex flex-col min-h-0">
+            <div className="mt-3 flex-1 flex flex-col min-h-0">
               {renderNavLinks(false)}
             </div>
           </div>
 
           {/* Footer Account / Logout - 100vh Viewport Bound */}
-          <div className="pt-3 border-t border-sidebar-border shrink-0 space-y-3">
+          <div className="pt-3 border-t border-sidebar-border shrink-0 space-y-2.5">
             {isCollapsed ? (
               <div className="flex flex-col items-center gap-2">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Avatar className="size-9 bg-primary text-primary-foreground shrink-0 ring-2 ring-primary/20 cursor-pointer">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                    <Avatar className="size-8 bg-muted text-foreground shrink-0 border border-border/60 cursor-pointer">
+                      <AvatarFallback className="bg-muted text-foreground text-xs font-semibold">
                         {userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -303,10 +303,10 @@ export default function DashboardLayout({
                       size="icon"
                       onClick={requestSignOut}
                       aria-haspopup="dialog"
-                      className="size-9 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg"
+                      className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive rounded-lg"
                       aria-label="Sign Out"
                     >
-                      <LogOut className="size-4" />
+                      <LogOut className="size-3.5" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="text-xs text-destructive font-medium">
@@ -316,21 +316,21 @@ export default function DashboardLayout({
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3 px-2">
-                  <Avatar className="size-9 bg-primary text-primary-foreground shrink-0 ring-2 ring-primary/20">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                <div className="flex items-center gap-2.5 px-1.5">
+                  <Avatar className="size-8 bg-muted text-foreground shrink-0 border border-border/60">
+                    <AvatarFallback className="bg-muted text-foreground text-xs font-semibold">
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-xs min-w-0 flex-1">
                     <div
-                      className="font-semibold text-sidebar-foreground truncate"
+                      className="font-medium text-sidebar-foreground truncate"
                       title={userName}
                     >
                       {userName}
                     </div>
                     <div
-                      className="text-muted-foreground truncate"
+                      className="text-[11px] text-muted-foreground truncate"
                       title={displayStoreName}
                     >
                       {displayStoreName} •{' '}
@@ -343,9 +343,9 @@ export default function DashboardLayout({
                   variant="ghost"
                   onClick={requestSignOut}
                   aria-haspopup="dialog"
-                  className="w-full justify-start gap-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive px-3 py-2 h-9 transition-colors"
+                  className="w-full justify-start gap-2 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive px-2.5 py-1.5 h-8 transition-colors"
                 >
-                  <LogOut className="size-4" />
+                  <LogOut className="size-3.5" />
                   <span>Sign Out</span>
                 </Button>
               </>
@@ -354,9 +354,9 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main Content Container */}
-        <div className="flex-1 flex flex-col min-w-0 bg-muted/20">
+        <div className="flex-1 flex flex-col min-w-0 bg-background">
           {/* Top Header */}
-          <header className="h-14 sm:h-16 bg-card border-b border-border flex items-center justify-between px-2.5 sm:px-6 shadow-xs shrink-0 gap-2">
+          <header className="h-14 bg-background/80 backdrop-blur-md border-b border-border/70 flex items-center justify-between px-3 sm:px-6 shrink-0 gap-2 z-20">
             <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[calc(100%-115px)] sm:max-w-none">
               {/* Mobile Drawer Trigger (Visible on < lg) */}
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -364,10 +364,10 @@ export default function DashboardLayout({
                   <Button
                     variant="outline"
                     size="icon"
-                    className="lg:hidden size-8 sm:size-9 shrink-0 text-foreground"
+                    className="lg:hidden size-8.5 rounded-lg shrink-0 text-foreground"
                     aria-label="Open Navigation Menu"
                   >
-                    <Menu className="size-4 sm:size-5" />
+                    <Menu className="size-4" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-72 p-4 flex flex-col justify-between bg-sidebar text-sidebar-foreground">
@@ -424,7 +424,7 @@ export default function DashboardLayout({
           <SubscriptionBanner />
 
           {/* Page View Body */}
-          <main className="flex-1 p-3.5 sm:p-6 overflow-y-auto">{children}</main>
+          <main className="flex-1 p-4 sm:p-6 lg:p-7 max-w-[1600px] w-full mx-auto overflow-y-auto">{children}</main>
 
           {/* Floating AI Assistant Widget (Available Globally across all Dashboard Screens) */}
           <AiAssistantWidget />
