@@ -224,6 +224,9 @@ export function ProductBatchesModal({
       fetchBatches();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, 'Failed to write off expired batch'));
+      setBatchForWriteOff(null);
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      fetchBatches();
     } finally {
       setIsWritingOff(false);
     }

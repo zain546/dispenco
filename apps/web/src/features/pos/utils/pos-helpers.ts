@@ -63,42 +63,50 @@ export const getCommittedUnitsInCart = (
 
 // Resolve sellable (non-expired) stock count for POS dispensing & cart allocation
 export const getSellableStock = (product: ProductData): number => {
-  if (product.sellableStock !== undefined && product.sellableStock !== null) {
-    return Math.max(0, product.sellableStock);
-  }
   if (Array.isArray(product.batches) && product.batches.length > 0) {
     const now = Date.now();
-    return product.batches.reduce((sum, b) => {
+    const liveBatchSellable = product.batches.reduce((sum, b) => {
       if (b.quantityRemaining > 0 && new Date(b.expiryDate).getTime() > now) {
         return sum + b.quantityRemaining;
       }
       return sum;
     }, 0);
+    if (product.sellableStock !== undefined && product.sellableStock !== null) {
+      return Math.min(Math.max(0, product.sellableStock), liveBatchSellable);
+    }
+    return liveBatchSellable;
   }
   const expiry = getProductExpiryStatus(product.nearestExpiryDate);
   if (expiry?.isExpired) {
     return 0;
+  }
+  if (product.sellableStock !== undefined && product.sellableStock !== null) {
+    return Math.max(0, product.sellableStock);
   }
   return Math.max(0, product.totalStock ?? 0);
 };
 
 // Resolve expired stock count sitting in active batches
 export const getExpiredStock = (product: ProductData): number => {
-  if (product.expiredStock !== undefined && product.expiredStock !== null) {
-    return Math.max(0, product.expiredStock);
-  }
   if (Array.isArray(product.batches) && product.batches.length > 0) {
     const now = Date.now();
-    return product.batches.reduce((sum, b) => {
+    const liveBatchExpired = product.batches.reduce((sum, b) => {
       if (b.quantityRemaining > 0 && new Date(b.expiryDate).getTime() <= now) {
         return sum + b.quantityRemaining;
       }
       return sum;
     }, 0);
+    if (product.expiredStock !== undefined && product.expiredStock !== null) {
+      return Math.max(Math.max(0, product.expiredStock), liveBatchExpired);
+    }
+    return liveBatchExpired;
   }
   const expiry = getProductExpiryStatus(product.nearestExpiryDate);
   if (expiry?.isExpired) {
-    return Math.max(0, product.totalStock ?? 0);
+    return Math.max(0, product.expiredStock ?? product.totalStock ?? 0);
+  }
+  if (product.expiredStock !== undefined && product.expiredStock !== null) {
+    return Math.max(0, product.expiredStock);
   }
   return 0;
 };

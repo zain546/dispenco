@@ -77,8 +77,9 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
   const [urgencyFilter, setUrgencyFilter] = useState<string>('REORDER_NEEDED');
   const [search, setSearch] = useState<string>('');
 
-  // Multi-selection state
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  // Multi-selection state (stores full suggestion records so selections persist across filter/search changes)
+  const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, ReorderSuggestionItem>>({});
+  const selectedProductIds = useMemo(() => Object.keys(selectedItemsMap), [selectedItemsMap]);
 
   const {
     data,
@@ -118,10 +119,27 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
     });
   };
 
+  // Keep preserved selected items updated with latest server suggestion figures when data refreshes
+  useEffect(() => {
+    const suggestions = data?.suggestions;
+    if (!suggestions || suggestions.length === 0) return;
+    setSelectedItemsMap((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      let changed = false;
+      const next = { ...prev };
+      for (const s of suggestions) {
+        if (next[s.productId] && next[s.productId] !== s) {
+          next[s.productId] = s;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [data?.suggestions]);
+
   // Handle bulk selected Convert to PO
   const handleBulkConvertToPO = () => {
-    if (!data?.suggestions) return;
-    const selectedItems = data.suggestions.filter((s) => selectedProductIds.includes(s.productId));
+    const selectedItems = Object.values(selectedItemsMap);
     if (selectedItems.length === 0) return;
 
     // Determine supplier: if all share the same supplier, use it, otherwise let user select
@@ -158,19 +176,38 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
   );
 
   const handleToggleSelectAll = () => {
-    if (displayedProductIds.length === 0) return;
+    const suggestions = data?.suggestions ?? [];
+    if (suggestions.length === 0) return;
     if (allDisplayedSelected) {
-      const displayedSet = new Set(displayedProductIds);
-      setSelectedProductIds((prev) => prev.filter((id) => !displayedSet.has(id)));
+      setSelectedItemsMap((prev) => {
+        const next = { ...prev };
+        for (const s of suggestions) {
+          delete next[s.productId];
+        }
+        return next;
+      });
     } else {
-      setSelectedProductIds((prev) => Array.from(new Set([...prev, ...displayedProductIds])));
+      setSelectedItemsMap((prev) => {
+        const next = { ...prev };
+        for (const s of suggestions) {
+          next[s.productId] = s;
+        }
+        return next;
+      });
     }
   };
 
   const handleToggleSelectItem = (productId: string) => {
-    setSelectedProductIds((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId],
-    );
+    setSelectedItemsMap((prev) => {
+      if (prev[productId]) {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      }
+      const found = data?.suggestions?.find((s) => s.productId === productId);
+      if (!found) return prev;
+      return { ...prev, [productId]: found };
+    });
   };
 
   const renderUrgencyBadge = (level: ReorderUrgency) => {
@@ -882,7 +919,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setSelectedProductIds([])}
+              onClick={() => setSelectedItemsMap({})}
               className="h-8 px-2.5 sm:px-3 text-xs font-medium cursor-pointer"
             >
               Clear
