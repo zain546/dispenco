@@ -91,94 +91,144 @@ export function RecentSalesModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-3xl w-full max-h-[85vh] flex flex-col p-0 overflow-hidden">
-          <DialogHeader className="p-4 sm:p-5 border-b border-border flex flex-row items-center justify-between">
-            <div>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <History className="size-4.5 text-primary" />
-                <span>Recent Pharmacy Transactions</span>
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Audit past customer sales, reprint thermal receipt PDFs, or void transactions with automatic stock restoration.
-              </DialogDescription>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[88vh] flex flex-col p-0 overflow-hidden rounded-2xl sm:rounded-xl shadow-2xl border-border/80">
+          <DialogHeader className="p-3.5 sm:p-5 border-b border-border/70 pr-10">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 sm:size-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0 shadow-2xs">
+                <History className="size-4 sm:size-4.5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
+                    <span className="sm:hidden">Recent Sales</span>
+                    <span className="hidden sm:inline">Recent Pharmacy Transactions</span>
+                  </DialogTitle>
+                  <Badge variant="outline" className="text-micro font-mono px-2 py-0.5 rounded-full bg-secondary border-border/70 text-muted-foreground hidden sm:inline-flex">
+                    {recentSales.length} {recentSales.length === 1 ? 'sale' : 'sales'}
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onRefresh}
+                    disabled={isLoading}
+                    className="size-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 shrink-0 cursor-pointer transition-colors"
+                    title="Refresh sales ledger"
+                  >
+                    <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
+                <DialogDescription className="text-micro sm:text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                  <span className="sm:hidden">Audit sales, receipts &amp; returns</span>
+                  <span className="hidden sm:inline">Audit past customer sales, reprint thermal receipt PDFs, or void transactions with automatic stock restoration.</span>
+                </DialogDescription>
+              </div>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onRefresh}
-              disabled={isLoading}
-              className="size-8 p-0 shrink-0 cursor-pointer"
-            >
-              <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
           </DialogHeader>
 
-          <div className="p-4 overflow-y-auto space-y-3 flex-1 custom-scrollbar">
+          <div className="p-3.5 sm:p-4 overflow-y-auto space-y-2.5 flex-1 min-h-0">
             {isLoading ? (
               <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <span className="text-xs">Loading sales history ledger...</span>
               </div>
             ) : recentSales.length === 0 ? (
-              <div className="py-12 text-center text-muted-foreground space-y-2">
-                <History className="size-8 text-muted-foreground/50 mx-auto" />
-                <p className="font-semibold text-sm text-foreground">No Sales Logged Yet</p>
-                <p className="text-xs">Completed transactions will appear here for reprint and void management.</p>
+              <div className="py-12 text-center text-muted-foreground space-y-2.5">
+                <div className="size-12 rounded-xl bg-muted/60 border border-border/70 text-muted-foreground/60 flex items-center justify-center mx-auto shadow-2xs">
+                  <History className="size-6" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-sm text-foreground">No Sales Logged Yet</p>
+                  <p className="text-xs text-muted-foreground">Completed transactions will appear here for reprint and void management.</p>
+                </div>
               </div>
             ) : (
-              <div className="divide-y divide-border border border-border/80 rounded-xl overflow-hidden bg-card shadow-2xs">
+              <div className="space-y-2.5">
                 {recentSales.map((sale) => {
                   const isVoided = sale.status === 'VOIDED';
 
                   return (
                     <div
                       key={sale.id}
-                      className={`p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
-                        isVoided ? 'bg-destructive/5 opacity-75' : 'hover:bg-muted/30'
+                      className={`p-3.5 sm:p-4 rounded-xl border border-border/70 bg-card transition-all shadow-2xs space-y-2.5 ${
+                        isVoided
+                          ? 'border-destructive/20 bg-destructive/[0.02] opacity-85'
+                          : 'hover:border-primary/30 hover:bg-muted/20'
                       }`}
                     >
-                      <div className="min-w-0 space-y-1">
+                      {/* Top Header Row: Receipt #, Payment Method, Status Badge & Timestamp */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono font-bold text-sm text-foreground">#{sale.receiptNumber}</span>
-                          <Badge variant={isVoided ? 'destructive' : 'outline'} className="text-micro font-semibold uppercase">
-                            {sale.paymentMethod} • {isVoided ? 'VOIDED' : 'COMPLETED'}
+                          <span className="font-mono font-semibold text-xs sm:text-sm text-foreground">#{sale.receiptNumber}</span>
+                          <span className="text-micro font-mono px-2 py-0.5 rounded-md bg-secondary border border-border/60 text-muted-foreground uppercase font-medium">
+                            {sale.paymentMethod}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-micro font-medium px-2 py-0.5 rounded-full ${
+                              isVoided
+                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25'
+                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
+                            }`}
+                          >
+                            {isVoided ? 'VOIDED' : 'COMPLETED'}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">{formatDateTime(sale.createdAt)}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Customer: <strong className="text-foreground">{sale.customerName || 'Walk-in Customer'}</strong> • Dr: <strong className="text-foreground">{(sale as any).doctorName || 'Self'}</strong> • Cashier: <strong className="text-foreground">{sale.cashierName || 'Staff'}</strong>
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate max-w-xl">
-                          Items ({sale.itemsCount})
-                          {sale.items && sale.items.length > 0 ? (
-                            <>: {sale.items.map((i: any) => `${i.productName} (${i.quantity})`).join(', ')}</>
-                          ) : null}
-                        </p>
+                        <span className="text-micro text-muted-foreground font-mono">
+                          {formatDateTime(sale.createdAt)}
+                        </span>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
-                        <div className="text-right mr-1">
-                          <p className={`font-bold tabular-nums text-sm ${isVoided ? 'line-through text-muted-foreground' : 'text-primary'}`}>
+                      {/* Middle Details: Customer, Doctor, Cashier */}
+                      <div className="text-micro sm:text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                        <span className="text-foreground font-medium">{sale.customerName || 'Walk-in'}</span>
+                        <span className="text-muted-foreground/40">•</span>
+                        <span>Dr: <strong className="text-foreground font-medium">{(sale as any).doctorName || 'Self'}</strong></span>
+                        <span className="text-muted-foreground/40 hidden xs:inline">•</span>
+                        <span className="hidden xs:inline">Cashier: <strong className="text-foreground font-medium">{sale.cashierName || 'Staff'}</strong></span>
+                      </div>
+
+                      {/* Items Preview */}
+                      {sale.itemsCount > 0 && (
+                        <div className="text-micro text-muted-foreground font-mono bg-muted/30 px-2.5 py-1.5 rounded-lg border border-border/50 truncate max-w-full">
+                          <span className="font-semibold text-foreground">Items ({sale.itemsCount})</span>
+                          {sale.items && sale.items.length > 0 ? (
+                            <span>: {sale.items.map((i: any) => `${i.productName} (${i.quantity})`).join(', ')}</span>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {/* Bottom Footer Row: Total Amount & Action CTA Buttons */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Total</span>
+                          <p className={`font-bold font-mono tabular-nums text-sm sm:text-base ${
+                            isVoided
+                              ? 'line-through text-muted-foreground/60'
+                              : 'text-foreground'
+                          }`}>
                             {formatCurrency(sale.totalAmount)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1.5">
+
+                        <div className="flex items-center gap-1.5 ml-auto">
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => handleDownload(sale)}
                             disabled={downloadingSaleId === sale.id}
-                            className="h-8 text-xs gap-1 font-medium cursor-pointer"
+                            className="h-7.5 sm:h-8 px-2 sm:px-2.5 text-xs font-medium gap-1 border-border/80 bg-card hover:bg-muted/60 text-foreground rounded-lg shadow-2xs cursor-pointer transition-colors"
                           >
                             {downloadingSaleId === sale.id ? (
-                              <Loader2 className="size-3.5 animate-spin" />
+                              <Loader2 className="size-3.5 animate-spin text-primary" />
                             ) : (
                               <Download className="size-3.5 text-primary" />
                             )}
-                            <span className="hidden xs:inline">PDF</span>
+                            <span className="hidden sm:inline">Receipt PDF</span>
+                            <span className="sm:hidden text-micro">PDF</span>
                           </Button>
+
                           {!isVoided && (
                             <>
                               <Button
@@ -186,21 +236,22 @@ export function RecentSalesModal({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setSaleIdToReturn(sale.id)}
-                                className="h-8 text-xs gap-1 font-medium text-foreground hover:bg-muted cursor-pointer"
+                                className="h-7.5 sm:h-8 px-2 sm:px-2.5 text-xs font-medium gap-1 border-border/80 bg-card hover:bg-muted/60 text-foreground rounded-lg shadow-2xs cursor-pointer transition-colors"
                                 title="Process Customer Return"
                               >
-                                <RotateCcw className="size-3.5 text-primary" />
-                                <span className="hidden xs:inline">Return</span>
+                                <RotateCcw className="size-3.5 text-muted-foreground" />
+                                <span className="text-micro sm:text-xs">Return</span>
                               </Button>
+
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setSaleToVoid(sale)}
-                                className="h-8 text-xs gap-1 font-medium text-destructive border-destructive/30 hover:bg-destructive/10 cursor-pointer"
+                                className="h-7.5 sm:h-8 px-2 sm:px-2.5 text-xs font-medium gap-1 border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 rounded-lg shadow-2xs cursor-pointer transition-colors"
                               >
                                 <Ban className="size-3.5" />
-                                <span>Void</span>
+                                <span className="text-micro sm:text-xs">Void</span>
                               </Button>
                             </>
                           )}
@@ -236,24 +287,28 @@ export function RecentSalesModal({
 
       {/* Void Confirmation Dialog with Accessible Reason Input */}
       <Dialog open={Boolean(saleToVoid)} onOpenChange={(open) => !open && setSaleToVoid(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-5" />
-              <DialogTitle className="text-base font-bold">
-                Void Sale #{saleToVoid?.receiptNumber}
-              </DialogTitle>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-md rounded-2xl sm:rounded-xl shadow-2xl border-border/80 p-4 sm:p-5">
+          <DialogHeader className="pr-8">
+            <div className="flex items-start gap-3">
+              <div className="size-9 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                <AlertTriangle className="size-4.5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-semibold tracking-tight text-foreground">
+                  Void Sale #{saleToVoid?.receiptNumber}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                  Voiding this sale will mark it void in records, restore batch stock quantities, and adjust any customer credit balance.
+                </DialogDescription>
+              </div>
             </div>
-            <DialogDescription className="text-xs text-muted-foreground leading-relaxed pt-1">
-              Voiding this sale will mark it void in records, restore batch stock quantities, and adjust any customer credit balance.
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
-            <div className="p-3 rounded-lg bg-muted/40 border border-border/70 space-y-1">
+            <div className="p-3 rounded-xl bg-card border border-border/70 shadow-2xs space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Sale Amount:</span>
-                <span className="font-bold text-foreground">{formatCurrency(saleToVoid?.totalAmount || 0)}</span>
+                <span className="font-bold font-mono text-foreground">{formatCurrency(saleToVoid?.totalAmount || 0)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Customer:</span>
@@ -262,7 +317,7 @@ export function RecentSalesModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="void-reason" className="text-xs font-semibold">
+              <Label htmlFor="void-reason" className="text-xs font-medium text-foreground">
                 Reason for Voiding <span className="text-destructive">*</span>
               </Label>
               <Input
@@ -270,20 +325,20 @@ export function RecentSalesModal({
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
                 placeholder="e.g. Customer Return, Scanning Error, Dispensing Mistake"
-                className="text-xs h-9"
+                className="text-xs h-8.5 rounded-lg bg-background/50 border-border/70 focus-visible:ring-1 focus-visible:ring-primary/30"
                 autoFocus
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/70">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setSaleToVoid(null)}
               disabled={isVoiding}
-              className="text-xs cursor-pointer"
+              className="h-8.5 px-3 rounded-lg border-border/80 bg-card hover:bg-muted/60 text-foreground text-xs font-medium cursor-pointer shadow-2xs"
             >
               Cancel
             </Button>
@@ -293,7 +348,7 @@ export function RecentSalesModal({
               size="sm"
               onClick={handleConfirmVoid}
               disabled={isVoiding || !voidReason.trim()}
-              className="text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
+              className="h-8.5 px-3.5 rounded-lg text-xs font-semibold gap-1.5 cursor-pointer shadow-2xs"
             >
               {isVoiding && <Loader2 className="size-3.5 animate-spin" />}
               <span>Confirm Void Sale</span>

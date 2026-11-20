@@ -70,7 +70,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-md border font-sans select-none shrink-0 transition-colors',
+        'inline-flex items-center rounded-md border font-sans select-none shrink-0 whitespace-nowrap transition-colors',
         styles.badge,
         SIZE_STYLES[size],
         className,

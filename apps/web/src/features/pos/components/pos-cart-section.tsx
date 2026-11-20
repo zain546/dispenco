@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Receipt, RotateCcw, ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
+import { Receipt, RotateCcw, ShoppingCart, Trash2, Minus, Plus, Package, Pill, Settings2 } from 'lucide-react';
 import { DraftQuantityInput } from './draft-quantity-input';
 import { DraftPriceInput } from './draft-price-input';
 import type { CartItem, UnitType, DiscountType } from '../types/pos-types';
@@ -36,15 +36,18 @@ export function PosCartSection({
   onOpenPackSizeModal,
 }: PosCartSectionProps) {
   return (
-    <Card className="shadow-2xs border-border/80 bg-card overflow-hidden">
-      <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between border-b border-border/60">
-        <div>
-          <CardTitle className="text-sm sm:text-base font-bold flex items-center gap-2 text-foreground">
+    <Card className="shadow-2xs border-border/70 bg-card overflow-hidden">
+      <CardHeader className="p-3.5 sm:p-4 pb-3 flex flex-row items-center justify-between border-b border-border/70">
+        <div className="space-y-0.5">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
             <Receipt className="size-4 text-primary shrink-0" />
-            <span>Running Cart ({cart.length} item{cart.length === 1 ? '' : 's'})</span>
+            <span>Running Cart</span>
+            <span className="text-micro font-mono px-1.5 py-0.2 rounded-full bg-secondary border border-border text-muted-foreground">
+              {cart.length} {cart.length === 1 ? 'item' : 'items'}
+            </span>
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            Adjust quantities, apply discounts, or remove items before final receipt checkout.
+            Adjust quantities, unit modes, or discounts before final receipt checkout.
           </CardDescription>
         </div>
 
@@ -54,7 +57,7 @@ export function PosCartSection({
             variant="ghost"
             size="sm"
             onClick={onClearCart}
-            className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+            className="h-8 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer font-medium"
           >
             <RotateCcw className="size-3.5 mr-1" /> Clear Cart
           </Button>
@@ -65,11 +68,11 @@ export function PosCartSection({
         {cart.length === 0 ? (
           /* Empty Cart Placeholder */
           <div className="p-8 sm:p-12 text-center text-muted-foreground space-y-3">
-            <div className="size-12 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground/60 border border-border">
-              <ShoppingCart className="size-6" />
+            <div className="size-12 rounded-xl bg-secondary/80 flex items-center justify-center mx-auto text-muted-foreground/70 border border-border shadow-2xs">
+              <ShoppingCart className="size-5" />
             </div>
             <div className="space-y-1 max-w-xs mx-auto">
-              <p className="text-sm font-semibold text-foreground">Cart is currently empty</p>
+              <p className="text-sm font-medium text-foreground">Cart is currently empty</p>
               <p className="text-xs text-muted-foreground">
                 Use your barcode scanner or the search bar above to add medicines to this transaction.
               </p>
@@ -101,11 +104,11 @@ export function PosCartSection({
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="font-bold text-sm text-foreground leading-snug break-words">
+                          <p className="font-semibold text-sm text-foreground leading-snug break-words">
                             {item.product.name}
                           </p>
                           {item.product.isControlledSubstance && (
-                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
                               Rx
                             </span>
                           )}
@@ -114,11 +117,11 @@ export function PosCartSection({
                             if (!expiry) return null;
                             return (
                               <Badge
-                                variant={expiry.isExpired ? 'destructive' : 'outline'}
-                                className={`text-[10px] px-1.5 py-0 font-bold shrink-0 ${
+                                variant="outline"
+                                className={`text-micro px-1.5 py-0 font-medium shrink-0 ${
                                   expiry.isExpired
-                                    ? 'bg-destructive/15 text-destructive border-destructive/30'
-                                    : 'bg-warning/15 text-warning border-warning/30'
+                                    ? 'bg-destructive/10 text-destructive border-destructive/30'
+                                    : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                                 }`}
                               >
                                 {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate}`}
@@ -128,49 +131,52 @@ export function PosCartSection({
                         </div>
 
                         {/* Minimal Segmented Toggle Control */}
-                        <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
+                        <div className="inline-flex items-center p-0.5 rounded-lg bg-muted/50 border border-border/70 gap-0.5 mt-0.5">
                           <button
                             type="button"
                             onClick={() => onToggleUnitType(idx, 'BOX')}
-                            className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap cursor-pointer ${
+                            className={`px-2 py-0.5 text-micro rounded-md transition-all whitespace-nowrap cursor-pointer inline-flex items-center ${
                               item.unitType === 'BOX'
-                                ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                ? 'bg-primary/15 text-primary border border-primary/30 shadow-2xs font-medium'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent font-normal'
                             }`}
                           >
-                            📦 Box
+                            <Package className="size-3 mr-1" />
+                            <span>Box</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => onToggleUnitType(idx, 'UNIT')}
-                            className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap cursor-pointer ${
+                            className={`px-2 py-0.5 text-micro rounded-md transition-all whitespace-nowrap cursor-pointer inline-flex items-center ${
                               item.unitType === 'UNIT'
-                                ? 'bg-success/15 text-success border border-success/30 shadow-2xs'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                ? 'bg-primary/15 text-primary border border-primary/30 shadow-2xs font-medium'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent font-normal'
                             }`}
                           >
-                            💊 Tablet / Unit
+                            <Pill className="size-3 mr-1" />
+                            <span>Unit</span>
                           </button>
                         </div>
 
                         {/* Subtext info */}
-                        <div className="text-micro pt-0.5 truncate">
+                        <div className="text-micro pt-0.5 truncate text-muted-foreground">
                           {item.unitType === 'UNIT' ? (
-                            <span className="text-success font-medium flex items-center gap-1.5 flex-wrap">
-                              <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
+                            <span className="flex items-center gap-1.5 flex-wrap">
+                              <span><span className="font-mono">{singleUnitPrice.toFixed(2)}</span> PKR/unit • 1/{packSize} Box</span>
                               {packSize === 1 && (
                                 <button
                                   type="button"
                                   onClick={() => onOpenPackSizeModal(idx, item.product.name, packSize)}
-                                  className="text-micro underline font-bold text-warning hover:underline cursor-pointer"
+                                  className="text-micro underline font-medium text-amber-500 hover:underline cursor-pointer inline-flex items-center"
                                 >
-                                  ⚙️ Set Pack Size
+                                  <Settings2 className="size-2.5 mr-0.5" />
+                                  <span>Set Pack Size</span>
                                 </button>
                               )}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">
-                              {packSize} units/box • Stock: {availableStockBoxes}
+                            <span>
+                              {packSize} units/box • Stock: <span className="font-mono">{availableStockBoxes}</span> Boxes
                             </span>
                           )}
                         </div>
@@ -213,7 +219,7 @@ export function PosCartSection({
                             min={1}
                             max={lineMaxStock}
                             onChange={(val) => onUpdateQuantity(idx, val)}
-                            className="h-8 w-14 text-xs text-center font-bold px-1"
+                            className="h-8 w-14 text-xs text-center font-semibold font-mono px-1"
                           />
 
                           <Button
@@ -237,7 +243,7 @@ export function PosCartSection({
                           value={item.unitPrice}
                           min={0.01}
                           onChange={(val) => onUpdateUnitPrice(idx, val)}
-                          className="h-8 text-xs text-right font-semibold ml-auto max-w-[100px]"
+                          className="h-8 text-xs text-right font-medium font-mono ml-auto max-w-[100px]"
                           title="Edit unit price (PKR)"
                         />
                       </div>
@@ -252,7 +258,7 @@ export function PosCartSection({
                             value={item.discount || ''}
                             placeholder="0"
                             onChange={(e) => onUpdateDiscount(idx, parseFloat(e.target.value) || 0)}
-                            className="h-8 text-xs text-center font-medium max-w-[70px]"
+                            className="h-8 text-xs text-center font-medium font-mono max-w-[70px]"
                           />
                           <Button
                             type="button"
@@ -265,7 +271,7 @@ export function PosCartSection({
                                 item.discountType === 'FLAT' ? 'PERCENT' : 'FLAT',
                               )
                             }
-                            className="h-8 text-micro px-1.5 font-bold text-muted-foreground hover:text-primary cursor-pointer"
+                            className="h-8 text-micro px-1.5 font-medium text-muted-foreground hover:text-primary cursor-pointer"
                           >
                             {item.discountType === 'PERCENT' ? '%' : 'PKR'}
                           </Button>
@@ -275,7 +281,7 @@ export function PosCartSection({
                       {/* Line Total */}
                       <div className="space-y-1 text-right flex flex-col justify-end">
                         <span className="text-micro text-muted-foreground font-medium">Line Total:</span>
-                        <p className="font-extrabold text-sm text-primary">
+                        <p className="font-semibold text-sm text-foreground font-mono tabular-nums">
                           {lineTotal.toFixed(2)} PKR
                         </p>
                       </div>
@@ -288,13 +294,13 @@ export function PosCartSection({
             {/* Desktop Table (Visible on screens >= md) */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-muted/40 text-muted-foreground text-micro font-semibold uppercase tracking-wider">
+                <thead className="bg-muted/20 text-muted-foreground/80 text-[11px] font-medium uppercase tracking-wider border-b border-border/60">
                   <tr>
                     <th className="p-3 pl-4">Item & Unit Type</th>
                     <th className="p-3 w-28 text-center">Unit Price</th>
                     <th className="p-3 w-36 text-center">Quantity</th>
                     <th className="p-3 w-32 text-center">Discount</th>
-                    <th className="p-3 pr-4 text-right">Line Total</th>
+                    <th className="p-3 pr-4 text-right whitespace-nowrap min-w-[105px]">Line Total</th>
                     <th className="p-3 w-10"></th>
                   </tr>
                 </thead>
@@ -315,16 +321,16 @@ export function PosCartSection({
                     const { maxAllowed: lineMaxStock } = getMaxAllowedQuantity(cart, item.product, item.unitType, idx);
 
                     return (
-                      <tr key={`${item.product.id}-${item.unitType}`} className="hover:bg-muted/30 transition-colors">
+                      <tr key={`${item.product.id}-${item.unitType}`} className="hover:bg-muted/20 transition-colors">
                         {/* Medicine Name & Unit Mode Toggle */}
                         <td className="p-3 pl-4 align-middle min-w-[240px]">
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-bold text-foreground leading-snug break-words">
+                              <p className="font-semibold text-foreground leading-snug break-words">
                                 {item.product.name}
                               </p>
                               {item.product.isControlledSubstance && (
-                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
                                   Rx Controlled
                                 </span>
                               )}
@@ -333,11 +339,11 @@ export function PosCartSection({
                                 if (!expiry) return null;
                                 return (
                                   <Badge
-                                    variant={expiry.isExpired ? 'destructive' : 'outline'}
-                                    className={`text-[10px] px-1.5 py-0 font-bold shrink-0 ${
+                                    variant="outline"
+                                    className={`text-micro px-1.5 py-0 font-medium shrink-0 ${
                                       expiry.isExpired
-                                        ? 'bg-destructive/15 text-destructive border-destructive/30'
-                                        : 'bg-warning/15 text-warning border-warning/30'
+                                        ? 'bg-destructive/10 text-destructive border-destructive/30'
+                                        : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
                                     }`}
                                   >
                                     {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate}`}
@@ -347,49 +353,52 @@ export function PosCartSection({
                             </div>
 
                             {/* Minimal Segmented Toggle Control */}
-                            <div className="inline-flex items-center p-0.5 rounded-md bg-muted/50 border border-border/30 gap-0.5 mt-0.5">
+                            <div className="inline-flex items-center p-0.5 rounded-lg bg-muted/50 border border-border/70 gap-0.5 mt-0.5">
                               <button
                                 type="button"
                                 onClick={() => onToggleUnitType(idx, 'BOX')}
-                                className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap cursor-pointer ${
+                                className={`px-2 py-0.5 text-micro rounded-md transition-all whitespace-nowrap cursor-pointer inline-flex items-center ${
                                   item.unitType === 'BOX'
-                                    ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                    ? 'bg-primary/15 text-primary border border-primary/30 shadow-2xs font-medium'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent font-normal'
                                 }`}
                               >
-                                📦 Box
+                                <Package className="size-3 mr-1" />
+                                <span>Box</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => onToggleUnitType(idx, 'UNIT')}
-                                className={`px-2 py-0.5 text-micro font-bold rounded transition-all whitespace-nowrap cursor-pointer ${
+                                className={`px-2 py-0.5 text-micro rounded-md transition-all whitespace-nowrap cursor-pointer inline-flex items-center ${
                                   item.unitType === 'UNIT'
-                                    ? 'bg-success/15 text-success border border-success/30 shadow-2xs'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-background/40 border border-transparent'
+                                    ? 'bg-primary/15 text-primary border border-primary/30 shadow-2xs font-medium'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 border border-transparent font-normal'
                                 }`}
                               >
-                                💊 Tablet / Unit
+                                <Pill className="size-3 mr-1" />
+                                <span>Unit</span>
                               </button>
                             </div>
 
                             {/* Subtext info */}
-                            <div className="text-micro pt-0.5 truncate">
+                            <div className="text-micro pt-0.5 truncate text-muted-foreground">
                               {item.unitType === 'UNIT' ? (
-                                <span className="text-success font-medium flex items-center gap-1.5 flex-wrap">
-                                  <span>{singleUnitPrice.toFixed(2)} PKR/unit • 1/{packSize} Box</span>
+                                <span className="flex items-center gap-1.5 flex-wrap">
+                                  <span><span className="font-mono">{singleUnitPrice.toFixed(2)}</span> PKR/unit • 1/{packSize} Box</span>
                                   {packSize === 1 && (
                                     <button
                                       type="button"
                                       onClick={() => onOpenPackSizeModal(idx, item.product.name, packSize)}
-                                      className="text-micro underline font-bold text-warning hover:underline cursor-pointer"
+                                      className="text-micro underline font-medium text-amber-500 hover:underline cursor-pointer inline-flex items-center"
                                     >
-                                      ⚙️ Set Pack Size
+                                      <Settings2 className="size-2.5 mr-0.5" />
+                                      <span>Set Pack Size</span>
                                     </button>
                                   )}
                                 </span>
                               ) : (
-                                <span className="text-muted-foreground">
-                                  {packSize} units/box • Stock: {availableStockBoxes}
+                                <span>
+                                  {packSize} units/box • Stock: <span className="font-mono">{availableStockBoxes}</span> Boxes
                                 </span>
                               )}
                             </div>
@@ -403,7 +412,7 @@ export function PosCartSection({
                               value={item.unitPrice}
                               min={0.01}
                               onChange={(val) => onUpdateUnitPrice(idx, val)}
-                              className="h-8 text-xs text-center font-semibold focus-visible:ring-1"
+                              className="h-8 text-xs text-center font-medium font-mono focus-visible:ring-1"
                               title="Edit unit price (PKR)"
                             />
                           </div>
@@ -418,9 +427,9 @@ export function PosCartSection({
                                 variant="outline"
                                 size="icon"
                                 onClick={() => onUpdateQuantity(idx, item.quantity - 1)}
-                                className="size-7 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                                className="size-8 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
                               >
-                                <Minus className="size-3" />
+                                <Minus className="size-3.5" />
                               </Button>
 
                               <DraftQuantityInput
@@ -428,7 +437,7 @@ export function PosCartSection({
                                 min={1}
                                 max={lineMaxStock}
                                 onChange={(val) => onUpdateQuantity(idx, val)}
-                                className="h-8 w-14 text-xs text-center font-bold px-1 focus-visible:ring-1"
+                                className="h-8 w-14 text-xs text-center font-semibold font-mono px-1 focus-visible:ring-1"
                               />
 
                               <Button
@@ -437,9 +446,9 @@ export function PosCartSection({
                                 size="icon"
                                 onClick={() => onUpdateQuantity(idx, item.quantity + 1)}
                                 disabled={item.quantity >= lineMaxStock}
-                                className="size-7 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                                className="size-8 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
                               >
-                                <Plus className="size-3" />
+                                <Plus className="size-3.5" />
                               </Button>
                             </div>
                           </div>
@@ -454,7 +463,7 @@ export function PosCartSection({
                               value={item.discount || ''}
                               placeholder="0"
                               onChange={(e) => onUpdateDiscount(idx, parseFloat(e.target.value) || 0)}
-                              className="h-8 w-16 text-xs text-center font-medium px-1 focus-visible:ring-1"
+                              className="h-8 w-16 text-xs text-center font-medium font-mono px-1 focus-visible:ring-1"
                             />
                             <Button
                               type="button"
@@ -467,8 +476,8 @@ export function PosCartSection({
                                   item.discountType === 'FLAT' ? 'PERCENT' : 'FLAT',
                                 )
                               }
-                              className="size-7 shrink-0 text-xs font-bold text-muted-foreground hover:text-primary cursor-pointer"
-                              title="Toggle Flat ($) vs Percent (%) discount"
+                              className="h-8 px-2 shrink-0 text-xs font-semibold text-muted-foreground hover:text-primary cursor-pointer"
+                              title="Toggle Flat (PKR) vs Percent (%) discount"
                             >
                               {item.discountType === 'PERCENT' ? '%' : 'PKR'}
                             </Button>
@@ -476,7 +485,7 @@ export function PosCartSection({
                         </td>
 
                         {/* Line Total */}
-                        <td className="p-3 pr-4 align-middle text-right font-bold text-foreground">
+                        <td className="p-3 pr-4 align-middle text-right font-semibold text-foreground font-mono tabular-nums whitespace-nowrap min-w-[105px]">
                           {lineTotal.toFixed(2)} PKR
                         </td>
 
@@ -487,7 +496,7 @@ export function PosCartSection({
                             variant="ghost"
                             size="icon"
                             onClick={() => onRemoveItem(idx)}
-                            className="size-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                            className="size-8 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer"
                             title="Remove item (Delete)"
                           >
                             <Trash2 className="size-3.5" />

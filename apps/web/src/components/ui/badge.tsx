@@ -5,24 +5,24 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2 py-0.5 text-[0.625rem] font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-2.5!",
+  "group/badge inline-flex h-5.5 w-fit shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium tracking-tight whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        default: "border-transparent bg-primary text-primary-foreground font-semibold shadow-2xs [a]:hover:bg-primary/90",
         secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+          "border-border/80 bg-muted/80 text-foreground [a]:hover:bg-muted",
         destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+          "border-destructive/30 bg-destructive/15 text-destructive dark:bg-destructive/20 dark:border-destructive/35",
         success:
-          "bg-success/10 text-success dark:bg-success/15",
+          "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 dark:bg-emerald-500/20 dark:border-emerald-500/35",
         warning:
-          "bg-warning/10 text-warning dark:bg-warning/15",
+          "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-400 dark:bg-amber-500/20 dark:border-amber-500/35",
         outline:
-          "border-border bg-input/20 text-foreground dark:bg-input/30 [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+          "border-border/80 bg-card/60 text-foreground [a]:hover:bg-muted/50",
         ghost:
-          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border-transparent hover:bg-muted/60 hover:text-foreground text-muted-foreground",
+        link: "border-transparent text-primary underline-offset-4 hover:underline",
       },
     },
     defaultVariants: {

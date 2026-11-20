@@ -42,7 +42,7 @@ export function QuickActionsHub() {
 
   const actions: ActionItem[] = [
     {
-      title: 'POS Billing Counter',
+      title: 'POS Billing',
       description: 'Barcode scanning, instant sale checkout & digital receipts',
       href: '/pos',
       icon: ShoppingCart,
@@ -50,34 +50,34 @@ export function QuickActionsHub() {
       primary: true,
     },
     {
-      title: 'Receive Stock Delivery',
+      title: 'Receive Delivery',
       description: 'Check in supplier shipment & record incoming batches',
       href: '/inventory/receive',
       icon: Truck,
       requiredPermission: canManageInventory,
     },
     {
-      title: 'Add Medicine Product',
+      title: 'Add Medicine',
       description: 'Create new catalog item with generic composition & tax',
       href: '/inventory/new',
       icon: PackagePlus,
       requiredPermission: canManageInventory,
     },
     {
-      title: 'Customer Khata Ledger',
+      title: 'Khata Ledger',
       description: 'Manage credit balances, customer profiles & payments',
       href: '/customers',
       icon: Users,
     },
     {
-      title: 'Branch Stock Transfer',
+      title: 'Stock Transfer',
       description: 'Dispatch or receive inventory between pharmacy branches',
       href: '/transfers',
       icon: ArrowLeftRight,
       requiredPermission: canManageTransfers,
     },
     {
-      title: 'AI Analytics Copilot',
+      title: 'AI Copilot',
       description: 'Interrogate pharmacy revenue, sales velocity & expiry risk',
       href: '/reports?tab=copilot',
       icon: Sparkles,
@@ -86,17 +86,17 @@ export function QuickActionsHub() {
   ];
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Quick Operations Hub
+        <h3 className="text-micro font-medium uppercase tracking-wider text-muted-foreground">
+          Quick Operations
         </h3>
         <span className="text-micro text-muted-foreground hidden sm:inline">
-          Press keyboard shortcuts or click to launch
+          Press <kbd className="font-mono text-[10px] px-1 py-0.5 rounded bg-muted border border-border/60">F2</kbd> for POS counter
         </span>
       </div>
 
-      <div className="flex items-stretch sm:grid sm:grid-cols-3 lg:grid-cols-6 gap-2.5 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-2.5">
         {actions.map((act) => {
           if (act.requiredPermission === false) return null;
           const Icon = act.icon;
@@ -105,45 +105,40 @@ export function QuickActionsHub() {
             <Link
               key={act.title}
               href={act.href}
-              className="shrink-0 w-[145px] xs:w-[160px] sm:w-auto snap-start flex flex-col group"
+              className="flex flex-col group select-none"
             >
               <Card
-                className={`flex-1 w-full h-[92px] sm:h-full p-2.5 sm:p-3 transition-all duration-200 border cursor-pointer select-none flex flex-col justify-between ${
+                className={`w-full min-h-[44px] py-2.5 px-2.5 sm:px-3 rounded-xl transition-all duration-200 border cursor-pointer flex items-center justify-between gap-2 sm:gap-2.5 shadow-xs ${
                   act.primary
-                    ? 'border-primary/40 bg-primary/[0.03] hover:bg-primary/[0.08] hover:border-primary shadow-xs'
-                    : 'border-border/70 hover:border-border hover:bg-muted/40 shadow-2xs'
+                    ? 'border-primary/50 bg-primary/[0.08] hover:bg-primary/[0.14] hover:border-primary/80 text-foreground'
+                    : 'border-border/80 bg-card hover:border-border hover:bg-muted/40'
                 }`}
               >
-                <div className="flex flex-col justify-between h-full">
-                  <div className="flex items-start justify-between gap-1 mb-1.5 sm:mb-2">
-                    <div
-                      className={`size-7 sm:size-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 shrink-0 ${
-                        act.primary
-                          ? 'bg-primary text-primary-foreground shadow-2xs'
-                          : 'bg-muted text-foreground'
-                      }`}
-                    >
-                      <Icon className="size-3.5 sm:size-4" />
-                    </div>
-                    {act.badge && (
-                      <kbd
-                        className={`text-micro font-mono px-1.5 py-0.5 rounded border shadow-2xs font-bold shrink-0 ${
-                          act.primary
-                            ? 'bg-primary/15 text-primary border-primary/30 group-hover:bg-primary group-hover:text-primary-foreground transition-colors'
-                            : 'bg-muted border-border/70 text-muted-foreground'
-                        }`}
-                      >
-                        {act.badge}
-                      </kbd>
-                    )}
+                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                  <div
+                    className={`size-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      act.primary
+                        ? 'bg-primary text-primary-foreground shadow-2xs'
+                        : 'bg-muted/70 text-muted-foreground group-hover:bg-muted group-hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="size-3.5" />
                   </div>
-                  <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-snug line-clamp-2 min-h-[2rem] flex items-center">
+                  <span className="text-xs font-medium text-foreground truncate min-w-0 flex-1 group-hover:text-foreground/90">
                     {act.title}
-                  </h4>
-                  <p className="text-micro text-muted-foreground mt-0.5 sm:mt-1 hidden xs:block line-clamp-2 leading-relaxed">
-                    {act.description}
-                  </p>
+                  </span>
                 </div>
+                {act.badge && (
+                  <kbd
+                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded border shadow-2xs font-semibold shrink-0 ${
+                      act.primary
+                        ? 'bg-primary/20 text-primary border-primary/40'
+                        : 'bg-muted/60 border-border/60 text-muted-foreground'
+                    }`}
+                  >
+                    {act.badge}
+                  </kbd>
+                )}
               </Card>
             </Link>
           );

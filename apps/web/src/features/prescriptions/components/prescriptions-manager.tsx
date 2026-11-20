@@ -171,7 +171,7 @@ return (
       description="Verify physician prescriptions, inspect clinical directions, and manage controlled narcotic schedules."
       icon={FileText}
       actions={
-        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
             size="sm"
@@ -179,10 +179,11 @@ return (
               setOcrModalMode('manual');
               setOcrModalOpen(true);
             }}
-            className="h-9 gap-1.5 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
+            className="flex-1 sm:flex-initial h-9 gap-1.5 text-xs font-semibold cursor-pointer border-border hover:bg-muted"
           >
-            <Plus className="size-3.5" />
-            <span>Enter Manually</span>
+            <Plus className="size-3.5 shrink-0" />
+            <span className="sm:hidden">Manual</span>
+            <span className="hidden sm:inline">Enter Manually</span>
           </Button>
           <Button
             size="sm"
@@ -190,17 +191,18 @@ return (
               setOcrModalMode('ocr');
               setOcrModalOpen(true);
             }}
-            className="h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-xs"
+            className="flex-1 sm:flex-initial h-9 gap-1.5 text-xs font-semibold cursor-pointer shadow-xs"
           >
-            <Camera className="size-3.5" />
-            <span>Scan Doctor Slip (OCR Assist)</span>
+            <Camera className="size-3.5 shrink-0" />
+            <span className="sm:hidden">Scan Slip (OCR)</span>
+            <span className="hidden sm:inline">Scan Doctor Slip (OCR Assist)</span>
           </Button>
         </div>
       }
     />
 
     {/* KPI Summary Cards */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
       <StatCard
         label="Active Prescriptions"
         value={activeCount}
@@ -232,7 +234,7 @@ return (
     </div>
 
     {/* Filter & Search Bar */}
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/80 shadow-2xs">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 bg-card p-2.5 sm:p-3 rounded-xl border border-border/80 shadow-2xs">
       <div className="relative flex-1 max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
@@ -254,9 +256,9 @@ return (
         )}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+      <div className="flex items-center gap-2 w-full sm:w-auto">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-9 text-xs w-full sm:w-36 bg-background">
+          <SelectTrigger className="h-9 text-xs flex-1 sm:w-36 sm:flex-initial bg-background">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -272,10 +274,10 @@ return (
           variant={controlledOnly ? 'destructive' : 'outline'}
           size="sm"
           onClick={() => setControlledOnly(!controlledOnly)}
-          className="h-9 gap-1.5 text-xs font-medium shrink-0 px-3 cursor-pointer"
+          className="h-9 gap-1.5 text-xs font-medium shrink-0 px-2.5 sm:px-3 cursor-pointer"
         >
           <ShieldAlert className="size-3.5" />
-          <span>Controlled Only</span>
+          <span>Controlled<span className="hidden sm:inline"> Only</span></span>
         </Button>
 
         <Button
@@ -285,7 +287,7 @@ return (
             void fetchPrescriptions();
           }}
           disabled={loading}
-          className="h-9 px-3 gap-1.5 text-xs shrink-0 cursor-pointer"
+          className="h-9 px-2.5 sm:px-3 gap-1.5 text-xs shrink-0 cursor-pointer"
           title="Refresh Prescriptions"
         >
           <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -343,7 +345,7 @@ return (
           return (
             <div
               key={rx.id}
-              className="border border-border/80 hover:border-border transition-colors bg-card rounded-xl p-4 sm:p-5 shadow-2xs flex flex-col justify-between space-y-4"
+              className="border border-border/80 hover:border-primary/40 transition-all bg-card rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col justify-between space-y-4"
             >
               {/* Header & Badges */}
               <div className="space-y-3">
@@ -477,28 +479,30 @@ return (
                     setSelectedRx(rx);
                     setDetailModalOpen(true);
                   }}
-                  className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
+                  className="gap-1.5 text-xs h-8 font-medium cursor-pointer px-2 sm:px-3"
                 >
-                  <Eye className="size-3.5 text-muted-foreground" />
-                  <span>Inspect Details</span>
+                  <Eye className="size-3.5 text-muted-foreground shrink-0" />
+                  <span className="hidden sm:inline">Inspect Details</span>
+                  <span className="sm:hidden">Inspect</span>
                 </Button>
 
                 {rx.status === 'ACTIVE' && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     {isExpired ? (
                       <Badge
                         variant="outline"
-                        className="text-xs font-medium text-warning border-warning/30 bg-warning/10 gap-1 h-8 px-2.5"
+                        className="text-xs font-medium text-warning border-warning/30 bg-warning/10 gap-1 h-8 px-2 sm:px-2.5"
                       >
-                        <AlertTriangle className="size-3.5" />
-                        <span>Expired (DRAP Locked)</span>
+                        <AlertTriangle className="size-3.5 shrink-0" />
+                        <span className="hidden sm:inline">Expired (DRAP Locked)</span>
+                        <span className="sm:hidden">Expired (DRAP)</span>
                       </Badge>
                     ) : (
                       <>
                         <Button
                           asChild
                           size="sm"
-                          className="gap-1.5 text-xs h-8 font-medium cursor-pointer shadow-xs whitespace-nowrap px-3"
+                          className="gap-1.5 text-xs h-8 font-medium cursor-pointer shadow-xs whitespace-nowrap px-2.5 sm:px-3"
                         >
                           <Link
                             href={`/pos?prescriptionId=${rx.id}&customerName=${encodeURIComponent(rx.patientName || '')}&customerPhone=${encodeURIComponent(rx.patientPhone || '')}&doctorName=${encodeURIComponent(rx.doctorName || '')}`}
@@ -514,7 +518,7 @@ return (
                           variant="outline"
                           onClick={() => handleDispense(rx.id)}
                           disabled={dispenseMutation.isPending}
-                          className="gap-1.5 text-xs h-8 font-medium text-success border-success/30 hover:bg-success/10 cursor-pointer whitespace-nowrap px-3"
+                          className="gap-1.5 text-xs h-8 font-medium text-success border-success/30 hover:bg-success/10 cursor-pointer whitespace-nowrap px-2.5 sm:px-3"
                         >
                           <CheckCircle2 className="size-3.5 shrink-0" />
                           <span>Dispense</span>
@@ -553,63 +557,117 @@ return (
     {/* Prescription Detail Modal */}
     {selectedRx && (
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl sm:rounded-xl">
-          <DialogHeader className="pr-10 sm:pr-12">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-base font-bold flex items-center gap-2 flex-wrap">
-                  <FileText className="size-4 text-primary shrink-0" />
-                  <span>Prescription {selectedRx.prescriptionNumber}</span>
-                  <Badge variant="outline" className="text-xs font-mono">
-                    {selectedRx.status}
-                  </Badge>
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar p-4 sm:p-6 rounded-2xl sm:rounded-xl">
+          <DialogHeader className="pr-10 sm:pr-12 text-left">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between gap-2">
+                <DialogTitle className="text-sm sm:text-base font-bold flex items-center gap-2 min-w-0">
+                  <FileText className="size-4.5 text-primary shrink-0" />
+                  <span className="font-mono truncate">{selectedRx.prescriptionNumber}</span>
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Recorded on {formatDate(selectedRx.prescriptionDate)} for store {selectedRx.store?.name}
-                </DialogDescription>
+                <Badge
+                  variant="outline"
+                  className={`text-xs font-semibold shrink-0 uppercase tracking-wide h-6 px-2 ${
+                    selectedRx.status === 'ACTIVE'
+                      ? 'text-success bg-success/10 border-success/30'
+                      : selectedRx.status === 'DISPENSED'
+                        ? 'text-muted-foreground bg-muted border-border'
+                        : 'text-warning bg-warning/10 border-warning/30'
+                  }`}
+                >
+                  {selectedRx.status}
+                </Badge>
               </div>
+              <DialogDescription className="text-micro sm:text-xs text-muted-foreground">
+                Recorded on {formatDate(selectedRx.prescriptionDate)} • {selectedRx.store?.name || 'Main Pharmacy'}
+              </DialogDescription>
             </div>
           </DialogHeader>
 
           <div className="space-y-4 py-2 text-xs">
             {/* Patient & Doctor Sub-Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-muted/30 border border-border">
-              <div className="space-y-0.5">
-                <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-muted/20 border border-border/70">
+              <div className="space-y-1">
+                <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
                   Patient Information
                 </span>
-                <strong className="text-sm font-semibold text-foreground block pt-0.5">
+                <strong className="text-sm font-semibold text-foreground block">
                   {selectedRx.patientName}
                 </strong>
-                <p className="text-muted-foreground">Phone: {selectedRx.patientPhone || 'N/A'}</p>
-                <p className="text-muted-foreground">CNIC: {selectedRx.patientCnic || 'N/A'}</p>
-                {selectedRx.patientAge && (
-                  <p className="text-muted-foreground">
-                    Age: {selectedRx.patientAge} years ({selectedRx.patientGender || 'N/A'})
-                  </p>
-                )}
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p>Phone: <span className="text-foreground/90 font-medium">{selectedRx.patientPhone || 'N/A'}</span></p>
+                  <p>CNIC: <span className="font-mono text-foreground/90">{selectedRx.patientCnic || 'N/A'}</span></p>
+                  {selectedRx.patientAge && (
+                    <p>
+                      Age: <span className="text-foreground/90">{selectedRx.patientAge} years ({selectedRx.patientGender || 'N/A'})</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-0.5 border-t sm:border-t-0 sm:border-l border-border/60 pt-2.5 sm:pt-0 sm:pl-3">
-                <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider block">
+              <div className="space-y-1 border-t sm:border-t-0 sm:border-l border-border/60 pt-2.5 sm:pt-0 sm:pl-3.5">
+                <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
                   Prescribing Doctor
                 </span>
-                <strong className="text-sm font-semibold text-foreground block pt-0.5">
-                  {selectedRx.doctorName}
+                <strong className="text-sm font-semibold text-foreground block">
+                  {selectedRx.doctorName.toLowerCase().startsWith('dr') ? selectedRx.doctorName : `Dr. ${selectedRx.doctorName}`}
                 </strong>
-                <p className="text-muted-foreground">License: {selectedRx.doctorLicenseNumber || 'N/A'}</p>
-                <p className="text-muted-foreground">Hospital: {selectedRx.doctorHospital || 'N/A'}</p>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p>License: <span className="font-mono text-foreground/90">{selectedRx.doctorLicenseNumber || 'N/A'}</span></p>
+                  <p>Hospital: <span className="text-foreground/90">{selectedRx.doctorHospital || 'N/A'}</span></p>
+                </div>
               </div>
             </div>
 
-            {/* Prescribed Items Table */}
+            {/* Prescribed Items Table & Mobile Cards */}
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                Prescribed Clinical Regimen
+              <span className="text-micro font-bold uppercase tracking-wider text-muted-foreground block">
+                Prescribed Clinical Regimen ({selectedRx.items.length})
               </span>
-              <div className="border border-border rounded-xl overflow-x-auto">
-                <table className="w-full min-w-[460px] text-left text-xs">
-                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-xs">
+
+              {/* Mobile Card List */}
+              <div className="space-y-2 sm:hidden">
+                {selectedRx.items.map((it) => (
+                  <div
+                    key={it.id}
+                    className="p-3 rounded-xl border border-border/70 bg-card space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-semibold text-xs text-foreground flex items-center gap-1.5 min-w-0">
+                        <Pill className={`size-3.5 shrink-0 ${it.product?.isControlledSubstance ? 'text-destructive' : 'text-primary'}`} />
+                        <span className="truncate">{it.product?.name}</span>
+                      </div>
+                      {it.product?.isControlledSubstance && (
+                        <Badge variant="destructive" className="text-micro px-1.5 py-0 shrink-0">
+                          Controlled
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="text-micro text-muted-foreground">
+                      <span>{it.dosage || '1 unit'} • {it.frequency || 'Daily'}</span>
+                      {it.durationDays && <span> • {it.durationDays} days</span>}
+                      {it.instructions && (
+                        <p className="italic text-muted-foreground/80 mt-0.5">&quot;{it.instructions}&quot;</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1.5 border-t border-border/50 text-micro">
+                      <span className="text-muted-foreground">
+                        Prescribed: <strong className="text-foreground font-semibold">{it.quantityPrescribed} {it.product?.unit || 'Units'}</strong>
+                      </span>
+                      <span className="text-success font-semibold">
+                        Dispensed: {it.quantityDispensed} {it.product?.unit || 'Units'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden sm:block border border-border rounded-xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold uppercase text-micro">
                     <tr>
                       <th className="py-2.5 px-3">Medicine</th>
                       <th className="py-2.5 px-3">Dosage & Frequency</th>
@@ -624,13 +682,13 @@ return (
                           <div className="font-semibold text-foreground flex items-center gap-1.5">
                             <span>{it.product?.name}</span>
                             {it.product?.isControlledSubstance && (
-                              <Badge variant="destructive" className="text-xs px-1 py-0">
+                              <Badge variant="destructive" className="text-micro px-1 py-0">
                                 Controlled
                               </Badge>
                             )}
                           </div>
                           {it.instructions && (
-                            <div className="text-xs text-muted-foreground italic">
+                            <div className="text-micro text-muted-foreground italic">
                               &quot;{it.instructions}&quot;
                             </div>
                           )}
@@ -638,7 +696,7 @@ return (
                         <td className="py-2.5 px-3">
                           <div>{it.dosage || '1 unit'} • {it.frequency || 'Daily'}</div>
                           {it.durationDays && (
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-micro text-muted-foreground">
                               Duration: {it.durationDays} days
                             </div>
                           )}
@@ -695,12 +753,12 @@ return (
             )}
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
+          <DialogFooter className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-border/60">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setDetailModalOpen(false)}
-              className="text-xs"
+              className="text-xs h-9 cursor-pointer"
             >
               Close
             </Button>
@@ -715,7 +773,7 @@ return (
                         `Prescription expired on ${selectedRx.expiryDate ? formatDate(selectedRx.expiryDate) : 'due date'}. Under DRAP regulations, expired prescriptions require physician re-authorization.`
                       )
                     }
-                    className="text-xs font-medium gap-1.5 text-warning border-warning/30 hover:bg-warning/10 cursor-pointer"
+                    className="text-xs font-medium gap-1.5 text-warning border-warning/30 hover:bg-warning/10 cursor-pointer h-9"
                   >
                     <AlertTriangle className="size-3.5" />
                     <span>Prescription Expired (Locked)</span>
@@ -723,9 +781,19 @@ return (
                 ) : (
                   <>
                     <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDispense(selectedRx.id)}
+                      disabled={dispenseMutation.isPending}
+                      className="text-xs font-medium gap-1.5 text-success border-success/30 hover:bg-success/10 cursor-pointer h-9"
+                    >
+                      <CheckCircle2 className="size-3.5 shrink-0" />
+                      <span>Mark as Dispensed</span>
+                    </Button>
+                    <Button
                       asChild
                       size="sm"
-                      className="text-xs font-medium gap-1.5 cursor-pointer shadow-xs"
+                      className="text-xs font-semibold gap-1.5 cursor-pointer shadow-xs h-9"
                     >
                       <Link
                         href={`/pos?prescriptionId=${selectedRx.id}&customerName=${encodeURIComponent(selectedRx.patientName || '')}&customerPhone=${encodeURIComponent(selectedRx.patientPhone || '')}&doctorName=${encodeURIComponent(selectedRx.doctorName || '')}`}
@@ -733,16 +801,6 @@ return (
                         <ShoppingCart className="size-3.5 shrink-0" />
                         <span>Transfer to POS Counter</span>
                       </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDispense(selectedRx.id)}
-                      disabled={dispenseMutation.isPending}
-                      className="text-xs font-medium gap-1.5 text-success border-success/30 hover:bg-success/10 cursor-pointer"
-                    >
-                      <CheckCircle2 className="size-3.5 shrink-0" />
-                      <span>Mark as Dispensed</span>
                     </Button>
                   </>
                 )}

@@ -10,14 +10,14 @@ export function DashboardHeader() {
       title="Pharmacy Overview"
       description="Real-time daily metrics, inventory alerts, and quick POS access."
       actions={
-        <div className="flex items-center gap-2.5 w-full sm:w-auto">
-          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-initial gap-1.5 h-9 text-xs font-semibold whitespace-nowrap shadow-2xs">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-initial gap-1.5 h-9 px-3.5 sm:px-4 text-xs font-medium whitespace-nowrap border-border/60 shadow-2xs">
             <Link href="/inventory/new">
               <Plus className="size-3.5 shrink-0" />
               <span>Add Product</span>
             </Link>
           </Button>
-          <Button asChild size="sm" className="flex-1 sm:flex-initial gap-1.5 h-9 text-xs font-semibold whitespace-nowrap shadow-2xs">
+          <Button asChild size="sm" className="flex-1 sm:flex-initial gap-1.5 h-9 px-3.5 sm:px-4 text-xs font-semibold whitespace-nowrap shadow-2xs">
             <Link href="/pos">
               <ShoppingCart className="size-3.5 shrink-0" />
               <span>Open POS</span>

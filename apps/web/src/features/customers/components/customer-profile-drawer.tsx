@@ -288,49 +288,51 @@ export function CustomerProfileDrawer({
               </div>
 
               {/* Quick Actions */}
-              <div className="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleRefresh}
-                  disabled={isLoading || isFetching}
-                  className="h-8.5 px-2.5 sm:px-3 text-xs gap-1.5 shrink-0 cursor-pointer"
-                  title="Refresh statement"
-                >
-                  <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh</span>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handlePrintSlip}
-                  disabled={!ledger || ledger.entries.length === 0}
-                  className="h-8.5 px-2.5 sm:px-3 text-xs gap-1.5 shrink-0 cursor-pointer"
-                  title="Print 80mm thermal Khata slip"
-                >
-                  <Printer className="size-3.5 text-primary" />
-                  <span className="hidden sm:inline">Print Slip</span>
-                </Button>
-                {customer && onEditCustomer && (
+              <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto pt-2 sm:pt-0 flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      onEditCustomer(customer);
-                      onClose();
-                    }}
-                    className="h-8.5 px-3 text-xs gap-1.5 shrink-0 cursor-pointer"
+                    onClick={handleRefresh}
+                    disabled={isLoading || isFetching}
+                    className="h-8.5 px-2.5 sm:px-3 text-xs gap-1.5 cursor-pointer"
+                    title="Refresh statement"
                   >
-                    <Edit2 className="size-3.5" />
-                    <span>Edit</span>
+                    <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline">Refresh</span>
                   </Button>
-                )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handlePrintSlip}
+                    disabled={!ledger || ledger.entries.length === 0}
+                    className="h-8.5 px-2.5 sm:px-3 text-xs gap-1.5 cursor-pointer"
+                    title="Print 80mm thermal Khata slip"
+                  >
+                    <Printer className="size-3.5 text-primary" />
+                    <span className="hidden sm:inline">Print Slip</span>
+                  </Button>
+                  {customer && onEditCustomer && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        onEditCustomer(customer);
+                        onClose();
+                      }}
+                      className="h-8.5 px-2.5 sm:px-3 text-xs gap-1.5 cursor-pointer"
+                    >
+                      <Edit2 className="size-3.5" />
+                      <span>Edit</span>
+                    </Button>
+                  )}
+                </div>
                 <Button
                   size="sm"
                   onClick={() => setIsPaymentOpen(true)}
-                  className="h-8.5 px-3.5 text-xs font-bold gap-1.5 cursor-pointer shadow-xs flex-1 sm:flex-initial bg-primary hover:bg-primary/90 text-primary-foreground justify-center"
+                  className="h-8.5 px-3 sm:px-3.5 text-xs font-bold gap-1.5 cursor-pointer shadow-xs flex-1 sm:flex-initial bg-primary hover:bg-primary/90 text-primary-foreground justify-center whitespace-nowrap"
                 >
-                  <Banknote className="size-4" />
+                  <Banknote className="size-4 shrink-0" />
                   <span>Record Payment</span>
                 </Button>
               </div>
@@ -371,94 +373,90 @@ export function CustomerProfileDrawer({
                       ? 'border-success/25 bg-gradient-to-br from-card via-card to-success/[0.06]'
                       : 'border-border/70 bg-gradient-to-br from-card via-card to-muted/20'
                   }`}>
-                    <div className="flex items-start justify-between gap-1.5">
-                      <span className="text-xs font-semibold text-foreground/80 leading-snug">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground truncate">
                         {isDebt ? 'Khata Debt' : isAdvance ? 'Customer Advance' : 'Khata Balance'}
                       </span>
-                      <div className={`size-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      <div className={`size-6 rounded-md flex items-center justify-center shrink-0 ${
                         isDebt
                           ? 'bg-destructive/10 text-destructive ring-1 ring-destructive/20'
                           : isAdvance
                           ? 'bg-success/10 text-success ring-1 ring-success/20'
                           : 'bg-muted text-muted-foreground ring-1 ring-border'
                       }`}>
-                        <CreditCard className="size-3.5" />
+                        <CreditCard className="size-3" />
                       </div>
                     </div>
-                    <div className="mt-2.5 flex items-baseline justify-between gap-1.5">
-                      <strong className={`text-xl sm:text-2xl font-extrabold tracking-tight tabular-nums truncate ${
+                    <div className="mt-2 space-y-0.5">
+                      <div className={`text-lg sm:text-2xl font-bold tracking-tight tabular-nums leading-none ${
                         isDebt ? 'text-destructive' : isAdvance ? 'text-success' : 'text-foreground'
                       }`}>
                         {formatCurrency(Math.abs(creditBalance))}
-                      </strong>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
-                        isDebt
-                          ? 'bg-destructive/10 text-destructive'
-                          : isAdvance
-                          ? 'bg-success/10 text-success'
-                          : 'bg-muted text-muted-foreground'
+                      </div>
+                      <span className={`inline-block text-micro font-medium ${
+                        isDebt ? 'text-destructive' : isAdvance ? 'text-success' : 'text-muted-foreground'
                       }`}>
-                        {isDebt ? 'Outstanding' : isAdvance ? 'Store Credit' : 'Settled'}
+                        {isDebt ? 'Outstanding Debt' : isAdvance ? 'Store Credit on file' : 'Settled Account'}
                       </span>
                     </div>
                   </div>
 
                   {/* Lifetime Spend */}
                   <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-card via-card to-primary/[0.04] p-3 sm:p-3.5 flex flex-col justify-between">
-                    <div className="flex items-start justify-between gap-1.5">
-                      <span className="text-xs font-semibold text-foreground/80 leading-snug">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground truncate">
                         Lifetime Spend
                       </span>
-                      <div className="size-7 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center shrink-0">
-                        <ShoppingBag className="size-3.5" />
+                      <div className="size-6 rounded-md bg-primary/10 text-primary ring-1 ring-primary/20 flex items-center justify-center shrink-0">
+                        <ShoppingBag className="size-3" />
                       </div>
                     </div>
-                    <div className="mt-2.5 flex items-baseline justify-between gap-1.5">
-                      <strong className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground tabular-nums truncate">
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-lg sm:text-2xl font-bold tracking-tight text-foreground tabular-nums leading-none">
                         {formatCurrency(customer?.totalSpent || 0)}
-                      </strong>
-                      <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md shrink-0">
-                        Lifetime
+                      </div>
+                      <span className="inline-block text-micro text-primary font-medium">
+                        All-time Store Spend
                       </span>
                     </div>
                   </div>
 
                   {/* Total Receipts */}
                   <div className="relative overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/30 p-3 sm:p-3.5 flex flex-col justify-between">
-                    <div className="flex items-start justify-between gap-1.5">
-                      <span className="text-xs font-semibold text-foreground/80 leading-snug">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground truncate">
                         Total Purchases
                       </span>
-                      <div className="size-7 rounded-lg bg-muted text-muted-foreground ring-1 ring-border flex items-center justify-center shrink-0">
-                        <Receipt className="size-3.5" />
+                      <div className="size-6 rounded-md bg-muted text-muted-foreground ring-1 ring-border flex items-center justify-center shrink-0">
+                        <Receipt className="size-3" />
                       </div>
                     </div>
-                    <div className="mt-2.5 flex items-baseline justify-between gap-1.5">
-                      <strong className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground tabular-nums">
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-lg sm:text-2xl font-bold tracking-tight text-foreground tabular-nums leading-none">
                         {customer?.totalSalesCount || 0}
-                      </strong>
-                      <span className="text-[10px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md shrink-0">
-                        Orders
+                      </div>
+                      <span className="inline-block text-micro text-muted-foreground font-medium">
+                        Completed Orders
                       </span>
                     </div>
                   </div>
 
                   {/* Repayments */}
                   <div className="relative overflow-hidden rounded-xl border border-success/20 bg-gradient-to-br from-card via-card to-success/[0.04] p-3 sm:p-3.5 flex flex-col justify-between">
-                    <div className="flex items-start justify-between gap-1.5">
-                      <span className="text-xs font-semibold text-foreground/80 leading-snug">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-micro font-semibold uppercase tracking-wider text-muted-foreground truncate">
                         Repayments
                       </span>
-                      <div className="size-7 rounded-lg bg-success/10 text-success ring-1 ring-success/20 flex items-center justify-center shrink-0">
-                        <Banknote className="size-3.5" />
+                      <div className="size-6 rounded-md bg-success/10 text-success ring-1 ring-success/20 flex items-center justify-center shrink-0">
+                        <Banknote className="size-3" />
                       </div>
                     </div>
-                    <div className="mt-2.5 flex items-baseline justify-between gap-1.5">
-                      <strong className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground tabular-nums">
+                    <div className="mt-2 space-y-0.5">
+                      <div className="text-lg sm:text-2xl font-bold tracking-tight text-foreground tabular-nums leading-none">
                         {customer?.totalPaymentsCount || 0}
-                      </strong>
-                      <span className="text-[10px] font-semibold text-success bg-success/10 px-1.5 py-0.5 rounded-md shrink-0">
-                        Completed
+                      </div>
+                      <span className="inline-block text-micro text-success font-medium">
+                        {customer?.totalPaymentsCount ? 'Active Payments' : 'No Repayments'}
                       </span>
                     </div>
                   </div>
@@ -507,7 +505,7 @@ export function CustomerProfileDrawer({
                       </div>
                     ) : (
                       <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto custom-scrollbar">
                           <table className="w-full min-w-[620px] text-xs text-left">
                             <thead className="bg-muted/40 border-b border-border/60 text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                               <tr>
@@ -610,7 +608,7 @@ export function CustomerProfileDrawer({
                       </div>
                     ) : (
                       <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto custom-scrollbar">
                           <table className="w-full min-w-[580px] text-xs text-left">
                             <thead className="bg-muted/40 border-b border-border/60 text-micro text-muted-foreground font-semibold uppercase tracking-wider">
                               <tr>
@@ -628,7 +626,7 @@ export function CustomerProfileDrawer({
                                   <td className="py-2.5 px-3.5 text-muted-foreground whitespace-nowrap">
                                     {formatDate(sale.createdAt)}
                                   </td>
-                                  <td className="py-2.5 px-3.5 font-mono text-micro font-semibold text-foreground">
+                                  <td className="py-2.5 px-3.5 font-mono text-micro font-semibold text-foreground whitespace-nowrap">
                                     {sale.receiptNumber || `SALE-${sale.id.slice(0, 6)}`}
                                   </td>
                                   <td className="py-2.5 px-3.5 text-muted-foreground">

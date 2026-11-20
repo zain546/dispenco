@@ -328,16 +328,16 @@ export function CreateReturnModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl w-full max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="p-4 sm:p-5 border-b border-border flex flex-row items-center justify-between">
-          <div className="space-y-0.5">
+      <DialogContent className="w-[calc(100vw-20px)] sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl sm:rounded-xl">
+        <DialogHeader className="p-4 sm:p-5 pr-11 sm:pr-14 border-b border-border/80 bg-muted/20 flex flex-row items-center justify-between text-left shrink-0">
+          <div className="space-y-0.5 min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <RotateCcw className="size-4.5 text-primary" />
-              <DialogTitle className="text-base font-bold">
+              <RotateCcw className="size-4.5 text-primary shrink-0" />
+              <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate">
                 Process Customer Medicine Return
               </DialogTitle>
             </div>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-micro sm:text-xs text-muted-foreground line-clamp-1 leading-normal">
               Select purchased medicines to return, restock batches automatically, and issue customer refunds.
             </DialogDescription>
           </div>
@@ -347,7 +347,7 @@ export function CreateReturnModal({
               variant="ghost"
               size="sm"
               onClick={() => setSelectedSale(null)}
-              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer h-8 px-2.5 shrink-0"
             >
               Change Receipt
             </Button>
@@ -367,7 +367,7 @@ export function CreateReturnModal({
                     <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                     <Input
                       id="search-receipt"
-                      placeholder="e.g. REC-20261016-0001 or sale UUID"
+                      placeholder="e.g. REC-20261016-0001..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-9 text-xs h-9 font-mono"
@@ -405,7 +405,7 @@ export function CreateReturnModal({
                     No recent sales found. Use the search input above to locate the receipt.
                   </div>
                 ) : (
-                  <div className="divide-y divide-border/60 border border-border/80 rounded-xl overflow-hidden bg-card shadow-2xs max-h-64 overflow-y-auto">
+                  <div className="divide-y divide-border/60 border border-border/80 rounded-xl overflow-hidden bg-card shadow-2xs max-h-64 overflow-y-auto custom-scrollbar">
                     {recentSales.map((sale) => (
                       <button
                         key={sale.id}
@@ -413,24 +413,24 @@ export function CreateReturnModal({
                         onClick={() => fetchSaleDetails(sale.id)}
                         className="w-full p-3 text-left hover:bg-muted/30 transition-colors flex items-center justify-between gap-3 text-xs cursor-pointer group"
                       >
-                        <div className="space-y-0.5">
+                        <div className="space-y-0.5 min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-foreground group-hover:text-primary transition-colors">
                               #{sale.receiptNumber}
                             </span>
-                            <Badge variant="outline" className="text-micro uppercase">
+                            <Badge variant="outline" className="text-micro uppercase shrink-0">
                               {sale.paymentMethod}
                             </Badge>
                           </div>
-                          <p className="text-muted-foreground text-micro">
+                          <p className="text-muted-foreground text-micro truncate">
                             {sale.customerName || 'Walk-in'} • {sale.itemsCount} items • {formatDateTime(sale.createdAt)}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold tabular-nums text-foreground">
+                        <div className="flex items-center gap-2 shrink-0 text-right">
+                          <span className="font-bold tabular-nums text-foreground whitespace-nowrap">
                             {formatCurrency(sale.totalAmount)}
                           </span>
-                          <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                          <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                         </div>
                       </button>
                     ))}
@@ -738,7 +738,8 @@ export function CreateReturnModal({
               className="text-xs font-semibold gap-1.5 cursor-pointer shadow-xs px-4"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-              <span>Confirm Return & Refund ({formatCurrency(totalRefundAmount)})</span>
+              <span className="hidden sm:inline">Confirm Return & Refund ({formatCurrency(totalRefundAmount)})</span>
+              <span className="sm:hidden">Confirm Return ({formatCurrency(totalRefundAmount)})</span>
             </Button>
           )}
         </div>

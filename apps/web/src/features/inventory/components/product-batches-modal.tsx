@@ -191,7 +191,7 @@ export function ProductBatchesModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[92vh] overflow-hidden flex flex-col p-4 sm:p-6 gap-3">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[92vh] overflow-hidden flex flex-col p-4 sm:p-6 gap-3 rounded-2xl">
           <DialogHeader className="pb-3 border-b border-border/80 pr-6 sm:pr-8 shrink-0">
             <div className="flex items-start gap-3">
               <div className="size-10 sm:size-11 rounded-xl bg-muted/60 text-muted-foreground/80 flex items-center justify-center shrink-0 border border-border/50">
@@ -307,11 +307,11 @@ export function ProductBatchesModal({
 
               {/* Active Stock Sub-Filter Chips */}
               {stockTab === 'active' && (
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 text-xs shrink-0">
+                <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 text-xs shrink-0 flex-nowrap">
                   <button
                     type="button"
                     onClick={() => setActiveHealthFilter('all')}
-                    className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                       activeHealthFilter === 'all'
                         ? 'bg-primary/10 text-primary border border-primary/30 font-semibold'
                         : 'bg-muted/30 text-muted-foreground hover:text-foreground border border-transparent'
@@ -323,7 +323,7 @@ export function ProductBatchesModal({
                   <button
                     type="button"
                     onClick={() => setActiveHealthFilter('healthy')}
-                    className={`px-2.5 py-1 rounded-md text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
                       activeHealthFilter === 'healthy'
                         ? 'bg-success/15 text-success border border-success/30 font-semibold'
                         : 'bg-muted/30 text-muted-foreground hover:text-foreground border border-transparent'
@@ -336,7 +336,7 @@ export function ProductBatchesModal({
                   <button
                     type="button"
                     onClick={() => setActiveHealthFilter('near')}
-                    className={`px-2.5 py-1 rounded-md text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
                       activeHealthFilter === 'near'
                         ? 'bg-warning/15 text-warning border border-warning/30 font-semibold'
                         : 'bg-muted/30 text-muted-foreground hover:text-foreground border border-transparent'
@@ -349,7 +349,7 @@ export function ProductBatchesModal({
                   <button
                     type="button"
                     onClick={() => setActiveHealthFilter('expired')}
-                    className={`px-2.5 py-1 rounded-md text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
                       activeHealthFilter === 'expired'
                         ? 'bg-destructive/15 text-destructive border border-destructive/30 font-semibold'
                         : 'bg-muted/30 text-muted-foreground hover:text-foreground border border-transparent'
@@ -461,7 +461,7 @@ export function ProductBatchesModal({
                 </div>
               ) : (
                 /* Rich Card Layout (Visual with 3-box grid & progress bar) */
-                <div className="space-y-2.5 overflow-y-auto pr-1 flex-1">
+                <div className="space-y-2.5 overflow-y-auto pr-1 flex-1 custom-scrollbar">
                   {paginatedBatches.map((batch) => {
                     const isDepleted = batch.quantityRemaining <= 0;
                     const stockPercent =
@@ -475,9 +475,12 @@ export function ProductBatchesModal({
                         className="p-3 sm:p-3.5 rounded-lg border border-border/80 bg-card hover:border-primary/40 transition-all space-y-2.5 shadow-2xs"
                       >
                         {/* Top Header Row */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/40">
+                        <div className="flex items-start justify-between gap-2 pb-2 border-b border-border/40">
                           <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
-                            <span className="font-mono font-bold text-xs text-foreground bg-muted px-2 py-0.5 rounded border border-border/80 shrink-0">
+                            <span
+                              className="font-mono font-bold text-xs text-foreground bg-muted px-2 py-0.5 rounded border border-border/80 truncate max-w-[180px] sm:max-w-none"
+                              title={`#${batch.batchNumber}`}
+                            >
                               #{batch.batchNumber}
                             </span>
 
@@ -525,7 +528,7 @@ export function ProductBatchesModal({
                             variant="outline"
                             size="sm"
                             onClick={() => handleOpenEdit(batch)}
-                            className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 self-end sm:self-auto cursor-pointer"
+                            className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 cursor-pointer"
                           >
                             <Edit3 className="size-3" />
                             <span>Edit</span>
@@ -533,7 +536,7 @@ export function ProductBatchesModal({
                         </div>
 
                         {/* Structured 3-Box Metrics Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-muted/20 p-2.5 rounded-md border border-border/50 text-xs">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-muted/20 p-2.5 rounded-md border border-border/50 text-xs">
                           <div>
                             <span className="text-micro text-muted-foreground uppercase font-medium tracking-wider block">Expiry Date</span>
                             <span className="font-semibold text-foreground mt-0.5 block">
@@ -549,13 +552,13 @@ export function ProductBatchesModal({
                             </div>
                           </div>
 
-                          <div>
+                          <div className="col-span-2 sm:col-span-1">
                             <div className="flex items-center justify-between text-micro text-muted-foreground font-medium uppercase tracking-wider">
                               <span>Stock Level</span>
                               <span className="font-semibold text-foreground">{stockPercent}%</span>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <div className="flex-1 bg-muted h-1.5 rounded-full overflow-hidden">
+                              <div className="flex-1 bg-muted/80 h-2 rounded-full overflow-hidden">
                                 <div
                                   className={`h-full transition-all duration-300 ${
                                     isDepleted
@@ -617,19 +620,19 @@ export function ProductBatchesModal({
 
               {/* Footer Actions */}
               {productId && (
-                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-t border-border shrink-0">
+                <div className="pt-2 flex flex-row items-center justify-between gap-2 border-t border-border shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
                     asChild
-                    className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5 w-full sm:w-auto cursor-pointer"
+                    className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/5 flex-1 sm:flex-initial cursor-pointer"
                   >
                     <Link href={`/inventory/receive?productId=${productId}`} onClick={() => onOpenChange(false)}>
                       <Plus className="size-3.5" />
                       <span className="truncate">Receive New Batch</span>
                     </Link>
                   </Button>
-                  <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} className="text-xs w-full sm:w-auto cursor-pointer">
+                  <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} className="text-xs flex-1 sm:flex-initial cursor-pointer">
                     Close
                   </Button>
                 </div>

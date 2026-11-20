@@ -79,79 +79,77 @@ export function DashboardMetrics() {
   }, [salesReport]);
 
   return (
-    <div className="flex items-stretch sm:grid sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
       {/* Today's Sales */}
-      <Link href="/reports" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
+      <Link href="/reports" className="flex flex-col group">
         <StatCard
           label="Today's Sales"
           value={formatCurrency(todaySales.revenue)}
-          caption={todaySales.count === 0 ? 'No completed sales today yet' : `${formatNumber(todaySales.count)} completed receipts`}
+          caption={todaySales.count === 0 ? 'No sales recorded yet' : `${formatNumber(todaySales.count)} completed receipts`}
           icon={DollarSign}
-          variant="success"
+          variant="default"
           isLoading={isLoading}
-          className="group-hover:border-success/50 transition-colors h-full flex-1"
+          className="h-full flex-1"
         />
       </Link>
 
       {/* Today's Profit */}
-      <Link href="/reports" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
+      <Link href="/reports" className="flex flex-col group">
         <StatCard
           label="Today's Profit"
           value={formatCurrency(todaySales.profit)}
           caption={
             todaySales.count === 0
-              ? 'Net earnings after batch cost'
+              ? 'Net profit after batch cost'
               : `${todaySales.margin.toFixed(1)}% margin • Cost: ${formatCurrency(todaySales.cost)}`
           }
           icon={TrendingUp}
-          variant={todaySales.profit >= 0 ? 'success' : 'destructive'}
+          variant={todaySales.profit >= 0 ? 'default' : 'destructive'}
           isLoading={isLoading}
-          className="group-hover:border-success/50 transition-colors h-full flex-1"
+          className="h-full flex-1"
         />
       </Link>
 
       {/* Low Stock Alerts */}
-      <Link href="/inventory?tab=low_stock" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
+      <Link href="/inventory?tab=low_stock" className="flex flex-col group">
         <StatCard
-          label="Low Stock Alerts"
+          label="Low Stock"
           value={formatNumber(metrics.lowStockCount)}
-          caption={metrics.lowStockCount === 0 ? 'All inventory stock levels optimal' : 'Items requiring replenishment'}
+          caption={metrics.lowStockCount === 0 ? 'All levels safe' : 'Replenishment needed'}
           icon={AlertTriangle}
           variant={metrics.lowStockCount > 0 ? 'warning' : 'default'}
           isLoading={isLoading}
-          className="group-hover:border-warning/50 transition-colors h-full flex-1"
+          className="h-full flex-1"
         />
       </Link>
 
       {/* Expiring Soon */}
-      <Link href="/inventory?tab=expiring" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
+      <Link href="/inventory?tab=expiring" className="flex flex-col group">
         <StatCard
-          label="Expiring Batches"
+          label="Near Expiry"
           value={formatNumber(metrics.expiringSoonCount)}
-          caption={metrics.expiringSoonCount === 0 ? 'No batches expiring within 180d' : 'Batches expiring within window'}
+          caption={metrics.expiringSoonCount === 0 ? 'Within safe window' : 'Expiring within 180d'}
           icon={Clock}
           variant={metrics.expiringSoonCount > 0 ? 'destructive' : 'default'}
           isLoading={isLoading}
-          className="group-hover:border-destructive/50 transition-colors h-full flex-1"
+          className="h-full flex-1"
         />
       </Link>
 
       {/* Active Catalog & Inventory Valuation */}
-      <Link href="/inventory" className="shrink-0 w-[78vw] max-w-[280px] sm:w-auto sm:max-w-none snap-start flex flex-col group">
+      <Link href="/inventory" className="col-span-2 sm:col-span-1 flex flex-col group">
         <StatCard
-          label="Stock Asset Value"
-          value={formatCurrency(metrics.totalPurchaseCost)}
+          label="Active Catalog"
+          value={formatNumber(metrics.totalProducts)}
           caption={
-            metrics.totalPurchaseCost > 0 || metrics.totalRetailValue > 0
-              ? `MRP: ${formatCurrency(metrics.totalRetailValue)} • ${formatNumber(metrics.stockedCount)} stocked`
-              : metrics.totalProducts === 0
-                ? 'No products registered'
-                : `${formatNumber(metrics.stockedCount)} live products in store`
+            metrics.totalPurchaseCost > 0
+              ? `Cost val: ${formatCurrency(metrics.totalPurchaseCost)}`
+              : `${formatNumber(metrics.stockedCount)} stocked in store`
           }
           icon={PackageCheck}
           variant="default"
           isLoading={isLoading}
-          className="group-hover:border-primary/50 transition-colors h-full flex-1"
+          className="h-full flex-1"
         />
       </Link>
     </div>

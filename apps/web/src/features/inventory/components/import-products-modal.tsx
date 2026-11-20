@@ -377,7 +377,7 @@ export function ImportProductsModal({
         </DialogHeader>
 
         {/* Scrollable Body Section */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-muted/15">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-muted/15 custom-scrollbar">
           {/* STEP 1: Upload CSV */}
           {step === 1 && (
             <div className="space-y-5">
@@ -688,7 +688,7 @@ export function ImportProductsModal({
               {/* Table & Inline Row Inspector Area */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Table Container */}
-                <div className={`border rounded-xl overflow-x-auto max-h-[380px] bg-background shadow-xs ${selectedRow ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                <div className={`border rounded-xl overflow-x-auto max-h-[380px] bg-background shadow-xs custom-scrollbar ${selectedRow ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                   <table className="w-full text-left text-xs">
                     <thead className="bg-muted/80 border-b sticky top-0 text-muted-foreground uppercase text-overline z-10 backdrop-blur-xs font-bold">
                       <tr>

@@ -45,6 +45,7 @@ import {
 } from '../services/products-api';
 import { useExpiryRisk } from '../hooks/use-inventory-queries';
 import { useStore } from '@/context/store-context';
+import { formatCategory } from './product-list';
 import { EditBatchModal } from './edit-batch-modal';
 import { ProductBatchesModal } from './product-batches-modal';
 
@@ -259,34 +260,34 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
       </Card>
 
       {/* High-Level Metric StatCards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
-          label="Capital at Risk (Cost Loss)"
+          label="Capital at Risk"
           value={isLoading || isPlaceholderData ? 'Calculating...' : formatCurrency(summary?.totalCapitalAtRisk ?? 0)}
           icon={DollarSign}
           variant={summary?.totalCapitalAtRisk && summary.totalCapitalAtRisk > 0 ? 'destructive' : 'default'}
-          caption={isPlaceholderData ? 'Updating forecast for selected timeframe...' : 'Estimated financial loss if unsold batches reach expiry'}
+          caption="Estimated loss if unsold at expiry"
         />
         <StatCard
-          label="Units Projected Unsold"
+          label="Projected Unsold"
           value={isLoading || isPlaceholderData ? '...' : (summary?.totalUnitsAtRisk ?? 0).toLocaleString()}
           icon={Package}
           variant="warning"
-          caption={isPlaceholderData ? 'Updating...' : 'Stock forecasted to remain on shelves past expiry date'}
+          caption="Stock forecasted unsold past expiry"
         />
         <StatCard
-          label="Critical Interventions"
+          label="Critical Batches"
           value={isLoading || isPlaceholderData ? '...' : (summary?.criticalBatchesCount ?? 0).toString()}
           icon={AlertTriangle}
           variant={summary?.criticalBatchesCount && summary.criticalBatchesCount > 0 ? 'destructive' : 'default'}
-          caption="Batches requiring immediate markdown or supplier return"
+          caption="Urgent markdown or return needed"
         />
         <StatCard
-          label="Zero-Velocity Batches"
+          label="Zero Velocity"
           value={isLoading || isPlaceholderData ? '...' : (summary?.stagnantBatchesCount ?? 0).toString()}
           icon={TrendingDown}
           variant="warning"
-          caption={isPlaceholderData ? 'Updating velocity metrics...' : `No sales recorded over the past ${timeframeDays} days`}
+          caption={`No sales in past ${timeframeDays} days`}
         />
       </div>
 
@@ -306,7 +307,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
             </div>
 
             {/* Quick Action Badges / Filters */}
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 sm:pb-0 flex-nowrap sm:flex-wrap">
               {[
                 { label: 'All', value: 'ALL', count: summary?.totalBatchesAnalyzed },
                 { label: 'Critical', value: 'CRITICAL', count: summary?.criticalBatchesCount, variant: 'destructive' },
@@ -320,9 +321,9 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                   variant={riskFilter === tier.value ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setRiskFilter(tier.value)}
-                  className={`h-8 text-xs gap-1.5 ${
+                  className={`h-8 text-xs gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                     riskFilter === tier.value
-                      ? ''
+                      ? 'shadow-xs font-semibold'
                       : tier.variant === 'destructive'
                       ? 'text-destructive border-destructive/30 hover:bg-destructive/10'
                       : tier.variant === 'warning'
@@ -332,12 +333,12 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                       : 'text-muted-foreground'
                   }`}
                 >
-                  {tier.label}
+                  <span>{tier.label}</span>
                   {tier.count !== undefined && (
                     <span
                       className={`px-1.5 py-0.5 rounded-full text-micro font-mono ${
                         riskFilter === tier.value
-                          ? 'bg-primary-foreground/20 text-primary-foreground'
+                          ? 'bg-primary-foreground/20 text-primary-foreground font-bold'
                           : 'bg-muted text-muted-foreground'
                       }`}
                     >
@@ -409,8 +410,8 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                           <div className="text-micro text-muted-foreground italic">{item.genericName}</div>
                         )}
                         <div className="flex items-center gap-2 mt-1 text-micro text-muted-foreground">
-                          <span className="bg-secondary px-1.5 py-0.5 rounded font-medium">{item.category}</span>
-                          <span className="font-mono">Batch: {item.batchNumber}</span>
+                          <span className="bg-secondary px-1.5 py-0.5 rounded font-medium">{formatCategory(item.category)}</span>
+                          <span className="font-mono whitespace-nowrap">Batch: {item.batchNumber}</span>
                         </div>
                       </div>
                       <div className="shrink-0">{renderRiskBadge(item.riskLevel, item.riskScore)}</div>
@@ -451,36 +452,37 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>{renderActionBadge(item.actionRecommendation)}</div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenEditBatch(item)}
-                          className="h-7 px-2 text-micro gap-1 hover:border-primary hover:text-primary"
+                          className="h-7.5 px-2.5 text-micro gap-1 hover:border-primary hover:text-primary shadow-2xs cursor-pointer font-medium"
                           aria-label="Edit sell price or adjust stock for markdown"
                         >
                           <Edit3 className="size-3" />
-                          Markdown
+                          <span>Markdown</span>
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => handleOpenProductBatches(item)}
-                          className="h-7 px-2 text-micro text-muted-foreground hover:text-foreground"
+                          className="h-7.5 px-2.5 text-micro gap-1 text-muted-foreground hover:text-foreground hover:border-muted-foreground/40 shadow-2xs cursor-pointer font-medium"
                           aria-label="Inspect all batches for this product"
                         >
-                          Batches
+                          <Layers className="size-3" />
+                          <span>Batches</span>
                         </Button>
                         <Link href={`/pos?search=${encodeURIComponent(item.productName)}`}>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-micro text-muted-foreground hover:text-primary"
+                            className="size-7.5 p-0 text-muted-foreground hover:text-primary hover:border-primary/50 shadow-2xs cursor-pointer"
                             aria-label="Open in POS Counter to sell"
                           >
-                            <ShoppingCart className="size-3" />
+                            <ShoppingCart className="size-3.5" />
                           </Button>
                         </Link>
                       </div>
@@ -490,8 +492,8 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
               </div>
 
               {/* Desktop Table Layout */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
+              <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                <table className="w-full min-w-[1140px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="border-b border-border/60 bg-muted/40 text-micro font-semibold text-muted-foreground uppercase tracking-wider">
                       <th className="py-3 px-4">Medicine & Details</th>
@@ -502,7 +504,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                       <th className="py-3 px-3 text-right">Projected Unsold / Loss</th>
                       <th className="py-3 px-3">Risk Assessment</th>
                       <th className="py-3 px-3">Suggested Action</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -532,7 +534,7 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                             )}
                             <div className="flex items-center gap-2 mt-1 text-micro text-muted-foreground">
                               <span className="bg-secondary px-1.5 py-0.5 rounded font-medium">
-                                {item.category}
+                                {formatCategory(item.category)}
                               </span>
                               {item.barcode && <span className="font-mono">#{item.barcode}</span>}
                             </div>
@@ -540,9 +542,9 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
 
                           {/* Batch & Store */}
                           <td className="py-3 px-3 align-top">
-                            <div className="font-mono font-medium text-foreground">{item.batchNumber}</div>
+                            <div className="font-mono font-medium text-foreground whitespace-nowrap">{item.batchNumber}</div>
                             <div className="text-micro text-muted-foreground">{item.storeName}</div>
-                            <div className="text-micro text-muted-foreground mt-1">
+                            <div className="text-micro text-muted-foreground mt-1 whitespace-nowrap">
                               Stock: <strong className="text-foreground">{item.quantityRemaining}</strong> / {item.quantityReceived} {item.unit}
                             </div>
                           </td>
@@ -665,39 +667,40 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
 
                           {/* Action Buttons */}
                           <td className="py-3 px-4 align-top text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-1.5 shrink-0">
                               {/* Reprice / Markdown Button */}
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenEditBatch(item)}
-                                className="h-7 px-2 text-micro gap-1 hover:border-primary hover:text-primary"
+                                className="h-7.5 px-2.5 text-micro gap-1 hover:border-primary hover:text-primary shadow-2xs cursor-pointer font-medium"
                                 aria-label="Edit sell price or adjust stock for markdown"
                               >
                                 <Edit3 className="size-3" />
-                                Markdown
+                                <span>Markdown</span>
                               </Button>
 
                               {/* View Batches */}
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenProductBatches(item)}
-                                className="h-7 px-2 text-micro text-muted-foreground hover:text-foreground"
+                                className="h-7.5 px-2.5 text-micro gap-1 text-muted-foreground hover:text-foreground hover:border-muted-foreground/40 shadow-2xs cursor-pointer font-medium"
                                 aria-label="Inspect all batches for this product"
                               >
-                                Batches
+                                <Layers className="size-3" />
+                                <span>Batches</span>
                               </Button>
 
                               {/* Link to POS */}
                               <Link href={`/pos?search=${encodeURIComponent(item.productName)}`}>
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
                                   size="sm"
-                                  className="h-7 px-2 text-micro text-muted-foreground hover:text-primary"
+                                  className="size-7.5 p-0 text-muted-foreground hover:text-primary hover:border-primary/50 shadow-2xs cursor-pointer"
                                   aria-label="Open in POS Counter to sell"
                                 >
-                                  <ShoppingCart className="size-3" />
+                                  <ShoppingCart className="size-3.5" />
                                 </Button>
                               </Link>
                             </div>

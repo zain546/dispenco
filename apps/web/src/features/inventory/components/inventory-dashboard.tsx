@@ -361,14 +361,14 @@ export function InventoryDashboard() {
         <div className="relative overflow-hidden rounded-xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/[0.03] p-3 sm:p-4 flex flex-col justify-between shadow-2xs hover:border-primary/40 transition-all">
           <div className="flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-xs font-semibold text-foreground/85 truncate">
+              <span className="text-xs font-semibold text-foreground/85 shrink-0">
                 Stock Valuation
               </span>
-              <Badge variant="outline" className="text-[10px] py-0 px-1 font-semibold text-muted-foreground border-border/60">
+              <Badge variant="outline" className="text-[10px] py-0 px-1 font-semibold text-muted-foreground border-border/60 max-w-[75px] sm:max-w-none truncate shrink min-w-0">
                 {!isAllStores ? (activeStore?.name || 'Branch') : 'All'}
               </Badge>
               {search.trim() && activeTab !== 'full-catalog' && activeTab !== 'expiry-risk' && (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 text-primary border-primary/30 bg-primary/5">
+                <Badge variant="outline" className="text-[9px] py-0 px-1 text-primary border-primary/30 bg-primary/5 shrink-0 hidden sm:inline-flex">
                   Filtered
                 </Badge>
               )}
@@ -430,7 +430,7 @@ export function InventoryDashboard() {
                 Active
               </span>
             </div>
-            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 truncate">
+            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 line-clamp-1 leading-snug">
               {formatNumber(data.summary.totalStockUnits ?? 0)} physical units on hand
             </div>
           </div>
@@ -479,7 +479,7 @@ export function InventoryDashboard() {
                 &lt; 180 Days
               </span>
             </div>
-            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 truncate">
+            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 line-clamp-1 leading-snug">
               {data.summary.expiringSoonCount > 0 ? 'FEFO markdown / return needed' : 'Zero near-expiry risk'}
             </div>
           </div>
@@ -528,7 +528,7 @@ export function InventoryDashboard() {
                 {data.summary.lowStockCount > 0 ? 'Needs Restock' : 'Healthy'}
               </span>
             </div>
-            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 truncate">
+            <div className="text-[11px] sm:text-xs text-muted-foreground mt-1 line-clamp-1 leading-snug">
               {data.summary.lowStockCount > 0 ? 'Reorder threshold triggered' : 'All stock levels healthy'}
             </div>
           </div>
@@ -542,7 +542,7 @@ export function InventoryDashboard() {
         className="space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
-          <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none">
+          <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 custom-scrollbar pb-1 sm:pb-0">
             <TabsList className="flex items-center gap-1 p-1 h-auto border border-border/60 bg-muted/40 rounded-lg w-max">
               <TabsTrigger value="in-stock" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
                 <Boxes className="size-3.5 text-success shrink-0" />
@@ -673,7 +673,7 @@ export function InventoryDashboard() {
                             </StatusBadge>
                           )}
                           <StatusBadge variant="success" size="xs">
-                            In Stock ({product.totalStock} {product.unit}s)
+                            In Stock ({formatUnitPlural(product.unit, product.totalStock)})
                           </StatusBadge>
                           {product.isLowStock && (
                             <StatusBadge variant="warning" size="xs">
@@ -827,7 +827,7 @@ export function InventoryDashboard() {
                             </StatusBadge>
                           ) : (
                             <StatusBadge variant="success" size="xs">
-                              In Stock ({product.totalStock} {product.unit}s)
+                              In Stock ({formatUnitPlural(product.unit, product.totalStock)})
                             </StatusBadge>
                           )}
                         </div>
@@ -1055,7 +1055,7 @@ export function InventoryDashboard() {
                           <p className="text-xs text-muted-foreground">{product.genericName}</p>
                         )}
                         <div className="flex items-center gap-3 text-xs text-muted-foreground pt-0.5">
-                          <span>Threshold: <strong className="text-foreground">{product.lowStockThreshold} {product.unit}s</strong></span>
+                          <span>Threshold: <strong className="text-foreground">{formatUnitPlural(product.unit, product.lowStockThreshold)}</strong></span>
                           <span>Active Batches: <strong className="text-foreground">{product.batchCount}</strong></span>
                         </div>
                       </div>

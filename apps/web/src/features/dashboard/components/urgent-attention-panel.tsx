@@ -55,52 +55,47 @@ export function UrgentAttentionPanel() {
     data.outOfStockCount > 0 || data.lowStockCount > 0 || data.expiringSoonCount > 0;
 
   return (
-    <Card className="border-border/70 shadow-2xs overflow-hidden flex flex-col justify-between">
-      <CardHeader className="p-3.5 sm:p-4 pb-3 border-b border-border/50 flex flex-row items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className={cn(
-            "size-8 rounded-lg flex items-center justify-center shrink-0",
-            hasUrgentIssues ? "bg-warning/15 text-warning" : "bg-success/15 text-success"
-          )}>
-            <AlertTriangle className="size-4" />
+    <Card className="rounded-2xl border-border/80 bg-card shadow-xs overflow-hidden flex flex-col justify-between">
+      <CardHeader className="p-3 sm:p-4 pb-2.5 sm:pb-3 border-b border-border/70 flex flex-row items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="size-7 rounded-lg bg-muted/80 text-foreground flex items-center justify-center shrink-0 border border-border/60">
+            <AlertTriangle className={cn("size-3.5", hasUrgentIssues ? "text-warning" : "text-muted-foreground")} />
           </div>
-          <CardTitle className="text-sm font-bold text-foreground leading-none truncate">
+          <CardTitle className="text-xs sm:text-sm font-semibold text-foreground leading-none truncate">
             Stock Alerts
           </CardTitle>
         </div>
-        <Badge
-          variant={hasUrgentIssues ? 'warning' : 'success'}
-          className="text-micro font-medium shrink-0"
-        >
-          {hasUrgentIssues ? 'Action Required' : 'Optimal'}
-        </Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={cn("size-1.5 rounded-full", hasUrgentIssues ? "bg-warning" : "bg-success")} />
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {hasUrgentIssues ? 'Action Required' : 'Optimal'}
+          </span>
+        </div>
       </CardHeader>
 
-      <CardContent className="p-0 flex-1 divide-y divide-border/40">
+      <CardContent className="p-0 flex-1 divide-y divide-border/50">
         {/* Critical Out of Stock Alert (if any) */}
         {data.outOfStockCount > 0 && (
           <Link
             href="/inventory?tab=unstocked"
-            className="p-3.5 flex items-center justify-between gap-3 bg-destructive/5 hover:bg-destructive/10 transition-colors group"
+            className="p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:bg-destructive/[0.04] transition-colors group"
           >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="size-9 rounded-xl bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
-                <AlertTriangle className="size-4.5" />
-              </div>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="size-2 rounded-full bg-destructive shrink-0" />
               <div className="min-w-0">
-                <p className="font-semibold text-xs text-destructive">
+                <p className="font-medium text-xs text-foreground group-hover:text-destructive transition-colors">
                   {formatNumber(data.outOfStockCount)} Critical Stockout{data.outOfStockCount === 1 ? '' : 's'}
                 </p>
-                <p className="text-micro text-destructive/80 mt-0.5 truncate">
+                <p className="text-micro text-muted-foreground mt-0.5 truncate">
                   Zero units in store. Restock required.
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <Badge variant="destructive" className="text-micro px-2 py-0.5 font-bold">
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-destructive/40 text-destructive bg-destructive/5 font-medium">
                 Restock
               </Badge>
-              <ChevronRight className="size-3.5 text-destructive/60 group-hover:text-destructive transition-colors" />
+              <ChevronRight className="size-3 text-muted-foreground group-hover:text-destructive transition-colors" />
             </div>
           </Link>
         )}
@@ -108,17 +103,12 @@ export function UrgentAttentionPanel() {
         {/* Low Stock Alert */}
         <Link
           href="/inventory?tab=low_stock"
-          className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 active:bg-muted/50 transition-colors group"
+          className="p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:bg-muted/15 transition-colors group"
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={cn(
-              "size-9 rounded-xl flex items-center justify-center shrink-0",
-              data.lowStockCount > 0 ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"
-            )}>
-              <TrendingDown className="size-4.5" />
-            </div>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className={cn("size-2 rounded-full shrink-0", data.lowStockCount > 0 ? "bg-warning" : "bg-muted-foreground/30")} />
             <div className="min-w-0">
-              <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+              <p className="font-medium text-xs text-foreground group-hover:text-foreground transition-colors">
                 {data.lowStockCount === 0
                   ? 'All items stocked safely'
                   : `${formatNumber(data.lowStockCount)} Item${data.lowStockCount === 1 ? '' : 's'} Below Threshold`}
@@ -132,30 +122,25 @@ export function UrgentAttentionPanel() {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {data.lowStockCount > 0 ? (
-              <Badge variant="warning" className="text-micro px-1.5 py-0.5 font-bold">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning/40 text-warning bg-warning/5 font-medium">
                 {data.lowStockCount}
               </Badge>
             ) : (
               <span className="text-micro text-muted-foreground">Safe</span>
             )}
-            <ChevronRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+            <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
           </div>
         </Link>
 
         {/* Expiring Soon Alert */}
         <Link
           href="/inventory?tab=expiring"
-          className="p-3.5 flex items-center justify-between gap-3 hover:bg-muted/30 active:bg-muted/50 transition-colors group"
+          className="p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:bg-muted/15 transition-colors group"
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className={cn(
-              "size-9 rounded-xl flex items-center justify-center shrink-0",
-              data.expiringSoonCount > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-            )}>
-              <Clock className="size-4.5" />
-            </div>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className={cn("size-2 rounded-full shrink-0", data.expiringSoonCount > 0 ? "bg-primary/80" : "bg-muted-foreground/30")} />
             <div className="min-w-0">
-              <p className="font-semibold text-xs text-foreground group-hover:text-primary transition-colors">
+              <p className="font-medium text-xs text-foreground group-hover:text-foreground transition-colors">
                 {data.expiringSoonCount === 0
                   ? 'No near-expiry inventory'
                   : `${formatNumber(data.expiringSoonCount)} ${data.expiringSoonCount === 1 ? 'Batch' : 'Batches'} Expiring Soon`}
@@ -169,13 +154,13 @@ export function UrgentAttentionPanel() {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {data.expiringSoonCount > 0 ? (
-              <Badge variant="secondary" className="text-micro px-1.5 py-0.5 font-bold">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary bg-primary/5 font-medium">
                 {data.expiringSoonCount}
               </Badge>
             ) : (
               <span className="text-micro text-muted-foreground">Optimal</span>
             )}
-            <ChevronRight className="size-3.5 text-muted-foreground/60 group-hover:text-foreground transition-colors" />
+            <ChevronRight className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
           </div>
         </Link>
       </CardContent>

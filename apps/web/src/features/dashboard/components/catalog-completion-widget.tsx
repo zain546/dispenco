@@ -78,53 +78,53 @@ export function CatalogCompletionWidget() {
   }
 
   return (
-    <Card className="border-border/70 shadow-2xs overflow-hidden">
-      <CardHeader className="p-3.5 sm:p-4 pb-3 flex flex-row items-center justify-between gap-2 border-b border-border/40">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Boxes className="size-4" />
+    <Card className="rounded-2xl border-border/80 bg-card shadow-xs overflow-hidden">
+      <CardHeader className="p-3 sm:p-4 pb-2.5 sm:pb-3 flex flex-row items-center justify-between gap-2 border-b border-border/70">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="size-7 rounded-lg bg-muted/80 text-foreground flex items-center justify-center shrink-0 border border-border/60">
+            <Boxes className="size-3.5 text-muted-foreground" />
           </div>
           <div className="min-w-0">
-            <CardTitle className="text-sm font-semibold text-foreground leading-none truncate">
+            <CardTitle className="text-xs sm:text-sm font-semibold text-foreground leading-none truncate">
               Catalog Readiness
             </CardTitle>
-            <p className="text-micro text-muted-foreground mt-1 truncate">
-              {formatNumber(stats.stockedCount)} of {formatNumber(stats.totalCatalogItems)} medicines active
+            <p className="text-micro text-muted-foreground mt-0.5 truncate">
+              {formatNumber(stats.stockedCount)} of {formatNumber(stats.totalCatalogItems)} active
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          <Badge variant="outline" className="text-micro font-semibold tabular-nums text-foreground">
+          <Badge variant="outline" className="text-[11px] font-semibold tabular-nums text-foreground border-border/60 px-1.5 py-0">
             {stats.completionPercentage}%
           </Badge>
           <button
             type="button"
             onClick={handleDismiss}
-            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted transition-colors cursor-pointer"
+            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted/40 transition-colors cursor-pointer"
             title="Dismiss widget"
             aria-label="Dismiss widget"
           >
-            <X className="size-3.5" />
+            <X className="size-3" />
           </button>
         </div>
       </CardHeader>
 
-      <CardContent className="p-3.5 sm:p-4 space-y-3">
+      <CardContent className="p-3 sm:p-4 space-y-3">
         {/* Sleek Progress Bar */}
         <div className="space-y-1.5">
-          <Progress value={stats.completionPercentage} className="h-1.5" />
+          <Progress value={stats.completionPercentage} className="h-1 bg-muted/60" />
           <div className="flex items-center justify-between text-micro text-muted-foreground">
-            <span>{formatNumber(stats.unstockedCount)} pending stock intake</span>
+            <span>{formatNumber(stats.unstockedCount)} pending intake</span>
             <span className="font-medium text-foreground">{stats.completionPercentage}% stocked</span>
           </div>
         </div>
 
         {/* Clean full-width action button */}
-        <Button asChild variant="outline" size="sm" className="w-full h-8 text-xs font-medium justify-between group">
+        <Button asChild variant="outline" size="sm" className="w-full h-8.5 text-xs font-medium justify-between group border-border/60 hover:bg-muted/30">
           <Link href="/inventory?tab=unstocked">
             <span>Receive Missing Stock ({formatNumber(stats.unstockedCount)})</span>
-            <ArrowRight className="size-3.5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+            <ArrowRight className="size-3 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
           </Link>
         </Button>
       </CardContent>

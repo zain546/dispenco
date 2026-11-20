@@ -279,7 +279,7 @@ export function TransfersManager() {
             onValueChange={(val) => setActiveTab(val as TransferFilterTab)}
             className="w-full sm:w-auto"
           >
-            <TabsList className="h-8 p-1 bg-muted/60 rounded-lg border border-border/60">
+            <TabsList className="h-8.5 sm:h-9 p-1 bg-muted/60 rounded-lg border border-border/60">
               <TabsTrigger value="all" className="text-xs px-2.5 py-1">
                 All Transfers
               </TabsTrigger>
@@ -301,7 +301,7 @@ export function TransfersManager() {
               placeholder="Search transfer # or medicine..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-8 pl-8 text-xs"
+              className="h-8.5 sm:h-9 pl-8 text-xs"
             />
           </div>
         </div>
@@ -342,7 +342,7 @@ export function TransfersManager() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-border bg-muted/30 text-muted-foreground font-semibold">
+                    <tr className="border-b border-border/70 bg-muted/30 text-muted-foreground uppercase tracking-wider text-micro font-semibold">
                       <th className="py-3 px-4">Transfer Reference</th>
                       <th className="py-3 px-4">Origin & Destination</th>
                       <th className="py-3 px-4">Requested Medicines</th>
@@ -351,7 +351,7 @@ export function TransfersManager() {
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
+                  <tbody className="divide-y divide-border/50">
                     {filteredTransfers.map((t) => {
                       const isSourceBranch = activeStoreId === t.sourceStoreId;
                       const isTargetBranch = activeStoreId === t.targetStoreId;
@@ -359,7 +359,7 @@ export function TransfersManager() {
                       return (
                         <tr
                           key={t.id}
-                          className="hover:bg-muted/20 transition-colors cursor-pointer"
+                          className="hover:bg-muted/25 transition-colors cursor-pointer"
                           onClick={() => handleOpenDetail(t)}
                         >
                           {/* Reference Number & Date */}

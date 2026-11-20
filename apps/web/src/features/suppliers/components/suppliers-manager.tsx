@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -775,7 +776,7 @@ export function SuppliersManager() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
               <div className="space-y-1.5">
                 <Label htmlFor="sup-leadtime" className="text-xs font-medium flex items-center justify-between">
                   <span>Expected Lead Time</span>
@@ -788,30 +789,53 @@ export function SuppliersManager() {
                   max="90"
                   value={formData.leadTimeDays ?? 3}
                   onChange={(e) => setFormData({ ...formData, leadTimeDays: Math.max(0, Number(e.target.value)) })}
-                  className="text-xs"
+                  className="text-xs h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 <p className="text-[10px] text-muted-foreground">Days for distributor delivery to reach store</p>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium mb-1.5 block">Vendor Status</Label>
-                <Button
-                  type="button"
-                  variant={formData.isActive ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                  className="w-full text-xs gap-1.5 justify-start h-9 cursor-pointer"
+                <Label htmlFor="sup-status" className="text-xs font-medium flex items-center justify-between">
+                  <span>Vendor Status</span>
+                  <span
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-micro font-medium ${
+                      formData.isActive
+                        ? 'bg-success/10 text-success'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    <span className={`size-1.5 rounded-full ${formData.isActive ? 'bg-success' : 'bg-muted-foreground/60'}`} />
+                    {formData.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </Label>
+                <div
+                  id="sup-status"
+                  role="checkbox"
+                  aria-checked={Boolean(formData.isActive)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      setFormData((prev) => ({ ...prev, isActive: !prev.isActive }));
+                    }
+                  }}
+                  onClick={() => setFormData((prev) => ({ ...prev, isActive: !prev.isActive }))}
+                  className="flex items-center gap-2.5 h-9 px-3 rounded-xl border border-border/80 bg-card/60 dark:bg-card/40 hover:border-border hover:bg-card/80 focus-visible:outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/40 shadow-2xs transition-colors cursor-pointer select-none"
                 >
-                  {formData.isActive ? (
-                    <>
-                      <CheckCircle2 className="size-3.5 text-success" /> Active Supplier
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="size-3.5 text-muted-foreground" /> Inactive
-                    </>
-                  )}
-                </Button>
+                  <Checkbox
+                    checked={Boolean(formData.isActive)}
+                    tabIndex={-1}
+                    className="pointer-events-none"
+                  />
+                  <span className="text-xs font-medium text-foreground whitespace-nowrap">
+                    Active Supplier
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {formData.isActive
+                    ? 'Available for orders & reorder forecasts'
+                    : 'Suspended from purchase orders'}
+                </p>
               </div>
             </div>
 

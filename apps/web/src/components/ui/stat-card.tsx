@@ -15,6 +15,25 @@ export interface StatCardProps {
   className?: string;
 }
 
+function renderValue(value: React.ReactNode) {
+  if (typeof value === 'string') {
+    const match = value.match(/^([+-]?)\s*([A-Z]{3})\s*([+-]?)(.+)$/);
+    if (match) {
+      const sign = match[1] || match[3] || '';
+      const code = match[2];
+      const amount = match[4].trim();
+      const prefix = sign ? `${sign}${code}` : code;
+      return (
+        <span className="inline-flex flex-wrap items-baseline gap-x-1 break-words">
+          <span className="text-xs font-normal tracking-normal text-muted-foreground shrink-0">{prefix}</span>
+          <span className="break-all sm:break-normal">{amount}</span>
+        </span>
+      );
+    }
+  }
+  return value;
+}
+
 export function StatCard({
   label,
   title,
@@ -27,46 +46,61 @@ export function StatCard({
 }: StatCardProps) {
   const displayLabel = label || title || '';
 
-  const valueColorClass = {
-    default: 'text-foreground',
-    destructive: 'text-destructive',
-    success: 'text-success',
-    warning: 'text-warning',
+  const iconBgClass = {
+    default: 'bg-muted/80 text-muted-foreground border-border/40',
+    destructive: 'bg-destructive/10 text-destructive border-destructive/20',
+    success: 'bg-success/10 text-success border-success/20',
+    warning: 'bg-warning/10 text-warning border-warning/20',
   }[variant];
 
-  const iconBgClass = {
-    default: 'bg-primary/10 text-primary',
-    destructive: 'bg-destructive/10 text-destructive',
-    success: 'bg-success/10 text-success',
-    warning: 'bg-warning/10 text-warning',
+  const statusDotClass = {
+    default: 'bg-muted-foreground/30',
+    destructive: 'bg-destructive',
+    success: 'bg-success',
+    warning: 'bg-warning',
   }[variant];
 
   return (
-    <Card className={cn('border-border/80 shadow-2xs hover:border-border transition-colors', className)}>
-      <CardContent className="p-3.5 sm:p-5 flex flex-col justify-between gap-1.5 sm:gap-2 h-full">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-[11px] sm:text-xs text-muted-foreground font-semibold tracking-normal leading-snug">
-            {displayLabel}
-          </p>
-          {Icon && (
-            <div className={cn('size-7 sm:size-9 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0', iconBgClass)}>
-              <Icon className="size-3.5 sm:size-4.5" />
-            </div>
+    <Card
+      className={cn(
+        'rounded-2xl border-border/80 bg-card hover:border-border transition-all duration-200 shadow-xs',
+        className
+      )}
+    >
+      <CardContent className="p-3.5 sm:p-5 flex flex-col justify-between gap-2.5 sm:gap-3 h-full">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {Icon && (
+              <div
+                className={cn(
+                  'size-6.5 rounded-lg flex items-center justify-center shrink-0 border',
+                  iconBgClass
+                )}
+              >
+                <Icon className="size-3.5" />
+              </div>
+            )}
+            <p className="text-micro font-medium uppercase tracking-wider text-muted-foreground truncate">
+              {displayLabel}
+            </p>
+          </div>
+          {variant !== 'default' && (
+            <span className={cn('size-1.5 rounded-full shrink-0', statusDotClass)} />
           )}
         </div>
 
         {isLoading ? (
           <div className="space-y-1.5 pt-0.5">
-            <Skeleton className="h-6 sm:h-7 w-24 sm:w-32" />
-            {caption && <Skeleton className="h-3 sm:h-3.5 w-28 sm:w-36" />}
+            <Skeleton className="h-7 sm:h-8 w-24 sm:w-28" />
+            {caption && <Skeleton className="h-3 w-28 sm:w-36" />}
           </div>
         ) : (
-          <div className="space-y-0.5 min-w-0">
-            <div className={cn('text-lg sm:text-2xl font-bold tracking-normal tabular-nums leading-snug break-words', valueColorClass)}>
-              {value}
+          <div className="space-y-1 min-w-0">
+            <div className="text-xl xs:text-2xl sm:text-3xl font-semibold tracking-tight text-foreground tabular-nums leading-none break-words">
+              {renderValue(value)}
             </div>
             {caption && (
-              <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-snug">
+              <p className="text-micro text-muted-foreground/90 line-clamp-1 leading-snug">
                 {caption}
               </p>
             )}

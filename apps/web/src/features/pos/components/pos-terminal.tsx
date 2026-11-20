@@ -69,6 +69,27 @@ import { toast } from 'sonner';
 
 export type { CartItem };
 
+function highlightMatch(text: string, query: string) {
+  if (!text || !query || !query.trim()) return text;
+  const trimmed = query.trim();
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  if (parts.length === 1) return text;
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === trimmed.toLowerCase() ? (
+          <mark key={i} className="bg-primary/25 text-primary rounded-xs px-0.5 not-italic font-bold">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
 export function POSTerminal() {
   const queryClient = useQueryClient();
   const { activeStoreId, activeStore, isAllStores, stores } = useStore();
@@ -113,6 +134,7 @@ export function POSTerminal() {
   const cashInputRef = useRef<HTMLInputElement>(null);
   const doctorInputRef = useRef<HTMLInputElement>(null);
   const productSearchContainerRef = useRef<HTMLDivElement>(null);
+  const searchResultsContainerRef = useRef<HTMLDivElement>(null);
 
   // Checkout State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -625,6 +647,18 @@ export function POSTerminal() {
   useEffect(() => {
     setSelectedResultIndex(0);
   }, [searchResults]);
+
+  // Scroll selected search result into view when navigating via keyboard
+  useEffect(() => {
+    if (searchResults.length > 0 && searchResultsContainerRef.current) {
+      const activeEl = searchResultsContainerRef.current.querySelector<HTMLElement>(
+        `[data-result-index="${selectedResultIndex}"]`
+      );
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedResultIndex, searchResults]);
 
   // Search input keyboard navigation (ArrowUp, ArrowDown, Enter, Esc)
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1688,37 +1722,41 @@ export function POSTerminal() {
   });
 
   return (
-    <div className="space-y-4 pb-12">
+    <div className="space-y-4 pb-24 lg:pb-12">
       {/* Top Header & Keyboard Shortcut Ribbon */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/80">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <ShoppingCart className="size-5 sm:size-6 text-primary shrink-0" />
-              <span>POS Billing Counter</span>
-            </h1>
-            <Badge variant="outline" className="text-micro font-semibold border-primary/30 text-primary bg-primary/10">
-              {isAllStores ? 'Org Overview (Select branch to bill)' : (activeStore?.name || 'Main Counter')}
-            </Badge>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/70">
+        <div className="flex items-center gap-3">
+          <div className="size-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0 shadow-2xs">
+            <ShoppingCart className="size-4.5" />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Fast keyboard & scanner-driven pharmacy sales counter with local-first offline resilience.
-          </p>
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
+                POS Billing Counter
+              </h1>
+              <Badge variant="outline" className="text-micro font-medium border-border/80 text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-full">
+                {isAllStores ? 'Org Overview' : (activeStore?.name || 'Main Counter')}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Fast keyboard & scanner-driven pharmacy sales counter with local-first offline resilience.
+            </p>
+          </div>
         </div>
 
         {/* Quick Keyboard Hints & Recent Sales / Offline Queue */}
-        <div className="flex items-center gap-2 text-xs flex-wrap">
+        <div className="flex items-center gap-2 text-xs flex-wrap sm:flex-nowrap">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => setIsOfflineModalOpen(true)}
-            className={`h-8 text-xs font-semibold gap-1.5 border-border ${
+            className={`h-8.5 text-xs font-medium gap-1.5 border-border/80 rounded-lg shadow-2xs cursor-pointer transition-colors whitespace-nowrap ${
               !isOnline
                 ? 'bg-destructive/10 text-destructive border-destructive/30'
                 : pendingOfflineCount > 0
-                ? 'bg-warning/10 text-warning border-warning/30'
-                : 'bg-background text-foreground'
+                ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                : 'bg-card text-foreground hover:bg-muted/50'
             }`}
           >
             {!isOnline ? (
@@ -1740,31 +1778,31 @@ export function POSTerminal() {
             variant="outline"
             size="sm"
             onClick={handleOpenRecentSales}
-            className="h-8 text-xs font-semibold gap-1.5 border-border bg-background hover:bg-muted/40 text-foreground"
+            className="h-8.5 text-xs font-medium gap-1.5 border-border/80 bg-card hover:bg-muted/50 text-foreground rounded-lg shadow-2xs cursor-pointer whitespace-nowrap"
           >
-            <History className="size-3.5 text-primary" />
+            <History className="size-3.5 text-muted-foreground" />
             <span>Recent Transactions</span>
           </Button>
 
-          <div className="hidden lg:flex items-center gap-1.5 flex-wrap">
+          {/* Minimalist Keyboard Hint Chips */}
+          <div className="hidden xl:flex items-center gap-1.5 pl-2.5 border-l border-border/60 shrink-0">
             <button
               type="button"
               onClick={focusSearchInput}
-              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer whitespace-nowrap"
               title="Focus product search (F2)"
             >
-              F2 Search
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/80 text-[10px] font-mono font-medium text-foreground shadow-2xs">F2</kbd>
+              <span className="whitespace-nowrap">Search</span>
             </button>
-            <span className="px-2 py-1 bg-muted/60 border border-border/80 rounded-md text-micro font-mono font-medium text-muted-foreground/80 shadow-2xs select-none">
-              ↑↓ / ↵ Select
-            </span>
             <button
               type="button"
               onClick={() => setPaymentMethod((prev) => (prev === 'CASH' ? 'DIGITAL' : 'CASH'))}
-              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer whitespace-nowrap"
               title="Toggle Payment Mode (F4)"
             >
-              F4 Payment Mode
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/80 text-[10px] font-mono font-medium text-foreground shadow-2xs">F4</kbd>
+              <span className="whitespace-nowrap">Pay Mode</span>
             </button>
             <button
               type="button"
@@ -1772,27 +1810,50 @@ export function POSTerminal() {
                 if (paymentMethod !== 'CASH') setPaymentMethod('CASH');
                 setTimeout(() => cashInputRef.current?.focus(), 60);
               }}
-              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer whitespace-nowrap"
               title="Tender Cash (F8)"
             >
-              F8 Tender Cash
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/80 text-[10px] font-mono font-medium text-foreground shadow-2xs">F8</kbd>
+              <span className="whitespace-nowrap">Cash</span>
             </button>
             <button
               type="button"
               onClick={handleCheckout}
               disabled={cart.length === 0 || isSubmitting}
-              className="px-2 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary rounded-md text-micro font-mono font-semibold shadow-2xs cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Complete Sale (F9)"
+              className={`inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-md transition-all whitespace-nowrap ${
+                cart.length === 0 || isSubmitting
+                  ? 'text-muted-foreground hover:text-foreground cursor-not-allowed'
+                  : 'text-primary-foreground bg-primary hover:bg-primary/90 font-medium shadow-2xs cursor-pointer'
+              }`}
+              title={cart.length === 0 ? "Add medicines to cart to complete sale (F9)" : "Complete Sale (F9)"}
             >
-              F9 Complete Sale
+              <kbd
+                className={`px-1.5 py-0.5 rounded text-[10px] font-mono shadow-2xs ${
+                  cart.length === 0 || isSubmitting
+                    ? 'bg-muted/60 border border-border/80 text-foreground font-medium'
+                    : 'bg-primary-foreground/20 text-primary-foreground font-bold border border-primary-foreground/30'
+                }`}
+              >
+                F9
+              </kbd>
+              <span
+                className={`whitespace-nowrap ${
+                  cart.length === 0 || isSubmitting
+                    ? 'text-muted-foreground'
+                    : 'text-primary-foreground font-semibold'
+                }`}
+              >
+                Complete
+              </span>
             </button>
             <button
               type="button"
               onClick={() => clearSearch(false)}
-              className="px-2 py-1 bg-muted hover:bg-muted/80 border border-border rounded-md text-micro font-mono font-medium text-muted-foreground hover:text-foreground shadow-2xs cursor-pointer transition-colors"
+              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer whitespace-nowrap"
               title="Dismiss search (Esc)"
             >
-              Esc Dismiss
+              <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/80 text-[10px] font-mono font-medium text-foreground shadow-2xs">Esc</kbd>
+              <span className="whitespace-nowrap">Dismiss</span>
             </button>
           </div>
         </div>
@@ -1889,13 +1950,18 @@ export function POSTerminal() {
         {/* Left Column: Search & Cart Table (8 cols) */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-4">
           {/* Live Search & Barcode Scanner Header */}
-          <Card className="shadow-2xs border-border/80 bg-card overflow-visible">
-            <CardContent ref={productSearchContainerRef} className="p-2.5 sm:p-4 space-y-3">
-              <div className="space-y-1 relative">
-                <Label htmlFor="pos-search" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground px-0.5">
-                  <Search className="size-3.5 text-primary" />
-                  <span>Scan Medicine Barcode or Search Catalog</span>
-                </Label>
+          <Card className="shadow-2xs border-border/70 bg-card overflow-visible">
+            <CardContent ref={productSearchContainerRef} className="p-3 sm:p-4 space-y-3">
+              <div className="space-y-1.5 relative">
+                <div className="flex items-center justify-between px-0.5">
+                  <Label htmlFor="pos-search" className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                    <Search className="size-3.5 text-primary" />
+                    <span>Scan Medicine Barcode or Search Catalog</span>
+                  </Label>
+                  <span className="text-[11px] text-muted-foreground font-mono hidden sm:inline">
+                    Press <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/80 text-[10px] font-mono font-medium shadow-2xs">F2</kbd> to focus
+                  </span>
+                </div>
                 <div className="relative">
                   <ScannerInput
                     ref={searchInputRef}
@@ -1906,19 +1972,376 @@ export function POSTerminal() {
                     onChange={(val) => setSearchQuery(val)}
                     onScan={handleBarcodeScan}
                     onKeyDown={handleSearchKeyDown}
-                    className="h-11 text-sm bg-background"
+                    className="h-11 text-sm bg-background/50 border-border/80 rounded-lg shadow-2xs transition-all duration-200 focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/35 focus:shadow-[0_0_10px_rgba(20,184,166,0.16)] dark:focus:shadow-[0_0_12px_rgba(45,212,191,0.18)] focus-visible:bg-background focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/35 focus-visible:shadow-[0_0_10px_rgba(20,184,166,0.16)] dark:focus-visible:shadow-[0_0_12px_rgba(45,212,191,0.18)]"
                   />
                   {isSearching && (
                     <Loader2 className="absolute right-14 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin pointer-events-none" />
+                  )}
+
+                  {/* Floating Spotlight Search Results Dropdown */}
+                  {searchResults.length > 0 && (
+                    <div
+                      ref={searchResultsContainerRef}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute left-0 right-0 top-full mt-2 z-40 border border-border/80 rounded-xl bg-card shadow-2xl ring-1 ring-black/10 dark:ring-white/10 divide-y divide-border/60 max-h-[min(26rem,calc(100vh-220px))] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-150"
+                    >
+                      <div className="px-3.5 py-2 bg-muted/30 border-b border-border/60 flex items-center justify-between text-xs text-muted-foreground font-medium">
+                        <span className="font-semibold text-foreground flex items-center gap-1.5">
+                          <span>Search Results</span>
+                          <span className="text-micro font-mono px-1.5 py-0.2 rounded-full bg-primary/10 text-primary border border-primary/20">
+                            {searchResults.length}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => clearSearch(false)}
+                          className="hover:text-foreground flex items-center gap-1 cursor-pointer font-medium text-xs px-2 py-0.5 rounded hover:bg-muted/60 transition-colors"
+                        >
+                          <span>Done</span>
+                          <kbd className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/80 text-[10px] font-mono font-medium shadow-2xs">Esc</kbd>
+                        </button>
+                      </div>
+                      {searchResults.map((prod, idx) => {
+                        const itemConfig = getMedicineIconConfig(prod.category, prod.name, prod.unit);
+                        const ItemIcon = itemConfig.Icon;
+                        const stock = prod.totalStock ?? 0;
+                        const boxPrice = prod.latestSellPrice ?? 0;
+                        const packSize = getPackSize(prod);
+                        const singlePrice = getSingleUnitPrice(prod);
+                        const isPriority = Boolean((prod.attributes as Record<string, unknown>)?.isPriority);
+
+                        const unitItem = cart.find((item) => item.product.id === prod.id && item.unitType === 'UNIT');
+                        const boxItem = cart.find((item) => item.product.id === prod.id && item.unitType === 'BOX');
+                        const unitQty = unitItem ? unitItem.quantity : 0;
+                        const boxQty = boxItem ? boxItem.quantity : 0;
+                        const inCartTotal = unitQty + boxQty;
+
+                        const { maxAllowed: unitsAddable, remainingUnits, totalAvailableUnits } = getMaxAllowedQuantity(
+                          cart,
+                          prod,
+                          'UNIT',
+                          unitItem ? cart.indexOf(unitItem) : -1
+                        );
+                        const { maxAllowed: boxesAddable } = getMaxAllowedQuantity(
+                          cart,
+                          prod,
+                          'BOX',
+                          boxItem ? cart.indexOf(boxItem) : -1
+                        );
+
+                        return (
+                          <div
+                            key={prod.id}
+                            data-result-index={idx}
+                            className={`p-3 transition-colors text-xs sm:text-sm ${
+                              idx === selectedResultIndex ? 'bg-primary/5' : ''
+                            } ${stock <= 0 ? 'opacity-65 hover:bg-destructive/5' : 'hover:bg-muted/40'}`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                              {/* Product Info Column - Clicking row adds default unit */}
+                              <div
+                                onClick={() => {
+                                  if (stock <= 0) return;
+                                  const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
+                                  if (expiry?.isExpired) {
+                                    toast.error(`"${prod.name}" is expired (${expiry.formattedDate}). Cannot dispense expired stock.`);
+                                    return;
+                                  }
+                                  handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX');
+                                }}
+                                className={`flex items-start sm:items-center gap-2.5 min-w-0 flex-1 ${
+                                  stock <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
+                                }`}
+                                title={stock <= 0 ? 'Out of stock' : 'Click to add to cart'}
+                              >
+                                <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
+                                  <ItemIcon className="size-4" />
+                                </div>
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-semibold text-foreground leading-snug break-words">
+                                      {highlightMatch(prod.name, searchQuery)}
+                                    </span>
+                                    {prod.isControlledSubstance && (
+                                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
+                                        Rx
+                                      </span>
+                                    )}
+                                    {isPriority && <Star className="size-3 fill-amber-400 text-amber-400 shrink-0" />}
+                                    {prod.genericName && (
+                                      <span className="text-micro text-muted-foreground truncate font-normal">
+                                        ({highlightMatch(prod.genericName, searchQuery)})
+                                      </span>
+                                    )}
+                                    <Badge variant="outline" className="text-micro px-1.5 py-0 font-normal border-border/70 text-muted-foreground bg-muted/20 shrink-0">
+                                      {prod.category}
+                                    </Badge>
+                                    {(() => {
+                                      const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
+                                      if (!expiry) return null;
+                                      return (
+                                        <Badge
+                                          variant="outline"
+                                          className={`text-micro px-1.5 py-0 font-medium shrink-0 ${
+                                            expiry.isExpired
+                                              ? 'bg-destructive/10 text-destructive border-destructive/30'
+                                              : 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                                          }`}
+                                        >
+                                          {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate} (${expiry.daysRemaining}d)`}
+                                        </Badge>
+                                      );
+                                    })()}
+                                    {inCartTotal > 0 && (
+                                      <Badge className="bg-primary/10 text-primary border-primary/25 text-micro px-1.5 py-0 font-medium shrink-0">
+                                        ✓ In Cart: {unitQty > 0 && `${unitQty} ${packSize > 1 ? 'Unit' : prod.unit}${unitQty > 1 ? 's' : ''}`}{unitQty > 0 && boxQty > 0 && ' + '}{boxQty > 0 && `${boxQty} Box${boxQty > 1 ? 'es' : ''}`}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-micro text-muted-foreground flex-wrap font-normal">
+                                    {stock <= 0 ? (
+                                      <span className="text-destructive font-medium flex items-center gap-1">
+                                        Stock: {formatUnitPlural(prod.unit, 0)} • Out of stock
+                                      </span>
+                                    ) : packSize > 1 ? (
+                                      <span>
+                                        <span className="font-mono">{packSize}</span> units/box • <span className="font-mono">{singlePrice.toFixed(2)}</span> PKR/unit • Stock: <span className="font-mono">{stock}</span> Boxes
+                                      </span>
+                                    ) : (
+                                      <span>Stock: <span className="font-mono">{formatUnitPlural(prod.unit, stock)}</span></span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Quick Add / Stepper Actions Column */}
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex items-center gap-1.5 shrink-0 flex-nowrap"
+                              >
+                                {stock <= 0 ? (
+                                  <div
+                                    className="h-8 px-2.5 rounded-lg text-xs font-medium gap-1 inline-flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/25 whitespace-nowrap shrink-0 shadow-2xs select-none"
+                                  >
+                                    <Ban className="size-3.5" />
+                                    <span>Out of Stock</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {/* Tablet/Unit Control (if packSize > 1) */}
+                                    {packSize > 1 && (
+                                      unitQty > 0 ? (
+                                        <div className="flex items-center rounded-lg border border-primary/40 bg-primary/5 shadow-2xs overflow-hidden h-8 shrink-0">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDropdownDecrement(prod, 'UNIT')}
+                                            className="h-8 w-7.5 rounded-none text-primary hover:bg-primary/20 shrink-0 cursor-pointer"
+                                            title="Decrease unit quantity (-1)"
+                                          >
+                                            <Minus className="size-3" />
+                                          </Button>
+                                          <DraftQuantityInput
+                                            value={unitQty}
+                                            min={1}
+                                            max={unitsAddable}
+                                            onChange={(val) => handleDropdownSetQuantity(prod, 'UNIT', val)}
+                                            className="h-8 w-9 text-center font-bold font-mono text-xs text-primary bg-transparent border-0 border-x border-primary/20 rounded-none px-0.5 focus-visible:ring-0"
+                                            title="Type unit quantity"
+                                          />
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled={unitQty >= unitsAddable}
+                                            onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                            className="h-8 w-7.5 rounded-none text-primary hover:bg-primary/20 shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                            title={unitQty >= unitsAddable ? `All ${totalAvailableUnits} units allocated in cart` : "Increase unit quantity (+1)"}
+                                          >
+                                            <Plus className="size-3" />
+                                          </Button>
+                                          <span className="text-[10px] font-medium text-primary px-1.5 whitespace-nowrap">
+                                            Unit
+                                          </span>
+                                        </div>
+                                      ) : unitsAddable <= 0 ? (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          disabled
+                                          className="h-8 px-2.5 text-xs font-normal gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                          title={`All ${totalAvailableUnits} units allocated in cart`}
+                                        >
+                                          <span>Unit (Max)</span>
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          type="button"
+                                          variant="default"
+                                          size="sm"
+                                          onClick={() => handleDropdownIncrement(prod, 'UNIT')}
+                                          className="h-8 px-2.5 text-xs font-medium gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                          title={`Add 1 Unit (${singlePrice.toFixed(0)} PKR)`}
+                                        >
+                                          <Plus className="size-3.5" />
+                                          <span>Unit ({singlePrice.toFixed(0)} PKR)</span>
+                                        </Button>
+                                      )
+                                    )}
+
+                                    {/* Box / Main Unit Control */}
+                                    {packSize > 1 ? (
+                                      boxQty > 0 ? (
+                                        <div className="flex items-center rounded-lg border border-border/80 bg-muted/40 shadow-2xs overflow-hidden h-8 shrink-0">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                            className="h-8 w-7.5 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 cursor-pointer"
+                                            title="Decrease box quantity (-1)"
+                                          >
+                                            <Minus className="size-3" />
+                                          </Button>
+                                          <DraftQuantityInput
+                                            value={boxQty}
+                                            min={1}
+                                            max={boxesAddable}
+                                            onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
+                                            className="h-8 w-9 text-center font-medium font-mono text-xs text-foreground bg-transparent border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
+                                            title="Type box quantity"
+                                          />
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled={boxQty >= boxesAddable}
+                                            onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                            className="h-8 w-7.5 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                            title={
+                                              boxQty >= boxesAddable
+                                                ? remainingUnits < packSize
+                                                  ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
+                                                  : 'Max boxes in cart'
+                                                : "Increase box quantity (+1)"
+                                            }
+                                          >
+                                            <Plus className="size-3" />
+                                          </Button>
+                                          <span className="text-[10px] font-medium text-muted-foreground px-1.5 whitespace-nowrap">
+                                            Box
+                                          </span>
+                                        </div>
+                                      ) : boxesAddable <= 0 ? (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          disabled
+                                          className="h-8 px-2.5 text-xs font-normal gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                          title={
+                                            remainingUnits < packSize
+                                              ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
+                                              : 'Max boxes in cart'
+                                          }
+                                        >
+                                          <span>Box (Max)</span>
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                          className="h-8 px-2.5 text-xs font-medium gap-1 bg-card hover:bg-muted/50 text-foreground border-border/70 whitespace-nowrap shrink-0 cursor-pointer"
+                                          title={`Add full Box (${boxPrice.toFixed(0)} PKR)`}
+                                        >
+                                          <Plus className="size-3.5" />
+                                          <span>Box ({boxPrice.toFixed(0)} PKR)</span>
+                                        </Button>
+                                      )
+                                    ) : (
+                                      /* Single-Unit Item (Syrups, Injections, Drops, etc.) */
+                                      boxQty > 0 ? (
+                                        <div className="flex items-center rounded-lg border border-primary/40 bg-primary/5 shadow-2xs overflow-hidden h-8 shrink-0">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDropdownDecrement(prod, 'BOX')}
+                                            className="h-8 w-7.5 rounded-none text-primary hover:bg-primary/20 shrink-0 cursor-pointer"
+                                            title={`Decrease ${prod.unit} quantity (-1)`}
+                                          >
+                                            <Minus className="size-3" />
+                                          </Button>
+                                          <DraftQuantityInput
+                                            value={boxQty}
+                                            min={1}
+                                            max={boxesAddable}
+                                            onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
+                                            className="h-8 w-9 text-center font-bold font-mono text-xs text-primary bg-transparent border-0 border-x border-primary/20 rounded-none px-0.5 focus-visible:ring-0"
+                                            title={`Type ${prod.unit} quantity`}
+                                          />
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            disabled={boxQty >= boxesAddable}
+                                            onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                            className="h-8 w-7.5 rounded-none text-primary hover:bg-primary/20 shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                            title={boxQty >= boxesAddable ? `All ${totalAvailableUnits} ${prod.unit}s allocated in cart` : `Increase ${prod.unit} quantity (+1)`}
+                                          >
+                                            <Plus className="size-3" />
+                                          </Button>
+                                          <span className="text-[10px] font-medium text-primary px-1.5 whitespace-nowrap">
+                                            {prod.unit}
+                                          </span>
+                                        </div>
+                                      ) : boxesAddable <= 0 ? (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          disabled
+                                          className="h-8 px-2.5 text-xs font-normal gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
+                                          title={`All ${totalAvailableUnits} ${prod.unit}s allocated in cart`}
+                                        >
+                                          <span>{prod.unit} (Max)</span>
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          type="button"
+                                          variant="default"
+                                          size="sm"
+                                          onClick={() => handleDropdownIncrement(prod, 'BOX')}
+                                          className="h-8 px-2.5 text-xs font-medium gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                                          title={`Add 1 ${prod.unit} (${boxPrice.toFixed(0)} PKR)`}
+                                        >
+                                          <Plus className="size-3.5" />
+                                          <span>{prod.unit} ({boxPrice.toFixed(0)} PKR)</span>
+                                        </Button>
+                                      )
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
 
                 {/* Top Seller Speed-Dial Quick-Add Bar */}
                 {topSellers.length > 0 && (
-                  <div className="pt-1">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold mb-1.5">
-                      <Star className="size-3.5 fill-warning text-warning" />
-                      <span>Top Seller Speed Dial:</span>
+                  <div className="pt-1.5">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium mb-1.5">
+                      <Star className="size-3.5 fill-amber-400 text-amber-400" />
+                      <span>Top Seller Quick Dial:</span>
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {topSellers.map((prod) => {
@@ -1931,22 +2354,22 @@ export function POSTerminal() {
                             size="sm"
                             disabled={isOutOfStock}
                             onClick={() => addToCart(prod)}
-                            className={`h-7 text-xs gap-1.5 font-semibold rounded-lg shadow-2xs ${
+                            className={`h-7 text-xs gap-1.5 font-medium rounded-lg shadow-2xs border-border/70 ${
                               isOutOfStock
                                 ? 'opacity-50 border-destructive/30 text-destructive cursor-not-allowed'
-                                : 'bg-warning/10 hover:bg-warning/20 border-warning/30 text-warning'
+                                : 'bg-card hover:bg-muted/50 text-foreground'
                             }`}
                           >
-                            <Star className="size-3 fill-warning text-warning" />
+                            <Star className="size-3 fill-amber-400 text-amber-400" />
                             <span>{prod.name}</span>
                             {isOutOfStock ? (
-                              <span className="text-micro font-bold text-destructive">
-                                (Out of stock)
+                              <span className="text-micro font-medium text-destructive">
+                                (Out)
                               </span>
                             ) : (
                               prod.latestSellPrice !== null && prod.latestSellPrice !== undefined && (
-                                <span className="text-micro text-warning font-bold">
-                                  ({prod.latestSellPrice.toFixed(0)} PKR)
+                                <span className="text-micro text-muted-foreground font-mono">
+                                  {prod.latestSellPrice.toFixed(0)} PKR
                                 </span>
                               )
                             )}
@@ -1957,360 +2380,6 @@ export function POSTerminal() {
                   </div>
                 )}
               </div>
-
-              {/* Search Results Dropdown List */}
-              {searchResults.length > 0 && (
-                <div
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  className="border border-border rounded-xl bg-card shadow-xl divide-y divide-border/60 max-h-80 overflow-y-auto"
-                >
-                  <div className="px-3 py-1.5 bg-muted/40 border-b border-border/60 flex items-center justify-between text-xs text-muted-foreground font-medium">
-                    <span className="font-semibold text-foreground">
-                      Search Results ({searchResults.length})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => clearSearch(false)}
-                      className="hover:text-foreground flex items-center gap-1 cursor-pointer font-semibold text-xs px-2 py-0.5 rounded hover:bg-muted"
-                    >
-                      <span>Done</span>
-                      <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border/80 text-[10px]">Esc</kbd>
-                    </button>
-                  </div>
-                  {searchResults.map((prod, idx) => {
-                    const itemConfig = getMedicineIconConfig(prod.category, prod.name, prod.unit);
-                    const ItemIcon = itemConfig.Icon;
-                    const stock = prod.totalStock ?? 0;
-                    const boxPrice = prod.latestSellPrice ?? 0;
-                    const packSize = getPackSize(prod);
-                    const singlePrice = getSingleUnitPrice(prod);
-                    const isPriority = Boolean((prod.attributes as Record<string, unknown>)?.isPriority);
-
-                    const unitItem = cart.find((item) => item.product.id === prod.id && item.unitType === 'UNIT');
-                    const boxItem = cart.find((item) => item.product.id === prod.id && item.unitType === 'BOX');
-                    const unitQty = unitItem ? unitItem.quantity : 0;
-                    const boxQty = boxItem ? boxItem.quantity : 0;
-                    const inCartTotal = unitQty + boxQty;
-
-                    const { maxAllowed: unitsAddable, remainingUnits, totalAvailableUnits } = getMaxAllowedQuantity(
-                      cart,
-                      prod,
-                      'UNIT',
-                      unitItem ? cart.indexOf(unitItem) : -1
-                    );
-                    const { maxAllowed: boxesAddable } = getMaxAllowedQuantity(
-                      cart,
-                      prod,
-                      'BOX',
-                      boxItem ? cart.indexOf(boxItem) : -1
-                    );
-
-                    return (
-                      <div
-                        key={prod.id}
-                        className={`p-3 transition-colors text-xs sm:text-sm ${
-                          idx === selectedResultIndex ? 'bg-primary/10' : ''
-                        } ${stock <= 0 ? 'opacity-70 hover:bg-destructive/5' : 'hover:bg-primary/5'}`}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
-                          {/* Product Info Column - Clicking row adds/increments default unit */}
-                          <div
-                            onClick={() => {
-                              if (stock <= 0) return;
-                              const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
-                              if (expiry?.isExpired) {
-                                toast.error(`"${prod.name}" is expired (${expiry.formattedDate}). Cannot dispense expired stock.`);
-                                return;
-                              }
-                              handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX');
-                            }}
-                            className={`flex items-start sm:items-center gap-2.5 min-w-0 flex-1 ${
-                              stock <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
-                            }`}
-                            title={stock <= 0 ? 'Out of stock' : 'Click to add to cart'}
-                          >
-                            <div className={`size-8 sm:size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
-                              <ItemIcon className="size-4" />
-                            </div>
-                            <div className="min-w-0 flex-1 space-y-0.5">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-foreground leading-snug break-words">
-                                  {prod.name}
-                                </span>
-                                {prod.isControlledSubstance && (
-                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-destructive/15 text-destructive border border-destructive/30 shrink-0">
-                                    Rx
-                                  </span>
-                                )}
-                                {isPriority && <Star className="size-3 fill-warning text-warning shrink-0" />}
-                                {prod.genericName && (
-                                  <span className="text-micro text-muted-foreground truncate">({prod.genericName})</span>
-                                )}
-                                <Badge variant="outline" className="text-micro px-1.5 py-0 font-medium shrink-0">
-                                  {prod.category}
-                                </Badge>
-                                {(() => {
-                                  const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
-                                  if (!expiry) return null;
-                                  return (
-                                    <Badge
-                                      variant={expiry.isExpired ? 'destructive' : 'outline'}
-                                      className={`text-micro px-1.5 py-0 font-bold shrink-0 ${
-                                        expiry.isExpired
-                                          ? 'bg-destructive/15 text-destructive border-destructive/30'
-                                          : 'bg-warning/15 text-warning border-warning/30'
-                                      }`}
-                                    >
-                                      {expiry.isExpired ? `Expired: ${expiry.formattedDate}` : `Exp: ${expiry.formattedDate} (${expiry.daysRemaining}d)`}
-                                    </Badge>
-                                  );
-                                })()}
-                                {inCartTotal > 0 && (
-                                  <Badge className="bg-success/15 text-success border-success/30 text-micro px-1.5 py-0 font-bold shrink-0">
-                                    ✓ In Cart: {unitQty > 0 && `${unitQty} ${packSize > 1 ? 'Unit' : prod.unit}${unitQty > 1 ? 's' : ''}`}{unitQty > 0 && boxQty > 0 && ' + '}{boxQty > 0 && `${boxQty} Box${boxQty > 1 ? 'es' : ''}`}
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 text-micro text-muted-foreground flex-wrap">
-                                {stock <= 0 ? (
-                                  <span className="text-destructive font-semibold flex items-center gap-1">
-                                    Stock: {formatUnitPlural(prod.unit, 0)} • Out of stock
-                                  </span>
-                                ) : packSize > 1 ? (
-                                  <span className="text-success font-medium">
-                                    {packSize} units/box • {singlePrice.toFixed(2)} PKR/unit • Stock: {formatUnitPlural('Box', stock)}
-                                  </span>
-                                ) : (
-                                  <span>Stock: {formatUnitPlural(prod.unit, stock)}</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Quick Add / Stepper Actions Column - single horizontal line on all screens */}
-                          <div
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-1.5 shrink-0 flex-nowrap"
-                          >
-                            {stock <= 0 ? (
-                              <div
-                                className="h-7.5 px-2.5 rounded-lg text-xs font-bold gap-1 inline-flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/30 whitespace-nowrap shrink-0 shadow-2xs select-none"
-                              >
-                                <Ban className="size-3.5" />
-                                <span>Out of Stock</span>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Tablet/Unit Control (if packSize > 1) */}
-                                {packSize > 1 && (
-                                  unitQty > 0 ? (
-                                    /* Compact Active Stepper when in cart */
-                                    <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDropdownDecrement(prod, 'UNIT')}
-                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                        title="Decrease unit quantity (-1)"
-                                      >
-                                        <Minus className="size-3" />
-                                      </Button>
-                                      <DraftQuantityInput
-                                        value={unitQty}
-                                        min={1}
-                                        max={unitsAddable}
-                                        onChange={(val) => handleDropdownSetQuantity(prod, 'UNIT', val)}
-                                        className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
-                                        title="Type unit quantity"
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        disabled={unitQty >= unitsAddable}
-                                        onClick={() => handleDropdownIncrement(prod, 'UNIT')}
-                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                        title={unitQty >= unitsAddable ? `All ${totalAvailableUnits} units allocated in cart` : "Increase unit quantity (+1)"}
-                                      >
-                                        <Plus className="size-3" />
-                                      </Button>
-                                      <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
-                                        Unit
-                                      </span>
-                                    </div>
-                                  ) : unitsAddable <= 0 ? (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      disabled
-                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
-                                      title={`All ${totalAvailableUnits} units allocated in cart`}
-                                    >
-                                      <span>Unit (Max in Cart)</span>
-                                    </Button>
-                                  ) : (
-                                    /* Clean Add Button (Single + icon only) */
-                                    <Button
-                                      type="button"
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => handleDropdownIncrement(prod, 'UNIT')}
-                                      className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-                                      title={`Add 1 Unit (${singlePrice.toFixed(0)} PKR)`}
-                                    >
-                                      <Plus className="size-3.5" />
-                                      <span>Unit ({singlePrice.toFixed(0)} PKR)</span>
-                                    </Button>
-                                  )
-                                )}
-
-                                {/* Box / Main Unit Control */}
-                                {packSize > 1 ? (
-                                  boxQty > 0 ? (
-                                    /* Compact Active Box Stepper when in cart */
-                                    <div className="flex items-center rounded-lg border border-border/80 bg-muted/60 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDropdownDecrement(prod, 'BOX')}
-                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer"
-                                        title="Decrease box quantity (-1)"
-                                      >
-                                        <Minus className="size-3" />
-                                      </Button>
-                                      <DraftQuantityInput
-                                        value={boxQty}
-                                        min={1}
-                                        max={boxesAddable}
-                                        onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
-                                        className="h-7.5 w-9 text-center font-bold text-xs text-foreground bg-card border-0 border-x border-border/60 rounded-none px-0.5 focus-visible:ring-0"
-                                        title="Type box quantity"
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        disabled={boxQty >= boxesAddable}
-                                        onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                        className="size-7 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                        title={
-                                          boxQty >= boxesAddable
-                                            ? remainingUnits < packSize
-                                              ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
-                                              : 'Max boxes in cart'
-                                            : "Increase box quantity (+1)"
-                                        }
-                                      >
-                                        <Plus className="size-3" />
-                                      </Button>
-                                      <span className="text-[10px] font-semibold text-muted-foreground px-1.5 whitespace-nowrap">
-                                        Box
-                                      </span>
-                                    </div>
-                                  ) : boxesAddable <= 0 ? (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      disabled
-                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
-                                      title={
-                                        remainingUnits < packSize
-                                          ? `Cannot add full box: only ${remainingUnits} loose units remaining in stock`
-                                          : 'Max boxes in cart'
-                                      }
-                                    >
-                                      <span>Box (Max in Cart)</span>
-                                    </Button>
-                                  ) : (
-                                    /* Clean Box Add Button (Single + icon only) */
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/60 whitespace-nowrap shrink-0 cursor-pointer"
-                                      title={`Add full Box (${boxPrice.toFixed(0)} PKR)`}
-                                    >
-                                      <Plus className="size-3.5" />
-                                      <span>Box ({boxPrice.toFixed(0)} PKR)</span>
-                                    </Button>
-                                  )
-                                ) : (
-                                  /* Single-Unit Item (Syrups, Injections, Drops, etc.) */
-                                  boxQty > 0 ? (
-                                    <div className="flex items-center rounded-lg border border-primary/60 bg-primary/10 shadow-2xs overflow-hidden h-7.5 shrink-0">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleDropdownDecrement(prod, 'BOX')}
-                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer"
-                                        title={`Decrease ${prod.unit} quantity (-1)`}
-                                      >
-                                        <Minus className="size-3" />
-                                      </Button>
-                                      <DraftQuantityInput
-                                        value={boxQty}
-                                        min={1}
-                                        max={boxesAddable}
-                                        onChange={(val) => handleDropdownSetQuantity(prod, 'BOX', val)}
-                                        className="h-7.5 w-9 text-center font-extrabold text-xs text-primary bg-card border-0 border-x border-primary/30 rounded-none px-0.5 focus-visible:ring-0"
-                                        title={`Type ${prod.unit} quantity`}
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        disabled={boxQty >= boxesAddable}
-                                        onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                        className="size-7 rounded-none text-primary hover:bg-primary/20 font-bold shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                        title={boxQty >= boxesAddable ? `All ${totalAvailableUnits} ${prod.unit}s allocated in cart` : `Increase ${prod.unit} quantity (+1)`}
-                                      >
-                                        <Plus className="size-3" />
-                                      </Button>
-                                      <span className="text-[10px] font-bold text-primary px-1.5 whitespace-nowrap">
-                                        {prod.unit}
-                                      </span>
-                                    </div>
-                                  ) : boxesAddable <= 0 ? (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      disabled
-                                      className="h-7.5 px-2.5 text-xs font-semibold gap-1 opacity-50 cursor-not-allowed border-border/60 whitespace-nowrap shrink-0"
-                                      title={`All ${totalAvailableUnits} ${prod.unit}s allocated in cart`}
-                                    >
-                                      <span>{prod.unit} (Max in Cart)</span>
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      type="button"
-                                      variant="default"
-                                      size="sm"
-                                      onClick={() => handleDropdownIncrement(prod, 'BOX')}
-                                      className="h-7.5 px-2.5 text-xs font-bold gap-1 shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
-                                      title={`Add 1 ${prod.unit} (${boxPrice.toFixed(0)} PKR)`}
-                                    >
-                                      <Plus className="size-3.5" />
-                                      <span>{prod.unit} ({boxPrice.toFixed(0)} PKR)</span>
-                                    </Button>
-                                  )
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </CardContent>
           </Card>
 

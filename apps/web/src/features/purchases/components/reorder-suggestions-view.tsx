@@ -215,9 +215,8 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                 Sales Velocity & Lead Times
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-none">
-              Calculates dynamic reorder points based on real POS sales burn rate, current shelf stock,
-              and distributor lead times to prevent stockouts while optimizing working capital.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              AI evaluates live sales burn rate, current shelf stock, and distributor lead times to prevent stockouts while optimizing working capital.
             </p>
           </div>
 
@@ -245,7 +244,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               size="sm"
               onClick={() => fetchSuggestions(true)}
               disabled={isRefreshing || isLoading}
-              className="gap-1.5 h-8 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer"
+              className="gap-1.5 h-8 text-xs font-semibold bg-card hover:bg-muted border-border/80 text-foreground cursor-pointer shadow-2xs"
             >
               <RefreshCw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
               <span>Recalculate</span>
@@ -257,21 +256,21 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
       {/* High-Level Metric StatCards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
-          label="Critical Stockouts"
+          label="Critical Risks"
           value={isError ? '—' : isLoading ? '...' : criticalCount.toString()}
           icon={criticalCount > 0 ? AlertTriangle : ShieldCheck}
           variant={isError ? 'default' : criticalCount > 0 ? 'destructive' : 'success'}
-          caption={isError ? 'Forecast calculation failed' : criticalCount > 0 ? 'Stockout imminent before delivery' : '0 stockout risks detected'}
+          caption={isError ? 'Calculation error' : criticalCount > 0 ? 'Stockout before delivery' : 'Stock levels healthy'}
         />
         <StatCard
-          label="Medicines to Order"
+          label="Need Reorder"
           value={isError ? '—' : isLoading ? '...' : totalReordersNeeded.toString()}
           icon={totalReordersNeeded > 0 ? ShoppingCart : CheckCircle2}
           variant={isError ? 'default' : totalReordersNeeded > 0 ? 'warning' : 'success'}
-          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? 'Products below replenishment threshold' : 'All stock levels healthy'}
+          caption={isError ? 'Unavailable' : totalReordersNeeded > 0 ? 'Below buffer threshold' : 'All stock healthy'}
         />
         <StatCard
-          label={totalReordersNeeded > 0 ? 'Suggested Units to Order' : 'Catalog Medicines Tracked'}
+          label={totalReordersNeeded > 0 ? 'Suggested Units' : 'Catalog Tracked'}
           value={
             isError
               ? '—'
@@ -282,13 +281,13 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               : totalCatalogCount.toString()
           }
           icon={Package}
-          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? '14-day stock safety coverage' : '100% adequate coverage'}
+          caption={isError ? 'Unavailable' : totalReordersNeeded > 0 ? '14-day stock safety' : 'Adequate coverage'}
         />
         <StatCard
-          label={totalReordersNeeded > 0 ? 'Estimated Order Cost' : 'Reorder Capital Needed'}
+          label={totalReordersNeeded > 0 ? 'Estimated Outlay' : 'Capital Needed'}
           value={isError ? '—' : isLoading ? 'Calculating...' : formatCurrency(summary?.totalEstimatedCost ?? 0)}
           icon={DollarSign}
-          caption={isError ? 'Analysis unavailable' : totalReordersNeeded > 0 ? 'Projected purchase outlay' : 'No purchase outlay needed'}
+          caption={isError ? 'Unavailable' : totalReordersNeeded > 0 ? 'Projected purchase cost' : 'No outlay needed'}
         />
       </div>
 
@@ -308,7 +307,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             </div>
 
             {/* Quick Action Badges / Filters */}
-            <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 scrollbar-none pb-0.5">
+            <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 custom-scrollbar pb-0.5">
               <div className="flex items-center gap-1.5 w-max">
                 {[
                   { label: 'Needs Reorder', value: 'REORDER_NEEDED', count: (summary?.criticalReordersCount ?? 0) + (summary?.reorderSoonCount ?? 0), variant: 'warning' },
@@ -328,22 +327,22 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                         : 'bg-card hover:bg-muted border-border/80 text-foreground/80'
                     }`}
                   >
-                    {tier.label}
-                  {tier.count !== undefined && (
-                    <span
-                      className={`px-1.5 py-0.2 rounded-full text-micro font-mono ${
-                        urgencyFilter === tier.value
-                          ? 'bg-primary-foreground/20 text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {tier.count}
-                    </span>
-                  )}
-                </Button>
-              ))}
+                    <span>{tier.label}</span>
+                    {tier.count !== undefined && (
+                      <span
+                        className={`px-1.5 py-0.2 rounded-full text-micro font-mono ${
+                          urgencyFilter === tier.value
+                            ? 'bg-primary-foreground/20 text-primary-foreground font-bold'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {tier.count}
+                      </span>
+                    )}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
         </div>
       </CardContent>
     </Card>
@@ -361,21 +360,45 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             </CardDescription>
           </div>
 
-          {selectedProductIds.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-foreground">
-                {selectedProductIds.length} item{selectedProductIds.length === 1 ? '' : 's'} selected
-              </span>
-              <Button
-                size="sm"
-                onClick={handleBulkConvertToPO}
-                className="h-8 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {data?.suggestions && data.suggestions.length > 0 && (
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/80 bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+                aria-label="Select all replenishment suggestions"
               >
-                <Plus className="size-3.5" />
-                Convert Selected to PO
-              </Button>
-            </div>
-          )}
+                {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                  <CheckSquare className="size-4 text-primary" />
+                ) : selectedProductIds.length > 0 ? (
+                  <MinusSquare className="size-4 text-primary" />
+                ) : (
+                  <Square className="size-4" />
+                )}
+                <span>
+                  {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0
+                    ? 'Deselect All'
+                    : 'Select All'}
+                </span>
+              </button>
+            )}
+
+            {selectedProductIds.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-foreground">
+                  {selectedProductIds.length} item{selectedProductIds.length === 1 ? '' : 's'} selected
+                </span>
+                <Button
+                  size="sm"
+                  onClick={handleBulkConvertToPO}
+                  className="h-8 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                >
+                  <Plus className="size-3.5" />
+                  Convert Selected to PO
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
 
         <CardContent className="p-0">
@@ -453,225 +476,388 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               />
             )
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse min-w-[760px]">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40 text-overline font-semibold text-muted-foreground uppercase tracking-wider">
-                    <th className="py-3 px-3 w-10 text-center">
-                      <button
-                        onClick={handleToggleSelectAll}
-                        aria-label="Select all items"
-                        className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
-                      >
-                        {data?.suggestions && selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
-                          <CheckSquare className="size-4 text-primary" />
-                        ) : selectedProductIds.length > 0 ? (
-                          <MinusSquare className="size-4 text-primary" />
-                        ) : (
-                          <Square className="size-4" />
-                        )}
-                      </button>
-                    </th>
-                    <th className="py-3 px-4">Medicine & Details</th>
-                    <th className="py-3 px-3">Stock vs Reorder Point</th>
-                    <th className="py-3 px-3">Daily Velocity</th>
-                    <th className="py-3 px-3">Run-out Timeline</th>
-                    <th className="py-3 px-3">Supplier & Lead Time</th>
-                    <th className="py-3 px-3 text-right">Suggested Order</th>
-                    <th className="py-3 px-3">Urgency Status</th>
-                    <th className="py-3 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {data.suggestions.map((item) => {
-                    const isSelected = selectedProductIds.includes(item.productId);
-                    const isStockout = item.currentStock === 0;
-                    const isCritical = item.urgencyLevel === 'CRITICAL_REORDER';
+            <>
+              {/* Mobile Card Layout */}
+              <div className="md:hidden divide-y divide-border/40">
+                {data.suggestions.map((item) => {
+                  const isSelected = selectedProductIds.includes(item.productId);
+                  const isStockout = item.currentStock === 0;
+                  const isCritical = item.urgencyLevel === 'CRITICAL_REORDER';
 
-                    return (
-                      <tr
-                        key={item.productId}
-                        className={`hover:bg-muted/30 transition-colors ${
-                          isSelected
-                            ? 'bg-primary/5'
-                            : isStockout
-                            ? 'bg-destructive/5'
-                            : isCritical
-                            ? 'bg-warning/5'
-                            : ''
-                        }`}
-                      >
-                        {/* Checkbox */}
-                        <td className="py-3 px-3 text-center align-middle">
+                  return (
+                    <div
+                      key={`m-${item.productId}`}
+                      className={`p-3.5 sm:p-4 space-y-3 transition-colors ${
+                        isSelected
+                          ? 'bg-primary/5'
+                          : isStockout
+                          ? 'bg-destructive/[0.04]'
+                          : isCritical
+                          ? 'bg-warning/[0.04]'
+                          : 'hover:bg-muted/30'
+                      }`}
+                    >
+                      {/* Top Row: Checkbox + Product Name & Urgency Badge */}
+                      <div className="flex items-start justify-between gap-2.5">
+                        <div className="flex items-start gap-2.5 min-w-0">
                           <button
                             onClick={() => handleToggleSelectItem(item.productId)}
                             aria-label={`Select ${item.productName}`}
-                            className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
+                            className="mt-0.5 text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer shrink-0"
                           >
                             {isSelected ? (
-                              <CheckSquare className="size-4 text-primary" />
+                              <CheckSquare className="size-4.5 text-primary" />
                             ) : (
-                              <Square className="size-4" />
+                              <Square className="size-4.5" />
                             )}
                           </button>
-                        </td>
-
-                        {/* Medicine */}
-                        <td className="py-3 px-4 align-top">
-                          <div className="font-semibold text-foreground text-sm">
-                            {item.productName}
-                          </div>
-                          {item.genericName && (
-                            <div className="text-xs text-muted-foreground line-clamp-1 italic">
-                              {item.genericName}
+                          <div className="min-w-0">
+                            <div className="font-semibold text-foreground text-sm leading-snug">
+                              {item.productName}
                             </div>
-                          )}
-                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span className="bg-secondary px-1.5 py-0.5 rounded text-micro font-medium text-secondary-foreground">
-                              {formatCategory(item.category)}
-                            </span>
-                            {item.barcode && <span className="font-mono text-micro">#{item.barcode}</span>}
+                            {item.genericName && (
+                              <div className="text-micro text-muted-foreground line-clamp-1 italic mt-0.5">
+                                {item.genericName}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 text-micro text-muted-foreground flex-wrap">
+                              <span className="bg-secondary px-1.5 py-0.5 rounded font-medium text-secondary-foreground">
+                                {formatCategory(item.category)}
+                              </span>
+                              {item.barcode && <span className="font-mono text-micro">#{item.barcode}</span>}
+                            </div>
                           </div>
-                        </td>
+                        </div>
+                        <div className="shrink-0">{renderUrgencyBadge(item.urgencyLevel)}</div>
+                      </div>
 
-                        {/* Stock vs Reorder Point */}
-                        <td className="py-3 px-3 align-top whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
+                      {/* Stock & Velocity Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-micro bg-muted/40 p-2.5 rounded-lg border border-border/40">
+                        <div>
+                          <span className="text-muted-foreground block">Stock on Hand:</span>
+                          <span
+                            className={`font-bold text-xs tabular-nums ${
+                              item.currentStock === 0
+                                ? 'text-destructive'
+                                : item.currentStock <= item.reorderPoint
+                                ? 'text-warning'
+                                : 'text-foreground'
+                            }`}
+                          >
+                            {item.currentStock} {item.unit}
+                          </span>
+                          <span className="text-muted-foreground block text-[10px]">
+                            Trigger: {item.reorderPoint} {item.unit}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Run-out Timeline:</span>
+                          {item.currentStock === 0 ? (
+                            <span className="text-destructive font-bold block text-xs">
+                              Out of Stock Now
+                            </span>
+                          ) : item.daysUntilStockout < 999 ? (
                             <span
-                              className={`font-bold text-sm tabular-nums ${
-                                item.currentStock === 0
+                              className={`font-bold block text-xs ${
+                                item.daysUntilStockout <= item.supplier.leadTimeDays
                                   ? 'text-destructive'
-                                  : item.currentStock <= item.reorderPoint
+                                  : item.daysUntilStockout <= 14
                                   ? 'text-warning'
                                   : 'text-foreground'
                               }`}
                             >
-                              {item.currentStock} {item.unit}
+                              ~{item.daysUntilStockout}d remaining
                             </span>
-                          </div>
-                          <div className="text-micro text-muted-foreground mt-0.5">
-                            Reorder Trigger: <strong className="text-foreground">{item.reorderPoint}</strong> {item.unit}
-                          </div>
-                          <div className="text-micro text-muted-foreground">
-                            Safety Buffer: <strong className="text-foreground">{item.lowStockThreshold}</strong> {item.unit}
-                          </div>
-                        </td>
-
-                        {/* Daily Sales Velocity */}
-                        <td className="py-3 px-3 align-top whitespace-nowrap">
-                          <div className="flex items-center gap-1 font-semibold text-foreground">
+                          ) : (
+                            <span className="text-muted-foreground block text-xs">Safe coverage</span>
+                          )}
+                          <span className="text-muted-foreground block text-[10px]">
+                            Safety Buffer: {item.lowStockThreshold} {item.unit}
+                          </span>
+                        </div>
+                        <div className="pt-1 border-t border-border/30">
+                          <span className="text-muted-foreground block">Daily Velocity:</span>
+                          <span className="font-semibold text-foreground flex items-center gap-1">
                             {item.dailySalesVelocity > 0 ? (
                               <>
-                                <TrendingUp className="size-3 text-success" />
-                                <span>{item.dailySalesVelocity} {item.unit}/day</span>
+                                <TrendingUp className="size-2.5 text-success" />
+                                <span>{item.dailySalesVelocity} {item.unit}/d</span>
                               </>
                             ) : (
                               <>
-                                <TrendingDown className="size-3 text-muted-foreground" />
-                                <span className="text-muted-foreground">0.00 {item.unit}/day</span>
+                                <TrendingDown className="size-2.5 text-muted-foreground" />
+                                <span className="text-muted-foreground">0.00/d</span>
                               </>
                             )}
-                          </div>
-                          <div className="text-micro text-muted-foreground">
-                            {item.totalUnitsSoldInTimeframe > 0 ? (
-                              `${item.totalUnitsSoldInTimeframe} sold in ${item.timeframeDays}d`
-                            ) : (
-                              `0 sold in ${item.timeframeDays}d • Restocking buffer`
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Run-out Timeline */}
-                        <td className="py-3 px-3 align-top whitespace-nowrap">
-                          {item.currentStock === 0 ? (
-                            <span className="text-destructive font-bold text-xs flex items-center gap-1">
-                              <AlertTriangle className="size-3" /> Out of Stock Now
+                          </span>
+                        </div>
+                        <div className="pt-1 border-t border-border/30 min-w-0">
+                          <span className="text-muted-foreground block">Supplier Vendor:</span>
+                          <span className="font-medium text-foreground truncate block" title={item.supplier.name}>
+                            {item.supplier.name}
+                          </span>
+                          <span className="text-muted-foreground block text-[10px]">
+                            {item.supplier.leadTimeDays}d lead time
+                          </span>
+                        </div>
+                        <div className="col-span-2 pt-1.5 border-t border-border/40 flex justify-between items-center bg-primary/[0.03] -mx-2.5 -mb-2.5 px-2.5 py-1.5 rounded-b-lg">
+                          <div>
+                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Suggested Reorder:</span>
+                            <span className="font-bold text-primary text-xs tabular-nums">
+                              +{item.suggestedQuantity} {item.unit}
                             </span>
-                          ) : item.daysUntilStockout < 999 ? (
-                            <div>
-                              <div
-                                className={`font-semibold text-xs ${
-                                  item.daysUntilStockout <= item.supplier.leadTimeDays
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-foreground text-xs tabular-nums block">
+                              {formatCurrency(item.estimatedOrderCost)}
+                            </span>
+                            <span className="text-muted-foreground text-[10px] tabular-nums block">
+                              @ {formatCurrency(item.estimatedUnitCost)}/{item.unit}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Action Row */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="text-micro text-muted-foreground line-clamp-1 italic max-w-[55%]">
+                          {item.reason}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSingleConvertToPO(item)}
+                          className="h-8 px-3 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer shrink-0"
+                        >
+                          <ShoppingCart className="size-3.5" />
+                          <span>Convert to PO</span>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop Table Layout */}
+              <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                <table className="w-full text-xs text-left border-collapse min-w-[960px]">
+                  <thead>
+                    <tr className="border-b border-border/60 bg-muted/40 text-micro font-semibold text-muted-foreground uppercase tracking-wider">
+                      <th className="py-3 px-3 w-10 text-center">
+                        <button
+                          onClick={handleToggleSelectAll}
+                          aria-label="Select all items"
+                          className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
+                        >
+                          {data?.suggestions && selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                            <CheckSquare className="size-4 text-primary" />
+                          ) : selectedProductIds.length > 0 ? (
+                            <MinusSquare className="size-4 text-primary" />
+                          ) : (
+                            <Square className="size-4" />
+                          )}
+                        </button>
+                      </th>
+                      <th className="py-3 px-4">Medicine & Details</th>
+                      <th className="py-3 px-3">Stock vs Reorder Point</th>
+                      <th className="py-3 px-3">Daily Velocity</th>
+                      <th className="py-3 px-3">Run-out Timeline</th>
+                      <th className="py-3 px-3">Supplier & Lead Time</th>
+                      <th className="py-3 px-3 text-right">Suggested Order</th>
+                      <th className="py-3 px-3">Urgency Status</th>
+                      <th className="py-3 px-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {data.suggestions.map((item) => {
+                      const isSelected = selectedProductIds.includes(item.productId);
+                      const isStockout = item.currentStock === 0;
+                      const isCritical = item.urgencyLevel === 'CRITICAL_REORDER';
+
+                      return (
+                        <tr
+                          key={item.productId}
+                          className={`hover:bg-muted/30 transition-colors ${
+                            isSelected
+                              ? 'bg-primary/5'
+                              : isStockout
+                              ? 'bg-destructive/5'
+                              : isCritical
+                              ? 'bg-warning/5'
+                              : ''
+                          }`}
+                        >
+                          {/* Checkbox */}
+                          <td className="py-3 px-3 text-center align-middle">
+                            <button
+                              onClick={() => handleToggleSelectItem(item.productId)}
+                              aria-label={`Select ${item.productName}`}
+                              className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="size-4 text-primary" />
+                              ) : (
+                                <Square className="size-4" />
+                              )}
+                            </button>
+                          </td>
+
+                          {/* Medicine */}
+                          <td className="py-3 px-4 align-top">
+                            <div className="font-semibold text-foreground text-sm">
+                              {item.productName}
+                            </div>
+                            {item.genericName && (
+                              <div className="text-xs text-muted-foreground line-clamp-1 italic">
+                                {item.genericName}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                              <span className="bg-secondary px-1.5 py-0.5 rounded text-micro font-medium text-secondary-foreground">
+                                {formatCategory(item.category)}
+                              </span>
+                              {item.barcode && <span className="font-mono text-micro">#{item.barcode}</span>}
+                            </div>
+                          </td>
+
+                          {/* Stock vs Reorder Point */}
+                          <td className="py-3 px-3 align-top whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`font-bold text-sm tabular-nums ${
+                                  item.currentStock === 0
                                     ? 'text-destructive'
-                                    : item.daysUntilStockout <= 14
+                                    : item.currentStock <= item.reorderPoint
                                     ? 'text-warning'
                                     : 'text-foreground'
                                 }`}
                               >
-                                ~{item.daysUntilStockout} days remaining
-                              </div>
-                              <div className="text-micro text-muted-foreground">
-                                Runs out: {item.estimatedStockoutDate ? formatDate(item.estimatedStockoutDate) : '-'}
-                              </div>
+                                {item.currentStock} {item.unit}
+                              </span>
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">Adequate coverage</span>
-                          )}
-                        </td>
+                            <div className="text-micro text-muted-foreground mt-0.5">
+                              Reorder Trigger: <strong className="text-foreground">{item.reorderPoint}</strong> {item.unit}
+                            </div>
+                            <div className="text-micro text-muted-foreground">
+                              Safety Buffer: <strong className="text-foreground">{item.lowStockThreshold}</strong> {item.unit}
+                            </div>
+                          </td>
 
-                        {/* Supplier & Lead Time */}
-                        <td className="py-3 px-3 align-top">
-                          <div className="font-medium text-foreground flex items-center gap-1">
-                            <Truck className="size-3 text-muted-foreground shrink-0" />
-                            <span className="line-clamp-1">{item.supplier.name}</span>
-                          </div>
-                          <div className="text-micro text-muted-foreground mt-0.5">
-                            Lead Time: <strong className="text-foreground">{item.supplier.leadTimeDays} days</strong> delivery
-                          </div>
-                        </td>
+                          {/* Daily Sales Velocity */}
+                          <td className="py-3 px-3 align-top whitespace-nowrap">
+                            <div className="flex items-center gap-1 font-semibold text-foreground">
+                              {item.dailySalesVelocity > 0 ? (
+                                <>
+                                  <TrendingUp className="size-3 text-success" />
+                                  <span>{item.dailySalesVelocity} {item.unit}/day</span>
+                                </>
+                              ) : (
+                                <>
+                                  <TrendingDown className="size-3 text-muted-foreground" />
+                                  <span className="text-muted-foreground">0.00 {item.unit}/day</span>
+                                </>
+                              )}
+                            </div>
+                            <div className="text-micro text-muted-foreground">
+                              {item.totalUnitsSoldInTimeframe > 0 ? (
+                                `${item.totalUnitsSoldInTimeframe} sold in ${item.timeframeDays}d`
+                              ) : (
+                                `0 sold in ${item.timeframeDays}d • Restocking buffer`
+                              )}
+                            </div>
+                          </td>
 
-                        {/* Suggested Order */}
-                        <td className="py-3 px-3 align-top text-right whitespace-nowrap">
-                          <div className="font-bold text-primary text-sm tabular-nums">
-                            +{item.suggestedQuantity} {item.unit}
-                          </div>
-                          <div className="text-xs font-semibold text-foreground tabular-nums">
-                            {formatCurrency(item.estimatedOrderCost)}
-                          </div>
-                          <div className="text-micro text-muted-foreground tabular-nums">
-                            @ {formatCurrency(item.estimatedUnitCost)}/unit
-                          </div>
-                        </td>
+                          {/* Run-out Timeline */}
+                          <td className="py-3 px-3 align-top whitespace-nowrap">
+                            {item.currentStock === 0 ? (
+                              <span className="text-destructive font-bold text-xs flex items-center gap-1">
+                                <AlertTriangle className="size-3" /> Out of Stock Now
+                              </span>
+                            ) : item.daysUntilStockout < 999 ? (
+                              <div>
+                                <div
+                                  className={`font-semibold text-xs ${
+                                    item.daysUntilStockout <= item.supplier.leadTimeDays
+                                      ? 'text-destructive'
+                                      : item.daysUntilStockout <= 14
+                                      ? 'text-warning'
+                                      : 'text-foreground'
+                                  }`}
+                                >
+                                  ~{item.daysUntilStockout} days remaining
+                                </div>
+                                <div className="text-micro text-muted-foreground">
+                                  Runs out: {item.estimatedStockoutDate ? formatDate(item.estimatedStockoutDate) : '-'}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">Adequate coverage</span>
+                            )}
+                          </td>
 
-                        {/* Urgency Status */}
-                        <td className="py-3 px-3 align-top">
-                          {renderUrgencyBadge(item.urgencyLevel)}
-                          <div
-                            title={item.reason}
-                            className="text-micro text-muted-foreground mt-1 line-clamp-2 max-w-[220px]"
-                          >
-                            {item.reason}
-                          </div>
-                        </td>
+                          {/* Supplier & Lead Time */}
+                          <td className="py-3 px-3 align-top min-w-[150px]">
+                            <div className="font-medium text-foreground flex items-center gap-1">
+                              <Truck className="size-3 text-muted-foreground shrink-0" />
+                              <span className="line-clamp-1">{item.supplier.name}</span>
+                            </div>
+                            <div className="text-micro text-muted-foreground mt-0.5 whitespace-nowrap">
+                              Lead Time: <strong className="text-foreground">{item.supplier.leadTimeDays} days</strong> delivery
+                            </div>
+                          </td>
 
-                        {/* Action: Convert to PO */}
-                        <td className="py-3 px-4 align-top text-right whitespace-nowrap">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSingleConvertToPO(item)}
-                            className="h-8 px-2.5 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer"
-                          >
-                            <ShoppingCart className="size-3.5" />
-                            <span>Convert to PO</span>
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          {/* Suggested Order */}
+                          <td className="py-3 px-3 align-top text-right whitespace-nowrap">
+                            <div className="font-bold text-primary text-sm tabular-nums">
+                              +{item.suggestedQuantity} {item.unit}
+                            </div>
+                            <div className="text-xs font-semibold text-foreground tabular-nums">
+                              {formatCurrency(item.estimatedOrderCost)}
+                            </div>
+                            <div className="text-micro text-muted-foreground tabular-nums">
+                              @ {formatCurrency(item.estimatedUnitCost)}/unit
+                            </div>
+                          </td>
+
+                          {/* Urgency Status */}
+                          <td className="py-3 px-3 align-top whitespace-nowrap">
+                            {renderUrgencyBadge(item.urgencyLevel)}
+                            <div
+                              title={item.reason}
+                              className="text-micro text-muted-foreground mt-1 line-clamp-2 max-w-[220px]"
+                            >
+                              {item.reason}
+                            </div>
+                          </td>
+
+                          {/* Action: Convert to PO */}
+                          <td className="py-3 px-4 align-top text-right whitespace-nowrap">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSingleConvertToPO(item)}
+                              className="h-8 px-2.5 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer"
+                            >
+                              <ShoppingCart className="size-3.5" />
+                              <span>Convert to PO</span>
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
       {/* Floating Sticky Bulk Reorder Action Bar */}
       {selectedProductIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl px-4 sm:px-5 py-3 flex items-center gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-32px)] sm:w-auto max-w-lg bg-card/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl px-3.5 sm:px-5 py-2.5 sm:py-3 flex items-center justify-between gap-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-primary animate-pulse" />
+            <span className="size-2 rounded-full bg-primary animate-pulse shrink-0" />
             <span className="text-xs font-semibold text-foreground whitespace-nowrap">
-              {selectedProductIds.length} {selectedProductIds.length === 1 ? 'medicine' : 'medicines'} selected
+              {selectedProductIds.length} <span className="hidden sm:inline">medicine{selectedProductIds.length === 1 ? '' : 's'}</span> selected
             </span>
           </div>
           <div className="h-4 w-px bg-border/80 shrink-0" />
@@ -690,7 +876,8 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
               className="h-8 px-3 sm:px-4 text-xs font-bold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs cursor-pointer whitespace-nowrap"
             >
               <ShoppingCart className="size-3.5" />
-              <span>Convert to Purchase Order</span>
+              <span className="sm:hidden">Convert to PO</span>
+              <span className="hidden sm:inline">Convert to Purchase Order</span>
             </Button>
           </div>
         </div>

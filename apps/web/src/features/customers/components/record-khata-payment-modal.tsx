@@ -158,7 +158,7 @@ export function RecordKhataPaymentModal({
                   placeholder="e.g. 500"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="h-10 text-base font-bold font-mono pr-14"
+                  className="h-10 text-base font-bold font-mono pr-14 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   required
                   autoFocus
                 />

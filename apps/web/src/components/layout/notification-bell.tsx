@@ -83,7 +83,7 @@ export function NotificationBell() {
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative size-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+        className="relative size-8.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 cursor-pointer"
         title="Notifications"
       >
         <Bell className="size-4" />
@@ -108,8 +108,8 @@ export function NotificationBell() {
           />
 
           {/* Dropdown Panel - Firmly anchored right beneath notification bell, responsive full-width card */}
-          <div className="absolute -right-8 sm:right-0 mt-2 z-50 w-[min(380px,calc(100vw-1.5rem))] sm:w-[380px] rounded-xl border border-border bg-card shadow-2xl overflow-hidden font-sans">
-            <div className="flex items-center justify-between gap-2 p-3 border-b border-border bg-muted/30">
+          <div className="absolute -right-8 sm:right-0 mt-2 z-50 w-[min(380px,calc(100vw-1.5rem))] sm:w-[380px] rounded-2xl border border-border/80 bg-popover shadow-2xl overflow-hidden font-sans">
+            <div className="flex items-center justify-between gap-2 p-3 border-b border-border/70 bg-muted/40">
               <div className="flex items-center gap-1.5 min-w-0">
                 <Bell className="size-4 text-primary shrink-0" />
                 <span className="text-sm font-bold text-foreground truncate">Notifications</span>

@@ -124,18 +124,26 @@ export function EditBatchModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="pb-3 border-b border-border/80 pr-6 sm:pr-8">
-          <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-foreground">
-            <Edit3 className="size-4 text-primary shrink-0" />
-            <span>Edit Batch {batch ? `#${batch.batchNumber}` : 'Details'}</span>
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-            Update expiry date, stock quantities, pricing, and shelf location for this batch.
-          </DialogDescription>
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden shadow-2xl rounded-2xl border border-border bg-background">
+        {/* Pinned Header */}
+        <DialogHeader className="p-4 sm:p-5 border-b border-border/80 shrink-0 bg-muted/20">
+          <div className="flex items-center gap-2.5">
+            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Edit3 className="size-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-base sm:text-lg font-bold text-foreground">
+                Edit Batch {batch ? `#${batch.batchNumber}` : 'Details'}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Update expiry date, stock quantities, pricing, and shelf location for this batch.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
           {/* Section 1: Batch Identification & Dates */}
           <div className="space-y-3 p-3 rounded-lg bg-muted/30 border border-border">
             <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
@@ -143,8 +151,8 @@ export function EditBatchModal({
               <span>Batch Tracking & Manufacturing/Expiry</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1 sm:col-span-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <div className="space-y-1.5 flex flex-col justify-end sm:col-span-1">
                 <Label htmlFor="batchNumber" className="text-micro font-semibold">
                   Batch Number / Lot ID *
                 </Label>
@@ -158,7 +166,7 @@ export function EditBatchModal({
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="mfgDate" className="text-micro font-semibold">
                   Manufacturing Date
                 </Label>
@@ -171,7 +179,7 @@ export function EditBatchModal({
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="expiryDate" className="text-micro font-semibold">
                   Expiry Date *
                 </Label>
@@ -194,8 +202,8 @@ export function EditBatchModal({
               <span>Stock Quantities & Storage Location</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="quantityRemaining" className="text-micro font-semibold">
                   Quantity Remaining ({unit.endsWith('s') ? unit : `${unit}s`}) *
                 </Label>
@@ -207,12 +215,12 @@ export function EditBatchModal({
                   onChange={(e) =>
                     setQuantityRemaining(e.target.value === '' ? '' : Number(e.target.value))
                   }
-                  className="h-8 text-xs font-bold text-foreground"
+                  className="h-8 text-xs font-bold text-foreground [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   required
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="quantityReceived" className="text-micro font-semibold">
                   Total Received ({unit.endsWith('s') ? unit : `${unit}s`})
                 </Label>
@@ -224,11 +232,11 @@ export function EditBatchModal({
                   onChange={(e) =>
                     setQuantityReceived(e.target.value === '' ? '' : Number(e.target.value))
                   }
-                  className="h-8 text-xs"
+                  className="h-8 text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="rackNumber" className="text-micro font-semibold">
                   Rack / Shelf Number
                 </Label>
@@ -245,14 +253,14 @@ export function EditBatchModal({
 
           {/* Section 3: Pricing & Profit Margin Analysis */}
           <div className="space-y-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
               <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
                 <TrendingUp className="size-3.5 text-primary" />
                 <span>Pricing & Gross Margin Analysis</span>
               </div>
               <Badge
                 variant="outline"
-                className={`text-micro ${
+                className={`text-micro tabular-nums font-semibold shrink-0 ${
                   profitPerUnit >= 0
                     ? 'bg-success/10 text-success border-success/20'
                     : 'bg-destructive/10 text-destructive border-destructive/20'
@@ -262,10 +270,10 @@ export function EditBatchModal({
               </Badge>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="costPrice" className="text-micro font-semibold">
-                  Purchase Cost Price (PKR)
+            <div className="grid grid-cols-2 gap-3 items-end">
+              <div className="space-y-1.5 flex flex-col justify-end">
+                <Label htmlFor="costPrice" className="text-micro font-semibold block leading-tight">
+                  Purchase Cost (PKR)
                 </Label>
                 <Input
                   id="costPrice"
@@ -274,12 +282,12 @@ export function EditBatchModal({
                   min="0"
                   value={costPrice}
                   onChange={(e) => setCostPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="sellPrice" className="text-micro font-semibold">
-                  Retail Price / Selling MRP (PKR)
+              <div className="space-y-1.5 flex flex-col justify-end">
+                <Label htmlFor="sellPrice" className="text-micro font-semibold block leading-tight">
+                  Retail MRP (PKR) *
                 </Label>
                 <Input
                   id="sellPrice"
@@ -288,7 +296,8 @@ export function EditBatchModal({
                   min="0"
                   value={sellPrice}
                   onChange={(e) => setSellPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="h-8 text-xs font-bold text-primary"
+                  className="h-8 text-xs font-bold text-primary font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  required
                 />
               </div>
             </div>
@@ -301,8 +310,8 @@ export function EditBatchModal({
               <span>Vendor & Purchase Invoice Audit Log</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="vendorName" className="text-micro font-semibold">
                   Distributor / Vendor Name
                 </Label>
@@ -315,7 +324,7 @@ export function EditBatchModal({
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="purchaseInvoiceNumber" className="text-micro font-semibold">
                   Invoice Number
                 </Label>
@@ -328,7 +337,7 @@ export function EditBatchModal({
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5 flex flex-col justify-end">
                 <Label htmlFor="purchaseInvoiceDate" className="text-micro font-semibold">
                   Invoice Date
                 </Label>
@@ -343,18 +352,26 @@ export function EditBatchModal({
             </div>
           </div>
 
-          <DialogFooter className="pt-2 gap-2">
+          </div>
+
+          {/* Pinned Footer */}
+          <DialogFooter className="p-4 sm:p-5 border-t border-border/80 shrink-0 bg-muted/20 flex flex-row items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs h-9"
+              className="text-xs h-9 cursor-pointer"
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" className="text-xs h-9 gap-1.5 font-semibold" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              size="sm"
+              className="text-xs h-9 gap-1.5 font-semibold cursor-pointer shadow-xs"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />

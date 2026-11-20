@@ -14,7 +14,7 @@ export const metadata = {
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Overview Header & Quick Actions */}
       <DashboardHeader />
 
@@ -25,14 +25,14 @@ export default function DashboardPage() {
       <QuickActionsHub />
 
       {/* Primary Analytics & Attention Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-start">
         {/* Left Column (2 cols on large screen): Live Transaction Stream */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2">
           <RecentSalesWidget />
         </div>
 
         {/* Right Column (1 col on large screen): Urgent Attention & Catalog Readiness */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5">
           <UrgentAttentionPanel />
           <CatalogCompletionWidget />
         </div>

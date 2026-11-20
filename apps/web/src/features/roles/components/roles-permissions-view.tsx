@@ -55,10 +55,10 @@ export function RolesPermissionsView() {
         className="space-y-4"
       >
         <div className="flex items-center justify-between gap-2.5">
-          <TabsList className="h-9 p-1 bg-muted/60 rounded-xl border border-border/60 inline-flex items-center gap-1 w-auto">
+          <TabsList className="h-9 p-1 bg-muted/60 rounded-xl border border-border/70 inline-flex items-center gap-1 w-auto">
             <TabsTrigger
               value="team"
-              className="gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs rounded-lg transition-all cursor-pointer"
+              className="gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-2xs rounded-lg transition-all cursor-pointer"
             >
               <Users className="size-3.5 text-primary shrink-0" />
               <span>Staff Members</span>
@@ -68,7 +68,7 @@ export function RolesPermissionsView() {
             </TabsTrigger>
             <TabsTrigger
               value="roles"
-              className="gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 text-xs font-semibold data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs rounded-lg transition-all cursor-pointer"
+              className="gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1 text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border/60 data-[state=active]:shadow-2xs rounded-lg transition-all cursor-pointer"
             >
               <Shield className="size-3.5 text-primary shrink-0" />
               <span className="hidden xs:inline">Roles &amp; Permissions</span>

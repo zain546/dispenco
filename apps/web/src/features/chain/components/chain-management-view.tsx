@@ -414,17 +414,17 @@ export function ChainManagementView() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
-                <tr className="border-b border-border/80 text-muted-foreground bg-muted/30">
-                  <th className="py-2.5 px-3 font-semibold">Branch Name</th>
-                  <th className="py-2.5 px-3 font-semibold">Today&apos;s Sales</th>
-                  <th className="py-2.5 px-3 font-semibold">Month&apos;s Sales</th>
-                  <th className="py-2.5 px-3 font-semibold">Stock Valuation</th>
-                  <th className="py-2.5 px-3 font-semibold">Low Stock</th>
-                  <th className="py-2.5 px-3 font-semibold">Transfers</th>
-                  <th className="py-2.5 px-3 font-semibold text-right">Quick Action</th>
+                <tr className="border-b border-border/70 text-muted-foreground bg-muted/30 uppercase tracking-wider text-micro font-semibold">
+                  <th className="py-2.5 px-3">Branch Name</th>
+                  <th className="py-2.5 px-3">Today&apos;s Sales</th>
+                  <th className="py-2.5 px-3">Month&apos;s Sales</th>
+                  <th className="py-2.5 px-3">Stock Valuation</th>
+                  <th className="py-2.5 px-3">Low Stock</th>
+                  <th className="py-2.5 px-3">Transfers</th>
+                  <th className="py-2.5 px-3 text-right">Quick Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/60">
+              <tbody className="divide-y divide-border/50">
                 {isLoading ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-muted-foreground">
@@ -432,7 +432,7 @@ export function ChainManagementView() {
                     </td>
                   </tr>
                 ) : data?.stores.map((branch) => (
-                  <tr key={branch.id} className="hover:bg-muted/40 transition-colors">
+                  <tr key={branch.id} className="hover:bg-muted/25 transition-colors">
                     <td className="py-3 px-3">
                       <div className="font-semibold text-foreground">{branch.name}</div>
                       {branch.address ? (
