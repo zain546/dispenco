@@ -305,6 +305,16 @@ export class InventoryService {
     storeId?: string,
     allowExpired: boolean = false,
     tx?: Prisma.TransactionClient,
+    knownProduct?: { id: string; name: string; unit: string },
+    preloadedBatches?: Array<{
+      id: string;
+      productId: string;
+      batchNumber: string;
+      expiryDate: Date;
+      costPrice: any;
+      sellPrice: any;
+      quantityRemaining: number;
+    }>,
   ) {
     if (!quantityNeeded || quantityNeeded <= 0) {
       throw new BadRequestException('Requested quantity must be greater than zero');
@@ -312,9 +322,11 @@ export class InventoryService {
 
     const db = tx || this.prisma;
 
-    const product = await db.product.findFirst({
-      where: { id: productId, tenantId },
-    });
+    const product =
+      knownProduct ||
+      (await db.product.findFirst({
+        where: { id: productId, tenantId },
+      }));
 
     if (!product) {
       throw new NotFoundException(`Product with ID "${productId}" not found`);
@@ -322,11 +334,13 @@ export class InventoryService {
 
     let targetStoreId = storeId && storeId !== 'all' ? storeId : undefined;
     if (targetStoreId) {
-      const store = await db.store.findFirst({
-        where: { id: targetStoreId, tenantId, isActive: true },
-      });
-      if (!store) {
-        throw new NotFoundException(`Active store with ID "${targetStoreId}" not found for this tenant`);
+      if (!knownProduct) {
+        const store = await db.store.findFirst({
+          where: { id: targetStoreId, tenantId, isActive: true },
+        });
+        if (!store) {
+          throw new NotFoundException(`Active store with ID "${targetStoreId}" not found for this tenant`);
+        }
       }
     } else {
       const primaryStore = await db.store.findFirst({
@@ -342,16 +356,23 @@ export class InventoryService {
     const now = new Date();
 
     // Query active batches with stock remaining > 0, ordered by expiry date ASC (FEFO)
-    const batches = await db.batch.findMany({
-      where: {
-        tenantId,
-        productId,
-        storeId: targetStoreId,
-        quantityRemaining: { gt: 0 },
-        ...(!allowExpired ? { expiryDate: { gt: now } } : {}),
-      },
-      orderBy: { expiryDate: 'asc' },
-    });
+    const batches = preloadedBatches
+      ? preloadedBatches.filter(
+          (b) =>
+            b.productId === productId &&
+            b.quantityRemaining > 0 &&
+            (allowExpired || new Date(b.expiryDate) > now),
+        )
+      : await db.batch.findMany({
+          where: {
+            tenantId,
+            productId,
+            storeId: targetStoreId,
+            quantityRemaining: { gt: 0 },
+            ...(!allowExpired ? { expiryDate: { gt: now } } : {}),
+          },
+          orderBy: { expiryDate: 'asc' },
+        });
 
     const totalAvailable = batches.reduce((sum, b) => sum + b.quantityRemaining, 0);
 
@@ -390,6 +411,8 @@ export class InventoryService {
         quantityRemainingAfter: remainingAfter,
       });
 
+      // Update in-memory pool so subsequent allocations on same product know the new remaining count
+      batch.quantityRemaining = remainingAfter;
       remainingToDeduct -= deductAmount;
     }
 

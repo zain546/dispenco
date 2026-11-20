@@ -79,6 +79,18 @@ export class AuthRateLimitGuard implements CanActivate {
   }
 
   private checkMemoryFallback(key: string, now: number): number {
+    // Cap memory usage and prune expired buckets to prevent memory leaks during Redis outages
+    if (this.memoryBuckets.size > 500) {
+      for (const [k, v] of this.memoryBuckets.entries()) {
+        if (now > v.resetAt) {
+          this.memoryBuckets.delete(k);
+        }
+      }
+      if (this.memoryBuckets.size > 5000) {
+        this.memoryBuckets.clear();
+      }
+    }
+
     const existing = this.memoryBuckets.get(key);
     if (!existing || now > existing.resetAt) {
       this.memoryBuckets.set(key, { count: 1, resetAt: now + this.windowMs });

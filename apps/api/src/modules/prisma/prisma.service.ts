@@ -5,13 +5,21 @@ import { Pool } from 'pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  private readonly pool: Pool;
+
   constructor() {
     const connectionString =
       process.env.DATABASE_URL ||
       'postgresql://dispenco_user:dispenco_password@localhost:5432/dispenco_db?schema=public';
-    const pool = new Pool({ connectionString });
+    const pool = new Pool({
+      connectionString,
+      max: Number(process.env.DB_POOL_MAX) || 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
     const adapter = new PrismaPg(pool);
     super({ adapter });
+    this.pool = pool;
   }
 
   async onModuleInit() {
@@ -20,6 +28,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy() {
     await this.$disconnect();
+    await this.pool.end();
   }
 
   /**
