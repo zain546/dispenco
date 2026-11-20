@@ -48,25 +48,30 @@ jobs:
           script: |
             set -e
             echo "==> Navigating to project directory..."
-            cd ${{ secrets.VPS_DEPLOY_DIR || '/root/dispenco' }}
+            cd ${{ secrets.VPS_DEPLOY_DIR || '/home/ubuntu/dispenco' }}
+
+            DOCKER="docker"
+            if ! docker info >/dev/null 2>&1; then
+              DOCKER="sudo docker"
+            fi
 
             echo "==> Fetching latest changes from main..."
             git fetch origin main
             git reset --hard origin/main
 
             echo "==> Rebuilding API container..."
-            docker compose -f docker-compose.prod.yml build --pull api
+            $DOCKER compose -f docker-compose.prod.yml build --pull api
 
             echo "==> Starting updated API container..."
-            docker compose -f docker-compose.prod.yml up -d --no-deps api
+            $DOCKER compose -f docker-compose.prod.yml up -d --no-deps api
 
             echo "==> Running Prisma database migrations..."
-            docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy
+            $DOCKER compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy
 
             echo "==> Pruning dangling Docker images to preserve disk space..."
-            docker image prune -f
+            $DOCKER image prune -f
 
             echo "==> Checking API container status..."
-            docker compose -f docker-compose.prod.yml ps api
+            $DOCKER compose -f docker-compose.prod.yml ps api
 
             echo "✅ Deployment completed successfully!"

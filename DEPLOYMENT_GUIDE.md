@@ -156,10 +156,10 @@ In your GitHub repository, navigate to:
 Add the following 4 secrets:
 | Secret Name | Value Example | Description |
 |---|---|---|
-| `VPS_HOST` | `159.65.120.45` | Public IP or hostname of your VPS |
-| `VPS_USER` | `root` or `ubuntu` | SSH user with Docker permissions |
-| `VPS_SSH_KEY` | `-----BEGIN OPENSSH PRIVATE KEY-----...` | Private key generated above |
-| `VPS_DEPLOY_DIR` | `/root/dispenco` or `/home/ubuntu/dispenco` | Absolute path where repo is cloned |
+| `VPS_HOST` | `84.12.181.80` | Public IP or hostname of your Oracle Cloud VPS |
+| `VPS_USER` | `ubuntu` | SSH user on the VPS |
+| `VPS_SSH_KEY` | `-----BEGIN PRIVATE KEY-----...` | Contents of your `oracle.key` file |
+| `VPS_DEPLOY_DIR` | `/home/ubuntu/dispenco` | Absolute path where repo is cloned on the VPS |
 | `VPS_PORT` *(Optional)* | `22` | Custom SSH port if not default 22 |
 
 ### 3. Workflow Execution Flow
