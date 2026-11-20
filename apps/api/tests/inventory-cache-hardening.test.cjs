@@ -89,22 +89,62 @@ const productBatchesModalPath = path.join(
   '../../web/src/features/inventory/components/product-batches-modal.tsx'
 );
 
-test('ProductsService filters expiredBatchCount and nearExpiryBatchCount only from active stock batches', () => {
+const posTerminalPath = path.join(
+  __dirname,
+  '../../web/src/features/pos/components/pos-terminal.tsx'
+);
+
+test('ProductsService partitions active stock batches into non-expired sellable vs expired stock and prioritizes non-expired FEFO batch', () => {
   const source = fs.readFileSync(productsServicePath, 'utf8');
 
   assert.match(
     source,
-    /expiredBatchCount\s*=\s*activeStockBatches\.filter/,
-    'expiredBatchCount must be computed from activeStockBatches to avoid counting sold-out batches'
+    /nonExpiredBatches\s*=\s*activeStockBatches\.filter/,
+    'nonExpiredBatches must be computed from activeStockBatches to exclude sold-out and expired batches'
   );
   assert.match(
     source,
-    /nearExpiryBatchCount\s*=\s*activeStockBatches\.filter/,
-    'nearExpiryBatchCount must be computed from activeStockBatches'
+    /expiredBatches\s*=\s*activeStockBatches\.filter/,
+    'expiredBatches must be computed from activeStockBatches to avoid counting sold-out batches'
+  );
+  assert.match(
+    source,
+    /fefoBatch\s*=\s*nonExpiredBatches\[0\]\s*\|\|\s*activeStockBatches\[0\]/,
+    'fefoBatch must prioritize earliest non-expired batch before falling back to expired stock'
+  );
+  assert.match(
+    source,
+    /sellableStock/,
+    'ProductsService must expose sellableStock separately from totalStock'
+  );
+  assert.match(
+    source,
+    /expiredStock/,
+    'ProductsService must expose expiredStock separately from totalStock'
   );
 });
 
-test('ProductBatchesModal implements active vs depleted tabs, instant search, table view, and pagination', () => {
+test('POSTerminal enforces hard dispensing lock for 100%-expired products and uses sellableStock', () => {
+  const source = fs.readFileSync(posTerminalPath, 'utf8');
+
+  assert.match(
+    source,
+    /checkDispenseBlocked/,
+    'POSTerminal must define a centralized checkDispenseBlocked guard'
+  );
+  assert.match(
+    source,
+    /<span>Expired Stock<\/span>/,
+    'POSTerminal must replace action buttons with a locked Expired Stock badge when all stock is expired'
+  );
+  assert.match(
+    source,
+    /expired on shelf/,
+    'POSTerminal must surface a subtle shelf note when mixed-batch products have expired units excluded'
+  );
+});
+
+test('ProductBatchesModal implements active vs depleted tabs, instant search, table view, pagination, and 1-click audited expired write-off', () => {
   const source = fs.readFileSync(productBatchesModalPath, 'utf8');
 
   assert.match(
@@ -131,5 +171,10 @@ test('ProductBatchesModal implements active vs depleted tabs, instant search, ta
     source,
     /<EditBatchModal/,
     'ProductBatchesModal must support inline batch editing without navigating away'
+  );
+  assert.match(
+    source,
+    /EXPIRED_WRITEOFF/,
+    'ProductBatchesModal must support audited EXPIRED_WRITEOFF via adjustBatchStock'
   );
 });

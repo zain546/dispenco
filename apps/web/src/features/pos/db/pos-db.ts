@@ -84,6 +84,8 @@ export interface LocalProductRecord {
   lowStockThreshold: number;
   attributes: Record<string, unknown>;
   totalStock: number;
+  sellableStock?: number;
+  expiredStock?: number;
   latestSellPrice?: number | null;
   latestCostPrice?: number | null;
   nearestExpiryDate?: string | null;

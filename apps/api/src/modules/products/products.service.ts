@@ -260,30 +260,34 @@ export class ProductsService {
 
     const allMapped = rawProducts.map((product) => {
       const activeStockBatches = product.batches.filter((b) => b.quantityRemaining > 0);
-      const totalStock = product.batches.reduce(
-        (sum, batch) => sum + batch.quantityRemaining,
-        0
-      );
+      const nonExpiredBatches = activeStockBatches.filter((b) => new Date(b.expiryDate) > now);
+      const expiredBatches = activeStockBatches.filter((b) => new Date(b.expiryDate) <= now);
+
+      const sellableStock = nonExpiredBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+      const expiredStock = expiredBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+      const totalStock = sellableStock + expiredStock;
       const isLowStock = totalStock <= product.lowStockThreshold;
-      const latestBatch = activeStockBatches[0] || product.batches[0] || null;
+      const fefoBatch = nonExpiredBatches[0] || activeStockBatches[0] || product.batches[0] || null;
 
       const batchCount = product.batches.length;
-      const expiredBatchCount = activeStockBatches.filter((b) => new Date(b.expiryDate) <= now).length;
-      const nearExpiryBatchCount = activeStockBatches.filter((b) => {
+      const expiredBatchCount = expiredBatches.length;
+      const nearExpiryBatchCount = nonExpiredBatches.filter((b) => {
         const exp = new Date(b.expiryDate);
-        return exp > now && exp <= hundredEightyDaysFromNow;
+        return exp <= hundredEightyDaysFromNow;
       }).length;
 
       return {
         ...product,
         totalStock,
+        sellableStock,
+        expiredStock,
         isLowStock,
         batchCount,
         expiredBatchCount,
         nearExpiryBatchCount,
-        latestCostPrice: latestBatch ? Number(latestBatch.costPrice) : null,
-        latestSellPrice: latestBatch ? Number(latestBatch.sellPrice) : null,
-        nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
+        latestCostPrice: fefoBatch ? Number(fefoBatch.costPrice) : null,
+        latestSellPrice: fefoBatch ? Number(fefoBatch.sellPrice) : null,
+        nearestExpiryDate: fefoBatch ? fefoBatch.expiryDate : null,
       };
     });
 
@@ -359,20 +363,27 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID "${id}" not found`);
     }
 
-    const totalStock = product.batches.reduce(
-      (sum, batch) => sum + batch.quantityRemaining,
-      0
-    );
+    const now = new Date();
+    const activeStockBatches = product.batches.filter((b) => b.quantityRemaining > 0);
+    const nonExpiredBatches = activeStockBatches.filter((b) => new Date(b.expiryDate) > now);
+    const expiredBatches = activeStockBatches.filter((b) => new Date(b.expiryDate) <= now);
+
+    const sellableStock = nonExpiredBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+    const expiredStock = expiredBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+    const totalStock = sellableStock + expiredStock;
     const isLowStock = totalStock <= product.lowStockThreshold;
-    const latestBatch = product.batches.find((b) => b.quantityRemaining > 0) || product.batches[0] || null;
+    const fefoBatch = nonExpiredBatches[0] || activeStockBatches[0] || product.batches[0] || null;
 
     return {
       ...product,
       totalStock,
+      sellableStock,
+      expiredStock,
       isLowStock,
-      latestCostPrice: latestBatch ? Number(latestBatch.costPrice) : null,
-      latestSellPrice: latestBatch ? Number(latestBatch.sellPrice) : null,
-      nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
+      expiredBatchCount: expiredBatches.length,
+      latestCostPrice: fefoBatch ? Number(fefoBatch.costPrice) : null,
+      latestSellPrice: fefoBatch ? Number(fefoBatch.sellPrice) : null,
+      nearestExpiryDate: fefoBatch ? fefoBatch.expiryDate : null,
     };
   }
 
@@ -503,9 +514,13 @@ export class ProductsService {
       };
     });
 
-    const totalStock = formattedBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+    const nonExpiredBatches = formattedBatches.filter((b) => !b.isExpired);
+    const expiredBatches = formattedBatches.filter((b) => b.isExpired);
+    const sellableStock = nonExpiredBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+    const expiredStock = expiredBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
+    const totalStock = sellableStock + expiredStock;
     const isLowStock = totalStock <= product.lowStockThreshold;
-    const latestBatch = formattedBatches[0] || null;
+    const fefoBatch = nonExpiredBatches[0] || formattedBatches[0] || null;
 
     return {
       success: true,
@@ -523,10 +538,13 @@ export class ProductsService {
         lowStockThreshold: product.lowStockThreshold,
         attributes: product.attributes,
         totalStock,
+        sellableStock,
+        expiredStock,
+        expiredBatchCount: expiredBatches.length,
         isLowStock,
-        latestCostPrice: latestBatch ? latestBatch.costPrice : null,
-        latestSellPrice: latestBatch ? latestBatch.sellPrice : null,
-        nearestExpiryDate: latestBatch ? latestBatch.expiryDate : null,
+        latestCostPrice: fefoBatch ? fefoBatch.costPrice : null,
+        latestSellPrice: fefoBatch ? fefoBatch.sellPrice : null,
+        nearestExpiryDate: fefoBatch ? fefoBatch.expiryDate : null,
       },
       batches: formattedBatches,
     };

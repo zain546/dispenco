@@ -62,6 +62,8 @@ export const posLocalDataService = {
         lowStockThreshold: p.lowStockThreshold || 10,
         attributes: (p.attributes as Record<string, unknown>) || {},
         totalStock: p.totalStock !== undefined ? p.totalStock : 0,
+        sellableStock: p.sellableStock !== undefined ? p.sellableStock : (p.totalStock ?? 0),
+        expiredStock: p.expiredStock !== undefined ? p.expiredStock : 0,
         latestSellPrice: p.latestSellPrice ?? null,
         latestCostPrice: p.latestCostPrice ?? null,
         nearestExpiryDate: p.nearestExpiryDate || null,
@@ -278,7 +280,12 @@ export const posLocalDataService = {
           const prod = await posDb.localProducts.get(productId);
           if (prod) {
             const newStock = Math.max(0, prod.totalStock - deduct);
-            await posDb.localProducts.update(productId, { totalStock: newStock });
+            const currentSellable = prod.sellableStock !== undefined ? prod.sellableStock : prod.totalStock;
+            const newSellable = Math.max(0, currentSellable - deduct);
+            await posDb.localProducts.update(productId, {
+              totalStock: newStock,
+              sellableStock: newSellable,
+            });
           }
         }
 
