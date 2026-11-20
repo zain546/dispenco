@@ -139,12 +139,31 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
     });
   };
 
+  const displayedProductIds = useMemo(
+    () => (data?.suggestions ?? []).map((s) => s.productId),
+    [data?.suggestions]
+  );
+
+  const selectedProductIdSet = useMemo(
+    () => new Set(selectedProductIds),
+    [selectedProductIds]
+  );
+
+  const allDisplayedSelected =
+    displayedProductIds.length > 0 &&
+    displayedProductIds.every((id) => selectedProductIdSet.has(id));
+
+  const someDisplayedSelected = displayedProductIds.some((id) =>
+    selectedProductIdSet.has(id)
+  );
+
   const handleToggleSelectAll = () => {
-    if (!data?.suggestions) return;
-    if (selectedProductIds.length === data.suggestions.length) {
-      setSelectedProductIds([]);
+    if (displayedProductIds.length === 0) return;
+    if (allDisplayedSelected) {
+      const displayedSet = new Set(displayedProductIds);
+      setSelectedProductIds((prev) => prev.filter((id) => !displayedSet.has(id)));
     } else {
-      setSelectedProductIds(data.suggestions.map((s) => s.productId));
+      setSelectedProductIds((prev) => Array.from(new Set([...prev, ...displayedProductIds])));
     }
   };
 
@@ -368,17 +387,15 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/80 bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
                 aria-label="Select all replenishment suggestions"
               >
-                {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                {allDisplayedSelected ? (
                   <CheckSquare className="size-4 text-primary" />
-                ) : selectedProductIds.length > 0 ? (
+                ) : someDisplayedSelected ? (
                   <MinusSquare className="size-4 text-primary" />
                 ) : (
                   <Square className="size-4" />
                 )}
                 <span>
-                  {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0
-                    ? 'Deselect All'
-                    : 'Select All'}
+                  {allDisplayedSelected ? 'Deselect All' : 'Select All'}
                 </span>
               </button>
             )}
@@ -648,9 +665,9 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                           aria-label="Select all items"
                           className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
                         >
-                          {data?.suggestions && selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                          {allDisplayedSelected ? (
                             <CheckSquare className="size-4 text-primary" />
-                          ) : selectedProductIds.length > 0 ? (
+                          ) : someDisplayedSelected ? (
                             <MinusSquare className="size-4 text-primary" />
                           ) : (
                             <Square className="size-4" />

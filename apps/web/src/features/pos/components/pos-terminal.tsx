@@ -651,14 +651,21 @@ export function POSTerminal() {
     setSelectedResultIndex(0);
   }, [searchResults]);
 
-  // Scroll selected search result into view when navigating via keyboard
+  // Scroll selected search result into view within the dropdown container only
   useEffect(() => {
-    if (searchResults.length > 0 && searchResultsContainerRef.current) {
-      const activeEl = searchResultsContainerRef.current.querySelector<HTMLElement>(
+    const container = searchResultsContainerRef.current;
+    if (searchResults.length > 0 && container) {
+      const activeEl = container.querySelector<HTMLElement>(
         `[data-result-index="${selectedResultIndex}"]`
       );
       if (activeEl) {
-        activeEl.scrollIntoView({ block: 'nearest' });
+        const containerRect = container.getBoundingClientRect();
+        const itemRect = activeEl.getBoundingClientRect();
+        if (itemRect.top < containerRect.top) {
+          container.scrollTop -= containerRect.top - itemRect.top;
+        } else if (itemRect.bottom > containerRect.bottom) {
+          container.scrollTop += itemRect.bottom - containerRect.bottom;
+        }
       }
     }
   }, [selectedResultIndex, searchResults]);
