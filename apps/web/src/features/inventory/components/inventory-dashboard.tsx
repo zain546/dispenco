@@ -87,7 +87,7 @@ export function InventoryDashboard() {
   const { activeStore, activeStoreId, isAllStores } = useStore();
   const { user } = useAuth();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [activeTab, setActiveTab] = useState<InventoryTab>(!isAllStores ? 'in-stock' : 'full-catalog');
+  const [activeTab, setActiveTab] = useState<InventoryTab>('full-catalog');
   const [search, setSearch] = useState('');
 
   // Read URL query parameter on mount for tab selection
@@ -405,16 +405,16 @@ export function InventoryDashboard() {
 
         {/* 2. Available In-Stock Medicines & Active Units */}
         <div
-          onClick={() => setActiveTab(!isAllStores ? 'in-stock' : 'full-catalog')}
+          onClick={() => setActiveTab('in-stock')}
           className={`relative overflow-hidden rounded-xl border p-3 sm:p-4 flex flex-col justify-between cursor-pointer transition-all ${
-            activeTab === 'in-stock' || (isAllStores && activeTab === 'full-catalog')
+            activeTab === 'in-stock'
               ? 'ring-1 ring-primary/50 border-primary bg-primary/[0.04] shadow-2xs'
               : 'border-border/80 bg-gradient-to-br from-card via-card to-success/[0.02] hover:border-primary/40 hover:bg-muted/30 shadow-2xs'
           }`}
         >
           <div className="flex items-center justify-between gap-1.5">
             <span className="text-xs font-semibold text-foreground/85">
-              {!isAllStores ? 'Available In-Stock' : 'Master Catalog'}
+              Available In-Stock
             </span>
             <div className="size-7 sm:size-8 rounded-lg bg-success/10 text-success ring-1 ring-success/20 flex items-center justify-center shrink-0">
               <Boxes className="size-3.5 sm:size-4" />
@@ -544,33 +544,33 @@ export function InventoryDashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-2">
           <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0 custom-scrollbar pb-1 sm:pb-0">
             <TabsList className="flex items-center gap-1 p-1 h-auto border border-border/60 bg-muted/40 rounded-lg w-max">
-              <TabsTrigger value="in-stock" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
-                <Boxes className="size-3.5 text-success shrink-0" />
-                <span>In-Stock ({data.summary.stockedCount ?? 0})</span>
-              </TabsTrigger>
               <TabsTrigger value="full-catalog" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
                 <Package className="size-3.5 text-primary shrink-0" />
                 <span>Master Catalog ({data.summary.totalCatalogItems})</span>
               </TabsTrigger>
-              <TabsTrigger value="priority-top-sellers" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
-                <Star className="size-3.5 text-warning fill-warning shrink-0" />
-                <span>Top Sellers ({data.summary.priorityCount})</span>
+              <TabsTrigger value="in-stock" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
+                <Boxes className="size-3.5 text-success shrink-0" />
+                <span>In-Stock ({data.summary.stockedCount ?? 0})</span>
               </TabsTrigger>
-              <TabsTrigger value="unstocked" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
-                <TrendingDown className="size-3.5 text-warning shrink-0" />
-                <span>Unstocked ({data.summary.unstockedCount ?? 0})</span>
+              <TabsTrigger value="low-stock" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
+                <AlertTriangle className="size-3.5 text-warning shrink-0" />
+                <span>Low Stock ({data.summary.lowStockCount})</span>
               </TabsTrigger>
               <TabsTrigger value="expiring-soon" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
                 <Clock className="size-3.5 text-destructive shrink-0" />
                 <span>Expiring ({data.summary.expiringSoonCount})</span>
               </TabsTrigger>
+              <TabsTrigger value="unstocked" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
+                <TrendingDown className="size-3.5 text-warning shrink-0" />
+                <span>Unstocked ({data.summary.unstockedCount ?? 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="priority-top-sellers" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
+                <Star className="size-3.5 text-warning fill-warning shrink-0" />
+                <span>Top Sellers ({data.summary.priorityCount})</span>
+              </TabsTrigger>
               <TabsTrigger value="expiry-risk" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 text-primary data-[state=active]:bg-primary/10 shrink-0 whitespace-nowrap cursor-pointer">
                 <Sparkles className="size-3.5 text-primary shrink-0" />
                 <span>Risk Forecast</span>
-              </TabsTrigger>
-              <TabsTrigger value="low-stock" className="gap-1.5 font-semibold text-xs px-2.5 sm:px-3 py-1.5 shrink-0 whitespace-nowrap cursor-pointer">
-                <AlertTriangle className="size-3.5 text-warning shrink-0" />
-                <span>Low Stock ({data.summary.lowStockCount})</span>
               </TabsTrigger>
             </TabsList>
           </div>
