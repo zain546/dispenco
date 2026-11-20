@@ -8,7 +8,7 @@ export interface StatCardProps {
   label?: string;
   title?: string;
   value: React.ReactNode;
-  caption?: string;
+  caption?: React.ReactNode;
   icon?: LucideIcon;
   variant?: 'default' | 'destructive' | 'success' | 'warning';
   isLoading?: boolean;
@@ -17,16 +17,17 @@ export interface StatCardProps {
 
 function renderValue(value: React.ReactNode) {
   if (typeof value === 'string') {
-    const match = value.match(/^([+-]?)\s*([A-Z]{3})\s*([+-]?)(.+)$/);
+    const match = value.match(/^([+-\u2212]?)\s*([A-Z]{3})\s*([+-\u2212]?)(.+)$/);
     if (match) {
-      const sign = match[1] || match[3] || '';
+      const rawSign = match[1] || match[3] || '';
+      const sign = rawSign === '\u2212' ? '-' : rawSign;
       const code = match[2];
       const amount = match[4].trim();
       const prefix = sign ? `${sign}${code}` : code;
       return (
-        <span className="inline-flex flex-wrap items-baseline gap-x-1 break-words">
-          <span className="text-xs font-normal tracking-normal text-muted-foreground shrink-0">{prefix}</span>
-          <span className="break-all sm:break-normal">{amount}</span>
+        <span className="inline-flex items-baseline gap-x-1 whitespace-nowrap">
+          <span className="text-xs font-medium tracking-normal text-muted-foreground shrink-0">{prefix}</span>
+          <span>{amount}</span>
         </span>
       );
     }
@@ -96,13 +97,13 @@ export function StatCard({
           </div>
         ) : (
           <div className="space-y-1 min-w-0">
-            <div className="text-xl xs:text-2xl sm:text-3xl font-semibold tracking-tight text-foreground tabular-nums leading-none break-words">
+            <div className="text-lg xs:text-xl sm:text-2xl font-bold tracking-tight text-foreground tabular-nums leading-tight">
               {renderValue(value)}
             </div>
             {caption && (
-              <p className="text-micro text-muted-foreground/90 line-clamp-1 leading-snug">
+              <div className="text-micro text-muted-foreground/90 leading-snug break-words">
                 {caption}
-              </p>
+              </div>
             )}
           </div>
         )}

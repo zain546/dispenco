@@ -811,7 +811,26 @@ export function ReportsView() {
             <StatCard
               title="Net Profit"
               value={formatCurrency(totalProfit)}
-              caption={`${profitMargin.toFixed(1)}% margin • Purchasing Cost: ${formatCurrency(totalCost)}`}
+              caption={
+                <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  <span>
+                    Cost:{' '}
+                    <strong className="font-semibold text-foreground/85 tabular-nums">
+                      {formatCurrency(totalCost)}
+                    </strong>
+                  </span>
+                  <span className="text-border">•</span>
+                  <span
+                    className={
+                      profitMargin >= 0
+                        ? 'font-semibold text-success tabular-nums'
+                        : 'font-semibold text-destructive tabular-nums'
+                    }
+                  >
+                    {profitMargin.toFixed(1)}% margin
+                  </span>
+                </span>
+              }
               icon={totalProfit >= 0 ? TrendingUp : TrendingDown}
               variant={totalProfit >= 0 ? 'success' : 'destructive'}
               isLoading={loading}
