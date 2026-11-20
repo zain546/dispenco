@@ -289,7 +289,7 @@ export class PurchasesService {
     return result;
   }
 
-  async findAll(tenantId: string, storeId?: string, status?: string) {
+  async findAll(tenantId: string, storeId?: string, status?: string, page?: number, limit?: number) {
     const where: any = { tenantId };
     const effectiveStoreId = storeId && storeId !== 'all' ? storeId : undefined;
     if (effectiveStoreId) {
@@ -305,19 +305,25 @@ export class PurchasesService {
       where.status = status as PurchaseOrderStatus;
     }
 
-    const orders = await this.prisma.purchaseOrder.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        supplier: true,
-        store: true,
-        purchaseItems: {
-          include: {
-            product: true,
+    const take = limit ? Math.max(1, Math.min(200, Number(limit))) : 100;
+    const skip = page ? (Math.max(1, Number(page)) - 1) * take : 0;
+
+    const [total, orders] = await Promise.all([
+      this.prisma.purchaseOrder.count({ where }),
+      this.prisma.purchaseOrder.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          supplier: true,
+          store: true,
+          purchaseItems: {
+            select: { id: true },
           },
         },
-      },
-    });
+      }),
+    ]);
 
     return {
       success: true,
@@ -332,6 +338,12 @@ export class PurchasesService {
         notes: o.notes,
         createdAt: o.createdAt.toISOString(),
       })),
+      meta: {
+        total,
+        page: page ? Number(page) : 1,
+        limit: take,
+        totalPages: Math.ceil(total / take) || 1,
+      },
     };
   }
 
@@ -613,23 +625,88 @@ export class PurchasesService {
 
     const productIds = products.map((p) => p.id);
 
-    // 2. Fetch active batches stock grouped by product
-    const batches = await this.prisma.batch.findMany({
-      where: {
-        tenantId,
-        ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
-        productId: { in: productIds },
-        quantityRemaining: { gt: 0 },
-      },
-      select: {
-        productId: true,
-        costPrice: true,
-        sellPrice: true,
-        quantityRemaining: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - timeframeDays);
+
+    // Parallelize independent data fetches across active batches, sales velocity, suppliers, and purchase history
+    const [batches, salesAgg, activeSuppliers, recentPurchaseItems] = await Promise.all([
+      // 2. Fetch active batches stock grouped by product
+      this.prisma.batch.findMany({
+        where: {
+          tenantId,
+          ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+          productId: { in: productIds },
+          quantityRemaining: { gt: 0 },
+        },
+        select: {
+          productId: true,
+          costPrice: true,
+          sellPrice: true,
+          quantityRemaining: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      // 3. Sales velocity over past timeframeDays
+      this.prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+          productId: { in: productIds },
+          sale: {
+            tenantId,
+            ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+            status: { not: 'VOIDED' },
+            createdAt: { gte: cutoffDate },
+          },
+        },
+        _sum: {
+          quantity: true,
+        },
+      }),
+      // 4. Fetch default and active suppliers
+      this.prisma.supplier.findMany({
+        where: { tenantId, isActive: true },
+        select: {
+          id: true,
+          name: true,
+          contactPhone: true,
+          contactEmail: true,
+          leadTimeDays: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      // 5. Fetch most recent purchase item per product using distinct to avoid scanning entire history
+      this.prisma.purchaseItem.findMany({
+        where: {
+          productId: { in: productIds },
+          purchaseOrder: { tenantId },
+        },
+        distinct: ['productId'],
+        select: {
+          productId: true,
+          unitCost: true,
+          purchaseOrder: {
+            select: {
+              supplier: {
+                select: {
+                  id: true,
+                  name: true,
+                  contactPhone: true,
+                  contactEmail: true,
+                  leadTimeDays: true,
+                },
+              },
+              createdAt: true,
+            },
+          },
+        },
+        orderBy: {
+          purchaseOrder: {
+            createdAt: 'desc',
+          },
+        },
+      }),
+    ]);
 
     const stockMap = new Map<string, number>();
     const latestCostMap = new Map<string, number>();
@@ -647,74 +724,12 @@ export class PurchasesService {
       }
     }
 
-    // 3. Sales velocity over past timeframeDays
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - timeframeDays);
-
-    const salesAgg = await this.prisma.saleItem.groupBy({
-      by: ['productId'],
-      where: {
-        productId: { in: productIds },
-        sale: {
-          tenantId,
-          ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
-          status: { not: 'VOIDED' },
-          createdAt: { gte: cutoffDate },
-        },
-      },
-      _sum: {
-        quantity: true,
-      },
-    });
-
     const salesMap = new Map<string, number>();
     for (const item of salesAgg) {
       salesMap.set(item.productId, item._sum.quantity || 0);
     }
 
-    // 4. Fetch default and recent suppliers
-    const activeSuppliers = await this.prisma.supplier.findMany({
-      where: { tenantId, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        contactPhone: true,
-        contactEmail: true,
-        leadTimeDays: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
     const defaultSupplier = activeSuppliers[0] || null;
-
-    const recentPurchaseItems = await this.prisma.purchaseItem.findMany({
-      where: {
-        productId: { in: productIds },
-        purchaseOrder: { tenantId },
-      },
-      select: {
-        productId: true,
-        unitCost: true,
-        purchaseOrder: {
-          select: {
-            supplier: {
-              select: {
-                id: true,
-                name: true,
-                contactPhone: true,
-                contactEmail: true,
-                leadTimeDays: true,
-              },
-            },
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: {
-        purchaseOrder: {
-          createdAt: 'desc',
-        },
-      },
-    });
 
     const supplierMap = new Map<
       string,
@@ -924,7 +939,8 @@ export class PurchasesService {
       };
     };
 
-    if (this.cache) {
+    // Only cache if no dynamic search filter is applied to prevent cache key explosion
+    if (this.cache && !search) {
       return this.cache.wrap(cacheKey, 120, compute);
     }
     return compute();

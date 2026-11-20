@@ -21,6 +21,7 @@ import { UpdateRoleDto } from './dtos/update-role.dto';
 @Injectable()
 export class RolesService implements OnModuleInit {
   private readonly logger = new Logger(RolesService.name);
+  private readonly seededTenants = new Set<string>();
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -57,6 +58,10 @@ export class RolesService implements OnModuleInit {
    * Seed default standard pharmacy roles for a tenant if not present or if permissions were missing
    */
   async seedStandardRolesIfMissing(tenantId: string) {
+    if (this.seededTenants.has(tenantId)) {
+      return;
+    }
+
     // Ensure permission records exist in the database before seeding or repairing roles
     await this.ensurePermissionsInDatabase();
 
@@ -88,6 +93,8 @@ export class RolesService implements OnModuleInit {
         await this.attachPermissionsToRole(existing.id, preset.permissions);
       }
     }
+
+    this.seededTenants.add(tenantId);
   }
 
   private async attachPermissionsToRole(roleId: string, permissions: Permission[]) {

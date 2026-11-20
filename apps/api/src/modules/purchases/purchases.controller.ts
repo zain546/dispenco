@@ -66,8 +66,16 @@ export class PurchasesController {
     @CurrentUser('tenantId') tenantId: string,
     @Query('storeId') storeId?: string,
     @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.purchasesService.findAll(tenantId, storeId, status);
+    return this.purchasesService.findAll(
+      tenantId,
+      storeId,
+      status,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
   }
 
   /**

@@ -98,54 +98,55 @@ export class ReportsService {
   }
 
   private async executeOrgOverview(tenantId: string, startDate: Date, endDate: Date) {
-    // 1. Fetch all active stores for this tenant
-    const stores = await this.prisma.store.findMany({
-      where: { tenantId, isActive: true },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    // 2. Fetch all completed sales within date range with returns accounted for
-    const sales = await this.prisma.sale.findMany({
-      where: {
-        tenantId,
-        status: SaleStatus.COMPLETED,
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
+    // Execute stores, sales, and active batches concurrently in parallel
+    const [stores, sales, batches] = await Promise.all([
+      // 1. Fetch all active stores for this tenant
+      this.prisma.store.findMany({
+        where: { tenantId, isActive: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      // 2. Fetch all completed sales within date range with returns accounted for
+      this.prisma.sale.findMany({
+        where: {
+          tenantId,
+          status: SaleStatus.COMPLETED,
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
         },
-      },
-      include: {
-        returns: {
-          select: { refundAmount: true },
-        },
-        saleItems: {
-          include: {
-            returnItems: {
-              select: { quantity: true, refundAmount: true },
-            },
-            batch: {
-              select: { costPrice: true, sellPrice: true },
-            },
-            product: {
-              select: { attributes: true },
+        include: {
+          returns: {
+            select: { refundAmount: true },
+          },
+          saleItems: {
+            include: {
+              returnItems: {
+                select: { quantity: true, refundAmount: true },
+              },
+              batch: {
+                select: { costPrice: true, sellPrice: true },
+              },
+              product: {
+                select: { attributes: true },
+              },
             },
           },
         },
-      },
-    });
-
-    // 3. Fetch active batches per store for inventory health
-    const batches = await this.prisma.batch.findMany({
-      where: {
-        tenantId,
-        quantityRemaining: { gt: 0 },
-      },
-      select: {
-        storeId: true,
-        productId: true,
-        quantityRemaining: true,
-      },
-    });
+      }),
+      // 3. Fetch active batches per store for inventory health
+      this.prisma.batch.findMany({
+        where: {
+          tenantId,
+          quantityRemaining: { gt: 0 },
+        },
+        select: {
+          storeId: true,
+          productId: true,
+          quantityRemaining: true,
+        },
+      }),
+    ]);
 
     // 4. Overall Org Totals (Net of returns)
     let totalRevenue = 0;

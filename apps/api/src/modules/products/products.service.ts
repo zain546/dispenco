@@ -250,6 +250,7 @@ export class ProductsService {
         include: {
           batches: {
             where: {
+              quantityRemaining: { gt: 0 },
               ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
             },
             orderBy: { expiryDate: 'asc' },
@@ -257,6 +258,22 @@ export class ProductsService {
         },
       }),
     ]);
+
+    // For products with 0 active batches on this page, load the single latest historical batch in one bulk query
+    const outOfStockIds = rawProducts.filter((p) => p.batches.length === 0).map((p) => p.id);
+    let fallbackBatchMap = new Map<string, any>();
+    if (outOfStockIds.length > 0) {
+      const fallbackBatches = await this.prisma.batch.findMany({
+        where: {
+          tenantId,
+          productId: { in: outOfStockIds },
+          ...(effectiveStoreId ? { storeId: effectiveStoreId } : {}),
+        },
+        distinct: ['productId'],
+        orderBy: [{ productId: 'asc' }, { createdAt: 'desc' }],
+      });
+      fallbackBatchMap = new Map(fallbackBatches.map((b) => [b.productId, b]));
+    }
 
     const allMapped = rawProducts.map((product) => {
       const activeStockBatches = product.batches.filter((b) => b.quantityRemaining > 0);
@@ -267,9 +284,10 @@ export class ProductsService {
       const expiredStock = expiredBatches.reduce((sum, b) => sum + b.quantityRemaining, 0);
       const totalStock = sellableStock + expiredStock;
       const isLowStock = totalStock <= product.lowStockThreshold;
-      const fefoBatch = nonExpiredBatches[0] || activeStockBatches[0] || product.batches[0] || null;
+      const fallbackBatch = fallbackBatchMap.get(product.id) || null;
+      const fefoBatch = nonExpiredBatches[0] || activeStockBatches[0] || fallbackBatch || product.batches[0] || null;
 
-      const batchCount = product.batches.length;
+      const batchCount = product.batches.length > 0 ? product.batches.length : (fallbackBatch ? 1 : 0);
       const expiredBatchCount = expiredBatches.length;
       const nearExpiryBatchCount = nonExpiredBatches.filter((b) => {
         const exp = new Date(b.expiryDate);
@@ -628,10 +646,17 @@ export class ProductsService {
       return matchedKey ? (row[matchedKey]?.trim() || '') : '';
     };
 
-    const existingProducts = await this.prisma.product.findMany({
-      where: { tenantId },
-      select: { barcode: true, name: true },
-    });
+    // Optimized barcode check: query only barcodes in the uploaded CSV instead of loading all tenant products
+    const fileBarcodes = parsed.data
+      .map((row) => getFieldValue(row, 'barcode'))
+      .filter((b) => Boolean(b && b.trim()));
+
+    const existingProducts = fileBarcodes.length > 0
+      ? await this.prisma.product.findMany({
+          where: { tenantId, barcode: { in: fileBarcodes } },
+          select: { barcode: true, name: true },
+        })
+      : [];
     const existingBarcodes = new Set(
       existingProducts.map((p) => p.barcode).filter(Boolean) as string[],
     );
@@ -817,70 +842,79 @@ export class ProductsService {
       });
     }
 
-    const createdProducts = await this.prisma.$transaction(async (tx) => {
-      const results = [];
+    const chunkSize = 100;
+    const createdProducts: any[] = [];
 
-      for (const item of productsToImport) {
-        const cleanBarcode = item.barcode?.trim() || null;
+    for (let i = 0; i < productsToImport.length; i += chunkSize) {
+      const chunk = productsToImport.slice(i, i + chunkSize);
+      const chunkResults = await this.prisma.$transaction(
+        async (tx) => {
+          const results = [];
 
-        const attributesJson = {
-          isPriority: item.isPriority ?? true,
-          ...(item.manufacturer ? { manufacturer: item.manufacturer.trim(), vendorName: item.manufacturer.trim() } : {}),
-          ...(item.vendorName ? { vendorName: item.vendorName.trim() } : {}),
-          ...(item.rackNumber ? { rackNumber: item.rackNumber.trim() } : {}),
-          ...(item.strength ? { strength: item.strength.trim() } : {}),
-          ...(item.dosageForm ? { dosageForm: item.dosageForm.trim() } : {}),
-          ...(item.prescriptionRequired !== undefined ? { prescriptionRequired: item.prescriptionRequired } : {}),
-        };
+          for (const item of chunk) {
+            const cleanBarcode = item.barcode?.trim() || null;
 
-        const product = await tx.product.create({
-          data: {
-            tenantId,
-            name: item.name.trim(),
-            genericName: item.genericName?.trim() || null,
-            category: item.category || 'GENERAL_ITEM',
-            unit: item.unit || 'PACK',
-            barcode: cleanBarcode,
-            isControlledSubstance: item.isControlledSubstance ?? false,
-            isActive: true,
-            lowStockThreshold: item.lowStockThreshold ?? 10,
-            attributes: attributesJson as Prisma.InputJsonValue,
-          },
-        });
+            const attributesJson = {
+              isPriority: item.isPriority ?? true,
+              ...(item.manufacturer ? { manufacturer: item.manufacturer.trim(), vendorName: item.manufacturer.trim() } : {}),
+              ...(item.vendorName ? { vendorName: item.vendorName.trim() } : {}),
+              ...(item.rackNumber ? { rackNumber: item.rackNumber.trim() } : {}),
+              ...(item.strength ? { strength: item.strength.trim() } : {}),
+              ...(item.dosageForm ? { dosageForm: item.dosageForm.trim() } : {}),
+              ...(item.prescriptionRequired !== undefined ? { prescriptionRequired: item.prescriptionRequired } : {}),
+            };
 
-        if (item.initialStockQuantity && item.initialStockQuantity > 0) {
-          const costPrice = item.costPrice ?? item.unitPrice * 0.8;
-          const expiry = item.expiryDate
-            ? new Date(item.expiryDate)
-            : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+            const product = await tx.product.create({
+              data: {
+                tenantId,
+                name: item.name.trim(),
+                genericName: item.genericName?.trim() || null,
+                category: item.category || 'GENERAL_ITEM',
+                unit: item.unit || 'PACK',
+                barcode: cleanBarcode,
+                isControlledSubstance: item.isControlledSubstance ?? false,
+                isActive: true,
+                lowStockThreshold: item.lowStockThreshold ?? 10,
+                attributes: attributesJson as Prisma.InputJsonValue,
+              },
+            });
 
-          await tx.batch.create({
-            data: {
-              tenantId,
-              storeId: store.id,
-              productId: product.id,
-              batchNumber:
-                item.batchNumber ||
-                `IMP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
-              expiryDate: expiry,
-              costPrice: new Prisma.Decimal(costPrice),
-              sellPrice: new Prisma.Decimal(item.unitPrice),
-              quantityReceived: item.initialStockQuantity,
-              quantityRemaining: item.initialStockQuantity,
-            },
-          });
-        }
+            if (item.initialStockQuantity && item.initialStockQuantity > 0) {
+              const costPrice = item.costPrice ?? item.unitPrice * 0.8;
+              const expiry = item.expiryDate
+                ? new Date(item.expiryDate)
+                : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
-        results.push(product);
-      }
+              await tx.batch.create({
+                data: {
+                  tenantId,
+                  storeId: store.id,
+                  productId: product.id,
+                  batchNumber:
+                    item.batchNumber ||
+                    `IMP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
+                  expiryDate: expiry,
+                  costPrice: new Prisma.Decimal(costPrice),
+                  sellPrice: new Prisma.Decimal(item.unitPrice),
+                  quantityReceived: item.initialStockQuantity,
+                  quantityRemaining: item.initialStockQuantity,
+                },
+              });
+            }
 
-      return results;
-    });
+            results.push(product);
+          }
 
-    // Index imported products into Meilisearch
-    for (const prod of createdProducts) {
-      await this.searchService.indexProduct(prod);
+          return results;
+        },
+        { timeout: 30000 },
+      );
+
+      createdProducts.push(...chunkResults);
     }
+
+    // Bulk index imported products into Meilisearch in a single network roundtrip
+    await this.searchService.indexProducts(createdProducts);
 
     await this.cache.invalidateStoreInventory(tenantId);
 

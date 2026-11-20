@@ -26,78 +26,87 @@ export class ExpiryScanProcessor {
     );
 
     const oneHundredEightyDaysFromNow = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+    const tenants = tenantId
+      ? [{ id: tenantId }]
+      : await this.prisma.tenant.findMany({ select: { id: true } });
 
-    const where: any = {
-      quantityRemaining: { gt: 0 },
-      expiryDate: {
-        lte: oneHundredEightyDaysFromNow,
-      },
-    };
-    if (tenantId) {
-      where.tenantId = tenantId;
-    }
-
-    const batches = await this.prisma.batch.findMany({
-      where,
-      include: {
-        product: {
-          select: { name: true },
-        },
-        store: {
-          select: { tenantId: true },
-        },
-      },
-    });
-
-    let flaggedCount = 0;
+    let totalProcessed = 0;
+    let totalFlagged = 0;
     const now = Date.now();
+    const tenantOwnerPhoneMap = new Map<string, string | null>();
 
-    for (const batch of batches) {
-      const daysRemaining = Math.ceil(
-        (batch.expiryDate.getTime() - now) / (1000 * 60 * 60 * 24),
-      );
+    for (const tenant of tenants) {
+      const batches = await this.prisma.batch.findMany({
+        where: {
+          tenantId: tenant.id,
+          quantityRemaining: { gt: 0 },
+          expiryDate: {
+            lte: oneHundredEightyDaysFromNow,
+          },
+        },
+        include: {
+          product: {
+            select: { name: true },
+          },
+          store: {
+            select: { tenantId: true },
+          },
+        },
+      });
 
-      flaggedCount++;
-      await this.notificationsService.createExpiryNotifications(
-        batch.store.tenantId,
-        batch.id,
-        batch.product.name,
-        batch.batchNumber,
-        daysRemaining,
-      );
+      totalProcessed += batches.length;
 
-      // Step 3.15: Wire critical near-expiry (<=30 days) or expired batches to real phone delivery
-      if (daysRemaining <= 30) {
-        try {
-          const owner = await this.prisma.user.findFirst({
-            where: {
-              tenantId: batch.store.tenantId,
-              phone: { not: null },
-            },
-            select: { phone: true },
-          });
+      for (const batch of batches) {
+        const daysRemaining = Math.ceil(
+          (batch.expiryDate.getTime() - now) / (1000 * 60 * 60 * 24),
+        );
 
-          if (owner?.phone) {
-            await this.notificationsService.sendMessage(
-              batch.store.tenantId,
-              owner.phone,
-              'EXPIRY_ALERT',
-              {
-                storeName: 'Pharmacy Store',
-                productName: batch.product.name,
-                batchNumber: batch.batchNumber,
-                daysRemaining,
-              },
-              'WHATSAPP',
-            );
+        totalFlagged++;
+        await this.notificationsService.createExpiryNotifications(
+          batch.store.tenantId,
+          batch.id,
+          batch.product.name,
+          batch.batchNumber,
+          daysRemaining,
+        );
+
+        // Step 3.15: Wire critical near-expiry (<=30 days) or expired batches to real phone delivery with cached phone lookup
+        if (daysRemaining <= 30) {
+          try {
+            if (!tenantOwnerPhoneMap.has(batch.store.tenantId)) {
+              const owner = await this.prisma.user.findFirst({
+                where: {
+                  tenantId: batch.store.tenantId,
+                  phone: { not: null },
+                },
+                select: { phone: true },
+              });
+              tenantOwnerPhoneMap.set(batch.store.tenantId, owner?.phone || null);
+            }
+
+            const phone = tenantOwnerPhoneMap.get(batch.store.tenantId);
+            if (phone) {
+              await this.notificationsService.sendMessage(
+                batch.store.tenantId,
+                phone,
+                'EXPIRY_ALERT',
+                {
+                  storeName: 'Pharmacy Store',
+                  productName: batch.product.name,
+                  batchNumber: batch.batchNumber,
+                  daysRemaining,
+                },
+                'WHATSAPP',
+              );
+            }
+          } catch (e: any) {
+            this.logger.warn(`Could not dispatch external expiry alert: ${e.message}`);
           }
-        } catch (e: any) {
-          this.logger.warn(`Could not dispatch external expiry alert: ${e.message}`);
         }
       }
     }
 
-    this.logger.log(`Completed expiry scan. Evaluated ${batches.length} batches, flagged ${flaggedCount}.`);
-    return { processed: batches.length, flagged: flaggedCount };
+    this.logger.log(`Completed expiry scan. Evaluated ${totalProcessed} batches, flagged ${totalFlagged}.`);
+    return { processed: totalProcessed, flagged: totalFlagged };
   }
 }

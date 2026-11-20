@@ -11,18 +11,7 @@ export class AuditExportService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit() {
-    try {
-      const deleted = await this.prisma.auditLog.deleteMany({
-        where: { action: 'OUTBOUND_MESSAGE_DISPATCHED' },
-      });
-      if (deleted.count > 0) {
-        this.logger.log(
-          `Pruned ${deleted.count} historical telemetry/notification dispatch records from AuditLog table.`,
-        );
-      }
-    } catch (err: any) {
-      this.logger.warn(`Telemetry audit log pruning skipped: ${err.message}`);
-    }
+    // Startup initialization complete
   }
 
   async getAuditLogs(
@@ -135,54 +124,59 @@ export class AuditExportService implements OnModuleInit {
   ): Promise<AuditMetricsSummary> {
     const whereClause = this.buildWhereClause(tenantId, query);
 
-    const [logs, totalEvents] = await Promise.all([
-      this.prisma.auditLog.findMany({
+    // Optimized aggregation using SQL groupBy instead of loading 5000 audit log rows into Node memory
+    const [actionGroups, userGroups, totalEvents] = await Promise.all([
+      this.prisma.auditLog.groupBy({
+        by: ['action'],
         where: whereClause,
-        select: {
-          action: true,
-          userId: true,
-          user: { select: { id: true, name: true } },
-        },
-        take: 5000,
+        _count: { id: true },
+      }),
+      this.prisma.auditLog.groupBy({
+        by: ['userId'],
+        where: { ...whereClause, userId: { not: null } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 5,
       }),
       this.prisma.auditLog.count({ where: whereClause }),
     ]);
+
+    const topUserIds = userGroups.map((u) => u.userId).filter(Boolean) as string[];
+    const users = topUserIds.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: topUserIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const userNameMap = new Map(users.map((u) => [u.id, u.name]));
 
     let voidsCount = 0;
     let stockAdjustmentsCount = 0;
     let securityEventsCount = 0;
     let transfersCount = 0;
     const actionsBreakdown: Record<string, number> = {};
-    const userCounts = new Map<string, { userId: string; name: string; count: number }>();
 
-    for (const log of logs) {
-      actionsBreakdown[log.action] = (actionsBreakdown[log.action] || 0) + 1;
+    for (const group of actionGroups) {
+      const count = group._count.id;
+      actionsBreakdown[group.action] = count;
 
-      if (log.action.includes('VOID')) voidsCount++;
-      if (log.action.includes('ADJUSTMENT')) stockAdjustmentsCount++;
+      if (group.action.includes('VOID')) voidsCount += count;
+      if (group.action.includes('ADJUSTMENT')) stockAdjustmentsCount += count;
       if (
-        log.action.includes('API_KEY') ||
-        log.action.includes('ROLE') ||
-        log.action.includes('INVITED')
+        group.action.includes('API_KEY') ||
+        group.action.includes('ROLE') ||
+        group.action.includes('INVITED')
       ) {
-        securityEventsCount++;
+        securityEventsCount += count;
       }
-      if (log.action.includes('TRANSFER')) transfersCount++;
-
-      if (log.userId && log.user) {
-        const existing = userCounts.get(log.userId) || {
-          userId: log.userId,
-          name: log.user.name,
-          count: 0,
-        };
-        existing.count++;
-        userCounts.set(log.userId, existing);
-      }
+      if (group.action.includes('TRANSFER')) transfersCount += count;
     }
 
-    const topUsers = Array.from(userCounts.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+    const topUsers = userGroups.map((u) => ({
+      userId: u.userId!,
+      name: userNameMap.get(u.userId!) || 'Staff Member',
+      count: u._count.id,
+    }));
 
     return {
       totalEvents,

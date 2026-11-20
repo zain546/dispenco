@@ -173,6 +173,47 @@ export class SearchService implements OnModuleInit {
   }
 
   /**
+   * Bulk index multiple products into Meilisearch in a single network roundtrip
+   */
+  async indexProducts(
+    products: Array<{
+      id: string;
+      tenantId: string;
+      name: string;
+      genericName?: string | null;
+      category: string;
+      unit: string;
+      barcode?: string | null;
+      isControlledSubstance?: boolean;
+      isActive?: boolean;
+      lowStockThreshold?: number;
+      createdAt?: Date | string;
+    }>,
+  ) {
+    if (!this.isEngineAvailable || !this.productsIndex || products.length === 0) return;
+
+    try {
+      const docs: IndexedProductDoc[] = products.map((product) => ({
+        id: product.id,
+        tenantId: product.tenantId,
+        name: product.name,
+        genericName: product.genericName || null,
+        category: product.category,
+        unit: product.unit,
+        barcode: product.barcode || null,
+        isControlledSubstance: Boolean(product.isControlledSubstance),
+        isActive: product.isActive !== undefined ? Boolean(product.isActive) : true,
+        lowStockThreshold: product.lowStockThreshold ?? 10,
+        createdAt: product.createdAt ? new Date(product.createdAt).getTime() : Date.now(),
+      }));
+
+      await this.productsIndex.addDocuments(docs, { primaryKey: 'id' });
+    } catch (err: unknown) {
+      this.logger.warn(`Failed to bulk index products in Meilisearch: ${(err as Error).message}`);
+    }
+  }
+
+  /**
    * Delete product document from Meilisearch
    */
   async removeProduct(productId: string) {

@@ -376,6 +376,7 @@ Return strict JSON:
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' },
       }),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!res.ok) throw new Error(`Gemini status ${res.status}`);
@@ -426,6 +427,7 @@ Return strict JSON:
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' },
       }),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!res.ok) throw new Error(`Gemini status ${res.status}`);
@@ -444,6 +446,7 @@ Return strict JSON:
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
