@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Package,
@@ -107,6 +107,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, storeName, logout, isLoading } = useAuth();
   const { activeStore, isAllStores, isMultiStore } = useStore();
   const permissions = usePermissions();
@@ -120,6 +121,19 @@ export default function DashboardLayout({
       setIsCollapsed(true);
     }
   }, []);
+
+  // Global F2 shortcut to jump to POS Counter from any dashboard page
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'F2' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      if (pathname === '/pos' || pathname.startsWith('/pos/')) return;
+      if (!user || !canAccessPage('/pos', user)) return;
+      e.preventDefault();
+      router.push('/pos');
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [pathname, router, user]);
 
   const toggleSidebar = () => {
     setIsCollapsed((prev) => {
