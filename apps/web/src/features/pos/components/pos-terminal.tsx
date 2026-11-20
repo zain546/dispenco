@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect, useRef, useTransition, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useTransition, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingCart,
@@ -37,18 +38,31 @@ import { ScannerInput, type Gs1ParsedMedicineData } from '@/components/ui/scanne
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
-import { CustomerModal } from '@/features/customers/components/customer-modal';
-import { getMedicineIconConfig, formatUnitPlural, formatCategory } from '@/features/inventory/components/product-list';
+import { getMedicineIconConfig, formatUnitPlural, formatCategory } from '@/features/inventory/utils/inventory-formatters';
 import { prescriptionsApi, PrescriptionData } from '@/features/prescriptions/services/prescriptions-api';
 import { posLocalDataService } from '../services/pos-local-data.service';
-import { OfflineSyncModal } from './offline-sync-modal';
-import { ReceiptModal } from './receipt-modal';
-import { RecentSalesModal } from './recent-sales-modal';
 import { DraftQuantityInput } from './draft-quantity-input';
 import { PosPackSizeModal } from './pos-pack-size-modal';
 import { PosLinkBarcodeModal } from './pos-link-barcode-modal';
 import { PosCartSection } from './pos-cart-section';
 import { PosPaymentSidebar } from './pos-payment-sidebar';
+
+const CustomerModal = dynamic(
+  () => import('@/features/customers/components/customer-modal').then((m) => m.CustomerModal),
+  { ssr: false },
+);
+const OfflineSyncModal = dynamic(
+  () => import('./offline-sync-modal').then((m) => m.OfflineSyncModal),
+  { ssr: false },
+);
+const ReceiptModal = dynamic(
+  () => import('./receipt-modal').then((m) => m.ReceiptModal),
+  { ssr: false },
+);
+const RecentSalesModal = dynamic(
+  () => import('./recent-sales-modal').then((m) => m.RecentSalesModal),
+  { ssr: false },
+);
 import type { CartItem, CartTotals, PaymentMethod, UnitType, DiscountType } from '../types/pos-types';
 import {
   getPackSize,
@@ -128,7 +142,10 @@ export function POSTerminal() {
   } | null>(null);
   const [isRetryingDispense, setIsRetryingDispense] = useState(false);
   // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
-  const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
+  const hasControlledMedicine = useMemo(
+    () => cart.some((item) => Boolean(item.product.isControlledSubstance)),
+    [cart],
+  );
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
@@ -1426,7 +1443,7 @@ export function POSTerminal() {
   };
 
   // Calculations: strictly sequential discount calculation & proportional tax adjustment
-  const calculateCartTotals = () => {
+  const totals = useMemo(() => {
     let subtotal = 0;
     let itemDiscounts = 0;
     let unadjustedTaxTotal = 0;
@@ -1480,9 +1497,8 @@ export function POSTerminal() {
       taxTotal,
       grandTotal,
     };
-  };
+  }, [cart, overallDiscount, overallDiscountType]);
 
-  const totals = calculateCartTotals();
   const tenderedNum = Number(cashTendered) || 0;
   const changeDue = Math.max(0, tenderedNum - totals.grandTotal);
 

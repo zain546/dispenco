@@ -36,8 +36,12 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Poll every 60s
+    void fetchNotifications();
+    const interval = setInterval(() => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void fetchNotifications();
+    }, 60000); // Poll every 60s when visible & online
     return () => clearInterval(interval);
   }, []);
 

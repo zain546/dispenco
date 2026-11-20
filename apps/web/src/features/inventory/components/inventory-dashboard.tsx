@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -43,10 +44,18 @@ import { formatDate, formatCurrency, formatNumber } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { productsApi } from '../services/products-api';
 import { useInventoryAggregation } from '../hooks/use-inventory-queries';
-import { ProductList, formatCategory, formatUnitPlural } from './product-list';
+import { ProductList } from './product-list';
+import { formatCategory, formatUnitPlural } from '../utils/inventory-formatters';
 import { ProductBatchesModal } from './product-batches-modal';
-import { ImportProductsModal } from './import-products-modal';
-import { ExpiryRiskView } from './expiry-risk-view';
+
+const ImportProductsModal = dynamic(
+  () => import('./import-products-modal').then((m) => m.ImportProductsModal),
+  { ssr: false },
+);
+const ExpiryRiskView = dynamic(
+  () => import('./expiry-risk-view').then((m) => m.ExpiryRiskView),
+  { ssr: false },
+);
 import { getProductSeoUrl } from '../utils/seo-utils';
 import { useStore } from '@/context/store-context';
 import { useAuth } from '@/context/auth-context';

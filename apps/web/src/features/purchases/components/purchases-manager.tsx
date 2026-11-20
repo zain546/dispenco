@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { purchasesApi } from '../services/purchases-api';
 import {
   usePurchases,
@@ -67,8 +68,14 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
-import { ReorderSuggestionsView } from './reorder-suggestions-view';
-import { OcrInvoiceModal } from './ocr-invoice-modal';
+const ReorderSuggestionsView = dynamic(
+  () => import('./reorder-suggestions-view').then((m) => m.ReorderSuggestionsView),
+  { ssr: false },
+);
+const OcrInvoiceModal = dynamic(
+  () => import('./ocr-invoice-modal').then((m) => m.OcrInvoiceModal),
+  { ssr: false },
+);
 
 export function PurchasesManager() {
   const { user } = useAuth();

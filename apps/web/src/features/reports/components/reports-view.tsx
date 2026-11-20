@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   reportsApi,
@@ -70,9 +71,18 @@ import {
   ArrowUpDown,
   Check,
 } from 'lucide-react';
-import { AnalyticsCopilotView } from './analytics-copilot-view';
-import { AuditComplianceView } from './audit-compliance-view';
-import { AnomaliesReviewView } from './anomalies-review-view';
+const AnalyticsCopilotView = dynamic(
+  () => import('./analytics-copilot-view').then((m) => m.AnalyticsCopilotView),
+  { ssr: false },
+);
+const AuditComplianceView = dynamic(
+  () => import('./audit-compliance-view').then((m) => m.AuditComplianceView),
+  { ssr: false },
+);
+const AnomaliesReviewView = dynamic(
+  () => import('./anomalies-review-view').then((m) => m.AnomaliesReviewView),
+  { ssr: false },
+);
 import {
   ResponsiveContainer,
   AreaChart,

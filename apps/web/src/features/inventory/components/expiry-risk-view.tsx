@@ -46,7 +46,7 @@ import {
 import { useExpiryRisk } from '../hooks/use-inventory-queries';
 import { useStore } from '@/context/store-context';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { formatCategory } from './product-list';
+import { formatCategory } from '../utils/inventory-formatters';
 import { EditBatchModal } from './edit-batch-modal';
 import { ProductBatchesModal } from './product-batches-modal';
 

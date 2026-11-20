@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -62,7 +63,10 @@ import { useStore } from '@/context/store-context';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
-import { OcrPrescriptionModal } from './ocr-prescription-modal';
+const OcrPrescriptionModal = dynamic(
+  () => import('./ocr-prescription-modal').then((m) => m.OcrPrescriptionModal),
+  { ssr: false },
+);
 
 export function PrescriptionsManager() {
   const { stores, activeStoreId, isAllStores, isStoreReady } = useStore();

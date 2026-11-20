@@ -68,7 +68,7 @@ interface PosPaymentSidebarProps {
   onCheckout: () => void;
 }
 
-export function PosPaymentSidebar({
+export const PosPaymentSidebar = React.memo(function PosPaymentSidebar({
   cart,
   totals,
   selectedCustomer,
@@ -700,5 +700,5 @@ export function PosPaymentSidebar({
       </Card>
     </div>
   );
-}
+});
 

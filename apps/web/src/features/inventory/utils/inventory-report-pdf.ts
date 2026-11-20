@@ -1,5 +1,5 @@
 import type { jsPDF } from 'jspdf';
-import { formatCategory, formatUnitPlural } from '../components/product-list';
+import { formatCategory, formatUnitPlural } from './inventory-formatters';
 
 export interface InventoryStockReportPdfOptions {
   storeName: string;
