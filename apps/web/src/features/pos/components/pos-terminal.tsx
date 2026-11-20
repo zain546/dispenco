@@ -95,7 +95,7 @@ function highlightMatch(text: string, query: string) {
 
 export function POSTerminal() {
   const queryClient = useQueryClient();
-  const { activeStoreId, activeStore, isAllStores, stores } = useStore();
+  const { activeStoreId, activeStore, isAllStores, stores, isStoreReady } = useStore();
   const { user: currentUser } = useAuth();
   const { isOwner, isManager, canManageInventory } = usePermissions();
 
@@ -267,7 +267,7 @@ export function POSTerminal() {
       });
       addToCart(updatedProduct);
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
-      posLocalDataService.syncCatalogToLocal(targetStore).catch(() => {});
+      posLocalDataService.syncCatalogToLocal(targetStore, { force: true }).catch(() => {});
     } catch (err) {
       playScanError();
       toast.error(getErrorMessage(err, 'Failed to link QR/barcode to medicine'));
@@ -351,15 +351,16 @@ export function POSTerminal() {
     return () => clearInterval(interval);
   }, [pendingOfflineCount, triggerAutoSync]);
 
-  // Background catalog cache sync on mount or branch change
+  // Background catalog cache sync on mount or branch change (gated on isStoreReady to prevent double-fire)
   useEffect(() => {
+    if (!isStoreReady) return;
     if (typeof window !== 'undefined' && navigator.onLine) {
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
       posLocalDataService.syncCatalogToLocal(targetStore).catch((err) => {
         console.warn('Initial offline catalog sync failed:', err);
       });
     }
-  }, [activeStoreId, isAllStores]);
+  }, [activeStoreId, isAllStores, isStoreReady]);
 
   // Read prescription or customer parameters from URL (e.g. from Prescriptions Manager)
   useEffect(() => {
@@ -518,30 +519,32 @@ export function POSTerminal() {
     // Reset previous search results on new search query
     setCustomerSearchResults([]);
 
-    // 1. Instant local IndexedDB query (<2ms latency) - shows results on the very first character
-    posLocalDataService
-      .searchLocalCustomers(term)
-      .then((localMatches) => {
-        if (!isCancelled && !cloudFinished) {
-          if (localMatches.length > 0) {
-            hadLocalMatches = true;
-            const mapped: CustomerItem[] = localMatches.map((c) => ({
-              id: c.id,
-              name: c.name,
-              phone: c.phone || undefined,
-              creditBalance: c.creditBalance ?? 0,
-              createdAt: '',
-            }));
-            setCustomerSearchResults(mapped);
-            setIsCustomerDropdownOpen(true);
-          } else {
-            setCustomerSearchResults([]);
+    // 1. Debounced local IndexedDB query (100ms) - avoids full-table Dexie filter scan on every intermediate keystroke
+    const localTimer = setTimeout(() => {
+      posLocalDataService
+        .searchLocalCustomers(term)
+        .then((localMatches) => {
+          if (!isCancelled && !cloudFinished) {
+            if (localMatches.length > 0) {
+              hadLocalMatches = true;
+              const mapped: CustomerItem[] = localMatches.map((c) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone || undefined,
+                creditBalance: c.creditBalance ?? 0,
+                createdAt: '',
+              }));
+              setCustomerSearchResults(mapped);
+              setIsCustomerDropdownOpen(true);
+            } else {
+              setCustomerSearchResults([]);
+            }
           }
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    }, 100);
 
-    // 2. Debounced background cloud search (150ms) to ensure up-to-date khata balances and new cloud customers
+    // 2. Debounced background cloud search (200ms) to ensure up-to-date khata balances and new cloud customers
     const timer = setTimeout(async () => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       setIsCustomerSearching(true);
@@ -568,10 +571,11 @@ export function POSTerminal() {
           setIsCustomerSearching(false);
         }
       }
-    }, 150);
+    }, 200);
 
     return () => {
       isCancelled = true;
+      clearTimeout(localTimer);
       clearTimeout(timer);
     };
   }, [customerSearchQuery]);
@@ -622,8 +626,9 @@ export function POSTerminal() {
 
   const [topSellers, setTopSellers] = useState<ProductData[]>([]);
 
-  // Load top seller products for quick-add speed dial bar
+  // Load top seller products for quick-add speed dial bar (gated on isStoreReady to prevent double-fire)
   useEffect(() => {
+    if (!isStoreReady) return;
     const loadTopSellers = async () => {
       try {
         const res = await productsApi.getProducts({
@@ -640,7 +645,7 @@ export function POSTerminal() {
       }
     };
     loadTopSellers();
-  }, [activeStoreId, isAllStores]);
+  }, [activeStoreId, isAllStores, isStoreReady]);
 
   useEffect(() => {
     focusSearchInput();
@@ -802,16 +807,18 @@ export function POSTerminal() {
     const term = searchQuery.trim();
     let isCancelled = false;
 
-    // 1. Instant local IndexedDB query (<5ms latency)
-    posLocalDataService
-      .searchLocalProducts(term)
-      .then((localMatches) => {
-        if (!isCancelled && localMatches.length > 0) {
-          setSearchResults(localMatches);
-          setSelectedResultIndex(0);
-        }
-      })
-      .catch(() => {});
+    // 1. Debounced local IndexedDB query (100ms) - avoids full-table Dexie filter scan on every intermediate keystroke
+    const localTimer = setTimeout(() => {
+      posLocalDataService
+        .searchLocalProducts(term)
+        .then((localMatches) => {
+          if (!isCancelled && localMatches.length > 0) {
+            setSearchResults(localMatches);
+            setSelectedResultIndex(0);
+          }
+        })
+        .catch(() => {});
+    }, 100);
 
     // 2. Debounced remote network search for freshest stock & cloud inventory
     const timer = setTimeout(async () => {
@@ -836,6 +843,7 @@ export function POSTerminal() {
 
     return () => {
       isCancelled = true;
+      clearTimeout(localTimer);
       clearTimeout(timer);
     };
   }, [searchQuery, activeStoreId, isAllStores]);

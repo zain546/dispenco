@@ -59,16 +59,18 @@ import { usePrescriptions, useDispensePrescription } from '../hooks/use-prescrip
 import { useQueryClient } from '@tanstack/react-query';
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { useStore } from '@/context/store-context';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { OcrPrescriptionModal } from './ocr-prescription-modal';
 
 export function PrescriptionsManager() {
-  const { stores, activeStoreId, isAllStores } = useStore();
+  const { stores, activeStoreId, isAllStores, isStoreReady } = useStore();
   const [products, setProducts] = useState<ProductData[]>([]);
 
   // Filters
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [controlledOnly, setControlledOnly] = useState(false);
 
@@ -84,13 +86,19 @@ export function PrescriptionsManager() {
     () => ({
       storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
       status: statusFilter === 'ALL' ? undefined : (statusFilter as PrescriptionStatus),
-      search: search.trim() || undefined,
+      search: debouncedSearch.trim() || undefined,
       isControlledOnly: controlledOnly ? true : undefined,
     }),
-    [activeStoreId, isAllStores, statusFilter, search, controlledOnly],
+    [activeStoreId, isAllStores, statusFilter, debouncedSearch, controlledOnly],
   );
 
-  const { data: rxData, isLoading: loading, isError, error, refetch: fetchPrescriptions } = usePrescriptions(queryParams);
+  const {
+    data: rxData,
+    isLoading: loading,
+    isError,
+    error,
+    refetch: fetchPrescriptions,
+  } = usePrescriptions(queryParams, { enabled: isStoreReady });
   const queryClient = useQueryClient();
   const prescriptions = rxData?.data || [];
   const summary = rxData?.summary || null;
@@ -105,20 +113,24 @@ export function PrescriptionsManager() {
     return expiryDateStr < todayLocalStr;
   };
 
-  const fetchDependencies = async () => {
-    try {
-      const prodRes = await productsApi.getProducts({ limit: 100 });
-      if (prodRes && prodRes.data) {
-        setProducts(prodRes.data);
-      }
-    } catch (err: unknown) {
-      console.error('Failed to load products for prescription manager:', err);
-    }
-  };
-
   useEffect(() => {
-    fetchDependencies();
-  }, []);
+    if (!ocrModalOpen || products.length > 0) return;
+    let cancelled = false;
+    const fetchDependencies = async () => {
+      try {
+        const prodRes = await productsApi.getProducts({ limit: 100 });
+        if (!cancelled && prodRes && prodRes.data) {
+          setProducts(prodRes.data);
+        }
+      } catch (err: unknown) {
+        console.error('Failed to load products for prescription manager:', err);
+      }
+    };
+    void fetchDependencies();
+    return () => {
+      cancelled = true;
+    };
+  }, [ocrModalOpen, products.length]);
 
   // Dispense handler
   const handleDispense = async (rxId: string) => {

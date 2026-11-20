@@ -45,6 +45,7 @@ import {
 } from '../services/products-api';
 import { useExpiryRisk } from '../hooks/use-inventory-queries';
 import { useStore } from '@/context/store-context';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { formatCategory } from './product-list';
 import { EditBatchModal } from './edit-batch-modal';
 import { ProductBatchesModal } from './product-batches-modal';
@@ -54,12 +55,13 @@ interface ExpiryRiskViewProps {
 }
 
 export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
-  const { activeStoreId, isAllStores } = useStore();
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
 
   // Filters
   const [timeframeDays, setTimeframeDays] = useState<number>(30);
   const [riskFilter, setRiskFilter] = useState<string>('ALL');
   const [search, setSearch] = useState<string>('');
+  const debouncedSearch = useDebouncedValue(search, 250);
 
   // Modals for batch editing and product batch inspection
   const [selectedBatchForEdit, setSelectedBatchForEdit] = useState<BatchData | null>(null);
@@ -75,13 +77,16 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
     isPlaceholderData,
     error: queryError,
     refetch: refetchForecast,
-  } = useExpiryRisk({
-    storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-    timeframeDays,
-    riskFilter: riskFilter !== 'ALL' ? riskFilter : undefined,
-    search: search.trim() || undefined,
-    limit: 150,
-  });
+  } = useExpiryRisk(
+    {
+      storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+      timeframeDays,
+      riskFilter: riskFilter !== 'ALL' ? riskFilter : undefined,
+      search: debouncedSearch.trim() || undefined,
+      limit: 150,
+    },
+    { enabled: isStoreReady },
+  );
 
   const data = queryData ?? null;
   const fetchError = queryError

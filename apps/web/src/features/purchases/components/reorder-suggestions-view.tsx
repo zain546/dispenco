@@ -46,6 +46,7 @@ import {
 } from '../services/purchases-api';
 import { useReorderSuggestions } from '../hooks/use-purchases-queries';
 import { useStore } from '@/context/store-context';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 interface ReorderSuggestionsViewProps {
   onConvertToPO: (items: {
@@ -70,12 +71,13 @@ function formatCategory(cat?: string): string {
 }
 
 export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsViewProps) {
-  const { activeStoreId, isAllStores } = useStore();
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
 
   // Filters
   const [timeframeDays, setTimeframeDays] = useState<number>(30);
   const [urgencyFilter, setUrgencyFilter] = useState<string>('REORDER_NEEDED');
   const [search, setSearch] = useState<string>('');
+  const debouncedSearch = useDebouncedValue(search, 250);
 
   // Multi-selection state (stores full suggestion records so selections persist across filter/search changes)
   const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, ReorderSuggestionItem>>({});
@@ -88,13 +90,16 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
     isError,
     error,
     refetch,
-  } = useReorderSuggestions({
-    storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
-    timeframeDays,
-    urgencyFilter: urgencyFilter !== 'ALL' ? urgencyFilter : undefined,
-    search: search.trim() || undefined,
-    limit: 150,
-  });
+  } = useReorderSuggestions(
+    {
+      storeId: !isAllStores && activeStoreId ? activeStoreId : undefined,
+      timeframeDays,
+      urgencyFilter: urgencyFilter !== 'ALL' ? urgencyFilter : undefined,
+      search: debouncedSearch.trim() || undefined,
+      limit: 150,
+    },
+    { enabled: isStoreReady },
+  );
 
   const fetchSuggestions = useCallback(
     (_showRefreshIndicator?: boolean) => {

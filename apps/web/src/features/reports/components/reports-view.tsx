@@ -146,7 +146,7 @@ function WhatsAppIcon({ className = 'size-3.5 shrink-0' }: { className?: string 
 }
 
 export function ReportsView() {
-  const { activeStoreId, activeStore, isAllStores, setActiveStoreId } = useStore();
+  const { activeStoreId, activeStore, isAllStores, setActiveStoreId, isStoreReady } = useStore();
   const { user } = useAuth();
   const [preset, setPreset] = useState<PresetRange>('30d');
   const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day');
@@ -327,7 +327,10 @@ export function ReportsView() {
     }
   };
 
+  const reportReqVersionRef = useRef(0);
+
   const fetchReport = async () => {
+    const reqVersion = ++reportReqVersionRef.current;
     try {
       setLoading(true);
       const params: GetSalesReportParams = { groupBy };
@@ -345,34 +348,43 @@ export function ReportsView() {
         params.storeId = activeStoreId;
       }
 
-      const res = await reportsApi.getSalesReport(params);
-      if (res.success) {
+      const [res, orgRes] = await Promise.all([
+        reportsApi.getSalesReport(params),
+        isAllStores
+          ? reportsApi.getOrgOverview({
+              startDate: params.startDate,
+              endDate: params.endDate,
+            })
+          : Promise.resolve(null),
+      ]);
+
+      if (reqVersion !== reportReqVersionRef.current) return;
+
+      if (res?.success) {
         setReportData(res.data);
       }
 
-      if (isAllStores) {
-        const orgRes = await reportsApi.getOrgOverview({
-          startDate: params.startDate,
-          endDate: params.endDate,
-        });
-        if (orgRes.success) {
-          setOrgOverviewData(orgRes.data);
-        }
-      } else {
+      if (isAllStores && orgRes?.success) {
+        setOrgOverviewData(orgRes.data);
+      } else if (!isAllStores) {
         setOrgOverviewData(null);
       }
     } catch (err) {
+      if (reqVersion !== reportReqVersionRef.current) return;
       toast.error('Failed to load sales analytics', {
         description: getErrorMessage(err),
       });
     } finally {
-      setLoading(false);
+      if (reqVersion === reportReqVersionRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchReport();
-  }, [preset, groupBy, activeStoreId, isAllStores]);
+    if (!isStoreReady) return;
+    void fetchReport();
+  }, [preset, groupBy, activeStoreId, isAllStores, isStoreReady]);
 
   const handleApplyCustomDates = () => {
     if (preset === 'custom') {

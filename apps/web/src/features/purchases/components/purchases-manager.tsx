@@ -72,7 +72,7 @@ import { OcrInvoiceModal } from './ocr-invoice-modal';
 
 export function PurchasesManager() {
   const { user } = useAuth();
-  const { stores, activeStoreId, isAllStores } = useStore();
+  const { stores, activeStoreId, isAllStores, isStoreReady } = useStore();
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -100,10 +100,13 @@ export function PurchasesManager() {
     isError,
     error,
     refetch: fetchOrders,
-  } = usePurchases({
-    storeId: effectiveStoreId,
-    status: statusFilter === 'ALL' ? undefined : statusFilter,
-  });
+  } = usePurchases(
+    {
+      storeId: effectiveStoreId,
+      status: statusFilter === 'ALL' ? undefined : statusFilter,
+    },
+    { enabled: isStoreReady },
+  );
 
   // Form State for PO Creation
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);

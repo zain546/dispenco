@@ -586,7 +586,7 @@ interface ProductListProps {
 }
 
 export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: ProductListProps = {}) {
-  const { activeStoreId, isAllStores } = useStore();
+  const { activeStoreId, isAllStores, isStoreReady } = useStore();
   const queryClient = useQueryClient();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -666,8 +666,9 @@ export function ProductList({ hideHeader = false, defaultStockStatus = 'ALL' }: 
   }, [page, limit, debouncedSearch, selectedCategory, selectedStockStatus, activeStoreId, isAllStores]);
 
   useEffect(() => {
+    if (!isStoreReady) return;
     fetchProducts();
-  }, [fetchProducts]);
+  }, [fetchProducts, isStoreReady]);
 
   const handleTogglePriority = async (product: ProductData) => {
     const currentPriority = Boolean((product.attributes as Record<string, unknown>)?.isPriority);

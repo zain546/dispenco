@@ -50,6 +50,7 @@ import { ExpiryRiskView } from './expiry-risk-view';
 import { getProductSeoUrl } from '../utils/seo-utils';
 import { useStore } from '@/context/store-context';
 import { useAuth } from '@/context/auth-context';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -84,11 +85,12 @@ const DEFAULT_AGGREGATION_DATA = {
 };
 
 export function InventoryDashboard() {
-  const { activeStore, activeStoreId, isAllStores } = useStore();
+  const { activeStore, activeStoreId, isAllStores, isStoreReady } = useStore();
   const { user } = useAuth();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState<InventoryTab>('full-catalog');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
 
   // Read URL query parameter on mount for tab selection
   useEffect(() => {
@@ -124,15 +126,18 @@ export function InventoryDashboard() {
     isFetching,
     error: queryError,
     refetch: fetchAggregation,
-  } = useInventoryAggregation({
-    storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
-    inStockOnly: activeTab === 'in-stock' ? true : undefined,
-    lowStockOnly: activeTab === 'low-stock' ? true : undefined,
-    expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
-    priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
-    unstockedOnly: activeTab === 'unstocked' ? true : undefined,
-    search: (activeTab !== 'full-catalog' && activeTab !== 'expiry-risk') ? (search.trim() || undefined) : undefined,
-  });
+  } = useInventoryAggregation(
+    {
+      storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+      inStockOnly: activeTab === 'in-stock' ? true : undefined,
+      lowStockOnly: activeTab === 'low-stock' ? true : undefined,
+      expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
+      priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
+      unstockedOnly: activeTab === 'unstocked' ? true : undefined,
+      search: (activeTab !== 'full-catalog' && activeTab !== 'expiry-risk') ? (debouncedSearch.trim() || undefined) : undefined,
+    },
+    { enabled: isStoreReady },
+  );
 
   const data = queryData ?? DEFAULT_AGGREGATION_DATA;
   const fetchError = queryError
