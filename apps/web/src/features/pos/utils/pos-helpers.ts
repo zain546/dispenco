@@ -61,6 +61,56 @@ export const getCommittedUnitsInCart = (
   }, 0);
 };
 
+// Resolve sellable (non-expired) stock count for POS dispensing & cart allocation
+export const getSellableStock = (product: ProductData): number => {
+  if (Array.isArray(product.batches) && product.batches.length > 0) {
+    const now = Date.now();
+    const liveBatchSellable = product.batches.reduce((sum, b) => {
+      if (b.quantityRemaining > 0 && new Date(b.expiryDate).getTime() > now) {
+        return sum + b.quantityRemaining;
+      }
+      return sum;
+    }, 0);
+    if (product.sellableStock !== undefined && product.sellableStock !== null) {
+      return Math.min(Math.max(0, product.sellableStock), liveBatchSellable);
+    }
+    return liveBatchSellable;
+  }
+  const expiry = getProductExpiryStatus(product.nearestExpiryDate);
+  if (expiry?.isExpired) {
+    return 0;
+  }
+  if (product.sellableStock !== undefined && product.sellableStock !== null) {
+    return Math.max(0, product.sellableStock);
+  }
+  return Math.max(0, product.totalStock ?? 0);
+};
+
+// Resolve expired stock count sitting in active batches
+export const getExpiredStock = (product: ProductData): number => {
+  if (Array.isArray(product.batches) && product.batches.length > 0) {
+    const now = Date.now();
+    const liveBatchExpired = product.batches.reduce((sum, b) => {
+      if (b.quantityRemaining > 0 && new Date(b.expiryDate).getTime() <= now) {
+        return sum + b.quantityRemaining;
+      }
+      return sum;
+    }, 0);
+    if (product.expiredStock !== undefined && product.expiredStock !== null) {
+      return Math.max(Math.max(0, product.expiredStock), liveBatchExpired);
+    }
+    return liveBatchExpired;
+  }
+  const expiry = getProductExpiryStatus(product.nearestExpiryDate);
+  if (expiry?.isExpired) {
+    return Math.max(0, product.expiredStock ?? product.totalStock ?? 0);
+  }
+  if (product.expiredStock !== undefined && product.expiredStock !== null) {
+    return Math.max(0, product.expiredStock);
+  }
+  return 0;
+};
+
 // Calculate maximum allowed quantity for a given unitType considering what's already in cart across all lines
 export const getMaxAllowedQuantity = (
   cartItems: CartItem[],
@@ -69,8 +119,8 @@ export const getMaxAllowedQuantity = (
   excludeIndex: number = -1
 ): { maxAllowed: number; totalAvailableUnits: number; committedUnits: number; remainingUnits: number } => {
   const packSize = getPackSize(product);
-  const totalStockBoxes = product.totalStock ?? 0;
-  const totalAvailableUnits = totalStockBoxes * packSize;
+  const sellableStockBoxes = getSellableStock(product);
+  const totalAvailableUnits = sellableStockBoxes * packSize;
   const committedUnits = getCommittedUnitsInCart(cartItems, product.id, packSize, excludeIndex);
   const remainingUnits = Math.max(0, totalAvailableUnits - committedUnits);
 

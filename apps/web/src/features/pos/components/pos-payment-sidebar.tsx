@@ -302,7 +302,7 @@ export function PosPaymentSidebar({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-0.5 p-0.5 bg-muted/50 border border-border/70 rounded-lg">
+              <div className="inline-flex items-center p-0.5 bg-muted/40 border border-border/60 rounded-md">
                 <button
                   type="button"
                   disabled={hasControlledMedicine}
@@ -312,12 +312,12 @@ export function PosPaymentSidebar({
                       onDoctorNameChange('Self');
                     }
                   }}
-                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all whitespace-nowrap ${
+                  className={`h-5.5 px-2 text-[11px] leading-none rounded-[4px] transition-colors whitespace-nowrap ${
                     hasControlledMedicine
                       ? 'text-muted-foreground/40 cursor-not-allowed'
                       : isSelfDoctor
-                        ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs cursor-pointer'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent cursor-pointer'
+                        ? 'bg-primary/15 text-primary font-medium cursor-pointer'
+                        : 'text-muted-foreground hover:text-foreground font-normal cursor-pointer'
                   }`}
                   title={hasControlledMedicine ? 'Controlled medicine requires prescribing doctor' : 'Over the counter'}
                 >
@@ -331,10 +331,10 @@ export function PosPaymentSidebar({
                       onDoctorNameChange('Dr. ');
                     }
                   }}
-                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                  className={`h-5.5 px-2 text-[11px] leading-none rounded-[4px] transition-colors cursor-pointer whitespace-nowrap ${
                     !isSelfDoctor
-                      ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent'
+                      ? 'bg-primary/15 text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground font-normal'
                   }`}
                 >
                   Doctor
@@ -374,14 +374,14 @@ export function PosPaymentSidebar({
                 <Tag className="size-3.5 text-primary shrink-0" />
                 <span>Order Discount</span>
               </Label>
-              <div className="flex items-center gap-0.5 p-0.5 bg-muted/50 border border-border/70 rounded-lg">
+              <div className="inline-flex items-center p-0.5 bg-muted/40 border border-border/60 rounded-md">
                 <button
                   type="button"
                   onClick={() => onOverallDiscountTypeChange('FLAT')}
-                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                  className={`h-5.5 px-2 text-[11px] leading-none rounded-[4px] transition-colors cursor-pointer whitespace-nowrap ${
                     overallDiscountType === 'FLAT'
-                      ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent'
+                      ? 'bg-primary/15 text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground font-normal'
                   }`}
                 >
                   Flat PKR
@@ -389,10 +389,10 @@ export function PosPaymentSidebar({
                 <button
                   type="button"
                   onClick={() => onOverallDiscountTypeChange('PERCENT')}
-                  className={`h-6.5 px-2.5 text-xs rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                  className={`h-5.5 px-2 text-[11px] leading-none rounded-[4px] transition-colors cursor-pointer whitespace-nowrap ${
                     overallDiscountType === 'PERCENT'
-                      ? 'bg-primary/15 text-primary border border-primary/30 font-medium shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40 font-normal border border-transparent'
+                      ? 'bg-primary/15 text-primary font-medium'
+                      : 'text-muted-foreground hover:text-foreground font-normal'
                   }`}
                 >
                   Percent %

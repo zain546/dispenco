@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisCacheService } from '../cache/redis-cache.service';
@@ -439,13 +440,34 @@ export class InventoryService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Update batch quantity
-      const updatedBatch = await tx.batch.update({
-        where: { id: batchId },
-        data: {
-          quantityRemaining: newQuantity,
-        },
-      });
+      // 1. Update batch quantity (atomically re-verifying expiry when writing off expired stock)
+      let updatedBatch;
+      if (dto.reason === 'EXPIRED_WRITEOFF') {
+        const now = new Date();
+        const conditionalUpdate = await tx.batch.updateMany({
+          where: {
+            id: batchId,
+            tenantId,
+            expiryDate: { lte: now },
+          },
+          data: {
+            quantityRemaining: newQuantity,
+          },
+        });
+        if (conditionalUpdate.count === 0) {
+          throw new ConflictException(
+            `Batch #${existingBatch.batchNumber} is no longer expired and cannot be written off as expired stock. Please refresh.`
+          );
+        }
+        updatedBatch = await tx.batch.findUniqueOrThrow({ where: { id: batchId } });
+      } else {
+        updatedBatch = await tx.batch.update({
+          where: { id: batchId },
+          data: {
+            quantityRemaining: newQuantity,
+          },
+        });
+      }
 
       // 2. Create AuditLog paper trail entry
       const auditLog = await (tx as any).auditLog.create({

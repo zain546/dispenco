@@ -15,6 +15,7 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
+  AlertTriangle,
   Tag,
   Star,
   History,
@@ -37,7 +38,7 @@ import { productsApi, ProductData } from '@/features/inventory/services/products
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
 import { CustomerModal } from '@/features/customers/components/customer-modal';
-import { getMedicineIconConfig, formatUnitPlural } from '@/features/inventory/components/product-list';
+import { getMedicineIconConfig, formatUnitPlural, formatCategory } from '@/features/inventory/components/product-list';
 import { prescriptionsApi, PrescriptionData } from '@/features/prescriptions/services/prescriptions-api';
 import { posLocalDataService } from '../services/pos-local-data.service';
 import { OfflineSyncModal } from './offline-sync-modal';
@@ -54,6 +55,8 @@ import {
   getSingleUnitPrice,
   isValidDoctorName,
   getProductExpiryStatus,
+  getSellableStock,
+  getExpiredStock,
   getCommittedUnitsInCart,
   getMaxAllowedQuantity,
   getKhataBalanceBadge,
@@ -79,7 +82,7 @@ function highlightMatch(text: string, query: string) {
     <>
       {parts.map((part, i) =>
         part.toLowerCase() === trimmed.toLowerCase() ? (
-          <mark key={i} className="bg-primary/25 text-primary rounded-xs px-0.5 not-italic font-bold">
+          <mark key={i} className="bg-primary/25 text-primary rounded-[2px] not-italic font-bold">
             {part}
           </mark>
         ) : (
@@ -648,17 +651,41 @@ export function POSTerminal() {
     setSelectedResultIndex(0);
   }, [searchResults]);
 
-  // Scroll selected search result into view when navigating via keyboard
+  // Scroll selected search result into view within the dropdown container only
   useEffect(() => {
-    if (searchResults.length > 0 && searchResultsContainerRef.current) {
-      const activeEl = searchResultsContainerRef.current.querySelector<HTMLElement>(
+    const container = searchResultsContainerRef.current;
+    if (searchResults.length > 0 && container) {
+      const activeEl = container.querySelector<HTMLElement>(
         `[data-result-index="${selectedResultIndex}"]`
       );
       if (activeEl) {
-        activeEl.scrollIntoView({ block: 'nearest' });
+        const containerRect = container.getBoundingClientRect();
+        const itemRect = activeEl.getBoundingClientRect();
+        if (itemRect.top < containerRect.top) {
+          container.scrollTop -= containerRect.top - itemRect.top;
+        } else if (itemRect.bottom > containerRect.bottom) {
+          container.scrollTop += itemRect.bottom - containerRect.bottom;
+        }
       }
     }
   }, [selectedResultIndex, searchResults]);
+
+  // Centralized hard dispensing guard: blocks adding medicine when all remaining stock is expired
+  const checkDispenseBlocked = (product: ProductData): boolean => {
+    const sellable = getSellableStock(product);
+    if (sellable > 0) return false;
+
+    const expired = getExpiredStock(product);
+    const expiry = getProductExpiryStatus(product.nearestExpiryDate);
+    if (expired > 0 || expiry?.isExpired) {
+      playScanError();
+      toast.error(
+        `"${product.name}" has only expired stock${expiry?.formattedDate ? ` (${expiry.formattedDate})` : ''}. Cannot dispense expired medicine.`
+      );
+      return true;
+    }
+    return false;
+  };
 
   // Search input keyboard navigation (ArrowUp, ArrowDown, Enter, Esc)
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -679,7 +706,9 @@ export function POSTerminal() {
         e.preventDefault();
         const selected = searchResults[selectedResultIndex] || searchResults[0];
         if (selected) {
-          if ((selected.totalStock ?? 0) <= 0) {
+          if (checkDispenseBlocked(selected)) return;
+          if (getSellableStock(selected) <= 0) {
+            playScanError();
             toast.warning(`Cannot add "${selected.name}" — Out of stock.`);
             return;
           }
@@ -832,6 +861,8 @@ export function POSTerminal() {
 
   // Handle adding product to cart (defaults to Single Tablet/Sub-unit per pharmacy counter standard)
   const addToCart = (product: ProductData, initialUnitType: 'BOX' | 'UNIT' = 'UNIT') => {
+    if (checkDispenseBlocked(product)) return;
+
     const packSize = getPackSize(product);
     const boxPrice = product.latestSellPrice ?? 0;
     const singleUnitPrice = getSingleUnitPrice(product);
@@ -912,6 +943,8 @@ export function POSTerminal() {
 
   // Dropdown live quantity increment / decrement handlers
   const handleDropdownIncrement = (product: ProductData, unitType: 'BOX' | 'UNIT') => {
+    if (checkDispenseBlocked(product)) return;
+
     const packSize = getPackSize(product);
     const boxPrice = product.latestSellPrice ?? 0;
     const singleUnitPrice = getSingleUnitPrice(product);
@@ -1003,6 +1036,8 @@ export function POSTerminal() {
       setCart((prev) => prev.filter((item) => !(item.product.id === product.id && item.unitType === unitType)));
       return;
     }
+
+    if (checkDispenseBlocked(product)) return;
 
     const packSize = getPackSize(product);
     const boxPrice = product.latestSellPrice ?? 0;
@@ -2005,7 +2040,10 @@ export function POSTerminal() {
                       {searchResults.map((prod, idx) => {
                         const itemConfig = getMedicineIconConfig(prod.category, prod.name, prod.unit);
                         const ItemIcon = itemConfig.Icon;
-                        const stock = prod.totalStock ?? 0;
+                        const sellableStock = getSellableStock(prod);
+                        const expiredStock = getExpiredStock(prod);
+                        const isAllExpired = sellableStock <= 0 && expiredStock > 0;
+                        const stock = sellableStock;
                         const boxPrice = prod.latestSellPrice ?? 0;
                         const packSize = getPackSize(prod);
                         const singlePrice = getSingleUnitPrice(prod);
@@ -2042,18 +2080,23 @@ export function POSTerminal() {
                               {/* Product Info Column - Clicking row adds default unit */}
                               <div
                                 onClick={() => {
-                                  if (stock <= 0) return;
-                                  const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
-                                  if (expiry?.isExpired) {
-                                    toast.error(`"${prod.name}" is expired (${expiry.formattedDate}). Cannot dispense expired stock.`);
+                                  if (isAllExpired) {
+                                    checkDispenseBlocked(prod);
                                     return;
                                   }
+                                  if (stock <= 0) return;
                                   handleDropdownIncrement(prod, packSize > 1 ? 'UNIT' : 'BOX');
                                 }}
                                 className={`flex items-start sm:items-center gap-2.5 min-w-0 flex-1 ${
                                   stock <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
                                 }`}
-                                title={stock <= 0 ? 'Out of stock' : 'Click to add to cart'}
+                                title={
+                                  isAllExpired
+                                    ? 'All remaining stock is expired and quarantined'
+                                    : stock <= 0
+                                      ? 'Out of stock'
+                                      : 'Click to add to cart'
+                                }
                               >
                                 <div className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0 ${itemConfig.bgClass}`}>
                                   <ItemIcon className="size-4" />
@@ -2075,7 +2118,7 @@ export function POSTerminal() {
                                       </span>
                                     )}
                                     <Badge variant="outline" className="text-micro px-1.5 py-0 font-normal border-border/70 text-muted-foreground bg-muted/20 shrink-0">
-                                      {prod.category}
+                                      {formatCategory(prod.category)}
                                     </Badge>
                                     {(() => {
                                       const expiry = getProductExpiryStatus(prod.nearestExpiryDate);
@@ -2099,8 +2142,12 @@ export function POSTerminal() {
                                       </Badge>
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2 text-micro text-muted-foreground flex-wrap font-normal">
-                                    {stock <= 0 ? (
+                                  <div className="flex items-center gap-1.5 text-micro text-muted-foreground flex-wrap font-normal">
+                                    {isAllExpired ? (
+                                      <span className="text-destructive font-medium flex items-center gap-1">
+                                        0 Sellable • {formatUnitPlural(prod.unit, expiredStock)} Expired (Quarantine)
+                                      </span>
+                                    ) : stock <= 0 ? (
                                       <span className="text-destructive font-medium flex items-center gap-1">
                                         Stock: {formatUnitPlural(prod.unit, 0)} • Out of stock
                                       </span>
@@ -2111,6 +2158,16 @@ export function POSTerminal() {
                                     ) : (
                                       <span>Stock: <span className="font-mono">{formatUnitPlural(prod.unit, stock)}</span></span>
                                     )}
+                                    {sellableStock > 0 && expiredStock > 0 && (
+                                      <span
+                                        className="inline-flex items-center gap-1 text-destructive/85 font-medium"
+                                        title={`${expiredStock} expired ${prod.unit}(s) on shelf are automatically excluded from POS dispensing`}
+                                      >
+                                        <span className="text-muted-foreground/60">·</span>
+                                        <AlertTriangle className="size-3 shrink-0" />
+                                        <span>{expiredStock} expired on shelf</span>
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -2120,7 +2177,15 @@ export function POSTerminal() {
                                 onClick={(e) => e.stopPropagation()}
                                 className="flex items-center gap-1.5 shrink-0 flex-nowrap"
                               >
-                                {stock <= 0 ? (
+                                {isAllExpired ? (
+                                  <div
+                                    className="h-8 px-2.5 rounded-lg text-xs font-medium gap-1 inline-flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/25 whitespace-nowrap shrink-0 shadow-2xs select-none"
+                                    title="All remaining stock for this medicine is expired and quarantined from POS dispensing"
+                                  >
+                                    <Ban className="size-3.5" />
+                                    <span>Expired Stock</span>
+                                  </div>
+                                ) : stock <= 0 ? (
                                   <div
                                     className="h-8 px-2.5 rounded-lg text-xs font-medium gap-1 inline-flex items-center justify-center bg-destructive/10 text-destructive border border-destructive/25 whitespace-nowrap shrink-0 shadow-2xs select-none"
                                   >
@@ -2345,7 +2410,10 @@ export function POSTerminal() {
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {topSellers.map((prod) => {
-                        const isOutOfStock = (prod.totalStock ?? 0) <= 0;
+                        const sellable = getSellableStock(prod);
+                        const expired = getExpiredStock(prod);
+                        const isAllExpired = sellable <= 0 && expired > 0;
+                        const isOutOfStock = sellable <= 0;
                         return (
                           <Button
                             key={prod.id}
@@ -2362,7 +2430,11 @@ export function POSTerminal() {
                           >
                             <Star className="size-3 fill-amber-400 text-amber-400" />
                             <span>{prod.name}</span>
-                            {isOutOfStock ? (
+                            {isAllExpired ? (
+                              <span className="text-micro font-medium text-destructive">
+                                (Expired)
+                              </span>
+                            ) : isOutOfStock ? (
                               <span className="text-micro font-medium text-destructive">
                                 (Out)
                               </span>

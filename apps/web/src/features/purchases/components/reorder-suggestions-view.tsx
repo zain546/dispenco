@@ -77,8 +77,9 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
   const [urgencyFilter, setUrgencyFilter] = useState<string>('REORDER_NEEDED');
   const [search, setSearch] = useState<string>('');
 
-  // Multi-selection state
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  // Multi-selection state (stores full suggestion records so selections persist across filter/search changes)
+  const [selectedItemsMap, setSelectedItemsMap] = useState<Record<string, ReorderSuggestionItem>>({});
+  const selectedProductIds = useMemo(() => Object.keys(selectedItemsMap), [selectedItemsMap]);
 
   const {
     data,
@@ -118,10 +119,27 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
     });
   };
 
+  // Keep preserved selected items updated with latest server suggestion figures when data refreshes
+  useEffect(() => {
+    const suggestions = data?.suggestions;
+    if (!suggestions || suggestions.length === 0) return;
+    setSelectedItemsMap((prev) => {
+      if (Object.keys(prev).length === 0) return prev;
+      let changed = false;
+      const next = { ...prev };
+      for (const s of suggestions) {
+        if (next[s.productId] && next[s.productId] !== s) {
+          next[s.productId] = s;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [data?.suggestions]);
+
   // Handle bulk selected Convert to PO
   const handleBulkConvertToPO = () => {
-    if (!data?.suggestions) return;
-    const selectedItems = data.suggestions.filter((s) => selectedProductIds.includes(s.productId));
+    const selectedItems = Object.values(selectedItemsMap);
     if (selectedItems.length === 0) return;
 
     // Determine supplier: if all share the same supplier, use it, otherwise let user select
@@ -139,19 +157,57 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
     });
   };
 
+  const displayedProductIds = useMemo(
+    () => (data?.suggestions ?? []).map((s) => s.productId),
+    [data?.suggestions]
+  );
+
+  const selectedProductIdSet = useMemo(
+    () => new Set(selectedProductIds),
+    [selectedProductIds]
+  );
+
+  const allDisplayedSelected =
+    displayedProductIds.length > 0 &&
+    displayedProductIds.every((id) => selectedProductIdSet.has(id));
+
+  const someDisplayedSelected = displayedProductIds.some((id) =>
+    selectedProductIdSet.has(id)
+  );
+
   const handleToggleSelectAll = () => {
-    if (!data?.suggestions) return;
-    if (selectedProductIds.length === data.suggestions.length) {
-      setSelectedProductIds([]);
+    const suggestions = data?.suggestions ?? [];
+    if (suggestions.length === 0) return;
+    if (allDisplayedSelected) {
+      setSelectedItemsMap((prev) => {
+        const next = { ...prev };
+        for (const s of suggestions) {
+          delete next[s.productId];
+        }
+        return next;
+      });
     } else {
-      setSelectedProductIds(data.suggestions.map((s) => s.productId));
+      setSelectedItemsMap((prev) => {
+        const next = { ...prev };
+        for (const s of suggestions) {
+          next[s.productId] = s;
+        }
+        return next;
+      });
     }
   };
 
   const handleToggleSelectItem = (productId: string) => {
-    setSelectedProductIds((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId],
-    );
+    setSelectedItemsMap((prev) => {
+      if (prev[productId]) {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      }
+      const found = data?.suggestions?.find((s) => s.productId === productId);
+      if (!found) return prev;
+      return { ...prev, [productId]: found };
+    });
   };
 
   const renderUrgencyBadge = (level: ReorderUrgency) => {
@@ -368,17 +424,15 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/80 bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
                 aria-label="Select all replenishment suggestions"
               >
-                {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                {allDisplayedSelected ? (
                   <CheckSquare className="size-4 text-primary" />
-                ) : selectedProductIds.length > 0 ? (
+                ) : someDisplayedSelected ? (
                   <MinusSquare className="size-4 text-primary" />
                 ) : (
                   <Square className="size-4" />
                 )}
                 <span>
-                  {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0
-                    ? 'Deselect All'
-                    : 'Select All'}
+                  {allDisplayedSelected ? 'Deselect All' : 'Select All'}
                 </span>
               </button>
             )}
@@ -648,9 +702,9 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
                           aria-label="Select all items"
                           className="text-muted-foreground hover:text-foreground inline-flex items-center cursor-pointer"
                         >
-                          {data?.suggestions && selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                          {allDisplayedSelected ? (
                             <CheckSquare className="size-4 text-primary" />
-                          ) : selectedProductIds.length > 0 ? (
+                          ) : someDisplayedSelected ? (
                             <MinusSquare className="size-4 text-primary" />
                           ) : (
                             <Square className="size-4" />
@@ -865,7 +919,7 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setSelectedProductIds([])}
+              onClick={() => setSelectedItemsMap({})}
               className="h-8 px-2.5 sm:px-3 text-xs font-medium cursor-pointer"
             >
               Clear

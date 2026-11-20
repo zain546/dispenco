@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -29,6 +32,7 @@ import {
   Loader2,
   Pill,
   Edit3,
+  Trash2,
   Search,
   LayoutGrid,
   List,
@@ -43,6 +47,7 @@ import {
 } from '../services/products-api';
 import { formatCategory, formatDate, getMedicineIconConfig, formatUnitPlural } from './product-list';
 import { formatCurrency } from '@/lib/format';
+import { getErrorMessage } from '@/lib/errors';
 import { EditBatchModal } from './edit-batch-modal';
 
 interface ProductBatchesModalProps {
@@ -58,6 +63,7 @@ export function ProductBatchesModal({
   onOpenChange,
   storeId,
 }: ProductBatchesModalProps) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [productInfo, setProductInfo] = useState<{
     id: string;
@@ -79,6 +85,10 @@ export function ProductBatchesModal({
   // Inline Edit Batch Modal
   const [selectedBatchForEdit, setSelectedBatchForEdit] = useState<BatchData | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // Expired Batch Write-Off Confirmation State
+  const [batchForWriteOff, setBatchForWriteOff] = useState<BatchData | null>(null);
+  const [isWritingOff, setIsWritingOff] = useState(false);
 
   const fetchBatches = () => {
     if (!productId) return;
@@ -124,6 +134,14 @@ export function ProductBatchesModal({
   // Active Health Statistics (evaluated exclusively on active stock)
   const expiredActiveCount = useMemo(
     () => activeBatches.filter((b) => b.isExpired).length,
+    [activeBatches]
+  );
+  const expiredActiveStock = useMemo(
+    () => activeBatches.filter((b) => b.isExpired).reduce((sum, b) => sum + b.quantityRemaining, 0),
+    [activeBatches]
+  );
+  const sellableActiveStock = useMemo(
+    () => activeBatches.filter((b) => !b.isExpired).reduce((sum, b) => sum + b.quantityRemaining, 0),
     [activeBatches]
   );
   const nearExpiryActiveCount = useMemo(
@@ -188,6 +206,32 @@ export function ProductBatchesModal({
     setEditModalOpen(true);
   };
 
+  const handleConfirmWriteOff = async () => {
+    if (!batchForWriteOff) return;
+    setIsWritingOff(true);
+    try {
+      await productsApi.adjustBatchStock(batchForWriteOff.id, {
+        newQuantity: 0,
+        reason: 'EXPIRED_WRITEOFF',
+        notes: `Expired batch #${batchForWriteOff.batchNumber} written off from active inventory`,
+      });
+      toast.success(
+        `Expired batch #${batchForWriteOff.batchNumber} (${batchForWriteOff.quantityRemaining} ${productInfo?.unit || 'units'}) written off and logged to audit trail.`
+      );
+      setBatchForWriteOff(null);
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      await queryClient.invalidateQueries({ queryKey: ['reports'] });
+      fetchBatches();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Failed to write off expired batch'));
+      setBatchForWriteOff(null);
+      await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      fetchBatches();
+    } finally {
+      setIsWritingOff(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -212,7 +256,17 @@ export function ProductBatchesModal({
                   {productInfo && (
                     <>
                       <span>
-                        Total Active Stock: <strong className="text-foreground font-semibold">{formatUnitPlural(productInfo.unit, productInfo.totalStock)}</strong>
+                        Total Active Stock:{' '}
+                        <strong className="text-foreground font-semibold">
+                          {formatUnitPlural(productInfo.unit, productInfo.totalStock)}
+                        </strong>
+                        {expiredActiveStock > 0 && (
+                          <span className="ml-1.5 text-micro">
+                            (<span className="text-success font-medium">{sellableActiveStock} Sellable</span>
+                            {' • '}
+                            <span className="text-destructive font-medium">{expiredActiveStock} Expired</span>)
+                          </span>
+                        )}
                       </span>
                       <span className="hidden sm:inline">•</span>
                       <span className="text-primary font-medium flex items-center gap-1">
@@ -443,15 +497,29 @@ export function ProductBatchesModal({
                               {batch.rackNumber || '—'}
                             </TableCell>
                             <TableCell className="py-2 px-3 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEdit(batch)}
-                                className="h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10 cursor-pointer"
-                              >
-                                <Edit3 className="size-3" />
-                                <span>Edit</span>
-                              </Button>
+                              <div className="inline-flex items-center justify-end gap-1">
+                                {batch.isExpired && batch.quantityRemaining > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setBatchForWriteOff(batch)}
+                                    className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                    title="Write off expired stock to 0 with audit trail"
+                                  >
+                                    <Trash2 className="size-3" />
+                                    <span>Write Off</span>
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenEdit(batch)}
+                                  className="h-7 px-2 text-xs gap-1 text-primary hover:bg-primary/10 cursor-pointer"
+                                >
+                                  <Edit3 className="size-3" />
+                                  <span>Edit</span>
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -524,15 +592,29 @@ export function ProductBatchesModal({
                             )}
                           </div>
 
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenEdit(batch)}
-                            className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 cursor-pointer"
-                          >
-                            <Edit3 className="size-3" />
-                            <span>Edit</span>
-                          </Button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {batch.isExpired && batch.quantityRemaining > 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setBatchForWriteOff(batch)}
+                                className="h-7 px-2.5 text-xs gap-1 border-destructive/40 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors shrink-0 cursor-pointer"
+                                title="Write off expired stock to 0 with audit trail"
+                              >
+                                <Trash2 className="size-3" />
+                                <span>Write Off</span>
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenEdit(batch)}
+                              className="h-7 px-2.5 text-xs gap-1 border-border hover:bg-primary hover:text-primary-foreground transition-colors shrink-0 cursor-pointer"
+                            >
+                              <Edit3 className="size-3" />
+                              <span>Edit</span>
+                            </Button>
+                          </div>
                         </div>
 
                         {/* Structured 3-Box Metrics Grid */}
@@ -651,6 +733,32 @@ export function ProductBatchesModal({
         onBatchUpdated={() => {
           fetchBatches();
         }}
+      />
+
+      {/* Audited Expired Batch Write-Off Confirmation */}
+      <ConfirmDialog
+        open={Boolean(batchForWriteOff)}
+        onOpenChange={(isOpen) => {
+          if (!isOpen && !isWritingOff) setBatchForWriteOff(null);
+        }}
+        title="Write Off Expired Batch?"
+        description={
+          batchForWriteOff ? (
+            <span>
+              This will permanently set remaining stock for expired batch{' '}
+              <strong className="font-mono text-foreground">#{batchForWriteOff.batchNumber}</strong> from{' '}
+              <strong className="text-foreground">
+                {formatUnitPlural(productInfo?.unit || 'Unit', batchForWriteOff.quantityRemaining)}
+              </strong>{' '}
+              to <strong className="text-destructive">0</strong> and record an{' '}
+              <strong className="text-foreground">EXPIRED_WRITEOFF</strong> entry in the Compliance Audit Log.
+            </span>
+          ) : null
+        }
+        confirmLabel="Confirm Write-Off"
+        variant="destructive"
+        isLoading={isWritingOff}
+        onConfirm={handleConfirmWriteOff}
       />
     </>
   );

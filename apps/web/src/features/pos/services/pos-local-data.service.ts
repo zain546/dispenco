@@ -23,6 +23,54 @@ export interface LocalSyncStatus {
   conflictSalesCount: number;
 }
 
+function resolveCurrentSellableStock(prod: LocalProductRecord): number {
+  if (Array.isArray(prod.batches) && prod.batches.length > 0) {
+    const now = Date.now();
+    const liveBatchSellable = prod.batches.reduce((sum, b) => {
+      if (b.quantityRemaining > 0 && new Date(b.expiryDate).getTime() > now) {
+        return sum + b.quantityRemaining;
+      }
+      return sum;
+    }, 0);
+    return prod.sellableStock !== undefined
+      ? Math.min(Math.max(0, prod.sellableStock), liveBatchSellable)
+      : liveBatchSellable;
+  }
+  if (prod.sellableStock !== undefined) {
+    return Math.max(0, prod.sellableStock);
+  }
+  if (prod.nearestExpiryDate && new Date(prod.nearestExpiryDate).getTime() <= Date.now()) {
+    return 0;
+  }
+  return Math.max(0, prod.totalStock);
+}
+
+function adjustLocalBatchesFefo(
+  batches: LocalProductRecord['batches'],
+  delta: number,
+): LocalProductRecord['batches'] {
+  if (!Array.isArray(batches) || batches.length === 0 || delta === 0) return batches;
+  const now = Date.now();
+  const cloned = batches.map((b) => ({ ...b }));
+  if (delta < 0) {
+    let remainingToDeduct = Math.abs(delta);
+    for (const batch of cloned) {
+      if (remainingToDeduct <= 0) break;
+      if (batch.quantityRemaining > 0 && new Date(batch.expiryDate).getTime() > now) {
+        const take = Math.min(batch.quantityRemaining, remainingToDeduct);
+        batch.quantityRemaining -= take;
+        remainingToDeduct -= take;
+      }
+    }
+  } else {
+    const firstValid = cloned.find((b) => new Date(b.expiryDate).getTime() > now);
+    if (firstValid) {
+      firstValid.quantityRemaining += delta;
+    }
+  }
+  return cloned;
+}
+
 export const posLocalDataService = {
   /**
    * 1. Pull latest server catalog and persist into local IndexedDB
@@ -62,6 +110,8 @@ export const posLocalDataService = {
         lowStockThreshold: p.lowStockThreshold || 10,
         attributes: (p.attributes as Record<string, unknown>) || {},
         totalStock: p.totalStock !== undefined ? p.totalStock : 0,
+        sellableStock: p.sellableStock !== undefined ? p.sellableStock : (p.totalStock ?? 0),
+        expiredStock: p.expiredStock !== undefined ? p.expiredStock : 0,
         latestSellPrice: p.latestSellPrice ?? null,
         latestCostPrice: p.latestCostPrice ?? null,
         nearestExpiryDate: p.nearestExpiryDate || null,
@@ -278,7 +328,13 @@ export const posLocalDataService = {
           const prod = await posDb.localProducts.get(productId);
           if (prod) {
             const newStock = Math.max(0, prod.totalStock - deduct);
-            await posDb.localProducts.update(productId, { totalStock: newStock });
+            const currentSellable = resolveCurrentSellableStock(prod);
+            const newSellable = Math.max(0, currentSellable - deduct);
+            await posDb.localProducts.update(productId, {
+              totalStock: newStock,
+              sellableStock: newSellable,
+              batches: adjustLocalBatchesFefo(prod.batches, -deduct),
+            });
           }
         }
 
@@ -435,8 +491,11 @@ export const posLocalDataService = {
         for (const [productId, packsToRestore] of Object.entries(record.deductions)) {
           const prod = await posDb.localProducts.get(productId);
           if (prod) {
+            const currentSellable = resolveCurrentSellableStock(prod);
             await posDb.localProducts.update(productId, {
               totalStock: prod.totalStock + packsToRestore,
+              sellableStock: currentSellable + packsToRestore,
+              batches: adjustLocalBatchesFefo(prod.batches, packsToRestore),
             });
           }
         }
@@ -448,8 +507,11 @@ export const posLocalDataService = {
             const packsToRestore = item.unitType === 'UNIT'
               ? Math.max(1, Math.ceil(item.quantity / packSize))
               : Math.max(1, Math.ceil(item.quantity));
+            const currentSellable = resolveCurrentSellableStock(prod);
             await posDb.localProducts.update(item.productId, {
               totalStock: prod.totalStock + packsToRestore,
+              sellableStock: currentSellable + packsToRestore,
+              batches: adjustLocalBatchesFefo(prod.batches, packsToRestore),
             });
           }
         }

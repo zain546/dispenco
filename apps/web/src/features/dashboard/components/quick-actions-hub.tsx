@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   ShoppingCart,
   PackagePlus,
@@ -26,19 +25,7 @@ interface ActionItem {
 }
 
 export function QuickActionsHub() {
-  const router = useRouter();
   const { canManageInventory, canManageTransfers } = usePermissions();
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F2') {
-        e.preventDefault();
-        router.push('/pos');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [router]);
 
   const actions: ActionItem[] = [
     {
