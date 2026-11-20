@@ -437,7 +437,7 @@ export function InventoryDashboard() {
           <div className="mt-2.5 sm:mt-3">
             <div className="flex items-baseline justify-between gap-1.5">
               <div className="text-lg sm:text-2xl font-black tracking-tight text-foreground tabular-nums">
-                {!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
+                {data.summary.stockedCount ?? 0}
                 <span className="text-xs sm:text-sm font-semibold text-muted-foreground ml-1">Items</span>
               </div>
               <span className="text-[10px] font-semibold text-success bg-success/15 border border-success/25 px-1.5 py-0.5 rounded-md shrink-0">
