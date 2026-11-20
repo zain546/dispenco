@@ -24,9 +24,9 @@ function renderValue(value: React.ReactNode) {
       const amount = match[4].trim();
       const prefix = sign ? `${sign}${code}` : code;
       return (
-        <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
-          <span className="text-xs font-normal tracking-normal text-muted-foreground">{prefix}</span>
-          <span>{amount}</span>
+        <span className="inline-flex flex-wrap items-baseline gap-x-1 break-words">
+          <span className="text-xs font-normal tracking-normal text-muted-foreground shrink-0">{prefix}</span>
+          <span className="break-all sm:break-normal">{amount}</span>
         </span>
       );
     }

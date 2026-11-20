@@ -383,10 +383,12 @@ export function OcrPrescriptionModal({
                 variant="outline"
                 size="sm"
                 onClick={() => setStep('upload')}
-                className="hidden sm:inline-flex gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 h-8 px-2.5 shadow-2xs cursor-pointer"
+                aria-label="Upload Prescription Slip"
+                title="Upload Prescription Slip"
+                className="inline-flex gap-1.5 text-xs text-muted-foreground hover:text-foreground shrink-0 h-8 px-2 sm:px-2.5 shadow-2xs cursor-pointer"
               >
                 <UploadCloud className="size-3.5" />
-                <span>Upload Slip</span>
+                <span className="hidden sm:inline">Upload Slip</span>
               </Button>
             )}
           </div>
@@ -754,6 +756,12 @@ export function OcrPrescriptionModal({
                               if (!/^\d+$/.test(raw)) return;
                               handleUpdateItem(idx, 'durationDays', Number(raw));
                             }}
+                            onBlur={(e) => {
+                              const raw = e.target.value.trim();
+                              if (raw !== '' && Number(raw) <= 0) {
+                                handleUpdateItem(idx, 'durationDays', 1);
+                              }
+                            }}
                             placeholder="Days"
                             className="h-8 text-xs tabular-nums bg-background"
                           />
@@ -778,6 +786,11 @@ export function OcrPrescriptionModal({
                               }
                               if (!/^\d+$/.test(raw)) return;
                               handleUpdateItem(idx, 'quantityPrescribed', Number(raw));
+                            }}
+                            onBlur={(e) => {
+                              if (!e.target.value.trim() || Number(e.target.value) <= 0) {
+                                handleUpdateItem(idx, 'quantityPrescribed', 1);
+                              }
                             }}
                             placeholder="Qty"
                             className="h-8 text-xs font-semibold tabular-nums bg-background"

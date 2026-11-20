@@ -134,6 +134,7 @@ export function POSTerminal() {
   const cashInputRef = useRef<HTMLInputElement>(null);
   const doctorInputRef = useRef<HTMLInputElement>(null);
   const productSearchContainerRef = useRef<HTMLDivElement>(null);
+  const searchResultsContainerRef = useRef<HTMLDivElement>(null);
 
   // Checkout State
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -646,6 +647,18 @@ export function POSTerminal() {
   useEffect(() => {
     setSelectedResultIndex(0);
   }, [searchResults]);
+
+  // Scroll selected search result into view when navigating via keyboard
+  useEffect(() => {
+    if (searchResults.length > 0 && searchResultsContainerRef.current) {
+      const activeEl = searchResultsContainerRef.current.querySelector<HTMLElement>(
+        `[data-result-index="${selectedResultIndex}"]`
+      );
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedResultIndex, searchResults]);
 
   // Search input keyboard navigation (ArrowUp, ArrowDown, Enter, Esc)
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1968,6 +1981,7 @@ export function POSTerminal() {
                   {/* Floating Spotlight Search Results Dropdown */}
                   {searchResults.length > 0 && (
                     <div
+                      ref={searchResultsContainerRef}
                       onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => e.stopPropagation()}
                       className="absolute left-0 right-0 top-full mt-2 z-40 border border-border/80 rounded-xl bg-card shadow-2xl ring-1 ring-black/10 dark:ring-white/10 divide-y divide-border/60 max-h-[min(26rem,calc(100vh-220px))] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-150"
@@ -2019,6 +2033,7 @@ export function POSTerminal() {
                         return (
                           <div
                             key={prod.id}
+                            data-result-index={idx}
                             className={`p-3 transition-colors text-xs sm:text-sm ${
                               idx === selectedResultIndex ? 'bg-primary/5' : ''
                             } ${stock <= 0 ? 'opacity-65 hover:bg-destructive/5' : 'hover:bg-muted/40'}`}

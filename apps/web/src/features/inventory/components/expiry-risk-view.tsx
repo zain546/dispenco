@@ -452,9 +452,9 @@ export function ExpiryRiskView({ onNavigateToCatalog }: ExpiryRiskViewProps) {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>{renderActionBadge(item.actionRecommendation)}</div>
-                      <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
                         <Button
                           variant="outline"
                           size="sm"

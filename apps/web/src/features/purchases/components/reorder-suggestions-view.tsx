@@ -360,21 +360,45 @@ export function ReorderSuggestionsView({ onConvertToPO }: ReorderSuggestionsView
             </CardDescription>
           </div>
 
-          {selectedProductIds.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-foreground">
-                {selectedProductIds.length} item{selectedProductIds.length === 1 ? '' : 's'} selected
-              </span>
-              <Button
-                size="sm"
-                onClick={handleBulkConvertToPO}
-                className="h-8 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {data?.suggestions && data.suggestions.length > 0 && (
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/80 bg-background text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+                aria-label="Select all replenishment suggestions"
               >
-                <Plus className="size-3.5" />
-                Convert Selected to PO
-              </Button>
-            </div>
-          )}
+                {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0 ? (
+                  <CheckSquare className="size-4 text-primary" />
+                ) : selectedProductIds.length > 0 ? (
+                  <MinusSquare className="size-4 text-primary" />
+                ) : (
+                  <Square className="size-4" />
+                )}
+                <span>
+                  {selectedProductIds.length === data.suggestions.length && data.suggestions.length > 0
+                    ? 'Deselect All'
+                    : 'Select All'}
+                </span>
+              </button>
+            )}
+
+            {selectedProductIds.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-foreground">
+                  {selectedProductIds.length} item{selectedProductIds.length === 1 ? '' : 's'} selected
+                </span>
+                <Button
+                  size="sm"
+                  onClick={handleBulkConvertToPO}
+                  className="h-8 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground shadow-xs cursor-pointer"
+                >
+                  <Plus className="size-3.5" />
+                  Convert Selected to PO
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
 
         <CardContent className="p-0">

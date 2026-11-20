@@ -477,7 +477,10 @@ export function ProductBatchesModal({
                         {/* Top Header Row */}
                         <div className="flex items-start justify-between gap-2 pb-2 border-b border-border/40">
                           <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
-                            <span className="font-mono font-bold text-xs text-foreground bg-muted px-2 py-0.5 rounded border border-border/80 shrink-0">
+                            <span
+                              className="font-mono font-bold text-xs text-foreground bg-muted px-2 py-0.5 rounded border border-border/80 truncate max-w-[180px] sm:max-w-none"
+                              title={`#${batch.batchNumber}`}
+                            >
                               #{batch.batchNumber}
                             </span>
 

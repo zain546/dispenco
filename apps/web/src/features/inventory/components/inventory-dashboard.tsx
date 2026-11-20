@@ -368,7 +368,7 @@ export function InventoryDashboard() {
                 {!isAllStores ? (activeStore?.name || 'Branch') : 'All'}
               </Badge>
               {search.trim() && activeTab !== 'full-catalog' && activeTab !== 'expiry-risk' && (
-                <Badge variant="outline" className="text-[9px] py-0 px-1 text-primary border-primary/30 bg-primary/5 shrink-0 hidden xs:inline-flex">
+                <Badge variant="outline" className="text-[9px] py-0 px-1 text-primary border-primary/30 bg-primary/5 shrink-0 hidden sm:inline-flex">
                   Filtered
                 </Badge>
               )}

@@ -231,10 +231,16 @@ STATUS COLORS (Subtle, desaturated precision tokens):
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: oklch(1 0 0 / 12%);
+  background: oklch(0 0 0 / 18%);
   border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0 0 0 / 30%);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(1 0 0 / 12%);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: oklch(1 0 0 / 22%);
 }
 .custom-scrollbar::-webkit-scrollbar-button {
@@ -247,5 +253,8 @@ STATUS COLORS (Subtle, desaturated precision tokens):
 }
 .custom-scrollbar {
   scrollbar-width: thin;
+  scrollbar-color: oklch(0 0 0 / 18%) transparent;
+}
+.dark .custom-scrollbar {
   scrollbar-color: oklch(1 0 0 / 12%) transparent;
 }

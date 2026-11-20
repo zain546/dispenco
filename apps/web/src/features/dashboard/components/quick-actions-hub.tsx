@@ -96,7 +96,7 @@ export function QuickActionsHub() {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-2.5">
         {actions.map((act) => {
           if (act.requiredPermission === false) return null;
           const Icon = act.icon;
