@@ -1574,7 +1574,13 @@ export function ReportsView() {
                               </td>
 
                               <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs whitespace-nowrap">
-                                {formatCurrency(tx.totalAmount)}
+                                {tx.paymentMethod?.includes('RETURNED') ? (
+                                  <span className="line-through text-muted-foreground/75" title="Returned / Refunded">
+                                    {formatCurrency(tx.totalAmount)}
+                                  </span>
+                                ) : (
+                                  formatCurrency(tx.totalAmount)
+                                )}
                               </td>
 
                               <td className="py-3 px-4 text-right whitespace-nowrap">

@@ -559,6 +559,8 @@ export class ReportsService {
       existingDate.itemsSold += saleUnits;
       salesOverTimeMap.set(dateKey, existingDate);
 
+      const rawItemsCount = s.saleItems.reduce((acc, item) => acc + item.quantity, 0);
+
       // Push transaction record
       transactions.push({
         id: s.id,
@@ -569,9 +571,9 @@ export class ReportsService {
         storeName: s.store?.name || 'Main Store',
         doctorName: (s as any).doctorName || 'Self',
         paymentMethod: isFullyReturned ? `RETURNED (${primaryPaymentMethod})` : primaryPaymentMethod,
-        itemsCount: saleUnits,
+        itemsCount: rawItemsCount,
         discountAmount: Number(saleDisc.toFixed(2)),
-        totalAmount: Number(netSaleRev.toFixed(2)),
+        totalAmount: Number(rawSaleRev.toFixed(2)),
         costAmount: saleCost,
         profitAmount: saleProfit,
         profitMargin: saleMargin,
