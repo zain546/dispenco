@@ -161,7 +161,11 @@ export class ReportsService {
       const rawSaleRev = Number(s.totalAmount);
       const saleReturns = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
       const netSaleRev = Math.max(0, Number((rawSaleRev - saleReturns).toFixed(2)));
-      const isFullyReturned = saleReturns >= rawSaleRev && rawSaleRev > 0;
+      const isFullyReturnedByQty = s.saleItems.length > 0 && s.saleItems.every((si) => {
+        const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
+        return itemReturns >= si.quantity;
+      });
+      const isFullyReturned = (saleReturns >= rawSaleRev && rawSaleRev > 0) || isFullyReturnedByQty;
 
       grossRevenue += rawSaleRev;
       totalReturns += saleReturns;
@@ -449,7 +453,11 @@ export class ReportsService {
       const rawSaleRev = Number(s.totalAmount);
       const saleReturnsTotal = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
       const netSaleRev = Math.max(0, Number((rawSaleRev - saleReturnsTotal).toFixed(2)));
-      const isFullyReturned = saleReturnsTotal >= rawSaleRev && rawSaleRev > 0;
+      const isFullyReturnedByQty = s.saleItems.length > 0 && s.saleItems.every((item) => {
+        const itemReturns = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
+        return itemReturns >= item.quantity;
+      });
+      const isFullyReturned = (saleReturnsTotal >= rawSaleRev && rawSaleRev > 0) || isFullyReturnedByQty;
 
       const saleDisc = Number(s.discountAmount || 0);
       const saleTax = Number(s.taxAmount || 0);

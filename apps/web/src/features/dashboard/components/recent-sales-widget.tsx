@@ -45,6 +45,13 @@ function getPaymentBadge(method: string, status?: string) {
       </Badge>
     );
   }
+  if (status === 'PARTIAL_RETURN' || status === 'PARTIALLY_RETURNED') {
+    return (
+      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 px-1.5 py-0">
+        Partial Return
+      </Badge>
+    );
+  }
   const m = method.toUpperCase();
   if (m === 'DIGITAL') {
     return (
@@ -183,7 +190,7 @@ export function RecentSalesWidget() {
                         <span className="font-medium text-xs text-foreground truncate max-w-[140px]">
                           {s.customerName || 'Walk-in Customer'}
                         </span>
-                        {getPaymentBadge(s.paymentMethod || 'CASH')}
+                        {getPaymentBadge(s.paymentMethod || 'CASH', s.status)}
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate font-mono">
                         {compactReceipt} • {formatRelativeTime(s.createdAt)}
@@ -191,7 +198,9 @@ export function RecentSalesWidget() {
                     </Link>
 
                     <div className="text-right shrink-0 flex items-center gap-1">
-                      <span className="text-xs font-semibold text-foreground tabular-nums">
+                      <span className={`text-xs font-semibold tabular-nums ${
+                        s.status === 'RETURNED' ? 'line-through text-muted-foreground/60' : 'text-foreground'
+                      }`}>
                         {formatCurrency(s.totalAmount)}
                       </span>
                       <Button

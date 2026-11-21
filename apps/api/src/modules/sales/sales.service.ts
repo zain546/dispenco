@@ -686,6 +686,11 @@ export class SalesService {
             id: true,
             quantity: true,
             product: { select: { name: true } },
+            returnItems: {
+              select: {
+                quantity: true,
+              },
+            },
           },
         },
         payments: { select: { method: true } },
@@ -724,9 +729,19 @@ export class SalesService {
       data: sales.map((s) => {
         const totalRefunded = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
         const rawTotal = Number(s.totalAmount);
-        const hasReturns = Boolean(s.returns && s.returns.length > 0);
-        const isFullyReturned = hasReturns && (rawTotal === 0 || totalRefunded >= rawTotal);
-        const isPartiallyReturned = hasReturns && !isFullyReturned && totalRefunded > 0;
+        const totalSoldQty = s.saleItems.reduce((sum, si) => sum + (si.quantity || 0), 0);
+        const totalReturnedQty = s.saleItems.reduce(
+          (sum, si) => sum + (si.returnItems ? si.returnItems.reduce((acc, ri) => acc + (ri.quantity || 0), 0) : 0),
+          0,
+        );
+        const hasReturns = Boolean((s.returns && s.returns.length > 0) || totalReturnedQty > 0);
+        const isFullyReturned =
+          totalSoldQty > 0 &&
+          s.saleItems.every((si) => {
+            const returned = si.returnItems ? si.returnItems.reduce((acc, ri) => acc + (ri.quantity || 0), 0) : 0;
+            return returned >= si.quantity;
+          });
+        const isPartiallyReturned = hasReturns && !isFullyReturned && (totalReturnedQty > 0 || totalRefunded > 0);
 
         let computedStatus: string = s.status;
         if (s.status !== 'VOIDED') {
