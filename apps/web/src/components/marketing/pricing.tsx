@@ -46,8 +46,24 @@ export function Pricing() {
         <SectionHeading
           centered
           eyebrow="Simple pricing"
-          title="Your first month is on us."
-          description="One Starter plan for your pharmacy. Get settled in, then continue with simple monthly pricing."
+          title={
+            isActive
+              ? 'Your active pharmacy plan.'
+              : isTrialing
+                ? 'Your free trial is underway.'
+                : isExpired
+                  ? 'Reactivate your pharmacy plan.'
+                  : 'Your first month is on us.'
+          }
+          description={
+            isActive
+              ? 'Everything your counter needs to run smoothly every single day.'
+              : isTrialing
+                ? `You currently have ${subscription?.daysRemaining ?? 0} days remaining in your free trial.`
+                : isExpired
+                  ? 'Restore instant access to counter billing, expiry alerts, and stock management.'
+                  : 'One Starter plan for your pharmacy. Get settled in, then continue with simple monthly pricing.'
+          }
         />
 
         <div className="mx-auto max-w-3xl">
