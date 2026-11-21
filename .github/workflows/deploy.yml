@@ -1,77 +1,98 @@
-name: Continuous Deployment (CD)
+name: Deploy Production Backend (Oracle Cloud)
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'docker-compose.prod.yml'
+      - '.dockerignore'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-oracle-api
+  cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Pre-deployment Validation
+  deploy-api:
+    name: Build & Deploy API on Oracle Cloud
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Validate deployment secrets
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          if [ -z "$ORACLE_HOST" ] || [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "::error::Missing ORACLE_HOST or ORACLE_SSH_KEY GitHub Actions secrets."
+            echo "Add ORACLE_HOST (e.g. 84.12.181.80) and ORACLE_SSH_KEY (contents of oracle.key) in GitHub -> Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      - name: Deploy API via SSH
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER || 'ubuntu' }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/oracle_deploy_key
+          chmod 600 ~/.ssh/oracle_deploy_key
+          if [ -n "$ORACLE_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$ORACLE_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -T 15 -H "$ORACLE_HOST" >> ~/.ssh/known_hosts
+          fi
 
-      - name: Setup Node.js 20.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: 'pnpm'
+          ssh -i ~/.ssh/oracle_deploy_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            "${ORACLE_USER}@${ORACLE_HOST}" << 'EOF'
+            set -euo pipefail
+            cd /home/ubuntu/dispenco
 
-      - name: Install dependencies
-        run: pnpm install
+            echo ">>> Pulling latest main branch..."
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
 
-      - name: Generate Prisma Client Types
-        run: pnpm --filter @dispenco/api exec prisma generate
+            echo ">>> Rebuilding and restarting API container (runs Prisma migrations on boot)..."
+            sudo docker compose -f docker-compose.prod.yml up -d --build api
 
-      - name: Typecheck Workspace
-        run: pnpm run typecheck
+            echo ">>> Waiting for API health check (/api/v1/health)..."
+            HEALTHY=0
+            for i in $(seq 1 15); do
+              if RESPONSE=$(curl -fsS --max-time 3 http://127.0.0.1:4000/api/v1/health 2>/dev/null); then
+                echo "API healthy: $RESPONSE"
+                HEALTHY=1
+                break
+              fi
+              echo "Attempt $i/15: waiting for API..."
+              sleep 3
+            done
 
-  deploy:
-    name: Deploy to Production VPS
-    runs-on: ubuntu-latest
-    needs: [validate]
-    steps:
-      - name: Deploy via SSH to Docker Host
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          script_stop: true
-          script: |
-            set -e
-            echo "==> Navigating to project directory..."
-            cd ${{ secrets.VPS_DEPLOY_DIR || '/home/ubuntu/dispenco' }}
-
-            DOCKER="docker"
-            if ! docker info >/dev/null 2>&1; then
-              DOCKER="sudo docker"
+            if [ "$HEALTHY" -ne 1 ]; then
+              echo "::error::API failed health check after 45s. Recent logs:"
+              sudo docker compose -f docker-compose.prod.yml logs --tail=50 api
+              exit 1
             fi
 
-            echo "==> Fetching latest changes from main..."
-            git fetch origin main
-            git reset --hard origin/main
+            echo ">>> Verifying Prisma migration status..."
+            sudo docker compose -f docker-compose.prod.yml exec -T -w /app/apps/api api ./node_modules/.bin/prisma migrate status
 
-            echo "==> Rebuilding API container..."
-            $DOCKER compose -f docker-compose.prod.yml build --pull api
+            echo ">>> Pruning dangling Docker images..."
+            sudo docker image prune -f >/dev/null 2>&1 || true
 
-            echo "==> Starting updated API container..."
-            $DOCKER compose -f docker-compose.prod.yml up -d --no-deps api
-
-            echo "==> Running Prisma database migrations..."
-            $DOCKER compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy
-
-            echo "==> Pruning dangling Docker images to preserve disk space..."
-            $DOCKER image prune -f
-
-            echo "==> Checking API container status..."
-            $DOCKER compose -f docker-compose.prod.yml ps api
-
-            echo "✅ Deployment completed successfully!"
+            echo ">>> Deployment complete!"
+          EOF
