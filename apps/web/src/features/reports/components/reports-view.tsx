@@ -1091,6 +1091,7 @@ export function ReportsView() {
                           tickFormatter={(v) => `PKR ${v}`}
                         />
                         <Tooltip
+                          cursor={{ stroke: 'var(--border)', strokeDasharray: '3 3' }}
                           formatter={(val: unknown, name?: unknown) => [
                             formatCurrency(Number(val || 0)),
                             name === 'profit' ? 'Net Profit' : 'Sales Revenue',
@@ -1143,6 +1144,7 @@ export function ReportsView() {
                           tickFormatter={(v) => `PKR ${v}`}
                         />
                         <Tooltip
+                          cursor={{ fill: 'var(--muted)', opacity: 0.25 }}
                           formatter={(val: unknown, name?: unknown) => [
                             formatCurrency(Number(val || 0)),
                             name === 'profit' ? 'Net Profit' : 'Sales Revenue',

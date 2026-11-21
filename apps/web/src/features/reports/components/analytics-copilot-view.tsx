@@ -642,6 +642,7 @@ export function AnalyticsCopilotView() {
                               tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                             />
                             <Tooltip
+                              cursor={{ fill: 'var(--muted)', opacity: 0.25 }}
                               contentStyle={{
                                 backgroundColor: 'var(--popover)',
                                 borderColor: 'var(--border)',
@@ -684,6 +685,7 @@ export function AnalyticsCopilotView() {
                               tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                             />
                             <Tooltip
+                              cursor={{ fill: 'var(--muted)', opacity: 0.25 }}
                               contentStyle={{
                                 backgroundColor: 'var(--popover)',
                                 borderColor: 'var(--border)',
@@ -721,6 +723,7 @@ export function AnalyticsCopilotView() {
                               tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
                             />
                             <Tooltip
+                              cursor={{ fill: 'var(--muted)', opacity: 0.25 }}
                               contentStyle={{
                                 backgroundColor: 'var(--popover)',
                                 borderColor: 'var(--border)',
