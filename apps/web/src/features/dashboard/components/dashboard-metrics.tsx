@@ -99,9 +99,15 @@ export function DashboardMetrics() {
           label="Today's Profit"
           value={formatCurrency(todaySales.profit)}
           caption={
-            todaySales.count === 0
-              ? 'Net profit after batch cost'
-              : `${todaySales.margin.toFixed(1)}% margin • Cost: ${formatCurrency(todaySales.cost)}`
+            todaySales.count === 0 ? (
+              'Net profit after batch cost'
+            ) : (
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                <span className="whitespace-nowrap">{todaySales.margin.toFixed(1)}% margin</span>
+                <span className="text-muted-foreground/50">•</span>
+                <span className="whitespace-nowrap">Cost: {formatCurrency(todaySales.cost)}</span>
+              </div>
+            )
           }
           icon={TrendingUp}
           variant={todaySales.profit >= 0 ? 'default' : 'destructive'}

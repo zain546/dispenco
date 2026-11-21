@@ -8,7 +8,7 @@ export interface StatCardProps {
   label?: string;
   title?: string;
   value: React.ReactNode;
-  caption?: string;
+  caption?: React.ReactNode;
   icon?: LucideIcon;
   variant?: 'default' | 'destructive' | 'success' | 'warning';
   isLoading?: boolean;
@@ -100,9 +100,9 @@ export function StatCard({
               {renderValue(value)}
             </div>
             {caption && (
-              <p className="text-micro text-muted-foreground/90 line-clamp-1 leading-snug">
+              <div className="text-micro text-muted-foreground/90 leading-tight">
                 {caption}
-              </p>
+              </div>
             )}
           </div>
         )}

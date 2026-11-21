@@ -133,6 +133,47 @@ docker compose -f docker-compose.prod.yml exec api npx ts-node prisma/seed.ts
 
 ---
 
+## 🤖 Automated CI/CD Pipeline (Push to `main` -> Auto Deploy)
+
+Dispenco uses `.github/workflows/deploy.yml` to automatically validate and deploy to your production VPS whenever code is pushed or merged into the `main` branch.
+
+### 1. Generate a Deploy SSH Key Pair (on VPS or local)
+On your VPS (or local terminal):
+```bash
+ssh-keygen -t ed25519 -C "github-actions-dispenco" -f ~/.ssh/github_deploy -N ""
+cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+View and copy the private key:
+```bash
+cat ~/.ssh/github_deploy
+```
+
+### 2. Configure GitHub Repository Secrets
+In your GitHub repository, navigate to:
+**Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**
+
+Add the following 4 secrets:
+| Secret Name | Value Example | Description |
+|---|---|---|
+| `VPS_HOST` | `84.12.181.80` | Public IP or hostname of your Oracle Cloud VPS |
+| `VPS_USER` | `ubuntu` | SSH user on the VPS |
+| `VPS_SSH_KEY` | `-----BEGIN PRIVATE KEY-----...` | Contents of your `oracle.key` file |
+| `VPS_DEPLOY_DIR` | `/home/ubuntu/dispenco` | Absolute path where repo is cloned on the VPS |
+| `VPS_PORT` *(Optional)* | `22` | Custom SSH port if not default 22 |
+
+### 3. Workflow Execution Flow
+On each push to `main`:
+1. **Pre-deployment Validation**: Verifies dependencies, generates Prisma types, and runs `typecheck`.
+2. **SSH Deployment**:
+   - `git fetch origin main && git reset --hard origin/main`
+   - Builds API container (`docker compose -f docker-compose.prod.yml build --pull api`)
+   - Restarts container seamlessly (`docker compose -f docker-compose.prod.yml up -d --no-deps api`)
+   - Executes database migrations automatically (`prisma migrate deploy`)
+   - Prunes dangling Docker layers to prevent disk bloat
+
+---
+
 ## 🔒 Nginx Reverse Proxy with SSL (Let's Encrypt)
 
 If hosting on a VPS, use Nginx to route traffic and provide HTTPS:
