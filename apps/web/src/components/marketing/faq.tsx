@@ -57,7 +57,7 @@ export function Faq() {
     <section
       id="faq"
       aria-label="Frequently asked questions"
-      className="marketing-section px-5 py-24 sm:px-8 md:py-32"
+      className="marketing-section border-t px-5 py-16 sm:px-8 sm:py-24 lg:py-32"
     >
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-5 lg:gap-20">
         <div className="self-start lg:sticky lg:top-28 lg:col-span-2">
@@ -77,14 +77,18 @@ export function Faq() {
         <Accordion
           type="single"
           collapsible
-          className="marketing-faq rounded-2xl bg-card lg:col-span-3"
+          className="marketing-faq overflow-visible rounded-none border-0 lg:col-span-3"
         >
           {questions.map((item, index) => (
-            <AccordionItem key={item.question} value={`question-${index}`} className="px-4 sm:px-6">
-              <AccordionTrigger className="min-h-20 items-center px-1 py-6 text-sm leading-6 font-medium hover:no-underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+            <AccordionItem
+              key={item.question}
+              value={`question-${index}`}
+              className="border-b border-border/80 bg-transparent px-0 data-open:bg-transparent"
+            >
+              <AccordionTrigger className="min-h-16 items-center border-0 px-0 py-5 text-base leading-6 font-medium hover:no-underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
                 {item.question}
               </AccordionTrigger>
-              <AccordionContent className="h-auto px-1 pb-6 text-sm leading-7 text-muted-foreground">
+              <AccordionContent className="h-auto px-0 pt-0 pb-6 text-sm leading-7 text-muted-foreground">
                 {item.answer}
               </AccordionContent>
             </AccordionItem>

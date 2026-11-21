@@ -1,30 +1,45 @@
-import { Barcode, LaptopMinimal, PackageCheck, ShieldCheck } from 'lucide-react';
+import { FileSpreadsheet, Sparkles, Store, WifiOff } from 'lucide-react';
+import { SpotlightCard, SpotlightGrid } from './spotlight-card';
+
+const facts = [
+  {
+    icon: Sparkles,
+    value: 'PKR 0',
+    label: 'First month free, no card required',
+  },
+  {
+    icon: WifiOff,
+    value: 'Offline POS',
+    label: 'Queue sales locally & sync back online',
+  },
+  {
+    icon: FileSpreadsheet,
+    value: 'CSV Import',
+    label: 'Bring your Excel catalog in minutes',
+  },
+  {
+    icon: Store,
+    value: 'Multi-Store',
+    label: 'Unified chain view & stock transfers',
+  },
+] as const;
 
 export function TrustStrip() {
   return (
-    <section
-      aria-label="Built around the way your pharmacy works"
-      className="border-b px-5 pb-10 sm:px-8"
-    >
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 rounded-2xl border bg-muted/15 p-4 md:grid-cols-4 sm:p-5">
-        {[
-          { icon: PackageCheck, label: 'Batch & expiry tracking' },
-          { icon: Barcode, label: 'Barcode-ready POS' },
-          { icon: ShieldCheck, label: 'Access by staff role' },
-          { icon: LaptopMinimal, label: 'Works on any device' },
-        ].map(({ icon: Icon, label }) => (
-          <div
-            key={label}
-            className="flex items-center justify-center gap-2.5 py-2 text-xs text-muted-foreground sm:text-sm"
-          >
-            <Icon
-              className="size-4 shrink-0 text-primary dark:text-primary-foreground"
-              aria-hidden="true"
-            />
-            <span>{label}</span>
-          </div>
+    <section aria-label="Dispenco at a glance" className="px-5 pb-16 sm:px-8 md:pb-24">
+      <SpotlightGrid className="mx-auto grid max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {facts.map(({ icon: Icon, value, label }) => (
+          <SpotlightCard key={value} className="flex items-start gap-3.5 p-5">
+            <span className="marketing-feature-icon flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary dark:text-chart-1">
+              <Icon className="size-4" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-base font-semibold tracking-tight">{value}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{label}</p>
+            </div>
+          </SpotlightCard>
         ))}
-      </div>
+      </SpotlightGrid>
     </section>
   );
 }
