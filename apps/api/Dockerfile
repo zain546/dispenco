@@ -31,9 +31,11 @@ RUN apk add --no-cache openssl libc6-compat
 
 ENV NODE_ENV=production
 ENV PORT=4000
+ENV PRISMA_HIDE_UPDATE_MESSAGE=1
 
 COPY --from=builder /app ./
 
 EXPOSE 4000
 
-CMD ["node", "apps/api/dist/main"]
+# Automatically apply pending Prisma migrations on startup before booting NestJS
+CMD ["sh", "-c", "cd /app/apps/api && ./node_modules/.bin/prisma migrate deploy && cd /app && exec node apps/api/dist/main"]

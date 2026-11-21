@@ -1,19 +1,89 @@
-name: Continuous Deployment (CD)
+name: Deploy Production Backend (Oracle Cloud)
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/**'
+      - 'docker-compose.prod.yml'
+      - '.dockerignore'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-oracle-api
+  cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy Production Applications
+  deploy-api:
+    name: Build & Deploy API on Oracle Cloud
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Notify Deployment Pipeline
+      - name: Validate deployment secrets
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
         run: |
-          echo "🚀 Repository merged to main branch."
-          echo "Ready for cloud deployment (Render / Railway / Vercel)."
+          if [ -z "$ORACLE_HOST" ] || [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "::error::Missing ORACLE_HOST or ORACLE_SSH_KEY GitHub Actions secrets."
+            echo "Add ORACLE_HOST (e.g. 84.12.181.80) and ORACLE_SSH_KEY (contents of oracle.key) in GitHub -> Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Deploy API via SSH
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER || 'ubuntu' }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/oracle_deploy_key
+          chmod 600 ~/.ssh/oracle_deploy_key
+          ssh-keyscan -T 15 -H "$ORACLE_HOST" >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/oracle_deploy_key \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            "${ORACLE_USER}@${ORACLE_HOST}" << 'EOF'
+            set -euo pipefail
+            cd /home/ubuntu/dispenco
+
+            echo ">>> Pulling latest main branch..."
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+
+            echo ">>> Rebuilding and restarting API container (runs Prisma migrations on boot)..."
+            sudo docker compose -f docker-compose.prod.yml up -d --build api
+
+            echo ">>> Waiting for API health check (/api/v1/health)..."
+            HEALTHY=0
+            for i in $(seq 1 15); do
+              if RESPONSE=$(curl -fsS --max-time 3 http://127.0.0.1:4000/api/v1/health 2>/dev/null); then
+                echo "API healthy: $RESPONSE"
+                HEALTHY=1
+                break
+              fi
+              echo "Attempt $i/15: waiting for API..."
+              sleep 3
+            done
+
+            if [ "$HEALTHY" -ne 1 ]; then
+              echo "::error::API failed health check after 45s. Recent logs:"
+              sudo docker compose -f docker-compose.prod.yml logs --tail=50 api
+              exit 1
+            fi
+
+            echo ">>> Verifying Prisma migration status..."
+            sudo docker compose -f docker-compose.prod.yml exec -T -w /app/apps/api api ./node_modules/.bin/prisma migrate status
+
+            echo ">>> Pruning dangling Docker images..."
+            sudo docker image prune -f >/dev/null 2>&1 || true
+
+            echo ">>> Deployment complete!"
+          EOF
