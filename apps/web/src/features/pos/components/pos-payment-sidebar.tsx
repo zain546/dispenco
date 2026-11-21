@@ -111,8 +111,8 @@ export const PosPaymentSidebar = React.memo(function PosPaymentSidebar({
 
   return (
     <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-4 self-start">
-      <Card id="payment-summary-card" className="shadow-2xs border-border/70 bg-card overflow-hidden scroll-mt-20 flex flex-col lg:max-h-[calc(100vh-2rem)]">
-        <CardHeader className="p-3.5 pb-2.5 border-b border-border/70 shrink-0">
+      <Card id="payment-summary-card" className="shadow-2xs border-border/70 bg-card scroll-mt-20 flex flex-col">
+        <CardHeader className="p-3.5 pb-2.5 border-b border-border/70">
           <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
             <Banknote className="size-4 text-primary shrink-0" />
             <span>Payment Summary</span>
@@ -122,7 +122,7 @@ export const PosPaymentSidebar = React.memo(function PosPaymentSidebar({
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="p-3.5 space-y-2.5 lg:overflow-y-auto flex-1 min-h-0 overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <CardContent className="p-3.5 space-y-2.5">
           {/* Customer Account & Khata Credit Section */}
           <div className="space-y-2" ref={customerSearchRef}>
             <div className="flex items-center justify-between gap-1.5">
@@ -636,8 +636,8 @@ export const PosPaymentSidebar = React.memo(function PosPaymentSidebar({
           )}
         </CardContent>
 
-        {/* Pinned Bottom Financial Totals & Primary Action CTA */}
-        <div className="p-3.5 pt-2.5 border-t border-border/70 bg-card/95 backdrop-blur-xs shrink-0 space-y-2.5">
+        {/* Bottom Financial Totals & Primary Action CTA */}
+        <div className="p-3.5 pt-2.5 border-t border-border/70 bg-card/95 rounded-b-xl backdrop-blur-xs space-y-2.5">
           {/* Financial Totals Breakdown */}
           <div className="space-y-1 text-xs">
             <div className="flex justify-between text-muted-foreground text-micro font-normal">
