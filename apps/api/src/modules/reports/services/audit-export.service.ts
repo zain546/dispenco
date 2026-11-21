@@ -133,7 +133,9 @@ export class AuditExportService implements OnModuleInit {
       }),
       this.prisma.auditLog.groupBy({
         by: ['userId'],
-        where: { ...whereClause, userId: { not: null } },
+        where: whereClause.userId
+          ? whereClause
+          : { ...whereClause, userId: { not: null } },
         _count: { id: true },
         orderBy: { _count: { id: 'desc' } },
         take: 5,

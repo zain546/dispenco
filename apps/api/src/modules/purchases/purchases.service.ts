@@ -305,15 +305,16 @@ export class PurchasesService {
       where.status = status as PurchaseOrderStatus;
     }
 
-    const take = limit ? Math.max(1, Math.min(200, Number(limit))) : 100;
-    const skip = page ? (Math.max(1, Number(page)) - 1) * take : 0;
+    const hasPagination = limit !== undefined || page !== undefined;
+    const take = hasPagination ? (limit ? Math.max(1, Math.min(200, Number(limit))) : 100) : undefined;
+    const skip = hasPagination ? (page ? (Math.max(1, Number(page)) - 1) * (take || 100) : 0) : undefined;
 
     const [total, orders] = await Promise.all([
       this.prisma.purchaseOrder.count({ where }),
       this.prisma.purchaseOrder.findMany({
         where,
-        take,
-        skip,
+        ...(take !== undefined ? { take } : {}),
+        ...(skip !== undefined ? { skip } : {}),
         orderBy: { createdAt: 'desc' },
         include: {
           supplier: true,
@@ -341,8 +342,8 @@ export class PurchasesService {
       meta: {
         total,
         page: page ? Number(page) : 1,
-        limit: take,
-        totalPages: Math.ceil(total / take) || 1,
+        limit: take ?? total,
+        totalPages: take ? (Math.ceil(total / take) || 1) : 1,
       },
     };
   }

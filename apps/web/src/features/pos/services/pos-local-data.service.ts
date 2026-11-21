@@ -85,18 +85,19 @@ export const posLocalDataService = {
     const storeMetaKey = `catalog_sync:${storeId || 'all'}`;
     try {
       if (!options?.force) {
-        const [storeMeta, localCount] = await Promise.all([
-          posDb.syncMetadata.get(storeMetaKey),
+        const [installedScope, localCount] = await Promise.all([
+          posDb.syncMetadata.get('installed_catalog_scope'),
           posDb.localProducts.count(),
         ]);
         if (
-          storeMeta?.lastSyncedAt &&
+          installedScope?.scope === storeMetaKey &&
+          installedScope?.lastSyncedAt &&
           localCount > 0 &&
-          Date.now() - new Date(storeMeta.lastSyncedAt).getTime() < CATALOG_SYNC_TTL_MS
+          Date.now() - new Date(installedScope.lastSyncedAt).getTime() < CATALOG_SYNC_TTL_MS
         ) {
           return {
-            count: storeMeta.recordCount || localCount,
-            timestamp: storeMeta.lastSyncedAt,
+            count: installedScope.recordCount || localCount,
+            timestamp: installedScope.lastSyncedAt,
           };
         }
       }
@@ -178,6 +179,12 @@ export const posLocalDataService = {
               key: storeMetaKey,
               lastSyncedAt: now,
               recordCount: localProductRecords.length,
+            },
+            {
+              key: 'installed_catalog_scope',
+              lastSyncedAt: now,
+              recordCount: localProductRecords.length,
+              scope: storeMetaKey,
             },
           ]);
         },

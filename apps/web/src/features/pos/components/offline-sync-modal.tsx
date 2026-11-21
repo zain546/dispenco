@@ -130,7 +130,7 @@ export function OfflineSyncModal({
     setIsCatalogSyncing(true);
     try {
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
-      const res = await posLocalDataService.syncCatalogToLocal(targetStore);
+      const res = await posLocalDataService.syncCatalogToLocal(targetStore, { force: true });
       toast.success(`Local catalog cache updated! (${res.count} products cached)`);
       setInternalIsOnline(true);
       await loadData();

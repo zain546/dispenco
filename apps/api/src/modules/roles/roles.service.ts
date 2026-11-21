@@ -79,32 +79,37 @@ export class RolesService implements OnModuleInit {
       { name: 'Cashier', permissions: DEFAULT_CASHIER_PERMISSIONS },
     ];
 
+    let allSucceeded = true;
     for (const preset of presets) {
       const existing = rolesByName.get(preset.name.toLowerCase());
       if (!existing) {
-        await this.createPresetRole(
+        const ok = await this.createPresetRole(
           tenantId,
           preset.name,
           preset.permissions,
           true,
         );
+        if (!ok) allSucceeded = false;
       } else if (existing.rolePermissions.length === 0) {
         // Repair role: if the role was previously created without permissions, attach them now
-        await this.attachPermissionsToRole(existing.id, preset.permissions);
+        const ok = await this.attachPermissionsToRole(existing.id, preset.permissions);
+        if (!ok) allSucceeded = false;
       }
     }
 
-    this.seededTenants.add(tenantId);
+    if (allSucceeded) {
+      this.seededTenants.add(tenantId);
+    }
   }
 
-  private async attachPermissionsToRole(roleId: string, permissions: Permission[]) {
+  private async attachPermissionsToRole(roleId: string, permissions: Permission[]): Promise<boolean> {
     const permRecords = await this.prisma.permission.findMany({
       where: { name: { in: permissions } },
     });
 
     if (permRecords.length === 0) {
       this.logger.error(`Cannot attach permissions to role ${roleId}: permissions not found in database.`);
-      return;
+      return false;
     }
 
     await this.prisma.rolePermission.createMany({
@@ -114,6 +119,7 @@ export class RolesService implements OnModuleInit {
       })),
       skipDuplicates: true,
     });
+    return true;
   }
 
   private async createPresetRole(
@@ -121,7 +127,7 @@ export class RolesService implements OnModuleInit {
     name: string,
     permissions: Permission[],
     isDefault: boolean,
-  ) {
+  ): Promise<boolean> {
     try {
       const permRecords = await this.prisma.permission.findMany({
         where: { name: { in: permissions } },
@@ -131,7 +137,7 @@ export class RolesService implements OnModuleInit {
         this.logger.error(
           `Aborting preset role creation "${name}" for tenant ${tenantId}: required permissions not found in database.`,
         );
-        return;
+        return false;
       }
 
       const role = await this.prisma.role.create({
@@ -149,8 +155,10 @@ export class RolesService implements OnModuleInit {
         })),
         skipDuplicates: true,
       });
+      return true;
     } catch (err) {
       this.logger.warn(`Could not seed preset role "${name}" for tenant ${tenantId}: ${err}`);
+      return false;
     }
   }
 
@@ -351,6 +359,8 @@ export class RolesService implements OnModuleInit {
       }
     });
 
+    this.seededTenants.delete(tenantId);
+
     return this.findOne(tenantId, roleId);
   }
 
@@ -388,6 +398,8 @@ export class RolesService implements OnModuleInit {
     await this.prisma.role.delete({
       where: { id: roleId },
     });
+
+    this.seededTenants.delete(tenantId);
 
     return {
       success: true,

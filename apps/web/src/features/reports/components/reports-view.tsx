@@ -358,7 +358,7 @@ export function ReportsView() {
         params.storeId = activeStoreId;
       }
 
-      const [res, orgRes] = await Promise.all([
+      const [salesResult, orgResult] = await Promise.allSettled([
         reportsApi.getSalesReport(params),
         isAllStores
           ? reportsApi.getOrgOverview({
@@ -370,12 +370,24 @@ export function ReportsView() {
 
       if (reqVersion !== reportReqVersionRef.current) return;
 
-      if (res?.success) {
-        setReportData(res.data);
+      if (salesResult.status === 'fulfilled') {
+        if (salesResult.value?.success) {
+          setReportData(salesResult.value.data);
+        }
+      } else {
+        toast.error('Failed to load sales analytics', {
+          description: getErrorMessage(salesResult.reason),
+        });
       }
 
-      if (isAllStores && orgRes?.success) {
-        setOrgOverviewData(orgRes.data);
+      if (orgResult.status === 'rejected') {
+        toast.error('Failed to load organization overview', {
+          description: getErrorMessage(orgResult.reason),
+        });
+      }
+
+      if (isAllStores && orgResult.status === 'fulfilled' && orgResult.value?.success) {
+        setOrgOverviewData(orgResult.value.data);
       } else if (!isAllStores) {
         setOrgOverviewData(null);
       }

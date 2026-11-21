@@ -104,6 +104,7 @@ export interface SyncMetadataRecord {
   key: string;
   lastSyncedAt: string;
   recordCount: number;
+  scope?: string;
 }
 
 export class DispencoPosDatabase extends Dexie {

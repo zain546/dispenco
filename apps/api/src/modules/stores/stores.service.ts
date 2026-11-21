@@ -27,13 +27,20 @@ export class StoresService {
       },
     });
 
-    await this.cache.invalidateTenantConfig(tenantId, 'stores');
+    await this.invalidateStoreCaches(tenantId);
 
     return {
       success: true,
       data: store,
       message: 'Store created successfully',
     };
+  }
+
+  private async invalidateStoreCaches(tenantId: string) {
+    await Promise.all([
+      this.cache.invalidateTenantConfig(tenantId, 'stores'),
+      this.cache.del(`chain:overview:${tenantId}`),
+    ]);
   }
 
   async findAllStores(tenantId: string) {
@@ -87,7 +94,7 @@ export class StoresService {
       data: dataToUpdate,
     });
 
-    await this.cache.invalidateTenantConfig(tenantId, 'stores');
+    await this.invalidateStoreCaches(tenantId);
 
     return {
       success: true,
@@ -104,7 +111,7 @@ export class StoresService {
       data: { isActive: false },
     });
 
-    await this.cache.invalidateTenantConfig(tenantId, 'stores');
+    await this.invalidateStoreCaches(tenantId);
 
     return {
       success: true,
@@ -234,7 +241,7 @@ export class StoresService {
         entry.units += qty;
         entry.cost += Number(batch.costPrice) * qty;
         entry.retail += Number(batch.sellPrice) * qty;
-        if (qty <= (batch.product?.lowStockThreshold || 10)) {
+        if (qty <= (batch.product?.lowStockThreshold ?? 10)) {
           entry.lowStock++;
         }
       }
@@ -283,7 +290,6 @@ export class StoresService {
           acc.totalInventoryCostValue += s.inventoryCostValue;
           acc.totalRetailValue += s.retailValue;
           acc.totalLowStockCount += s.lowStockCount;
-          acc.totalPendingTransfers += s.pendingTransfers;
           return acc;
         },
         {
@@ -292,7 +298,7 @@ export class StoresService {
           totalInventoryCostValue: 0,
           totalRetailValue: 0,
           totalLowStockCount: 0,
-          totalPendingTransfers: 0,
+          totalPendingTransfers: pendingTransfers.length,
         },
       );
 
@@ -366,17 +372,17 @@ export class StoresService {
       });
 
       const multiplier = 1 + dto.percentageAdjustment / 100;
-      await this.prisma.$transaction(
+      const results = await this.prisma.$transaction(
         batches.map((b) =>
-          this.prisma.batch.update({
-            where: { id: b.id },
+          this.prisma.batch.updateMany({
+            where: { id: b.id, quantityRemaining: { gt: 0 } },
             data: {
               sellPrice: Math.max(0, Math.round(Number(b.sellPrice) * multiplier * 100) / 100),
             },
-          })
-        )
+          }),
+        ),
       );
-      updatedBatchesCount = batches.length;
+      updatedBatchesCount = results.reduce((sum, r) => sum + r.count, 0);
     } else {
       throw new BadRequestException('Must provide either newSellPrice or percentageAdjustment');
     }

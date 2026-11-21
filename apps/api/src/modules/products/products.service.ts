@@ -844,79 +844,97 @@ export class ProductsService {
 
     const chunkSize = 100;
     const createdProducts: any[] = [];
+    let importError: any = null;
 
-    for (let i = 0; i < productsToImport.length; i += chunkSize) {
-      const chunk = productsToImport.slice(i, i + chunkSize);
-      const chunkResults = await this.prisma.$transaction(
-        async (tx) => {
-          const results = [];
+    try {
+      for (let i = 0; i < productsToImport.length; i += chunkSize) {
+        const chunk = productsToImport.slice(i, i + chunkSize);
+        const chunkResults = await this.prisma.$transaction(
+          async (tx) => {
+            const results = [];
 
-          for (const item of chunk) {
-            const cleanBarcode = item.barcode?.trim() || null;
+            for (const item of chunk) {
+              const cleanBarcode = item.barcode?.trim() || null;
 
-            const attributesJson = {
-              isPriority: item.isPriority ?? true,
-              ...(item.manufacturer ? { manufacturer: item.manufacturer.trim(), vendorName: item.manufacturer.trim() } : {}),
-              ...(item.vendorName ? { vendorName: item.vendorName.trim() } : {}),
-              ...(item.rackNumber ? { rackNumber: item.rackNumber.trim() } : {}),
-              ...(item.strength ? { strength: item.strength.trim() } : {}),
-              ...(item.dosageForm ? { dosageForm: item.dosageForm.trim() } : {}),
-              ...(item.prescriptionRequired !== undefined ? { prescriptionRequired: item.prescriptionRequired } : {}),
-            };
+              const attributesJson = {
+                isPriority: item.isPriority ?? true,
+                ...(item.manufacturer ? { manufacturer: item.manufacturer.trim(), vendorName: item.manufacturer.trim() } : {}),
+                ...(item.vendorName ? { vendorName: item.vendorName.trim() } : {}),
+                ...(item.rackNumber ? { rackNumber: item.rackNumber.trim() } : {}),
+                ...(item.strength ? { strength: item.strength.trim() } : {}),
+                ...(item.dosageForm ? { dosageForm: item.dosageForm.trim() } : {}),
+                ...(item.prescriptionRequired !== undefined ? { prescriptionRequired: item.prescriptionRequired } : {}),
+              };
 
-            const product = await tx.product.create({
-              data: {
-                tenantId,
-                name: item.name.trim(),
-                genericName: item.genericName?.trim() || null,
-                category: item.category || 'GENERAL_ITEM',
-                unit: item.unit || 'PACK',
-                barcode: cleanBarcode,
-                isControlledSubstance: item.isControlledSubstance ?? false,
-                isActive: true,
-                lowStockThreshold: item.lowStockThreshold ?? 10,
-                attributes: attributesJson as Prisma.InputJsonValue,
-              },
-            });
-
-            if (item.initialStockQuantity && item.initialStockQuantity > 0) {
-              const costPrice = item.costPrice ?? item.unitPrice * 0.8;
-              const expiry = item.expiryDate
-                ? new Date(item.expiryDate)
-                : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-
-              await tx.batch.create({
+              const product = await tx.product.create({
                 data: {
                   tenantId,
-                  storeId: store.id,
-                  productId: product.id,
-                  batchNumber:
-                    item.batchNumber ||
-                    `IMP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
-                  expiryDate: expiry,
-                  costPrice: new Prisma.Decimal(costPrice),
-                  sellPrice: new Prisma.Decimal(item.unitPrice),
-                  quantityReceived: item.initialStockQuantity,
-                  quantityRemaining: item.initialStockQuantity,
+                  name: item.name.trim(),
+                  genericName: item.genericName?.trim() || null,
+                  category: item.category || 'GENERAL_ITEM',
+                  unit: item.unit || 'PACK',
+                  barcode: cleanBarcode,
+                  isControlledSubstance: item.isControlledSubstance ?? false,
+                  isActive: true,
+                  lowStockThreshold: item.lowStockThreshold ?? 10,
+                  attributes: attributesJson as Prisma.InputJsonValue,
                 },
               });
+
+              if (item.initialStockQuantity && item.initialStockQuantity > 0) {
+                const costPrice = item.costPrice ?? item.unitPrice * 0.8;
+                const expiry = item.expiryDate
+                  ? new Date(item.expiryDate)
+                  : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+                await tx.batch.create({
+                  data: {
+                    tenantId,
+                    storeId: store.id,
+                    productId: product.id,
+                    batchNumber:
+                      item.batchNumber ||
+                      `IMP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`,
+                    expiryDate: expiry,
+                    costPrice: new Prisma.Decimal(costPrice),
+                    sellPrice: new Prisma.Decimal(item.unitPrice),
+                    quantityReceived: item.initialStockQuantity,
+                    quantityRemaining: item.initialStockQuantity,
+                  },
+                });
+              }
+
+              results.push(product);
             }
 
-            results.push(product);
-          }
+            return results;
+          },
+          { timeout: 30000 },
+        );
 
-          return results;
-        },
-        { timeout: 30000 },
-      );
-
-      createdProducts.push(...chunkResults);
+        createdProducts.push(...chunkResults);
+      }
+    } catch (err) {
+      importError = err;
+    } finally {
+      if (createdProducts.length > 0) {
+        try {
+          await this.searchService.indexProducts(createdProducts);
+        } catch (searchErr) {
+          console.error(`Failed to index imported products into search: ${searchErr}`);
+        }
+        await this.cache.invalidateStoreInventory(tenantId);
+      }
     }
 
-    // Bulk index imported products into Meilisearch in a single network roundtrip
-    await this.searchService.indexProducts(createdProducts);
-
-    await this.cache.invalidateStoreInventory(tenantId);
+    if (importError) {
+      if (createdProducts.length > 0) {
+        throw new BadRequestException(
+          `Bulk import partially failed: ${createdProducts.length} items imported before error: ${importError.message || importError}`,
+        );
+      }
+      throw importError;
+    }
 
     return {
       success: true,
