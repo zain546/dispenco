@@ -686,9 +686,21 @@ export class SalesService {
             id: true,
             quantity: true,
             product: { select: { name: true } },
+            returnItems: {
+              select: {
+                quantity: true,
+              },
+            },
           },
         },
         payments: { select: { method: true } },
+        returns: {
+          select: {
+            id: true,
+            returnNumber: true,
+            refundAmount: true,
+          },
+        },
       },
     });
 
@@ -714,22 +726,53 @@ export class SalesService {
 
     return {
       success: true,
-      data: sales.map((s) => ({
-        id: s.id,
-        receiptNumber: s.receiptNumber,
-        doctorName: s.doctorName || 'Self',
-        totalAmount: Number(s.totalAmount),
-        status: s.status,
-        createdAt: s.createdAt.toISOString(),
-        customerName: s.customer?.name || auditNameMap.get(s.id) || 'Walk-in Customer',
-        cashierName: s.user?.name || 'Staff',
-        itemsCount: s.saleItems.length,
-        items: s.saleItems.map((si) => ({
-          productName: si.product?.name || 'Item',
-          quantity: si.quantity,
-        })),
-        paymentMethod: s.payments[0]?.method || 'CASH',
-      })),
+      data: sales.map((s) => {
+        const totalRefunded = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
+        const rawTotal = Number(s.totalAmount);
+        const totalSoldQty = s.saleItems.reduce((sum, si) => sum + (si.quantity || 0), 0);
+        const totalReturnedQty = s.saleItems.reduce(
+          (sum, si) => sum + (si.returnItems ? si.returnItems.reduce((acc, ri) => acc + (ri.quantity || 0), 0) : 0),
+          0,
+        );
+        const hasReturns = Boolean((s.returns && s.returns.length > 0) || totalReturnedQty > 0);
+        const isFullyReturned =
+          totalSoldQty > 0 &&
+          s.saleItems.every((si) => {
+            const returned = si.returnItems ? si.returnItems.reduce((acc, ri) => acc + (ri.quantity || 0), 0) : 0;
+            return returned >= si.quantity;
+          });
+        const isPartiallyReturned = hasReturns && !isFullyReturned && (totalReturnedQty > 0 || totalRefunded > 0);
+
+        let computedStatus: string = s.status;
+        if (s.status !== 'VOIDED') {
+          if (isFullyReturned) {
+            computedStatus = 'RETURNED';
+          } else if (isPartiallyReturned) {
+            computedStatus = 'PARTIAL_RETURN';
+          }
+        }
+
+        return {
+          id: s.id,
+          receiptNumber: s.receiptNumber,
+          doctorName: s.doctorName || 'Self',
+          totalAmount: rawTotal,
+          status: computedStatus,
+          createdAt: s.createdAt.toISOString(),
+          customerName: s.customer?.name || auditNameMap.get(s.id) || 'Walk-in Customer',
+          cashierName: s.user?.name || 'Staff',
+          itemsCount: s.saleItems.length,
+          items: s.saleItems.map((si) => ({
+            productName: si.product?.name || 'Item',
+            quantity: si.quantity,
+          })),
+          paymentMethod: s.payments[0]?.method || 'CASH',
+          totalRefunded,
+          isFullyReturned,
+          isPartiallyReturned,
+          returnsCount: s.returns?.length || 0,
+        };
+      }),
     };
   }
 

@@ -20,6 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -1084,6 +1091,7 @@ export function ReportsView() {
                           tickFormatter={(v) => `PKR ${v}`}
                         />
                         <Tooltip
+                          cursor={{ stroke: 'var(--border)', strokeDasharray: '3 3' }}
                           formatter={(val: unknown, name?: unknown) => [
                             formatCurrency(Number(val || 0)),
                             name === 'profit' ? 'Net Profit' : 'Sales Revenue',
@@ -1136,6 +1144,7 @@ export function ReportsView() {
                           tickFormatter={(v) => `PKR ${v}`}
                         />
                         <Tooltip
+                          cursor={{ fill: 'var(--muted)', opacity: 0.25 }}
                           formatter={(val: unknown, name?: unknown) => [
                             formatCurrency(Number(val || 0)),
                             name === 'profit' ? 'Net Profit' : 'Sales Revenue',
@@ -1430,18 +1439,22 @@ export function ReportsView() {
                     <span>Doctor Rx Only</span>
                   </button>
 
-                  <div className="ml-auto flex items-center gap-1.5 text-micro text-muted-foreground bg-muted/30 border border-border/60 px-2.5 py-1 rounded-lg">
-                    <ArrowUpDown className="size-3 text-primary" />
-                    <select
-                      value={receiptSort}
-                      onChange={(e) => setReceiptSort(e.target.value as any)}
-                      className="bg-transparent font-medium text-foreground text-xs cursor-pointer focus:outline-none"
-                    >
-                      <option value="newest" className="bg-popover text-popover-foreground">Newest First</option>
-                      <option value="oldest" className="bg-popover text-popover-foreground">Oldest First</option>
-                      <option value="highest" className="bg-popover text-popover-foreground">Highest Amount</option>
-                      <option value="lowest" className="bg-popover text-popover-foreground">Lowest Amount</option>
-                    </select>
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <Select value={receiptSort} onValueChange={(val) => setReceiptSort(val as any)}>
+                      <SelectTrigger
+                        size="sm"
+                        className="h-8 px-2.5 text-xs font-medium gap-1.5 border-border/70 bg-muted/30 hover:bg-muted/50 text-foreground rounded-lg shadow-2xs cursor-pointer"
+                      >
+                        <ArrowUpDown className="size-3 text-primary" />
+                        <SelectValue placeholder="Sort receipts" />
+                      </SelectTrigger>
+                      <SelectContent align="end" className="rounded-xl border-border/80 shadow-lg text-xs">
+                        <SelectItem value="newest" className="cursor-pointer">Newest First</SelectItem>
+                        <SelectItem value="oldest" className="cursor-pointer">Oldest First</SelectItem>
+                        <SelectItem value="highest" className="cursor-pointer">Highest Amount</SelectItem>
+                        <SelectItem value="lowest" className="cursor-pointer">Lowest Amount</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -1580,7 +1593,13 @@ export function ReportsView() {
                               </td>
 
                               <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs whitespace-nowrap">
-                                {formatCurrency(tx.totalAmount)}
+                                {tx.paymentMethod?.includes('RETURNED') ? (
+                                  <span className="line-through text-muted-foreground/75" title="Returned / Refunded">
+                                    {formatCurrency(tx.totalAmount)}
+                                  </span>
+                                ) : (
+                                  formatCurrency(tx.totalAmount)
+                                )}
                               </td>
 
                               <td className="py-3 px-4 text-right whitespace-nowrap">
@@ -1609,7 +1628,7 @@ export function ReportsView() {
                                     ) : (
                                       <FileDown className="size-3.5 text-primary" />
                                     )}
-                                    <span className="hidden sm:inline">PDF</span>
+                                    <span className="hidden sm:inline">Receipt</span>
                                   </Button>
 
                                   <Button
@@ -1849,15 +1868,13 @@ export function ReportsView() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-card text-foreground border-border">
-          <DialogHeader className="pb-3 border-b border-border text-left">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Receipt className="size-5 text-primary" />
-                <DialogTitle className="text-base sm:text-lg font-bold font-mono">
-                  {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
-                </DialogTitle>
-              </div>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-2xl sm:w-full max-h-[90vh] flex flex-col p-4 sm:p-6 bg-card text-foreground border-border overflow-hidden">
+          <DialogHeader className="pb-3 border-b border-border text-left pr-8 shrink-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Receipt className="size-5 text-primary shrink-0" />
+              <DialogTitle className="text-base sm:text-lg font-bold font-mono">
+                {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
+              </DialogTitle>
               {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || saleDetail.status)}
             </div>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
@@ -1878,25 +1895,25 @@ export function ReportsView() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : saleDetail ? (
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-2 overflow-y-auto flex-1 min-h-0 custom-scrollbar pr-0.5">
               {/* Customer, Cashier, Doctor Meta */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-muted/30 border border-border/70 text-xs">
-                <div>
+                <div className="min-w-0">
                   <span className="text-micro text-muted-foreground block font-medium">Customer</span>
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5 min-w-0">
                     <User className="size-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{saleDetail.customer?.name || 'Walk-in Customer'}</span>
                   </div>
                   {saleDetail.customer?.phone && (
-                    <span className="text-micro text-muted-foreground block font-mono">
+                    <span className="text-micro text-muted-foreground block font-mono truncate">
                       {saleDetail.customer.phone}
                     </span>
                   )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <span className="text-micro text-muted-foreground block font-medium">Cashier / Staff</span>
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5 min-w-0">
                     <User className="size-3.5 text-primary/70 shrink-0" />
                     <span className="truncate">{saleDetail.user?.name || 'Staff'}</span>
                   </div>
@@ -1907,22 +1924,22 @@ export function ReportsView() {
                   )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <span className="text-micro text-muted-foreground block font-medium">Prescriber / Doctor</span>
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5 min-w-0">
                     <Stethoscope className="size-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{saleDetail.doctorName || 'Self / OTC'}</span>
                   </div>
-                  <span className="text-micro text-muted-foreground block">
+                  <span className="text-micro text-muted-foreground block truncate">
                     {saleDetail.doctorName ? 'Prescription Dispense' : 'Over The Counter'}
                   </span>
                 </div>
               </div>
 
               {/* Line Items Table */}
-              <div className="border border-border/70 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left border-collapse">
+              <div className="border border-border/70 rounded-xl overflow-hidden w-full bg-card">
+                <div className="overflow-x-auto max-w-full custom-scrollbar">
+                  <table className="w-full text-xs text-left border-collapse min-w-[500px]">
                     <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/70">
                       <tr>
                         <th className="py-2.5 px-3">Item / Medicine</th>
@@ -2025,7 +2042,7 @@ export function ReportsView() {
             </div>
           ) : null}
 
-          <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2 justify-between items-center">
+          <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2 justify-between items-center shrink-0">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
