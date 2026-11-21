@@ -124,6 +124,10 @@ export interface SaleResponse {
   paymentMethod: string;
   itemsCount: number;
   items?: SaleItemData[];
+  totalRefunded?: number;
+  isFullyReturned?: boolean;
+  isPartiallyReturned?: boolean;
+  returnsCount?: number;
 }
 
 export interface CreateReturnItemInput {

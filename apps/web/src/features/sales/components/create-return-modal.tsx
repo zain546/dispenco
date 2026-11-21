@@ -116,7 +116,11 @@ export function CreateReturnModal({
       const res = await salesApi.getRecentSales(12, storeId);
       if (reqId !== recentReqSeqRef.current) return;
       if (res.data) {
-        setRecentSales(res.data.filter((s: SaleResponse) => s.status !== 'VOIDED'));
+        setRecentSales(
+          res.data.filter(
+            (s: SaleResponse) => s.status !== 'VOIDED' && s.status !== 'RETURNED' && !s.isFullyReturned,
+          ),
+        );
       }
     } catch (err) {
       if (reqId !== recentReqSeqRef.current) return;

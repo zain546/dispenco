@@ -37,7 +37,14 @@ function formatRelativeTime(dateString: string): string {
   return new Date(dateString).toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-function getPaymentBadge(method: string) {
+function getPaymentBadge(method: string, status?: string) {
+  if (status === 'RETURNED') {
+    return (
+      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/5 px-1.5 py-0">
+        Returned
+      </Badge>
+    );
+  }
   const m = method.toUpperCase();
   if (m === 'DIGITAL') {
     return (
@@ -254,14 +261,16 @@ export function RecentSalesWidget() {
                       </td>
 
                       <td className="py-2.5 px-3">
-                        {getPaymentBadge(s.paymentMethod || 'CASH')}
+                        {getPaymentBadge(s.paymentMethod || 'CASH', s.status)}
                       </td>
 
                       <td className="py-2.5 px-3 text-muted-foreground text-micro whitespace-nowrap">
                         {formatRelativeTime(s.createdAt)}
                       </td>
 
-                      <td className="py-2.5 px-4 text-right font-semibold text-foreground tabular-nums">
+                      <td className={`py-2.5 px-4 text-right font-semibold tabular-nums ${
+                        s.status === 'RETURNED' ? 'line-through text-muted-foreground/60' : 'text-foreground'
+                      }`}>
                         {formatCurrency(s.totalAmount)}
                       </td>
 

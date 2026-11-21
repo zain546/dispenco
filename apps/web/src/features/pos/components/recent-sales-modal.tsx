@@ -146,13 +146,20 @@ export function RecentSalesModal({
               <div className="space-y-2.5">
                 {recentSales.map((sale) => {
                   const isVoided = sale.status === 'VOIDED';
+                  const isReturned = sale.status === 'RETURNED' || Boolean(sale.isFullyReturned);
+                  const isPartiallyReturned =
+                    sale.status === 'PARTIAL_RETURN' ||
+                    sale.status === 'PARTIALLY_RETURNED' ||
+                    Boolean(sale.isPartiallyReturned);
 
                   return (
                     <div
                       key={sale.id}
                       className={`p-3.5 sm:p-4 rounded-xl border border-border/70 bg-card transition-all shadow-2xs space-y-2.5 ${
-                        isVoided
+                        isVoided || isReturned
                           ? 'border-destructive/20 bg-destructive/[0.02] opacity-85'
+                          : isPartiallyReturned
+                          ? 'border-amber-500/25 bg-amber-500/[0.02]'
                           : 'hover:border-primary/30 hover:bg-muted/20'
                       }`}
                     >
@@ -166,12 +173,20 @@ export function RecentSalesModal({
                           <Badge
                             variant="outline"
                             className={`text-micro font-medium px-2 py-0.5 rounded-full ${
-                              isVoided
+                              isVoided || isReturned
                                 ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25'
+                                : isPartiallyReturned
+                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25'
                                 : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
                             }`}
                           >
-                            {isVoided ? 'VOIDED' : 'COMPLETED'}
+                            {isVoided
+                              ? 'VOIDED'
+                              : isReturned
+                              ? 'RETURNED'
+                              : isPartiallyReturned
+                              ? 'PARTIAL RETURN'
+                              : 'COMPLETED'}
                           </Badge>
                         </div>
                         <span className="text-micro text-muted-foreground font-mono">
@@ -203,11 +218,21 @@ export function RecentSalesModal({
                         <div className="space-y-0.5">
                           <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Total</span>
                           <p className={`font-bold font-mono tabular-nums text-sm sm:text-base ${
-                            isVoided
+                            isVoided || isReturned
                               ? 'line-through text-muted-foreground/60'
                               : 'text-foreground'
                           }`}>
                             {formatCurrency(sale.totalAmount)}
+                            {isReturned && (
+                              <span className="text-micro text-rose-500 font-normal ml-1.5 no-underline">
+                                (Refunded)
+                              </span>
+                            )}
+                            {isPartiallyReturned && typeof sale.totalRefunded === 'number' && sale.totalRefunded > 0 && (
+                              <span className="text-micro text-amber-500 font-normal ml-1.5 no-underline">
+                                (-{formatCurrency(sale.totalRefunded)})
+                              </span>
+                            )}
                           </p>
                         </div>
 
@@ -229,7 +254,7 @@ export function RecentSalesModal({
                             <span className="sm:hidden text-micro">PDF</span>
                           </Button>
 
-                          {!isVoided && (
+                          {!isVoided && !isReturned && (
                             <>
                               <Button
                                 type="button"
@@ -243,16 +268,18 @@ export function RecentSalesModal({
                                 <span className="text-micro sm:text-xs">Return</span>
                               </Button>
 
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setSaleToVoid(sale)}
-                                className="h-7.5 sm:h-8 px-2 sm:px-2.5 text-xs font-medium gap-1 border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 rounded-lg shadow-2xs cursor-pointer transition-colors"
-                              >
-                                <Ban className="size-3.5" />
-                                <span className="text-micro sm:text-xs">Void</span>
-                              </Button>
+                              {!isPartiallyReturned && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setSaleToVoid(sale)}
+                                  className="h-7.5 sm:h-8 px-2 sm:px-2.5 text-xs font-medium gap-1 border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/15 text-rose-600 dark:text-rose-400 rounded-lg shadow-2xs cursor-pointer transition-colors"
+                                >
+                                  <Ban className="size-3.5" />
+                                  <span className="text-micro sm:text-xs">Void</span>
+                                </Button>
+                              )}
                             </>
                           )}
                         </div>
