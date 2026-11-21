@@ -559,7 +559,12 @@ export async function generateSalesReportPdfDoc(options: SalesReportPdfOptions):
       doc.text(fmtDateTimeShort(tx.createdAt), margin + 29, rY);
       doc.text((tx.customerName || 'Walk-in').slice(0, 14), margin + 55, rY);
       doc.text((tx.doctorName || 'Self').slice(0, 14), margin + 78, rY);
-      doc.text(tx.paymentMethod || 'CASH', margin + 101, rY);
+      const methodLabel = tx.isPartiallyReturned
+        ? 'PARTIAL RET'
+        : tx.isFullyReturned
+        ? 'RETURNED'
+        : tx.paymentMethod || 'CASH';
+      doc.text(methodLabel.slice(0, 14), margin + 101, rY);
 
       doc.setTextColor(15, 23, 42);
       doc.text(fmtMoney(tx.totalAmount), margin + 138, rY, { align: 'right' });

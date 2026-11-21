@@ -105,12 +105,20 @@ import {
 } from 'recharts';
 
 
-function getReceiptPaymentBadge(method: string) {
+function getReceiptPaymentBadge(method: string, status?: string) {
   const m = (method || '').toUpperCase();
-  if (m.includes('RETURNED')) {
+  const s = (status || '').toUpperCase();
+  if (s === 'RETURNED' || (m.includes('RETURN') && !m.includes('PARTIAL'))) {
     return (
-      <Badge variant="destructive" className="text-micro font-medium gap-1 whitespace-nowrap">
+      <Badge variant="destructive" className="text-micro font-medium gap-1 whitespace-nowrap bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25">
         Returned
+      </Badge>
+    );
+  }
+  if (s === 'PARTIAL_RETURN' || s === 'PARTIALLY_RETURNED' || m.includes('PARTIAL')) {
+    return (
+      <Badge variant="outline" className="text-micro font-medium gap-1 whitespace-nowrap bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+        Partial Return
       </Badge>
     );
   }
@@ -496,7 +504,8 @@ export function ReportsView() {
     const counts = { all: transactions.length, cash: 0, digital: 0, credit: 0, returned: 0 };
     for (const tx of transactions) {
       const m = (tx.paymentMethod || '').toUpperCase();
-      if (m.includes('RETURN')) {
+      const s = (tx.status || '').toUpperCase();
+      if (s === 'RETURNED' || s === 'PARTIAL_RETURN' || m.includes('RETURN')) {
         counts.returned++;
       } else if (m.includes('DIGITAL')) {
         counts.digital++;
@@ -528,10 +537,12 @@ export function ReportsView() {
     if (methodFilter !== 'all') {
       list = list.filter((tx) => {
         const m = (tx.paymentMethod || '').toUpperCase();
-        if (methodFilter === 'RETURNED') return m.includes('RETURN');
-        if (methodFilter === 'DIGITAL') return !m.includes('RETURN') && m.includes('DIGITAL');
-        if (methodFilter === 'CREDIT') return !m.includes('RETURN') && m.includes('CREDIT');
-        if (methodFilter === 'CASH') return !m.includes('RETURN') && !m.includes('DIGITAL') && !m.includes('CREDIT');
+        const s = (tx.status || '').toUpperCase();
+        const isReturn = s === 'RETURNED' || s === 'PARTIAL_RETURN' || m.includes('RETURN');
+        if (methodFilter === 'RETURNED') return isReturn;
+        if (methodFilter === 'DIGITAL') return !isReturn && m.includes('DIGITAL');
+        if (methodFilter === 'CREDIT') return !isReturn && m.includes('CREDIT');
+        if (methodFilter === 'CASH') return !isReturn && !m.includes('DIGITAL') && !m.includes('CREDIT');
         return true;
       });
     }
@@ -1573,7 +1584,7 @@ export function ReportsView() {
                               </td>
 
                               <td className="py-3 px-4 whitespace-nowrap">
-                                {getReceiptPaymentBadge(tx.paymentMethod)}
+                                {getReceiptPaymentBadge(tx.paymentMethod, tx.status)}
                               </td>
 
                               <td className="py-3 px-4 text-center tabular-nums text-muted-foreground font-medium whitespace-nowrap">
@@ -1593,10 +1604,19 @@ export function ReportsView() {
                               </td>
 
                               <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs whitespace-nowrap">
-                                {tx.paymentMethod?.includes('RETURNED') ? (
-                                  <span className="line-through text-muted-foreground/75" title="Returned / Refunded">
+                                {tx.status === 'RETURNED' || (tx.paymentMethod?.includes('RETURN') && !tx.paymentMethod?.includes('PARTIAL')) ? (
+                                  <span className="line-through text-muted-foreground/75" title="Fully Returned / Refunded">
                                     {formatCurrency(tx.totalAmount)}
                                   </span>
+                                ) : tx.status === 'PARTIAL_RETURN' || tx.isPartiallyReturned || tx.paymentMethod?.includes('PARTIAL') ? (
+                                  <div className="flex flex-col items-end leading-tight">
+                                    <span>{formatCurrency(tx.totalAmount)}</span>
+                                    {tx.totalRefunded && tx.totalRefunded > 0 ? (
+                                      <span className="text-micro font-medium text-amber-600 dark:text-amber-400">
+                                        (-{formatCurrency(tx.totalRefunded)} ret)
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 ) : (
                                   formatCurrency(tx.totalAmount)
                                 )}

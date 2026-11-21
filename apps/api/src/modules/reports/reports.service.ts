@@ -441,6 +441,11 @@ export class ReportsService {
       storeName: string;
       doctorName?: string;
       paymentMethod: string;
+      status?: string;
+      isFullyReturned?: boolean;
+      isPartiallyReturned?: boolean;
+      totalRefunded?: number;
+      netAmount?: number;
       itemsCount: number;
       discountAmount: number;
       totalAmount: number;
@@ -458,6 +463,10 @@ export class ReportsService {
         return itemReturns >= item.quantity;
       });
       const isFullyReturned = (saleReturnsTotal >= rawSaleRev && rawSaleRev > 0) || isFullyReturnedByQty;
+      const isPartiallyReturned =
+        !isFullyReturned &&
+        (saleReturnsTotal > 0 ||
+          s.saleItems.some((item) => (item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0) > 0));
 
       const saleDisc = Number(s.discountAmount || 0);
       const saleTax = Number(s.taxAmount || 0);
@@ -578,7 +587,16 @@ export class ReportsService {
         cashierName: s.user?.name || 'Pharmacy Staff',
         storeName: s.store?.name || 'Main Store',
         doctorName: (s as any).doctorName || 'Self',
-        paymentMethod: isFullyReturned ? `RETURNED (${primaryPaymentMethod})` : primaryPaymentMethod,
+        paymentMethod: isFullyReturned
+          ? `RETURNED (${primaryPaymentMethod})`
+          : isPartiallyReturned
+          ? `PARTIAL_RETURN (${primaryPaymentMethod})`
+          : primaryPaymentMethod,
+        status: isFullyReturned ? 'RETURNED' : isPartiallyReturned ? 'PARTIAL_RETURN' : 'COMPLETED',
+        isFullyReturned,
+        isPartiallyReturned,
+        totalRefunded: saleReturnsTotal,
+        netAmount: netSaleRev,
         itemsCount: rawItemsCount,
         discountAmount: Number(saleDisc.toFixed(2)),
         totalAmount: Number(rawSaleRev.toFixed(2)),

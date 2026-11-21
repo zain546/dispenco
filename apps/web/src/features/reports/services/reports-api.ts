@@ -30,6 +30,11 @@ export interface SalesReportTransaction {
   storeName: string;
   doctorName?: string | null;
   paymentMethod: string;
+  status?: string;
+  isFullyReturned?: boolean;
+  isPartiallyReturned?: boolean;
+  totalRefunded?: number;
+  netAmount?: number;
   itemsCount: number;
   discountAmount: number;
   totalAmount: number;
