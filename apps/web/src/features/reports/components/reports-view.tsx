@@ -1860,15 +1860,13 @@ export function ReportsView() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-card text-foreground border-border">
-          <DialogHeader className="pb-3 border-b border-border text-left">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Receipt className="size-5 text-primary" />
-                <DialogTitle className="text-base sm:text-lg font-bold font-mono">
-                  {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
-                </DialogTitle>
-              </div>
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-2xl sm:w-full max-h-[90vh] flex flex-col p-4 sm:p-6 bg-card text-foreground border-border overflow-hidden">
+          <DialogHeader className="pb-3 border-b border-border text-left pr-8 shrink-0">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Receipt className="size-5 text-primary shrink-0" />
+              <DialogTitle className="text-base sm:text-lg font-bold font-mono">
+                {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
+              </DialogTitle>
               {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || saleDetail.status)}
             </div>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
@@ -1889,25 +1887,25 @@ export function ReportsView() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : saleDetail ? (
-            <div className="space-y-4 pt-2">
+            <div className="space-y-4 pt-2 overflow-y-auto flex-1 min-h-0 custom-scrollbar pr-0.5">
               {/* Customer, Cashier, Doctor Meta */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-muted/30 border border-border/70 text-xs">
-                <div>
+                <div className="min-w-0">
                   <span className="text-micro text-muted-foreground block font-medium">Customer</span>
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5 min-w-0">
                     <User className="size-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{saleDetail.customer?.name || 'Walk-in Customer'}</span>
                   </div>
                   {saleDetail.customer?.phone && (
-                    <span className="text-micro text-muted-foreground block font-mono">
+                    <span className="text-micro text-muted-foreground block font-mono truncate">
                       {saleDetail.customer.phone}
                     </span>
                   )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <span className="text-micro text-muted-foreground block font-medium">Cashier / Staff</span>
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5 min-w-0">
                     <User className="size-3.5 text-primary/70 shrink-0" />
                     <span className="truncate">{saleDetail.user?.name || 'Staff'}</span>
                   </div>
@@ -1918,22 +1916,22 @@ export function ReportsView() {
                   )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <span className="text-micro text-muted-foreground block font-medium">Prescriber / Doctor</span>
-                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5 mt-0.5 min-w-0">
                     <Stethoscope className="size-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{saleDetail.doctorName || 'Self / OTC'}</span>
                   </div>
-                  <span className="text-micro text-muted-foreground block">
+                  <span className="text-micro text-muted-foreground block truncate">
                     {saleDetail.doctorName ? 'Prescription Dispense' : 'Over The Counter'}
                   </span>
                 </div>
               </div>
 
               {/* Line Items Table */}
-              <div className="border border-border/70 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left border-collapse">
+              <div className="border border-border/70 rounded-xl overflow-hidden w-full bg-card">
+                <div className="overflow-x-auto max-w-full custom-scrollbar">
+                  <table className="w-full text-xs text-left border-collapse min-w-[500px]">
                     <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border/70">
                       <tr>
                         <th className="py-2.5 px-3">Item / Medicine</th>
@@ -2036,7 +2034,7 @@ export function ReportsView() {
             </div>
           ) : null}
 
-          <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2 justify-between items-center">
+          <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2 justify-between items-center shrink-0">
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
