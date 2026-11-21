@@ -8,10 +8,14 @@ on:
       - 'packages/**'
       - 'docker-compose.prod.yml'
       - '.dockerignore'
+      - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
       - 'package.json'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: deploy-oracle-api
@@ -39,11 +43,16 @@ jobs:
           ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
           ORACLE_USER: ${{ secrets.ORACLE_USER || 'ubuntu' }}
           ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          ORACLE_KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$ORACLE_SSH_KEY" > ~/.ssh/oracle_deploy_key
           chmod 600 ~/.ssh/oracle_deploy_key
-          ssh-keyscan -T 15 -H "$ORACLE_HOST" >> ~/.ssh/known_hosts
+          if [ -n "$ORACLE_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$ORACLE_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -T 15 -H "$ORACLE_HOST" >> ~/.ssh/known_hosts
+          fi
 
           ssh -i ~/.ssh/oracle_deploy_key \
             -o BatchMode=yes \

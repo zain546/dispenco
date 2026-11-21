@@ -124,4 +124,4 @@ In Oracle Cloud Console (**VCN** &rarr; **Security Lists** &rarr; **Default Secu
 
 
 <!-- how to deploy backend -->
-ssh -i .\oracle.key -o StrictHostKeyChecking=no ubuntu@84.12.181.80 "cd /home/ubuntu/dispenco && git pull origin dev && sudo docker compose -f docker-compose.prod.yml exec -T api npx prisma db push && sudo docker compose -f docker-compose.prod.yml restart api"
+ssh -i .\oracle.key -o StrictHostKeyChecking=no ubuntu@84.12.181.80 "cd /home/ubuntu/dispenco && git pull origin dev && sudo docker compose -f docker-compose.prod.yml exec -T api ./node_modules/.bin/prisma migrate deploy && sudo docker compose -f docker-compose.prod.yml restart api"
