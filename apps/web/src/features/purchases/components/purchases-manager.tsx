@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { purchasesApi } from '../services/purchases-api';
 import {
   usePurchases,
@@ -67,12 +68,18 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
-import { ReorderSuggestionsView } from './reorder-suggestions-view';
-import { OcrInvoiceModal } from './ocr-invoice-modal';
+const ReorderSuggestionsView = dynamic(
+  () => import('./reorder-suggestions-view').then((m) => m.ReorderSuggestionsView),
+  { ssr: false },
+);
+const OcrInvoiceModal = dynamic(
+  () => import('./ocr-invoice-modal').then((m) => m.OcrInvoiceModal),
+  { ssr: false },
+);
 
 export function PurchasesManager() {
   const { user } = useAuth();
-  const { stores, activeStoreId, isAllStores } = useStore();
+  const { stores, activeStoreId, isAllStores, isStoreReady } = useStore();
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -100,10 +107,13 @@ export function PurchasesManager() {
     isError,
     error,
     refetch: fetchOrders,
-  } = usePurchases({
-    storeId: effectiveStoreId,
-    status: statusFilter === 'ALL' ? undefined : statusFilter,
-  });
+  } = usePurchases(
+    {
+      storeId: effectiveStoreId,
+      status: statusFilter === 'ALL' ? undefined : statusFilter,
+    },
+    { enabled: isStoreReady },
+  );
 
   // Form State for PO Creation
   const [suppliers, setSuppliers] = useState<SupplierData[]>([]);

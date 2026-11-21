@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect, useRef, useTransition, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useTransition, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingCart,
@@ -37,18 +38,31 @@ import { ScannerInput, type Gs1ParsedMedicineData } from '@/components/ui/scanne
 import { productsApi, ProductData } from '@/features/inventory/services/products-api';
 import { salesApi, SaleResponse } from '@/features/sales/services/sales-api';
 import { customersApi, CustomerItem } from '@/features/customers/services/customers-api';
-import { CustomerModal } from '@/features/customers/components/customer-modal';
-import { getMedicineIconConfig, formatUnitPlural, formatCategory } from '@/features/inventory/components/product-list';
+import { getMedicineIconConfig, formatUnitPlural, formatCategory } from '@/features/inventory/utils/inventory-formatters';
 import { prescriptionsApi, PrescriptionData } from '@/features/prescriptions/services/prescriptions-api';
 import { posLocalDataService } from '../services/pos-local-data.service';
-import { OfflineSyncModal } from './offline-sync-modal';
-import { ReceiptModal } from './receipt-modal';
-import { RecentSalesModal } from './recent-sales-modal';
 import { DraftQuantityInput } from './draft-quantity-input';
 import { PosPackSizeModal } from './pos-pack-size-modal';
 import { PosLinkBarcodeModal } from './pos-link-barcode-modal';
 import { PosCartSection } from './pos-cart-section';
 import { PosPaymentSidebar } from './pos-payment-sidebar';
+
+const CustomerModal = dynamic(
+  () => import('@/features/customers/components/customer-modal').then((m) => m.CustomerModal),
+  { ssr: false },
+);
+const OfflineSyncModal = dynamic(
+  () => import('./offline-sync-modal').then((m) => m.OfflineSyncModal),
+  { ssr: false },
+);
+const ReceiptModal = dynamic(
+  () => import('./receipt-modal').then((m) => m.ReceiptModal),
+  { ssr: false },
+);
+const RecentSalesModal = dynamic(
+  () => import('./recent-sales-modal').then((m) => m.RecentSalesModal),
+  { ssr: false },
+);
 import type { CartItem, CartTotals, PaymentMethod, UnitType, DiscountType } from '../types/pos-types';
 import {
   getPackSize,
@@ -95,7 +109,7 @@ function highlightMatch(text: string, query: string) {
 
 export function POSTerminal() {
   const queryClient = useQueryClient();
-  const { activeStoreId, activeStore, isAllStores, stores } = useStore();
+  const { activeStoreId, activeStore, isAllStores, stores, isStoreReady } = useStore();
   const { user: currentUser } = useAuth();
   const { isOwner, isManager, canManageInventory } = usePermissions();
 
@@ -128,7 +142,10 @@ export function POSTerminal() {
   } | null>(null);
   const [isRetryingDispense, setIsRetryingDispense] = useState(false);
   // Controlled Substance Compliance: detect if cart contains any Schedule G/X controlled narcotics or tranquilizers
-  const hasControlledMedicine = cart.some((item) => Boolean(item.product.isControlledSubstance));
+  const hasControlledMedicine = useMemo(
+    () => cart.some((item) => Boolean(item.product.isControlledSubstance)),
+    [cart],
+  );
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'DIGITAL' | 'CREDIT'>('CASH');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [overallDiscount, setOverallDiscount] = useState<number>(0);
@@ -267,7 +284,7 @@ export function POSTerminal() {
       });
       addToCart(updatedProduct);
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
-      posLocalDataService.syncCatalogToLocal(targetStore).catch(() => {});
+      posLocalDataService.syncCatalogToLocal(targetStore, { force: true }).catch(() => {});
     } catch (err) {
       playScanError();
       toast.error(getErrorMessage(err, 'Failed to link QR/barcode to medicine'));
@@ -351,15 +368,16 @@ export function POSTerminal() {
     return () => clearInterval(interval);
   }, [pendingOfflineCount, triggerAutoSync]);
 
-  // Background catalog cache sync on mount or branch change
+  // Background catalog cache sync on mount or branch change (gated on isStoreReady to prevent double-fire)
   useEffect(() => {
+    if (!isStoreReady) return;
     if (typeof window !== 'undefined' && navigator.onLine) {
       const targetStore = !isAllStores && activeStoreId ? activeStoreId : undefined;
       posLocalDataService.syncCatalogToLocal(targetStore).catch((err) => {
         console.warn('Initial offline catalog sync failed:', err);
       });
     }
-  }, [activeStoreId, isAllStores]);
+  }, [activeStoreId, isAllStores, isStoreReady]);
 
   // Read prescription or customer parameters from URL (e.g. from Prescriptions Manager)
   useEffect(() => {
@@ -518,30 +536,32 @@ export function POSTerminal() {
     // Reset previous search results on new search query
     setCustomerSearchResults([]);
 
-    // 1. Instant local IndexedDB query (<2ms latency) - shows results on the very first character
-    posLocalDataService
-      .searchLocalCustomers(term)
-      .then((localMatches) => {
-        if (!isCancelled && !cloudFinished) {
-          if (localMatches.length > 0) {
-            hadLocalMatches = true;
-            const mapped: CustomerItem[] = localMatches.map((c) => ({
-              id: c.id,
-              name: c.name,
-              phone: c.phone || undefined,
-              creditBalance: c.creditBalance ?? 0,
-              createdAt: '',
-            }));
-            setCustomerSearchResults(mapped);
-            setIsCustomerDropdownOpen(true);
-          } else {
-            setCustomerSearchResults([]);
+    // 1. Debounced local IndexedDB query (100ms) - avoids full-table Dexie filter scan on every intermediate keystroke
+    const localTimer = setTimeout(() => {
+      posLocalDataService
+        .searchLocalCustomers(term)
+        .then((localMatches) => {
+          if (!isCancelled && !cloudFinished) {
+            if (localMatches.length > 0) {
+              hadLocalMatches = true;
+              const mapped: CustomerItem[] = localMatches.map((c) => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone || undefined,
+                creditBalance: c.creditBalance ?? 0,
+                createdAt: '',
+              }));
+              setCustomerSearchResults(mapped);
+              setIsCustomerDropdownOpen(true);
+            } else {
+              setCustomerSearchResults([]);
+            }
           }
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    }, 100);
 
-    // 2. Debounced background cloud search (150ms) to ensure up-to-date khata balances and new cloud customers
+    // 2. Debounced background cloud search (200ms) to ensure up-to-date khata balances and new cloud customers
     const timer = setTimeout(async () => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       setIsCustomerSearching(true);
@@ -568,10 +588,11 @@ export function POSTerminal() {
           setIsCustomerSearching(false);
         }
       }
-    }, 150);
+    }, 200);
 
     return () => {
       isCancelled = true;
+      clearTimeout(localTimer);
       clearTimeout(timer);
     };
   }, [customerSearchQuery]);
@@ -622,8 +643,9 @@ export function POSTerminal() {
 
   const [topSellers, setTopSellers] = useState<ProductData[]>([]);
 
-  // Load top seller products for quick-add speed dial bar
+  // Load top seller products for quick-add speed dial bar (gated on isStoreReady to prevent double-fire)
   useEffect(() => {
+    if (!isStoreReady) return;
     const loadTopSellers = async () => {
       try {
         const res = await productsApi.getProducts({
@@ -640,7 +662,7 @@ export function POSTerminal() {
       }
     };
     loadTopSellers();
-  }, [activeStoreId, isAllStores]);
+  }, [activeStoreId, isAllStores, isStoreReady]);
 
   useEffect(() => {
     focusSearchInput();
@@ -802,16 +824,18 @@ export function POSTerminal() {
     const term = searchQuery.trim();
     let isCancelled = false;
 
-    // 1. Instant local IndexedDB query (<5ms latency)
-    posLocalDataService
-      .searchLocalProducts(term)
-      .then((localMatches) => {
-        if (!isCancelled && localMatches.length > 0) {
-          setSearchResults(localMatches);
-          setSelectedResultIndex(0);
-        }
-      })
-      .catch(() => {});
+    // 1. Debounced local IndexedDB query (100ms) - avoids full-table Dexie filter scan on every intermediate keystroke
+    const localTimer = setTimeout(() => {
+      posLocalDataService
+        .searchLocalProducts(term)
+        .then((localMatches) => {
+          if (!isCancelled && localMatches.length > 0) {
+            setSearchResults(localMatches);
+            setSelectedResultIndex(0);
+          }
+        })
+        .catch(() => {});
+    }, 100);
 
     // 2. Debounced remote network search for freshest stock & cloud inventory
     const timer = setTimeout(async () => {
@@ -836,6 +860,7 @@ export function POSTerminal() {
 
     return () => {
       isCancelled = true;
+      clearTimeout(localTimer);
       clearTimeout(timer);
     };
   }, [searchQuery, activeStoreId, isAllStores]);
@@ -1418,7 +1443,7 @@ export function POSTerminal() {
   };
 
   // Calculations: strictly sequential discount calculation & proportional tax adjustment
-  const calculateCartTotals = () => {
+  const totals = useMemo(() => {
     let subtotal = 0;
     let itemDiscounts = 0;
     let unadjustedTaxTotal = 0;
@@ -1472,9 +1497,8 @@ export function POSTerminal() {
       taxTotal,
       grandTotal,
     };
-  };
+  }, [cart, overallDiscount, overallDiscountType]);
 
-  const totals = calculateCartTotals();
   const tenderedNum = Number(cashTendered) || 0;
   const changeDue = Math.max(0, tenderedNum - totals.grandTotal);
 

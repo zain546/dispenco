@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import {
@@ -43,13 +44,22 @@ import { formatDate, formatCurrency, formatNumber } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
 import { productsApi } from '../services/products-api';
 import { useInventoryAggregation } from '../hooks/use-inventory-queries';
-import { ProductList, formatCategory, formatUnitPlural } from './product-list';
+import { ProductList } from './product-list';
+import { formatCategory, formatUnitPlural } from '../utils/inventory-formatters';
 import { ProductBatchesModal } from './product-batches-modal';
-import { ImportProductsModal } from './import-products-modal';
-import { ExpiryRiskView } from './expiry-risk-view';
+
+const ImportProductsModal = dynamic(
+  () => import('./import-products-modal').then((m) => m.ImportProductsModal),
+  { ssr: false },
+);
+const ExpiryRiskView = dynamic(
+  () => import('./expiry-risk-view').then((m) => m.ExpiryRiskView),
+  { ssr: false },
+);
 import { getProductSeoUrl } from '../utils/seo-utils';
 import { useStore } from '@/context/store-context';
 import { useAuth } from '@/context/auth-context';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -84,11 +94,12 @@ const DEFAULT_AGGREGATION_DATA = {
 };
 
 export function InventoryDashboard() {
-  const { activeStore, activeStoreId, isAllStores } = useStore();
+  const { activeStore, activeStoreId, isAllStores, isStoreReady } = useStore();
   const { user } = useAuth();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState<InventoryTab>('full-catalog');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
 
   // Read URL query parameter on mount for tab selection
   useEffect(() => {
@@ -124,15 +135,18 @@ export function InventoryDashboard() {
     isFetching,
     error: queryError,
     refetch: fetchAggregation,
-  } = useInventoryAggregation({
-    storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
-    inStockOnly: activeTab === 'in-stock' ? true : undefined,
-    lowStockOnly: activeTab === 'low-stock' ? true : undefined,
-    expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
-    priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
-    unstockedOnly: activeTab === 'unstocked' ? true : undefined,
-    search: (activeTab !== 'full-catalog' && activeTab !== 'expiry-risk') ? (search.trim() || undefined) : undefined,
-  });
+  } = useInventoryAggregation(
+    {
+      storeId: (!isAllStores && activeStoreId) ? activeStoreId : undefined,
+      inStockOnly: activeTab === 'in-stock' ? true : undefined,
+      lowStockOnly: activeTab === 'low-stock' ? true : undefined,
+      expiringSoonOnly: activeTab === 'expiring-soon' ? true : undefined,
+      priorityOnly: activeTab === 'priority-top-sellers' ? true : undefined,
+      unstockedOnly: activeTab === 'unstocked' ? true : undefined,
+      search: (activeTab !== 'full-catalog' && activeTab !== 'expiry-risk') ? (debouncedSearch.trim() || undefined) : undefined,
+    },
+    { enabled: isStoreReady },
+  );
 
   const data = queryData ?? DEFAULT_AGGREGATION_DATA;
   const fetchError = queryError
@@ -423,7 +437,7 @@ export function InventoryDashboard() {
           <div className="mt-2.5 sm:mt-3">
             <div className="flex items-baseline justify-between gap-1.5">
               <div className="text-lg sm:text-2xl font-black tracking-tight text-foreground tabular-nums">
-                {!isAllStores ? (data.summary.stockedCount ?? 0) : data.summary.totalCatalogItems}
+                {data.summary.stockedCount ?? 0}
                 <span className="text-xs sm:text-sm font-semibold text-muted-foreground ml-1">Items</span>
               </div>
               <span className="text-[10px] font-semibold text-success bg-success/15 border border-success/25 px-1.5 py-0.5 rounded-md shrink-0">

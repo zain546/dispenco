@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/features/auth/services/auth-api';
@@ -29,12 +29,37 @@ interface AuthContextType {
 }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SESSION_SIGNAL = 'dispenco_session_changed';
+const FOCUS_RECHECK_COOLDOWN_MS = 30_000;
+
 function notifySessionChanged() {
   try {
     localStorage.setItem(SESSION_SIGNAL, crypto.randomUUID());
   } catch {
     /* Storage is optional. */
   }
+}
+
+function isSameUserSession(a: UserSession | null, b: UserSession | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (
+    a.id !== b.id ||
+    a.email !== b.email ||
+    a.name !== b.name ||
+    a.tenantId !== b.tenantId ||
+    a.storeId !== b.storeId ||
+    a.storeName !== b.storeName ||
+    a.role !== b.role
+  ) {
+    return false;
+  }
+  const aPerms = a.permissions || [];
+  const bPerms = b.permissions || [];
+  if (aPerms.length !== bPerms.length) return false;
+  for (let i = 0; i < aPerms.length; i++) {
+    if (aPerms[i] !== bPerms[i]) return false;
+  }
+  return true;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -46,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const requestVersion = useRef(0);
   const userRef = useRef<UserSession | null>(null);
   const currentAuthority = useRef<string | null>(null);
+  const lastFocusRecheckRef = useRef<number>(0);
   const invalidateSessionRequest = useCallback(() => {
     ++requestVersion.current;
   }, []);
@@ -57,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const authority = sessionAuthorityKey(next);
       if (currentAuthority.current !== authority) queryClient.clear();
       currentAuthority.current = authority;
-      setUser(next);
+      setUser((prev) => (isSameUserSession(prev, next) ? prev : next));
       if (typeof window !== 'undefined') {
         try {
           if (next) {
@@ -184,50 +210,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* Private browsing may disable storage. */
     }
-    // Synchronize session state on mount and tab focus
+    // Synchronize session state on mount
+    lastFocusRecheckRef.current = Date.now();
     void refreshSession();
-    const recheck = () => {
+
+    const handleExpired = () => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-      if (document.visibilityState === 'visible') void refreshSession();
+      if (document.visibilityState === 'visible') {
+        lastFocusRecheckRef.current = Date.now();
+        void refreshSession();
+      }
     };
+
+    const recheckOnFocus = () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastFocusRecheckRef.current < FOCUS_RECHECK_COOLDOWN_MS) return;
+      if (
+        typeof window !== 'undefined' &&
+        !isProtectedPath(window.location.pathname) &&
+        !userRef.current
+      ) {
+        return;
+      }
+      lastFocusRecheckRef.current = now;
+      void refreshSession();
+    };
+
     const storage = (event: StorageEvent) => {
-      if (event.key === SESSION_SIGNAL) void refreshSession();
+      if (event.key === SESSION_SIGNAL) {
+        lastFocusRecheckRef.current = Date.now();
+        void refreshSession();
+      }
     };
 
     const handleOnline = () => {
+      lastFocusRecheckRef.current = Date.now();
       void refreshSession();
     };
 
     // Periodic silent keep-alive check every 15 minutes to guarantee uninterrupted session
     const keepAlive = setInterval(() => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-      if (document.visibilityState === 'visible') void refreshSession();
+      if (document.visibilityState === 'visible') {
+        lastFocusRecheckRef.current = Date.now();
+        void refreshSession();
+      }
     }, 15 * 60 * 1000);
 
-    window.addEventListener('dispenco:session-expired', recheck);
-    window.addEventListener('focus', recheck);
+    window.addEventListener('dispenco:session-expired', handleExpired);
+    window.addEventListener('focus', recheckOnFocus);
     window.addEventListener('storage', storage);
     window.addEventListener('online', handleOnline);
-    document.addEventListener('visibilitychange', recheck);
+    document.addEventListener('visibilitychange', recheckOnFocus);
     return () => {
       invalidateSessionRequest();
       clearInterval(keepAlive);
-      window.removeEventListener('dispenco:session-expired', recheck);
-      window.removeEventListener('focus', recheck);
+      window.removeEventListener('dispenco:session-expired', handleExpired);
+      window.removeEventListener('focus', recheckOnFocus);
       window.removeEventListener('storage', storage);
       window.removeEventListener('online', handleOnline);
-      document.removeEventListener('visibilitychange', recheck);
+      document.removeEventListener('visibilitychange', recheckOnFocus);
     };
   }, [refreshSession, invalidateSessionRequest]);
 
-  const login = (next: UserSession, storeName?: string) => {
-    ++requestVersion.current;
-    applyUser({ ...next, storeName: storeName || next.storeName });
-    setSessionError(false);
-    setIsLoading(false);
-    notifySessionChanged();
-  };
-  const logout = async () => {
+  const login = useCallback(
+    (next: UserSession, storeName?: string) => {
+      ++requestVersion.current;
+      lastFocusRecheckRef.current = Date.now();
+      applyUser({ ...next, storeName: storeName || next.storeName });
+      setSessionError(false);
+      setIsLoading(false);
+      notifySessionChanged();
+    },
+    [applyUser],
+  );
+
+  const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } catch {
@@ -244,19 +304,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     notifySessionChanged();
     router.replace('/login');
     router.refresh();
-  };
+  }, [applyUser, router]);
+
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      user,
+      storeName: user?.storeName || '',
+      isLoading,
+      sessionError,
+      refreshSession,
+      login,
+      logout,
+    }),
+    [user, isLoading, sessionError, refreshSession, login, logout],
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        storeName: user?.storeName || '',
-        isLoading,
-        sessionError,
-        refreshSession,
-        login,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -25,69 +25,82 @@ export class LowStockScanProcessor {
         : 'Starting automated low-stock inventory scan across all tenants...',
     );
 
-    const where: any = { isActive: true };
-    if (tenantId) {
-      where.tenantId = tenantId;
-    }
+    const tenants = tenantId
+      ? [{ id: tenantId }]
+      : await this.prisma.tenant.findMany({ select: { id: true } });
 
-    const products = await this.prisma.product.findMany({
-      where,
-      include: {
-        batches: {
-          select: { quantityRemaining: true },
+    let totalProcessed = 0;
+    let totalFlagged = 0;
+    const tenantOwnerPhoneMap = new Map<string, string | null>();
+
+    for (const tenant of tenants) {
+      const products = await this.prisma.product.findMany({
+        where: {
+          tenantId: tenant.id,
+          isActive: true,
         },
-      },
-    });
+        include: {
+          batches: {
+            where: { quantityRemaining: { gt: 0 } },
+            select: { quantityRemaining: true },
+          },
+        },
+      });
 
-    let flaggedCount = 0;
+      totalProcessed += products.length;
 
-    for (const product of products) {
-      const totalStock = product.batches.reduce(
-        (sum, batch) => sum + batch.quantityRemaining,
-        0,
-      );
-
-      if (totalStock <= product.lowStockThreshold) {
-        flaggedCount++;
-        await this.notificationsService.createLowStockNotifications(
-          product.tenantId,
-          product.id,
-          product.name,
-          totalStock,
-          product.lowStockThreshold,
+      for (const product of products) {
+        const totalStock = product.batches.reduce(
+          (sum, batch) => sum + batch.quantityRemaining,
+          0,
         );
 
-        // Step 3.15: Wire to real delivery if owner/staff has a phone on record
-        try {
-          const owner = await this.prisma.user.findFirst({
-            where: {
-              tenantId: product.tenantId,
-              phone: { not: null },
-            },
-            select: { phone: true },
-          });
+        if (totalStock <= product.lowStockThreshold) {
+          totalFlagged++;
+          await this.notificationsService.createLowStockNotifications(
+            product.tenantId,
+            product.id,
+            product.name,
+            totalStock,
+            product.lowStockThreshold,
+          );
 
-          if (owner?.phone) {
-            await this.notificationsService.sendMessage(
-              product.tenantId,
-              owner.phone,
-              'LOW_STOCK_ALERT',
-              {
-                storeName: 'Pharmacy Dispensary',
-                productName: product.name,
-                currentStock: totalStock,
-                threshold: product.lowStockThreshold,
-              },
-              'WHATSAPP',
-            );
+          // Cached owner phone lookup per tenant to avoid repeated DB roundtrips in loop
+          try {
+            if (!tenantOwnerPhoneMap.has(product.tenantId)) {
+              const owner = await this.prisma.user.findFirst({
+                where: {
+                  tenantId: product.tenantId,
+                  phone: { not: null },
+                },
+                select: { phone: true },
+              });
+              tenantOwnerPhoneMap.set(product.tenantId, owner?.phone || null);
+            }
+
+            const phone = tenantOwnerPhoneMap.get(product.tenantId);
+            if (phone) {
+              await this.notificationsService.sendMessage(
+                product.tenantId,
+                phone,
+                'LOW_STOCK_ALERT',
+                {
+                  storeName: 'Pharmacy Dispensary',
+                  productName: product.name,
+                  currentStock: totalStock,
+                  threshold: product.lowStockThreshold,
+                },
+                'WHATSAPP',
+              );
+            }
+          } catch (e: any) {
+            this.logger.warn(`Could not dispatch external low-stock alert: ${e.message}`);
           }
-        } catch (e: any) {
-          this.logger.warn(`Could not dispatch external low-stock alert: ${e.message}`);
         }
       }
     }
 
-    this.logger.log(`Completed low-stock scan. Processed ${products.length} products, flagged ${flaggedCount}.`);
-    return { processed: products.length, flagged: flaggedCount };
+    this.logger.log(`Completed low-stock scan. Processed ${totalProcessed} products, flagged ${totalFlagged}.`);
+    return { processed: totalProcessed, flagged: totalFlagged };
   }
 }

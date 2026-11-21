@@ -211,40 +211,40 @@ export class CustomersService {
   }
 
   async findOne(tenantId: string, id: string) {
-    const customer = await this.prisma.customer.findFirst({
-      where: { id, tenantId },
-      include: {
-        sales: {
-          take: 10,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            store: { select: { id: true, name: true } },
-            saleItems: {
-              include: {
-                product: { select: { name: true, unit: true } },
+    const [customer, salesAggregate] = await Promise.all([
+      this.prisma.customer.findFirst({
+        where: { id, tenantId },
+        include: {
+          sales: {
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              store: { select: { id: true, name: true } },
+              saleItems: {
+                include: {
+                  product: { select: { name: true, unit: true } },
+                },
               },
             },
           },
+          payments: {
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+          },
+          _count: {
+            select: { sales: true, payments: true },
+          },
         },
-        payments: {
-          take: 10,
-          orderBy: { createdAt: 'desc' },
-        },
-        _count: {
-          select: { sales: true, payments: true },
-        },
-      },
-    });
+      }),
+      this.prisma.sale.aggregate({
+        where: { customerId: id, tenantId, status: { not: SaleStatus.VOIDED } },
+        _sum: { totalAmount: true },
+      }),
+    ]);
 
     if (!customer) {
       throw new NotFoundException(`Customer with ID "${id}" not found`);
     }
-
-    // Calculate total spend
-    const salesAggregate = await this.prisma.sale.aggregate({
-      where: { customerId: id, tenantId, status: { not: SaleStatus.VOIDED } },
-      _sum: { totalAmount: true },
-    });
 
     return {
       id: customer.id,
@@ -350,57 +350,58 @@ export class CustomersService {
       throw new NotFoundException(`Customer with ID "${customerId}" not found`);
     }
 
-    // 1. Fetch all Credit Sales
-    const creditSales = await this.prisma.sale.findMany({
-      where: {
-        tenantId,
-        customerId,
-        status: SaleStatus.ON_CREDIT,
-      },
-      include: {
-        store: { select: { name: true } },
-        saleItems: {
-          include: {
-            product: { select: { name: true } },
+    // Execute credit sales, payments, and credit returns concurrently in parallel
+    const [creditSales, payments, creditReturns] = await Promise.all([
+      // 1. Fetch all Credit Sales
+      this.prisma.sale.findMany({
+        where: {
+          tenantId,
+          customerId,
+          status: SaleStatus.ON_CREDIT,
+        },
+        include: {
+          store: { select: { name: true } },
+          saleItems: {
+            include: {
+              product: { select: { name: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    // 2. Fetch all Payments recorded for this customer
-    const payments = await this.prisma.payment.findMany({
-      where: {
-        tenantId,
-        customerId,
-        status: PaymentStatus.COMPLETED,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    // 3. Fetch all Returns where refund was issued as store credit
-    const creditReturns = await this.prisma.return.findMany({
-      where: {
-        tenantId,
-        refundMethod: 'CREDIT',
-        sale: {
+        orderBy: { createdAt: 'asc' },
+      }),
+      // 2. Fetch all Payments recorded for this customer
+      this.prisma.payment.findMany({
+        where: {
+          tenantId,
           customerId,
+          status: PaymentStatus.COMPLETED,
         },
-      },
-      include: {
-        sale: { select: { receiptNumber: true } },
-        returnItems: {
-          include: {
-            saleItem: {
-              include: {
-                product: { select: { name: true } },
+        orderBy: { createdAt: 'asc' },
+      }),
+      // 3. Fetch all Returns where refund was issued as store credit
+      this.prisma.return.findMany({
+        where: {
+          tenantId,
+          refundMethod: 'CREDIT',
+          sale: {
+            customerId,
+          },
+        },
+        include: {
+          sale: { select: { receiptNumber: true } },
+          returnItems: {
+            include: {
+              saleItem: {
+                include: {
+                  product: { select: { name: true } },
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
 
     // 4. Unify into chronological timeline entries
     const rawEntries: Array<{

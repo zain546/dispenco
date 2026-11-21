@@ -31,6 +31,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatCurrency, getInitials } from '@/lib/format';
 import { getErrorMessage } from '@/lib/errors';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   CustomerItem,
   QueryCustomersParams,
@@ -45,6 +46,7 @@ import { CustomerProfileDrawer } from './customer-profile-drawer';
 
 export function CustomerList() {
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 250);
   const [hasBalanceFilter, setHasBalanceFilter] = useState<'all' | 'debt' | 'advance' | 'settled'>('all');
   const [page, setPage] = useState(1);
   const [, startTransition] = useTransition();
@@ -64,7 +66,7 @@ export function CustomerList() {
 
   const queryParams: QueryCustomersParams = useMemo(
     () => ({
-      search: search.trim() || undefined,
+      search: debouncedSearch.trim() || undefined,
       hasBalance:
         hasBalanceFilter === 'debt'
           ? 'debt'
@@ -76,7 +78,7 @@ export function CustomerList() {
       page,
       limit: 20,
     }),
-    [search, hasBalanceFilter, page],
+    [debouncedSearch, hasBalanceFilter, page],
   );
 
   const { data, isLoading, isFetching, isError, error, refetch } = useCustomers(queryParams);

@@ -7,6 +7,7 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisCacheService.name);
   private client: RedisClient | null = null;
   private isConnected = false;
+  private inFlight = new Map<string, Promise<any>>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -126,8 +127,12 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       }
 
       if (keysToDelete.length > 0) {
-        // UNLINK is non-blocking asynchronous memory reclaim in Redis >= 4.0
-        deletedCount = await this.client.unlink(...keysToDelete);
+        // UNLINK is non-blocking asynchronous memory reclaim in Redis >= 4.0; chunk into batches of 500
+        const chunkSize = 500;
+        for (let i = 0; i < keysToDelete.length; i += chunkSize) {
+          const chunk = keysToDelete.slice(i, i + chunkSize);
+          deletedCount += await this.client.unlink(...chunk);
+        }
       }
     } catch (err: unknown) {
       this.logger.debug(`Cache pattern delete error for pattern "${pattern}": ${(err as Error)?.message}`);
@@ -136,7 +141,8 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Cache-aside wrapper: returns cached item or runs factory function and caches result.
+   * Cache-aside wrapper with single-flight request coalescing to prevent cache stampedes.
+   * Concurrent requests for the same cold key reuse the single in-flight promise.
    */
   async wrap<T>(key: string, ttlSeconds: number, factory: () => Promise<T>): Promise<T> {
     const cached = await this.get<T>(key);
@@ -144,12 +150,27 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       return cached;
     }
 
-    const fresh = await factory();
-    if (fresh !== null && fresh !== undefined) {
-      // Background cache population to keep path responsive
-      this.set(key, fresh, ttlSeconds).catch(() => {});
+    // Check if an identical factory call is already in flight
+    const pending = this.inFlight.get(key);
+    if (pending) {
+      return pending as Promise<T>;
     }
-    return fresh;
+
+    const run = (async () => {
+      try {
+        const fresh = await factory();
+        if (fresh !== null && fresh !== undefined) {
+          // Background cache population to keep path responsive
+          this.set(key, fresh, ttlSeconds).catch(() => {});
+        }
+        return fresh;
+      } finally {
+        this.inFlight.delete(key);
+      }
+    })();
+
+    this.inFlight.set(key, run);
+    return run;
   }
 
   /**

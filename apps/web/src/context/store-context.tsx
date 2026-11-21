@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { storesApi, StoreData, CreateStorePayload } from '@/lib/stores-api';
 import { useAuth } from './auth-context';
 import { toast } from 'sonner';
@@ -29,9 +29,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [stores, setStores] = useState<StoreData[]>([]);
   const [activeStoreId, setActiveStoreIdState] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const hasLoadedStoresRef = useRef<boolean>(false);
+
+  const userId = user?.id;
+  const userStoreId = user?.storeId;
 
   const fetchStores = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
+      hasLoadedStoresRef.current = false;
       setStores([]);
       setActiveStoreIdState('');
       setIsLoading(false);
@@ -39,10 +44,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      setIsLoading(true);
+      if (!hasLoadedStoresRef.current) {
+        setIsLoading(true);
+      }
       const res = await storesApi.getStores();
       if (res && res.data) {
         const activeList = res.data.filter((s) => s.isActive);
+        hasLoadedStoresRef.current = true;
         setStores(activeList);
         try {
           localStorage.setItem(CACHED_STORES_STORAGE_KEY, JSON.stringify(activeList));
@@ -56,9 +64,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           setActiveStoreIdState('all');
         } else if (storedId && activeList.some((s) => s.id === storedId)) {
           setActiveStoreIdState(storedId);
-        } else if (user.storeId && activeList.some((s) => s.id === user.storeId)) {
-          setActiveStoreIdState(user.storeId);
-          localStorage.setItem(ACTIVE_STORE_STORAGE_KEY, user.storeId);
+        } else if (userStoreId && activeList.some((s) => s.id === userStoreId)) {
+          setActiveStoreIdState(userStoreId);
+          localStorage.setItem(ACTIVE_STORE_STORAGE_KEY, userStoreId);
         } else if (activeList.length > 0) {
           setActiveStoreIdState(activeList[0].id);
           localStorage.setItem(ACTIVE_STORE_STORAGE_KEY, activeList[0].id);
@@ -74,12 +82,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (cached) {
           const parsed = JSON.parse(cached) as StoreData[];
           if (Array.isArray(parsed) && parsed.length > 0) {
+            hasLoadedStoresRef.current = true;
             setStores(parsed);
             const storedId = localStorage.getItem(ACTIVE_STORE_STORAGE_KEY);
             if (storedId && (storedId === 'all' || parsed.some((s) => s.id === storedId))) {
               setActiveStoreIdState(storedId);
-            } else if (user.storeId && parsed.some((s) => s.id === user.storeId)) {
-              setActiveStoreIdState(user.storeId);
+            } else if (userStoreId && parsed.some((s) => s.id === userStoreId)) {
+              setActiveStoreIdState(userStoreId);
             } else {
               setActiveStoreIdState(parsed[0].id);
             }
@@ -91,7 +100,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [userId, userStoreId]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -123,57 +132,77 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [stores, activeStoreId, isLoading]);
 
-  const setActiveStoreId = (storeId: string) => {
-    if (storeId === 'all' || stores.some((s) => s.id === storeId) || !storeId) {
-      setActiveStoreIdState(storeId);
-      if (storeId) {
-        localStorage.setItem(ACTIVE_STORE_STORAGE_KEY, storeId);
-      } else {
-        localStorage.removeItem(ACTIVE_STORE_STORAGE_KEY);
+  const setActiveStoreId = useCallback(
+    (storeId: string) => {
+      if (storeId === 'all' || stores.some((s) => s.id === storeId) || !storeId) {
+        setActiveStoreIdState(storeId);
+        if (storeId) {
+          localStorage.setItem(ACTIVE_STORE_STORAGE_KEY, storeId);
+        } else {
+          localStorage.removeItem(ACTIVE_STORE_STORAGE_KEY);
+        }
       }
-    }
-  };
+    },
+    [stores],
+  );
 
-  const createStore = async (payload: CreateStorePayload): Promise<StoreData | null> => {
-    try {
-      const res = await storesApi.createStore(payload);
-      if (res?.data) {
-        toast.success(`Store branch "${res.data.name}" created successfully!`);
-        await fetchStores();
-        setActiveStoreId(res.data.id);
-        return res.data;
+  const createStore = useCallback(
+    async (payload: CreateStorePayload): Promise<StoreData | null> => {
+      try {
+        const res = await storesApi.createStore(payload);
+        if (res?.data) {
+          toast.success(`Store branch "${res.data.name}" created successfully!`);
+          await fetchStores();
+          setActiveStoreId(res.data.id);
+          return res.data;
+        }
+        return null;
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || err?.message || 'Failed to create store branch';
+        toast.error(msg);
+        throw err;
       }
-      return null;
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to create store branch';
-      toast.error(msg);
-      throw err;
-    }
-  };
+    },
+    [fetchStores, setActiveStoreId],
+  );
 
-  const activeStore = activeStoreId === 'all'
-    ? null
-    : stores.find((s) => s.id === activeStoreId) || null;
+  const activeStore = useMemo(
+    () => (activeStoreId === 'all' ? null : stores.find((s) => s.id === activeStoreId) || null),
+    [activeStoreId, stores],
+  );
 
   const isAllStores = activeStoreId === 'all';
   const isStoreReady = !isLoading && (Boolean(activeStoreId) || stores.length === 0);
 
+  const contextValue = useMemo<StoreContextType>(
+    () => ({
+      stores,
+      activeStoreId,
+      activeStore,
+      isAllStores,
+      isMultiStore: stores.length > 1,
+      storeCount: stores.length,
+      isLoading,
+      isStoreReady,
+      setActiveStoreId,
+      refreshStores: fetchStores,
+      createStore,
+    }),
+    [
+      stores,
+      activeStoreId,
+      activeStore,
+      isAllStores,
+      isLoading,
+      isStoreReady,
+      setActiveStoreId,
+      fetchStores,
+      createStore,
+    ],
+  );
+
   return (
-    <StoreContext.Provider
-      value={{
-        stores,
-        activeStoreId,
-        activeStore,
-        isAllStores,
-        isMultiStore: stores.length > 1,
-        storeCount: stores.length,
-        isLoading,
-        isStoreReady,
-        setActiveStoreId,
-        refreshStores: fetchStores,
-        createStore,
-      }}
-    >
+    <StoreContext.Provider value={contextValue}>
       {children}
     </StoreContext.Provider>
   );

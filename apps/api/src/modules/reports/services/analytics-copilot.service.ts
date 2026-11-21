@@ -205,28 +205,37 @@ export class AnalyticsCopilotService {
     let classifiedIntent: SafeAnalyticsIntent = 'SALES_SUMMARY';
     let rawTimeframe = overrideTimeframe || 'this_month';
     let limit = 5;
+    let classified = false;
 
     // 1. Try Gemini classification if key is configured
     if (geminiKey) {
       try {
         const llmResult = await this.classifyWithGemini(geminiKey, question);
-        if (llmResult.intent) classifiedIntent = llmResult.intent;
-        if (llmResult.timeframe) rawTimeframe = llmResult.timeframe;
-        if (llmResult.limit) limit = llmResult.limit;
+        if (llmResult?.intent) {
+          classifiedIntent = llmResult.intent;
+          if (llmResult.timeframe) rawTimeframe = llmResult.timeframe;
+          if (llmResult.limit) limit = llmResult.limit;
+          classified = true;
+        }
       } catch (err: unknown) {
         this.logger.warn(`Gemini intent translation failed: ${err}`);
       }
     } else if (openaiKey) {
       try {
         const llmResult = await this.classifyWithOpenAi(openaiKey, question);
-        if (llmResult.intent) classifiedIntent = llmResult.intent;
-        if (llmResult.timeframe) rawTimeframe = llmResult.timeframe;
-        if (llmResult.limit) limit = llmResult.limit;
+        if (llmResult?.intent) {
+          classifiedIntent = llmResult.intent;
+          if (llmResult.timeframe) rawTimeframe = llmResult.timeframe;
+          if (llmResult.limit) limit = llmResult.limit;
+          classified = true;
+        }
       } catch (err: unknown) {
         this.logger.warn(`OpenAI intent translation failed: ${err}`);
       }
-    } else {
-      // 2. Deterministic Semantic Classifier
+    }
+
+    if (!classified) {
+      // 2. Deterministic Semantic Classifier (runs on startup or whenever LLM providers fail/timeout)
       const q = question.toLowerCase();
 
       if (q.includes('expiry') || q.includes('expir') || q.includes('shelf life') || q.includes('risk')) {
@@ -376,6 +385,7 @@ Return strict JSON:
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' },
       }),
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!res.ok) throw new Error(`Gemini status ${res.status}`);
@@ -426,6 +436,7 @@ Return strict JSON:
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json' },
       }),
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!res.ok) throw new Error(`Gemini status ${res.status}`);
@@ -444,6 +455,7 @@ Return strict JSON:
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
+      signal: AbortSignal.timeout(5000),
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [

@@ -58,6 +58,7 @@ describe('SalesService - Security & Accounting Guardrails', () => {
         findMany: async () => [],
       },
       batch: {
+        findMany: async () => [],
         update: async () => ({}),
         updateMany: async () => ({ count: 1 }),
       },

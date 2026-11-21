@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   reportsApi,
@@ -70,9 +71,18 @@ import {
   ArrowUpDown,
   Check,
 } from 'lucide-react';
-import { AnalyticsCopilotView } from './analytics-copilot-view';
-import { AuditComplianceView } from './audit-compliance-view';
-import { AnomaliesReviewView } from './anomalies-review-view';
+const AnalyticsCopilotView = dynamic(
+  () => import('./analytics-copilot-view').then((m) => m.AnalyticsCopilotView),
+  { ssr: false },
+);
+const AuditComplianceView = dynamic(
+  () => import('./audit-compliance-view').then((m) => m.AuditComplianceView),
+  { ssr: false },
+);
+const AnomaliesReviewView = dynamic(
+  () => import('./anomalies-review-view').then((m) => m.AnomaliesReviewView),
+  { ssr: false },
+);
 import {
   ResponsiveContainer,
   AreaChart,
@@ -146,7 +156,7 @@ function WhatsAppIcon({ className = 'size-3.5 shrink-0' }: { className?: string 
 }
 
 export function ReportsView() {
-  const { activeStoreId, activeStore, isAllStores, setActiveStoreId } = useStore();
+  const { activeStoreId, activeStore, isAllStores, setActiveStoreId, isStoreReady } = useStore();
   const { user } = useAuth();
   const [preset, setPreset] = useState<PresetRange>('30d');
   const [groupBy, setGroupBy] = useState<'day' | 'week' | 'month'>('day');
@@ -327,7 +337,10 @@ export function ReportsView() {
     }
   };
 
+  const reportReqVersionRef = useRef(0);
+
   const fetchReport = async () => {
+    const reqVersion = ++reportReqVersionRef.current;
     try {
       setLoading(true);
       const params: GetSalesReportParams = { groupBy };
@@ -345,34 +358,55 @@ export function ReportsView() {
         params.storeId = activeStoreId;
       }
 
-      const res = await reportsApi.getSalesReport(params);
-      if (res.success) {
-        setReportData(res.data);
-      }
+      const [salesResult, orgResult] = await Promise.allSettled([
+        reportsApi.getSalesReport(params),
+        isAllStores
+          ? reportsApi.getOrgOverview({
+              startDate: params.startDate,
+              endDate: params.endDate,
+            })
+          : Promise.resolve(null),
+      ]);
 
-      if (isAllStores) {
-        const orgRes = await reportsApi.getOrgOverview({
-          startDate: params.startDate,
-          endDate: params.endDate,
-        });
-        if (orgRes.success) {
-          setOrgOverviewData(orgRes.data);
+      if (reqVersion !== reportReqVersionRef.current) return;
+
+      if (salesResult.status === 'fulfilled') {
+        if (salesResult.value?.success) {
+          setReportData(salesResult.value.data);
         }
       } else {
+        toast.error('Failed to load sales analytics', {
+          description: getErrorMessage(salesResult.reason),
+        });
+      }
+
+      if (orgResult.status === 'rejected') {
+        toast.error('Failed to load organization overview', {
+          description: getErrorMessage(orgResult.reason),
+        });
+      }
+
+      if (isAllStores && orgResult.status === 'fulfilled' && orgResult.value?.success) {
+        setOrgOverviewData(orgResult.value.data);
+      } else if (!isAllStores) {
         setOrgOverviewData(null);
       }
     } catch (err) {
+      if (reqVersion !== reportReqVersionRef.current) return;
       toast.error('Failed to load sales analytics', {
         description: getErrorMessage(err),
       });
     } finally {
-      setLoading(false);
+      if (reqVersion === reportReqVersionRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchReport();
-  }, [preset, groupBy, activeStoreId, isAllStores]);
+    if (!isStoreReady) return;
+    void fetchReport();
+  }, [preset, groupBy, activeStoreId, isAllStores, isStoreReady]);
 
   const handleApplyCustomDates = () => {
     if (preset === 'custom') {

@@ -127,6 +127,8 @@ model Store {
   incomingTransfers  StockTransfer[] @relation("TargetStore")
   prescriptions      Prescription[]
   anomalyFlags       AnomalyFlag[]
+
+  @@index([tenantId, isActive])
 }
 
 model Product {
@@ -155,6 +157,9 @@ model Product {
 
   @@index([tenantId, barcode])
   @@index([attributes], type: Gin)
+  @@index([tenantId, isActive, createdAt])
+  @@index([tenantId, isActive, name])
+  @@index([tenantId, category])
 }
 
 model Batch {
@@ -181,6 +186,9 @@ model Batch {
   @@index([tenantId, storeId])
   @@index([expiryDate])
   @@index([tenantId, productId, storeId, expiryDate])
+  @@index([tenantId, storeId, quantityRemaining, expiryDate])
+  @@index([productId, storeId, quantityRemaining])
+  @@index([tenantId, storeId, productId, batchNumber])
 }
 
 model Supplier {
@@ -197,6 +205,8 @@ model Supplier {
 
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   purchaseOrders PurchaseOrder[]
+
+  @@index([tenantId, isActive])
 }
 
 enum PurchaseOrderStatus {
@@ -224,6 +234,8 @@ model PurchaseOrder {
   purchaseItems PurchaseItem[]
 
   @@index([tenantId, storeId])
+  @@index([tenantId, status, createdAt])
+  @@index([supplierId])
 }
 
 model PurchaseItem {
@@ -238,6 +250,10 @@ model PurchaseItem {
   purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product          Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   batch            Batch?        @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@index([purchaseOrderId])
+  @@index([productId])
+  @@index([batchId])
 }
 
 model Customer {
@@ -257,6 +273,7 @@ model Customer {
 
   @@index([tenantId, phone])
   @@index([tenantId, name])
+  @@index([tenantId, creditBalance])
 }
 
 enum SaleStatus {
@@ -292,6 +309,8 @@ model Sale {
   @@index([tenantId, receiptNumber])
   @@index([tenantId, storeId, status, createdAt])
   @@index([tenantId, customerId, status])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 enum DiscountType {
@@ -353,6 +372,7 @@ model Payment {
 
   @@index([tenantId, customerId, status])
   @@index([saleId])
+  @@index([tenantId, gatewayRef, status])
 }
 
 model Return {
@@ -374,6 +394,8 @@ model Return {
   returnItems        ReturnItem[]
 
   @@index([tenantId, saleId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, refundMethod])
 }
 
 model ReturnItem {
@@ -386,6 +408,9 @@ model ReturnItem {
 
   return       Return   @relation(fields: [returnId], references: [id], onDelete: Cascade)
   saleItem     SaleItem @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+
+  @@index([returnId])
+  @@index([saleItemId])
 }
 
 model Notification {
@@ -401,6 +426,7 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId, read, createdAt])
+  @@index([tenantId, type, createdAt])
 }
 
 model AuditLog {
@@ -623,6 +649,8 @@ model AnomalyFlag {
   @@index([tenantId, type])
   @@index([tenantId, storeId])
   @@index([tenantId, createdAt])
+  @@index([tenantId, referenceId, type])
+  @@index([tenantId, userId, type, status])
 }
 
 // ==========================================
@@ -706,6 +734,7 @@ model SubscriptionInvoice {
   subscription       Subscription         @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
+  @@index([subscriptionId, createdAt])
 }
 
 model BillingWebhookEvent {

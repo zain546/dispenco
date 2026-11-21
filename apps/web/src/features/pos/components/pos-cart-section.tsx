@@ -25,7 +25,7 @@ interface PosCartSectionProps {
   onOpenPackSizeModal: (index: number, productName: string, currentSize: number) => void;
 }
 
-export function PosCartSection({
+export const PosCartSection = React.memo(function PosCartSection({
   cart,
   onClearCart,
   onRemoveItem,
@@ -513,5 +513,5 @@ export function PosCartSection({
       </CardContent>
     </Card>
   );
-}
+});
 

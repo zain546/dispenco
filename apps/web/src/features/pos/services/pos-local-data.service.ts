@@ -71,13 +71,37 @@ function adjustLocalBatchesFefo(
   return cloned;
 }
 
+const CATALOG_SYNC_TTL_MS = 5 * 60 * 1000; // 5 minutes freshness window
+
 export const posLocalDataService = {
   /**
    * 1. Pull latest server catalog and persist into local IndexedDB
    */
-  async syncCatalogToLocal(storeId?: string): Promise<{ count: number; timestamp: string }> {
+  async syncCatalogToLocal(
+    storeId?: string,
+    options?: { force?: boolean },
+  ): Promise<{ count: number; timestamp: string }> {
     const posDb = getPosDatabase();
+    const storeMetaKey = `catalog_sync:${storeId || 'all'}`;
     try {
+      if (!options?.force) {
+        const [installedScope, localCount] = await Promise.all([
+          posDb.syncMetadata.get('installed_catalog_scope'),
+          posDb.localProducts.count(),
+        ]);
+        if (
+          installedScope?.scope === storeMetaKey &&
+          installedScope?.lastSyncedAt &&
+          localCount > 0 &&
+          Date.now() - new Date(installedScope.lastSyncedAt).getTime() < CATALOG_SYNC_TTL_MS
+        ) {
+          return {
+            count: installedScope.recordCount || localCount,
+            timestamp: installedScope.lastSyncedAt,
+          };
+        }
+      }
+
       const [productsRes, customersRes] = await Promise.all([
         productsApi.getProducts({ storeId, limit: 1000 }),
         customersApi.getCustomers({ limit: 500 }).catch(() => ({ data: [] })),
@@ -145,11 +169,24 @@ export const posLocalDataService = {
           await posDb.localCustomers.clear();
           await posDb.localCustomers.bulkPut(localCustomerRecords);
 
-          await posDb.syncMetadata.put({
-            key: 'catalog_sync',
-            lastSyncedAt: now,
-            recordCount: localProductRecords.length,
-          });
+          await posDb.syncMetadata.bulkPut([
+            {
+              key: 'catalog_sync',
+              lastSyncedAt: now,
+              recordCount: localProductRecords.length,
+            },
+            {
+              key: storeMetaKey,
+              lastSyncedAt: now,
+              recordCount: localProductRecords.length,
+            },
+            {
+              key: 'installed_catalog_scope',
+              lastSyncedAt: now,
+              recordCount: localProductRecords.length,
+              scope: storeMetaKey,
+            },
+          ]);
         },
       );
 

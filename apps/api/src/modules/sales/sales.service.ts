@@ -189,6 +189,20 @@ export class SalesService {
         taxRatesList.map((tr) => [tr.code.toUpperCase().trim(), Number(tr.ratePercent)]),
       );
 
+      // Pre-fetch all available batches for cart products in this store (eliminates N+1 DB queries in FEFO allocation)
+      const allBatches = tx.batch?.findMany
+        ? await tx.batch.findMany({
+            where: {
+              tenantId,
+              productId: { in: cartProductIds },
+              storeId: targetStoreId,
+              quantityRemaining: { gt: 0 },
+              expiryDate: { gt: new Date() },
+            },
+            orderBy: { expiryDate: 'asc' },
+          })
+        : undefined;
+
       // 3. Process each item in cart via FEFO batch allocation
       for (const item of dto.items) {
         const product = productMap.get(item.productId);
@@ -248,7 +262,7 @@ export class SalesService {
           ? Math.max(1, Math.ceil(item.quantity / packSize))
           : Math.max(1, Math.ceil(item.quantity));
 
-        // FEFO batch allocation using current transaction client
+        // FEFO batch allocation using current transaction client (with pre-loaded product and batches to eliminate N+1)
         const fefoResult = await this.inventoryService.selectBatchesForSale(
           tenantId,
           item.productId,
@@ -256,6 +270,8 @@ export class SalesService {
           targetStoreId,
           false,
           tx,
+          product,
+          allBatches,
         );
 
         let remainingItemQuantity = item.quantity;
