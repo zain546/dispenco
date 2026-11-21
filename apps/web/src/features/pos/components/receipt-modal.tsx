@@ -97,7 +97,7 @@ export function ReceiptModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 my-2 text-xs">
+        <div className="space-y-3.5 text-xs">
           <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 space-y-2">
             <div className="flex justify-between text-muted-foreground">
               <span>Receipt #:</span>
@@ -152,7 +152,7 @@ export function ReceiptModal({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 pt-2 w-full">
+        <div className="flex flex-col gap-3 w-full">
           <div className="grid grid-cols-3 gap-2 w-full">
             <Button
               type="button"
