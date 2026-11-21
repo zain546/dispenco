@@ -11,42 +11,51 @@ export function DashboardPreview() {
       <div aria-hidden="true" className="hero-horizon pointer-events-none absolute" />
       <div aria-hidden="true" className="hero-floor pointer-events-none absolute" />
 
-      <div className="hero-browser relative overflow-hidden rounded-2xl border border-white/10 bg-[#0b0d10]">
+      <div className="hero-browser relative overflow-hidden rounded-2xl border border-border/80 bg-muted/40 dark:border-white/10 dark:bg-[#0b0d10]">
         {/* Crisp top specular edge */}
         <div aria-hidden="true" className="hero-browser-highlight pointer-events-none absolute" />
 
         {/* Minimal studio browser chrome */}
-        <div className="flex h-10 items-center justify-between gap-3 border-b border-white/10 bg-[#111418] px-4 text-xs text-zinc-400">
+        <div className="flex h-10 items-center justify-between gap-3 border-b border-border/70 bg-muted/70 px-4 text-xs text-muted-foreground dark:border-white/10 dark:bg-[#111418] dark:text-zinc-400">
           <div className="flex items-center gap-1.5" aria-hidden="true">
-            <span className="size-2.5 rounded-full bg-white/15" />
-            <span className="size-2.5 rounded-full bg-white/15" />
-            <span className="size-2.5 rounded-full bg-white/15" />
+            <span className="size-2.5 rounded-full bg-foreground/15 dark:bg-white/15" />
+            <span className="size-2.5 rounded-full bg-foreground/15 dark:bg-white/15" />
+            <span className="size-2.5 rounded-full bg-foreground/15 dark:bg-white/15" />
           </div>
-          <span className="flex items-center gap-1.5 rounded-md border border-white/8 bg-white/[0.03] px-3 py-1 font-mono text-[11px] text-zinc-300">
-            <LockKeyhole className="size-3 text-teal-400" aria-hidden="true" />
+          <span className="flex items-center gap-1.5 rounded-md border border-border/80 bg-background/80 px-3 py-1 font-mono text-[11px] text-foreground/80 dark:border-white/8 dark:bg-white/[0.03] dark:text-zinc-300">
+            <LockKeyhole className="size-3 text-teal-600 dark:text-teal-400" aria-hidden="true" />
             dispenco.com/dashboard
           </span>
-          <span className="hidden items-center gap-1.5 text-[11px] text-emerald-400 sm:inline-flex">
-            <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+          <span className="hidden items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 sm:inline-flex">
+            <span className="size-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" aria-hidden="true" />
             Live workspace
           </span>
         </div>
 
-        {/* Real Dispenco store dashboard screenshot */}
-        <div className="relative bg-[#0b0d10]">
+        {/* Real Dispenco store dashboard screenshot (light mode & dark mode) */}
+        <div className="relative bg-background dark:bg-[#0b0d10]">
           <Image
-            src="/images/dashboard_preview.webp"
+            src="/images/dashboard_preview_light.webp"
             alt="Dispenco Pharmacy Overview dashboard with today's sales, low stock alerts, near-expiry tracking, recent receipts, and quick POS billing"
-            width={1907}
+            width={1900}
             height={1078}
             priority
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
-            className="block h-auto w-full select-none"
+            className="block h-auto w-full select-none dark:hidden"
+          />
+          <Image
+            src="/images/dashboard_preview.webp"
+            alt="Dispenco Pharmacy Overview dashboard with today's sales, low stock alerts, near-expiry tracking, recent receipts, and quick POS billing"
+            width={1902}
+            height={1078}
+            priority
+            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
+            className="hidden h-auto w-full select-none dark:block"
           />
           {/* Subtle bottom fade into bezel for polished depth */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b0d10]/70 to-transparent"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background/70 to-transparent dark:from-[#0b0d10]/70"
           />
         </div>
       </div>
