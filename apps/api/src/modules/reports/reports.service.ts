@@ -358,6 +358,30 @@ export class ReportsService {
       orderBy: { createdAt: 'asc' },
     });
 
+    // Resolve walk-in customer names recorded in SALE_CREATE audit logs for the returned transactions (capped to last 500)
+    const auditNameMap = new Map<string, string>();
+    const recentSalesWithoutCustomer = sales
+      .slice(-500)
+      .filter((s) => !s.customer)
+      .map((s) => s.id);
+    if (recentSalesWithoutCustomer.length > 0) {
+      const audits = await this.prisma.auditLog.findMany({
+        where: {
+          tenantId,
+          entityType: 'Sale',
+          entityId: { in: recentSalesWithoutCustomer },
+          action: 'SALE_CREATE',
+        },
+        select: { entityId: true, metadata: true },
+      });
+      for (const a of audits) {
+        const meta = a.metadata as Record<string, unknown> | null;
+        if (meta?.customerName && typeof meta.customerName === 'string' && meta.customerName.trim()) {
+          auditNameMap.set(a.entityId, meta.customerName.trim());
+        }
+      }
+    }
+
     // 2. Compute Summary Metrics & Payment Breakdown (Net of returns)
     let totalTransactions = 0;
     let grossRevenue = 0;
@@ -540,7 +564,7 @@ export class ReportsService {
         id: s.id,
         receiptNumber: s.receiptNumber || s.id.slice(0, 8).toUpperCase(),
         createdAt: s.createdAt.toISOString(),
-        customerName: s.customer?.name || 'Walk-in Customer',
+        customerName: s.customer?.name || auditNameMap.get(s.id) || 'Walk-in Customer',
         cashierName: s.user?.name || 'Pharmacy Staff',
         storeName: s.store?.name || 'Main Store',
         doctorName: (s as any).doctorName || 'Self',
