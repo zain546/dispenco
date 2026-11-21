@@ -20,6 +20,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -1424,18 +1431,22 @@ export function ReportsView() {
                     <span>Doctor Rx Only</span>
                   </button>
 
-                  <div className="ml-auto flex items-center gap-1.5 text-micro text-muted-foreground bg-muted/30 border border-border/60 px-2.5 py-1 rounded-lg">
-                    <ArrowUpDown className="size-3 text-primary" />
-                    <select
-                      value={receiptSort}
-                      onChange={(e) => setReceiptSort(e.target.value as any)}
-                      className="bg-transparent font-medium text-foreground text-xs cursor-pointer focus:outline-none"
-                    >
-                      <option value="newest" className="bg-popover text-popover-foreground">Newest First</option>
-                      <option value="oldest" className="bg-popover text-popover-foreground">Oldest First</option>
-                      <option value="highest" className="bg-popover text-popover-foreground">Highest Amount</option>
-                      <option value="lowest" className="bg-popover text-popover-foreground">Lowest Amount</option>
-                    </select>
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <Select value={receiptSort} onValueChange={(val) => setReceiptSort(val as any)}>
+                      <SelectTrigger
+                        size="sm"
+                        className="h-8 px-2.5 text-xs font-medium gap-1.5 border-border/70 bg-muted/30 hover:bg-muted/50 text-foreground rounded-lg shadow-2xs cursor-pointer"
+                      >
+                        <ArrowUpDown className="size-3 text-primary" />
+                        <SelectValue placeholder="Sort receipts" />
+                      </SelectTrigger>
+                      <SelectContent align="end" className="rounded-xl border-border/80 shadow-lg text-xs">
+                        <SelectItem value="newest" className="cursor-pointer">Newest First</SelectItem>
+                        <SelectItem value="oldest" className="cursor-pointer">Oldest First</SelectItem>
+                        <SelectItem value="highest" className="cursor-pointer">Highest Amount</SelectItem>
+                        <SelectItem value="lowest" className="cursor-pointer">Lowest Amount</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -1609,7 +1620,7 @@ export function ReportsView() {
                                     ) : (
                                       <FileDown className="size-3.5 text-primary" />
                                     )}
-                                    <span className="hidden sm:inline">PDF</span>
+                                    <span className="hidden sm:inline">Receipt</span>
                                   </Button>
 
                                   <Button
