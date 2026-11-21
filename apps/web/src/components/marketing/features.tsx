@@ -6,33 +6,37 @@ import {
   Check,
   ChevronRight,
   CircleUserRound,
+  Clock3,
   FileText,
   Search,
+  Sparkles,
   Store,
   Wallet,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { SectionHeading } from './shared';
+import { SpotlightCard, SpotlightGrid } from './spotlight-card';
 
 function PosPreview() {
   return (
     <div
-      className="marketing-preview mt-8 overflow-hidden rounded-t-xl border bg-background text-xs shadow-sm"
+      className="mt-7 overflow-hidden rounded-t-xl border border-b-0 bg-background/90 text-xs"
       role="img"
       aria-label="Sample point of sale with three medicines and a total of PKR 1,180"
     >
       <div className="flex items-center justify-between border-b px-4 py-3">
         <span className="font-semibold">
-          New sale <span className="ml-2 font-normal text-muted-foreground">#1042</span>
+          New sale <span className="ml-2 font-mono font-normal text-muted-foreground">#1042</span>
         </span>
-        <Barcode className="size-4 text-muted-foreground" aria-hidden="true" />
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+          Scanner ready
+        </span>
       </div>
       <div className="p-4">
         <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2.5 text-muted-foreground">
-          <Search className="size-4" aria-hidden="true" />
-          <span className="flex-1">Search a medicine or scan barcode</span>
-          <kbd className="hidden rounded-sm border bg-background px-1.5 font-sans text-micro sm:inline">
+          <Search className="size-4 shrink-0" aria-hidden="true" />
+          <span className="flex-1 truncate">Search a medicine or scan barcode</span>
+          <kbd className="hidden rounded border bg-background px-1.5 py-0.5 font-mono text-[10px] sm:inline">
             F2
           </kbd>
         </div>
@@ -42,22 +46,22 @@ function PosPreview() {
             { name: 'Augmentin 625mg', qty: '1 × 820', price: '820' },
             { name: 'Brufen 400mg', qty: '1 × 240', price: '240' },
           ].map((item) => (
-            <div key={item.name} className="flex justify-between gap-4 py-3">
+            <div key={item.name} className="flex items-center justify-between gap-4 py-2.5">
               <div>
                 <p className="font-medium">{item.name}</p>
-                <p className="mt-1 text-micro text-muted-foreground">{item.qty}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground tabular-nums">{item.qty}</p>
               </div>
-              <span className="tabular-nums">PKR {item.price}</span>
+              <span className="font-medium tabular-nums">PKR {item.price}</span>
             </div>
           ))}
         </div>
-        <div className="mt-1 flex items-center justify-between rounded-lg bg-primary px-3 py-3 text-primary-foreground">
+        <div className="mt-2 flex items-center justify-between rounded-lg bg-primary px-3.5 py-3 text-primary-foreground">
           <span className="flex items-center gap-2 font-medium">
             <Check className="size-4" aria-hidden="true" />
             Complete sale
           </span>
           <span className="font-semibold tabular-nums">
-            PKR 1,180 <ChevronRight className="ml-1 inline size-4" aria-hidden="true" />
+            PKR 1,180 <ChevronRight className="ml-0.5 inline size-4" aria-hidden="true" />
           </span>
         </div>
       </div>
@@ -68,44 +72,49 @@ function PosPreview() {
 function ExpiryPreview() {
   return (
     <div
-      className="marketing-preview mt-8 rounded-t-xl border bg-background p-4 shadow-sm"
+      className="mt-7 rounded-t-xl border border-b-0 bg-background/90 p-4"
       role="img"
       aria-label="Sample expiry alerts with batch and stock details"
     >
-      <div className="mb-4 flex items-center justify-between">
-        <span className="text-xs font-semibold">Expiry watch</span>
-        <Badge variant="secondary" className="text-xs">
-          Upcoming batches
-        </Badge>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-xs font-semibold">FEFO Expiry Watch</span>
+        <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+          3 batches tracked
+        </span>
       </div>
       {[
         {
           name: 'Augmentin 625mg',
           batch: 'AUG-2411 · 24 packs',
-          date: '31 Jan 2027',
-          percent: 'w-3/4',
+          badge: '13 days left',
+          tone: 'text-amber-600 dark:text-amber-400',
+          bar: 'w-4/5 bg-amber-500/80',
         },
         {
           name: 'Glucophage 500mg',
           batch: 'GLU-2412 · 18 packs',
-          date: '28 Feb 2027',
-          percent: 'w-1/2',
+          badge: '45 days left',
+          tone: 'text-primary dark:text-chart-1',
+          bar: 'w-1/2 bg-primary/75',
         },
         {
           name: 'Brufen 400mg',
           batch: 'BRF-2501 · 12 packs',
-          date: '31 Mar 2027',
-          percent: 'w-1/3',
+          badge: '90+ days',
+          tone: 'text-muted-foreground',
+          bar: 'w-1/3 bg-foreground/30',
         },
       ].map((item) => (
-        <div key={item.name} className="border-t py-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div key={item.name} className="border-t py-3.5">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-medium">{item.name}</span>
-            <span className="text-micro text-muted-foreground">{item.date}</span>
+            <span className={`text-[11px] font-medium tabular-nums ${item.tone}`}>
+              {item.badge}
+            </span>
           </div>
-          <p className="mt-1 text-micro text-muted-foreground">{item.batch}</p>
-          <div className="mt-3 h-1 rounded-full bg-muted">
-            <div className={`${item.percent} h-1 rounded-full bg-primary/60`} />
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{item.batch}</p>
+          <div className="mt-2.5 h-1.5 rounded-full bg-muted">
+            <div className={`${item.bar} h-1.5 rounded-full`} />
           </div>
         </div>
       ))}
@@ -113,101 +122,135 @@ function ExpiryPreview() {
   );
 }
 
+const compactTiles = [
+  {
+    icon: FileText,
+    title: 'Purchases, connected.',
+    description: 'Keep purchase invoices, returns, and supplier balances in one place.',
+    preview: 'Invoice received',
+    detail: 'Stock & balance updated',
+    symbol: Check,
+  },
+  {
+    icon: Wallet,
+    title: 'Khata & credit, kept clear.',
+    description: 'Track customer balances and payments without a separate notebook.',
+    preview: 'Customer ledger',
+    detail: 'Every payment accounted for',
+    symbol: CircleUserRound,
+  },
+  {
+    icon: ChartNoAxesCombined,
+    title: 'Sales & profit analytics.',
+    description: 'Check daily profit, margins, and performance even from your phone.',
+    preview: 'Today’s sales',
+    detail: 'PKR 48,250 · +14%',
+    symbol: ArrowUpRight,
+  },
+  {
+    icon: Store,
+    title: 'More stores. One view.',
+    description: 'Move stock between branches and monitor every outlet in real time.',
+    preview: 'Inter-store transfer',
+    detail: 'Main store → Branch 02',
+    symbol: ArrowDownUp,
+  },
+];
+
 export function Features() {
   return (
     <section
       id="features"
       aria-label="Dispenco features"
-      className="marketing-section border-y bg-muted/30 px-5 py-24 sm:px-8 md:py-32"
+      className="marketing-section border-t px-5 py-20 sm:px-8 sm:py-28 lg:py-32"
     >
       <div className="mx-auto max-w-6xl">
-        <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between [&>div]:mb-0">
+        <div className="mb-12 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between [&>div]:mb-0">
           <SectionHeading
             eyebrow="One workspace. Every working day."
             title="Everything your pharmacy needs. Nothing in your way."
-            description="From the first delivery to the last sale, your records stay connected."
+            description="From the first supplier delivery to the last counter receipt, every record stays connected."
           />
-          <p className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-primary" />
+          <p className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
             Available today
           </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-12">
-          <Card className="marketing-card overflow-hidden p-6 pb-0 shadow-none sm:px-8 sm:pt-8 md:col-span-7">
-            <div className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary dark:text-primary-foreground">
+
+        <SpotlightGrid className="grid gap-4 md:grid-cols-12">
+          {/* Large Bento 1: POS */}
+          <SpotlightCard className="overflow-hidden p-6 pb-0 sm:px-8 sm:pt-8 md:col-span-7">
+            <div className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary dark:text-chart-1">
               <Barcode className="size-5" aria-hidden="true" />
             </div>
-            <h3 className="text-xl font-semibold tracking-tight">Built for the busy counter.</h3>
+            <h3 className="text-xl font-semibold tracking-tight">Keep the counter moving.</h3>
             <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-              Keyboard shortcuts, barcode scanning, and typo-tolerant search keep every sale moving.
+              Keyboard shortcuts, barcode scanning, and typo-tolerant search keep every queue moving
+              without slowdowns.
             </p>
             <PosPreview />
-          </Card>
-          <Card className="marketing-card overflow-hidden bg-muted/40 p-6 pb-0 shadow-none sm:px-8 sm:pt-8 md:col-span-5">
-            <div className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-background text-primary dark:text-primary-foreground">
-              <ArrowDownUp className="size-5" aria-hidden="true" />
+          </SpotlightCard>
+
+          {/* Large Bento 2: Batch & Expiry */}
+          <SpotlightCard className="overflow-hidden p-6 pb-0 sm:px-8 sm:pt-8 md:col-span-5">
+            <div className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary dark:text-chart-1">
+              <Clock3 className="size-5" aria-hidden="true" />
             </div>
-            <h3 className="text-xl font-semibold tracking-tight">No batch left behind.</h3>
+            <h3 className="text-xl font-semibold tracking-tight">
+              Catch expiry before it costs you.
+            </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Track batches and expiry dates, with a clear list of the stock that needs your
-              attention.
+              FEFO batch tracking highlights near-expiry stock early so you sell or return it before
+              it turns into dead loss.
             </p>
             <ExpiryPreview />
-          </Card>
-          {[
-            {
-              icon: FileText,
-              title: 'Purchases, connected.',
-              description:
-                'Keep purchase invoices, returns, and supplier balances in the same place.',
-              preview: 'Invoice received',
-              detail: 'Stock & balance updated',
-              symbol: Check,
-            },
-            {
-              icon: Wallet,
-              title: 'Credit, kept clear.',
-              description: 'Track customer balances and payments without a separate notebook.',
-              preview: 'Customer ledger',
-              detail: 'Every payment accounted for',
-              symbol: CircleUserRound,
-            },
-            {
-              icon: ChartNoAxesCombined,
-              title: 'See the bigger picture.',
-              description: 'Check sales reports and business performance, even from your phone.',
-              preview: 'Today’s sales',
-              detail: 'PKR 48,250',
-              symbol: ArrowUpRight,
-            },
-            {
-              icon: Store,
-              title: 'More stores. One view.',
-              description: 'Move stock between outlets and check every store from your chain view.',
-              preview: 'Inter-store transfer',
-              detail: 'Main store → Branch 02',
-              symbol: ArrowDownUp,
-            },
-          ].map(({ icon: Icon, title, description, preview, detail, symbol: Symbol }) => (
-            <Card
+          </SpotlightCard>
+
+          {/* 4 Compact Bento Tiles */}
+          {compactTiles.map(({ icon: Icon, title, description, preview, detail, symbol: Symbol }) => (
+            <SpotlightCard
               key={title}
-              className="marketing-card flex flex-col p-6 shadow-none md:col-span-6 lg:col-span-3"
+              className="flex flex-col p-6 md:col-span-6 lg:col-span-3"
             >
-              <span className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/10 bg-primary/5 text-primary dark:text-primary-foreground">
+              <span className="marketing-feature-icon mb-5 flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary dark:text-chart-1">
                 <Icon className="size-4" aria-hidden="true" />
               </span>
               <h3 className="text-base font-semibold tracking-tight">{title}</h3>
-              <p className="mt-2 mb-7 text-sm leading-6 text-muted-foreground">{description}</p>
-              <div className="mt-auto rounded-lg border bg-muted/30 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2 text-micro text-muted-foreground">
+              <p className="mt-2 mb-6 text-sm leading-6 text-muted-foreground">{description}</p>
+              <div className="mt-auto rounded-xl border bg-muted/35 p-3">
+                <div className="mb-1.5 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                   {preview}
-                  <Symbol className="size-4 shrink-0" aria-hidden="true" />
+                  <Symbol className="size-3.5 shrink-0" aria-hidden="true" />
                 </div>
                 <p className="text-xs font-medium tabular-nums">{detail}</p>
               </div>
-            </Card>
+            </SpotlightCard>
           ))}
-        </div>
+
+          {/* Full-width AI Copilot & Roadmap Highlight */}
+          <SpotlightCard className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-center sm:px-8 md:col-span-12">
+            <div className="flex items-start gap-4">
+              <span className="marketing-feature-icon mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary dark:text-chart-1">
+                <Sparkles className="size-4" aria-hidden="true" />
+              </span>
+              <div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h3 className="text-sm font-semibold tracking-tight">
+                    AI Copilot & upcoming intelligence
+                  </h3>
+                  <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary dark:text-chart-1">
+                    In progress
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  Invoice OCR, expiry-risk forecasting, natural-language analytics, and WhatsApp/SMS
+                  alerts. AI only suggests — nothing changes without your approval.
+                </p>
+              </div>
+            </div>
+          </SpotlightCard>
+        </SpotlightGrid>
+
         <p className="mt-5 text-center text-xs text-muted-foreground">
           Product previews use illustrative records. Also includes prescriptions, a stock ledger,
           and Safepay digital payments.

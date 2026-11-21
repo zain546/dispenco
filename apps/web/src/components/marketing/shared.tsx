@@ -45,16 +45,19 @@ export function SectionHeading({
   return (
     <div
       className={cn(
-        'mb-12 max-w-2xl',
+        'mb-12 max-w-2xl md:mb-14',
         centered && 'marketing-heading-centered mx-auto text-center',
       )}
     >
-      <p className="marketing-eyebrow mb-4 text-overline text-primary dark:text-foreground">
+      <p className="marketing-eyebrow mb-3 text-xs font-medium tracking-wide uppercase">
+        <span aria-hidden="true" className="h-px w-4 bg-current opacity-60" />
         {eyebrow}
       </p>
-      <h2 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">{title}</h2>
+      <h2 className="text-[clamp(1.875rem,1.4rem+1.8vw,2.75rem)] leading-[1.15] font-semibold tracking-[-0.025em] text-balance">
+        {title}
+      </h2>
       {description && (
-        <p className="mt-5 text-base leading-relaxed text-pretty text-muted-foreground md:text-lg">
+        <p className="mt-4 text-base leading-relaxed text-pretty text-muted-foreground md:text-lg">
           {description}
         </p>
       )}
@@ -64,41 +67,34 @@ export function SectionHeading({
 
 export function CtaButtons({
   centered = false,
-  appearance = 'default',
+  className,
 }: {
   centered?: boolean;
-  appearance?: 'default' | 'hero';
+  className?: string;
 }) {
   const { user } = useAuth();
 
   return (
-    <div className={cn('flex flex-col gap-3 sm:flex-row', centered && 'justify-center')}>
+    <div
+      className={cn('flex flex-col gap-3 sm:flex-row', centered && 'sm:justify-center', className)}
+    >
       <Button
         asChild
         size="lg"
-        className={cn(
-          'marketing-action marketing-action-primary h-12 shadow-none',
-          appearance === 'hero' && 'hero-cta-primary group',
-        )}
+        className="marketing-action marketing-action-primary h-12 w-full rounded-xl px-6 shadow-none sm:w-auto"
       >
         <Link href={user ? '/dashboard' : marketingConfig.trialHref} prefetch={false}>
           {user ? 'Go to dashboard' : 'Start free trial'}
-          <ArrowRight
-            className={cn('marketing-arrow size-4', appearance === 'hero' && 'hero-cta-arrow')}
-            aria-hidden="true"
-          />
+          <ArrowRight className="marketing-arrow size-4" aria-hidden="true" />
         </Link>
       </Button>
       <Button
         asChild
         variant="outline"
         size="lg"
-        className={cn(
-          'marketing-action h-12 bg-background',
-          appearance === 'hero' && 'hero-cta-secondary',
-        )}
+        className="marketing-action h-12 w-full rounded-xl bg-card/60 px-6 shadow-none backdrop-blur-sm hover:border-foreground/25 hover:bg-card sm:w-auto"
       >
-        <Link href={marketingConfig.contactHref}>Contact us</Link>
+        <Link href={marketingConfig.contactHref}>Book a walkthrough</Link>
       </Button>
     </div>
   );

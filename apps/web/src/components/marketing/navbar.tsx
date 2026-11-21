@@ -37,10 +37,10 @@ export function Navbar() {
         'sticky top-0 z-40 border-b',
         scrolled
           ? 'border-border bg-background/80 backdrop-blur-lg'
-          : 'border-transparent bg-background/95',
+          : 'border-transparent bg-background',
       )}
     >
-      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
         <Wordmark />
         <nav aria-label="Main navigation" className="hidden items-center gap-7 lg:flex">
           {navigation.map((item) => (

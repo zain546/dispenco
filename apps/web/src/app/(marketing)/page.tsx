@@ -2,12 +2,9 @@ import type { Metadata } from 'next';
 import { marketingConfig } from '@/components/marketing/config';
 import { Hero } from '@/components/marketing/hero';
 import { TrustStrip } from '@/components/marketing/trust-strip';
-import { Outcomes } from '@/components/marketing/outcomes';
 import { Features } from '@/components/marketing/features';
 import { HowItWorks } from '@/components/marketing/how-it-works';
-import { AiSection } from '@/components/marketing/ai-section';
 import { Pricing } from '@/components/marketing/pricing';
-import { Testimonials } from '@/components/marketing/testimonials';
 import { Faq } from '@/components/marketing/faq';
 import { FinalCta } from '@/components/marketing/final-cta';
 
@@ -101,12 +98,9 @@ export default function MarketingPage() {
       />
       <Hero />
       <TrustStrip />
-      <Outcomes />
       <Features />
       <HowItWorks />
-      <AiSection />
       <Pricing />
-      <Testimonials />
       <Faq />
       <FinalCta />
     </>

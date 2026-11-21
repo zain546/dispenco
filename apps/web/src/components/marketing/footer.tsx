@@ -40,7 +40,7 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="marketing-footer border-t bg-muted/10 px-5 pt-16 pb-8 sm:px-8">
+    <footer className="marketing-footer border-t px-5 pt-14 pb-8 sm:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="grid gap-12 lg:grid-cols-2">
           <div>
@@ -60,13 +60,13 @@ export function Footer() {
             {columns.map((column) => (
               <div key={column.title}>
                 <h2 className="mb-5 text-xs font-semibold">{column.title}</h2>
-                <ul className="space-y-4">
+                <ul className="space-y-2">
                   {column.links.map((link) => (
                     <li key={link.label}>
                       <Link
                         href={link.href}
                         prefetch={false}
-                        className="marketing-text-link inline-block rounded-md py-1 text-xs leading-5 text-muted-foreground hover:text-foreground"
+                        className="marketing-text-link inline-block rounded-md py-1 text-sm leading-5 text-muted-foreground hover:text-foreground"
                       >
                         {link.label}
                       </Link>
@@ -77,12 +77,18 @@ export function Footer() {
             ))}
           </div>
         </div>
-        <div className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t pt-6 text-xs text-muted-foreground">
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t pt-6 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} Dispenco. All rights reserved.</p>
-          <p className="flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1.5">
-            <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
-            Made in Pakistan
-          </p>
+          <a
+            href={marketingConfig.whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="marketing-action inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-card"
+          >
+            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+            WhatsApp support
+            <ArrowUpRight className="marketing-arrow size-3.5 text-muted-foreground" aria-hidden="true" />
+          </a>
         </div>
       </div>
     </footer>

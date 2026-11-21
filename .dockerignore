@@ -44,6 +44,7 @@
 **/*.db
 **/*.dump
 **/*.sql
+!apps/api/prisma/migrations/**/*.sql
 **/StockList*.pdf
 
 # Editor & OS Artifacts
