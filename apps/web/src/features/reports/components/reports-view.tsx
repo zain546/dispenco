@@ -31,8 +31,10 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatNumber, formatDateTime } from '@/lib/format';
-import { salesApi, SaleDetailResponse } from '@/features/sales/services/sales-api';
+import { salesApi, SaleDetailResponse, ReturnRecord } from '@/features/sales/services/sales-api';
 import { downloadThermalReceiptPdf, downloadA4TaxInvoicePdf } from '@/features/sales/utils/invoice-pdf-generator';
+import { CreateReturnModal } from '@/features/sales/components/create-return-modal';
+import { ReturnSlipModal } from '@/features/sales/components/return-slip-modal';
 import {
   Dialog,
   DialogContent,
@@ -110,37 +112,39 @@ function getReceiptPaymentBadge(method: string, status?: string) {
   const s = (status || '').toUpperCase();
   if (s === 'RETURNED' || (m.includes('RETURN') && !m.includes('PARTIAL'))) {
     return (
-      <Badge variant="destructive" className="text-micro font-medium gap-1 whitespace-nowrap bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25">
+      <Badge variant="outline" className="text-micro font-medium gap-1 whitespace-nowrap bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
+        <RotateCcw className="size-2.5 shrink-0" />
         Returned
       </Badge>
     );
   }
   if (s === 'PARTIAL_RETURN' || s === 'PARTIALLY_RETURNED' || m.includes('PARTIAL')) {
     return (
-      <Badge variant="outline" className="text-micro font-medium gap-1 whitespace-nowrap bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+      <Badge variant="outline" className="text-micro font-medium gap-1 whitespace-nowrap bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+        <RotateCcw className="size-2.5 shrink-0" />
         Partial Return
       </Badge>
     );
   }
-  if (m === 'DIGITAL') {
+  if (m.includes('DIGITAL')) {
     return (
       <Badge variant="outline" className="text-micro font-medium gap-1 border-primary/30 text-primary bg-primary/5 whitespace-nowrap">
-        <Smartphone className="size-2.5" />
+        <Smartphone className="size-2.5 shrink-0" />
         Digital
       </Badge>
     );
   }
-  if (m === 'CREDIT') {
+  if (m.includes('CREDIT')) {
     return (
       <Badge variant="outline" className="text-micro font-medium gap-1 border-warning/30 text-warning bg-warning/5 whitespace-nowrap">
-        <CreditCard className="size-2.5" />
+        <CreditCard className="size-2.5 shrink-0" />
         Khata
       </Badge>
     );
   }
   return (
     <Badge variant="secondary" className="text-micro font-medium gap-1 whitespace-nowrap">
-      <Banknote className="size-2.5 text-muted-foreground" />
+      <Banknote className="size-2.5 text-muted-foreground shrink-0" />
       Cash
     </Badge>
   );
@@ -178,6 +182,7 @@ export function ReportsView() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [reportData, setReportData] = useState<SalesReportResponse['data'] | null>(null);
   const [orgOverviewData, setOrgOverviewData] = useState<OrgOverviewResponse['data'] | null>(null);
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
@@ -200,6 +205,8 @@ export function ReportsView() {
   const [loadingSaleDetail, setLoadingSaleDetail] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [modalPdfLoading, setModalPdfLoading] = useState(false);
+  const [saleIdToReturn, setSaleIdToReturn] = useState<string | null>(null);
+  const [returnRecordForSlip, setReturnRecordForSlip] = useState<ReturnRecord | null>(null);
   const activeReceiptRequestIdRef = useRef<string | null>(null);
 
   const handleOpenReceiptModal = async (saleId: string) => {
@@ -354,10 +361,15 @@ export function ReportsView() {
 
   const reportReqVersionRef = useRef(0);
 
-  const fetchReport = async () => {
+  const fetchReport = async (options?: { silent?: boolean }) => {
     const reqVersion = ++reportReqVersionRef.current;
+    const isSilent = Boolean(options?.silent && reportData);
     try {
-      setLoading(true);
+      if (isSilent) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const params: GetSalesReportParams = { groupBy };
 
       if (preset !== 'custom') {
@@ -389,13 +401,13 @@ export function ReportsView() {
         if (salesResult.value?.success) {
           setReportData(salesResult.value.data);
         }
-      } else {
+      } else if (!isSilent) {
         toast.error('Failed to load sales analytics', {
           description: getErrorMessage(salesResult.reason),
         });
       }
 
-      if (orgResult.status === 'rejected') {
+      if (orgResult.status === 'rejected' && !isSilent) {
         toast.error('Failed to load organization overview', {
           description: getErrorMessage(orgResult.reason),
         });
@@ -408,12 +420,15 @@ export function ReportsView() {
       }
     } catch (err) {
       if (reqVersion !== reportReqVersionRef.current) return;
-      toast.error('Failed to load sales analytics', {
-        description: getErrorMessage(err),
-      });
+      if (!isSilent) {
+        toast.error('Failed to load sales analytics', {
+          description: getErrorMessage(err),
+        });
+      }
     } finally {
       if (reqVersion === reportReqVersionRef.current) {
         setLoading(false);
+        setIsRefreshing(false);
       }
     }
   };
@@ -422,6 +437,15 @@ export function ReportsView() {
     if (!isStoreReady) return;
     void fetchReport();
   }, [preset, groupBy, activeStoreId, isAllStores, isStoreReady]);
+
+  useEffect(() => {
+    if (!isStoreReady) return;
+    const handleSalesUpdated = () => {
+      void fetchReport({ silent: true });
+    };
+    window.addEventListener('dispenco:sales-updated', handleSalesUpdated);
+    return () => window.removeEventListener('dispenco:sales-updated', handleSalesUpdated);
+  }, [preset, groupBy, activeStoreId, isAllStores, isStoreReady, reportData]);
 
   const handleApplyCustomDates = () => {
     if (preset === 'custom') {
@@ -659,12 +683,12 @@ export function ReportsView() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={fetchReport}
-                disabled={loading}
+                onClick={() => void fetchReport({ silent: true })}
+                disabled={loading || isRefreshing}
                 className="size-9 shrink-0 bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs cursor-pointer"
                 title="Refresh report data"
               >
-                <RefreshCw className={`size-3.5 text-primary ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`size-3.5 text-primary ${loading || isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           ) : undefined
@@ -1895,7 +1919,9 @@ export function ReportsView() {
               <DialogTitle className="text-base sm:text-lg font-bold font-mono">
                 {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
               </DialogTitle>
-              {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || 'CASH', saleDetail.status)}
+              {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || 'CASH')}
+              {saleDetail && (saleDetail.status === 'RETURNED' || saleDetail.status === 'PARTIAL_RETURN') &&
+                getReceiptPaymentBadge(saleDetail.payment?.method || 'CASH', saleDetail.status)}
             </div>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               {saleDetail ? (
@@ -2081,7 +2107,7 @@ export function ReportsView() {
           ) : null}
 
           <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2 justify-between items-center shrink-0">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -2102,6 +2128,20 @@ export function ReportsView() {
                 <FileDown className="size-3.5 text-primary" />
                 <span>A4 Tax Invoice</span>
               </Button>
+              {saleDetail &&
+                saleDetail.status !== 'VOIDED' &&
+                saleDetail.status !== 'RETURNED' &&
+                !saleDetail.isFullyReturned && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSaleIdToReturn(saleDetail.id)}
+                    className="flex-1 sm:flex-initial h-8 text-xs font-semibold gap-1.5 cursor-pointer border-amber-500/30 hover:bg-amber-500/10"
+                  >
+                    <RotateCcw className="size-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>Process Return</span>
+                  </Button>
+                )}
             </div>
             <Button
               variant="default"
@@ -2114,6 +2154,28 @@ export function ReportsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Direct Return Modal from Reports Table Inspection */}
+      <CreateReturnModal
+        open={Boolean(saleIdToReturn)}
+        onOpenChange={(open) => !open && setSaleIdToReturn(null)}
+        initialSaleId={saleIdToReturn || undefined}
+        onReturnSuccess={(newReturn) => {
+          const returnedSaleId = saleIdToReturn;
+          setSaleIdToReturn(null);
+          setReturnRecordForSlip(newReturn);
+          void fetchReport({ silent: true });
+          if (returnedSaleId && isReceiptModalOpen) {
+            void handleOpenReceiptModal(returnedSaleId);
+          }
+        }}
+      />
+
+      <ReturnSlipModal
+        open={Boolean(returnRecordForSlip)}
+        onOpenChange={(open) => !open && setReturnRecordForSlip(null)}
+        returnRecord={returnRecordForSlip}
+      />
     </div>
   );
 }

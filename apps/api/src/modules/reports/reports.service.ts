@@ -105,11 +105,11 @@ export class ReportsService {
         where: { tenantId, isActive: true },
         orderBy: { createdAt: 'asc' },
       }),
-      // 2. Fetch all completed sales within date range with returns accounted for
+      // 2. Fetch all non-voided sales within date range with returns accounted for
       this.prisma.sale.findMany({
         where: {
           tenantId,
-          status: SaleStatus.COMPLETED,
+          status: { in: [SaleStatus.COMPLETED, SaleStatus.ON_CREDIT] },
           createdAt: {
             gte: startDate,
             lte: endDate,
@@ -325,7 +325,7 @@ export class ReportsService {
   ) {
     const whereCondition: any = {
       tenantId,
-      status: SaleStatus.COMPLETED,
+      status: { in: [SaleStatus.COMPLETED, SaleStatus.ON_CREDIT] },
       createdAt: {
         gte: startDate,
         lte: endDate,

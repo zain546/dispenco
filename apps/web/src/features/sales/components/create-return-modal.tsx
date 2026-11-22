@@ -350,6 +350,9 @@ export function CreateReturnModal({
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dispenco:sales-updated', { detail: { saleId: selectedSale.id } }));
+      }
       onOpenChange(false);
       if (onReturnSuccess) {
         onReturnSuccess(createdReturn);

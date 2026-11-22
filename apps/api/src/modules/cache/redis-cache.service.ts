@@ -174,10 +174,10 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Helper: Invalidate inventory queries for a tenant and specific store (or all stores).
+   * Helper: Invalidate inventory and sales report queries for a tenant and specific store (or all stores).
    */
   async invalidateStoreInventory(tenantId: string, storeId?: string): Promise<void> {
-    const patterns = [`inv:${tenantId}:store:all:*`];
+    const patterns = [`inv:${tenantId}:store:all:*`, `rep:${tenantId}:*`];
     if (storeId) {
       patterns.push(`inv:${tenantId}:store:${storeId}:*`);
     } else {
@@ -185,6 +185,13 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
     }
 
     await Promise.all(patterns.map((p) => this.delByPattern(p)));
+  }
+
+  /**
+   * Helper: Explicitly invalidate cached sales & org overview reports for a tenant.
+   */
+  async invalidateTenantReports(tenantId: string): Promise<void> {
+    await this.delByPattern(`rep:${tenantId}:*`);
   }
 
   /**
