@@ -2,8 +2,17 @@
   "name": "@dispenco/config",
   "version": "0.1.0",
   "private": true,
-  "main": "index.js",
+  "main": "postcss-legacy-compat.cjs",
+  "exports": {
+    ".": "./postcss-legacy-compat.cjs",
+    "./postcss-legacy-compat": "./postcss-legacy-compat.cjs",
+    "./postcss-legacy-compat.cjs": "./postcss-legacy-compat.cjs",
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.react.json": "./tsconfig.react.json",
+    "./tsconfig.nest.json": "./tsconfig.nest.json"
+  },
   "files": [
+    "postcss-legacy-compat.cjs",
     "tsconfig.base.json",
     "tsconfig.react.json",
     "tsconfig.nest.json"

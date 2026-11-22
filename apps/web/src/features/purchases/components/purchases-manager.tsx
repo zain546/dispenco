@@ -787,7 +787,7 @@ export function PurchasesManager() {
 
       {/* Create Purchase Order Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
           <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
@@ -1142,7 +1142,7 @@ export function PurchasesManager() {
 
       {/* Receive Stock Check-in Modal */}
       <Dialog open={isReceiveModalOpen} onOpenChange={setIsReceiveModalOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl">
           <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
             <DialogTitle className="text-base font-bold flex items-center gap-2 text-foreground">
               <FileCheck className="size-5 text-primary" />
@@ -1266,7 +1266,7 @@ export function PurchasesManager() {
 
       {/* Purchase Order Details Modal */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
+        <DialogContent className="w-[calc(100vw-24px)] sm:max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
           <DialogHeader className="p-4 sm:p-5 pr-12 sm:pr-14 border-b border-border/60 bg-muted/20 shrink-0">
             <div className="flex items-center gap-2.5">
               <div
