@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Receipt,
   RefreshCw,
+  RotateCcw,
   ArrowRight,
   ShoppingCart,
   User,
@@ -40,14 +41,16 @@ function formatRelativeTime(dateString: string): string {
 function getPaymentBadge(method: string, status?: string) {
   if (status === 'RETURNED') {
     return (
-      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/5 px-1.5 py-0">
+      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-rose-500/30 text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0 whitespace-nowrap">
+        <RotateCcw className="size-2.5 shrink-0" />
         Returned
       </Badge>
     );
   }
   if (status === 'PARTIAL_RETURN' || status === 'PARTIALLY_RETURNED') {
     return (
-      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 px-1.5 py-0">
+      <Badge variant="outline" className="text-[10px] font-medium gap-1 border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0 whitespace-nowrap">
+        <RotateCcw className="size-2.5 shrink-0" />
         Partial Return
       </Badge>
     );
@@ -85,6 +88,14 @@ export function RecentSalesWidget() {
   const { data: recentRes, isLoading, isFetching, refetch } = useRecentSales(storeIdParam, 6, {
     enabled: isStoreReady,
   });
+
+  useEffect(() => {
+    const handleSalesUpdated = () => {
+      void refetch();
+    };
+    window.addEventListener('dispenco:sales-updated', handleSalesUpdated);
+    return () => window.removeEventListener('dispenco:sales-updated', handleSalesUpdated);
+  }, [refetch]);
 
   const sales: SaleResponse[] = recentRes?.data || [];
   const isRefreshing = isFetching && !isLoading;

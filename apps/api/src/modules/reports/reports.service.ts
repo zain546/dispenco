@@ -105,11 +105,11 @@ export class ReportsService {
         where: { tenantId, isActive: true },
         orderBy: { createdAt: 'asc' },
       }),
-      // 2. Fetch all completed sales within date range with returns accounted for
+      // 2. Fetch all non-voided sales within date range with returns accounted for
       this.prisma.sale.findMany({
         where: {
           tenantId,
-          status: SaleStatus.COMPLETED,
+          status: { in: [SaleStatus.COMPLETED, SaleStatus.ON_CREDIT] },
           createdAt: {
             gte: startDate,
             lte: endDate,
@@ -165,23 +165,29 @@ export class ReportsService {
         const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         return itemReturns >= si.quantity;
       });
-      const isFullyReturned = (saleReturns >= rawSaleRev && rawSaleRev > 0) || isFullyReturnedByQty;
+      const isFullyReturned =
+        s.saleItems.length > 0
+          ? isFullyReturnedByQty
+          : saleReturns >= rawSaleRev && rawSaleRev > 0;
 
       grossRevenue += rawSaleRev;
       totalReturns += saleReturns;
       totalRevenue += netSaleRev;
-      totalTax += Number(s.taxAmount || 0);
 
       if (!isFullyReturned) {
         totalTransactions += 1;
       }
 
+      let netSaleTax = 0;
       s.saleItems.forEach((si) => {
         const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         const netQuantity = Math.max(0, si.quantity - itemReturns);
+        const itemNetTax = si.quantity > 0 ? Number(si.taxApplied || 0) * (netQuantity / si.quantity) : 0;
+        netSaleTax += itemNetTax;
         totalItemsSold += netQuantity;
         totalCost += this.computeItemCost({ ...si, quantity: netQuantity });
       });
+      totalTax += Number(netSaleTax.toFixed(2));
     });
 
     totalRevenue = Number(totalRevenue.toFixed(2));
@@ -208,21 +214,31 @@ export class ReportsService {
         const rawRev = Number(s.totalAmount);
         const sReturns = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
         const netRev = Math.max(0, Number((rawRev - sReturns).toFixed(2)));
-        const isFullyRet = sReturns >= rawRev && rawRev > 0;
+        const isFullyRetByQty = s.saleItems.length > 0 && s.saleItems.every((si) => {
+          const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
+          return itemReturns >= si.quantity;
+        });
+        const isFullyRet =
+          s.saleItems.length > 0
+            ? isFullyRetByQty
+            : sReturns >= rawRev && rawRev > 0;
 
         storeRevenue += netRev;
-        storeTax += Number(s.taxAmount || 0);
 
         if (!isFullyRet) {
           storeTransactions += 1;
         }
 
+        let netStoreSaleTax = 0;
         s.saleItems.forEach((si) => {
           const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
           const netQty = Math.max(0, si.quantity - itemReturns);
+          const itemNetTax = si.quantity > 0 ? Number(si.taxApplied || 0) * (netQty / si.quantity) : 0;
+          netStoreSaleTax += itemNetTax;
           storeItemsSold += netQty;
           storeCost += this.computeItemCost({ ...si, quantity: netQty });
         });
+        storeTax += Number(netStoreSaleTax.toFixed(2));
       });
 
       const storeProfit = Number((storeRevenue - storeTax - storeCost).toFixed(2));
@@ -309,7 +325,7 @@ export class ReportsService {
   ) {
     const whereCondition: any = {
       tenantId,
-      status: SaleStatus.COMPLETED,
+      status: { in: [SaleStatus.COMPLETED, SaleStatus.ON_CREDIT] },
       createdAt: {
         gte: startDate,
         lte: endDate,
@@ -441,6 +457,11 @@ export class ReportsService {
       storeName: string;
       doctorName?: string;
       paymentMethod: string;
+      status?: string;
+      isFullyReturned?: boolean;
+      isPartiallyReturned?: boolean;
+      totalRefunded?: number;
+      netAmount?: number;
       itemsCount: number;
       discountAmount: number;
       totalAmount: number;
@@ -457,25 +478,44 @@ export class ReportsService {
         const itemReturns = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         return itemReturns >= item.quantity;
       });
-      const isFullyReturned = (saleReturnsTotal >= rawSaleRev && rawSaleRev > 0) || isFullyReturnedByQty;
+      const isFullyReturned =
+        s.saleItems.length > 0
+          ? isFullyReturnedByQty
+          : saleReturnsTotal >= rawSaleRev && rawSaleRev > 0;
+      const isPartiallyReturned =
+        !isFullyReturned &&
+        (saleReturnsTotal > 0 ||
+          s.saleItems.some((item) => (item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0) > 0));
 
       const saleDisc = Number(s.discountAmount || 0);
-      const saleTax = Number(s.taxAmount || 0);
+      let saleTax = 0;
       let saleCost = 0;
       let saleUnits = 0;
 
-      // Subtotal of raw line items to apportion invoice-level discount
+      // Subtotal of line items after item-level discounts to apportion overall invoice-level discount
+      let totalItemDiscounts = 0;
       const saleSubtotal = s.saleItems.reduce((acc, item) => {
-        return acc + Math.max(0, Number(item.unitPrice) * item.quantity - Number(item.discount || 0));
+        const itemDisc = Number(item.discount || 0);
+        totalItemDiscounts += itemDisc;
+        return acc + Math.max(0, Number(item.unitPrice) * item.quantity - itemDisc);
       }, 0);
+      const overallSaleDiscount = Math.max(0, saleDisc - totalItemDiscounts);
 
       s.saleItems.forEach((item) => {
         const itemReturns = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         const netQuantity = Math.max(0, item.quantity - itemReturns);
-        const itemRefund = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + Number(ri.refundAmount || 0), 0) : 0;
-        const rawItemRev = Number(item.unitPrice) * item.quantity - Number(item.discount || 0);
-        const itemDiscShare = saleSubtotal > 0 ? (rawItemRev / saleSubtotal) * saleDisc : 0;
-        const netItemRev = Math.max(0, Number((rawItemRev - itemDiscShare - itemRefund).toFixed(2)));
+        const rawItemRev = Math.max(0, Number(item.unitPrice) * item.quantity - Number(item.discount || 0));
+        const itemOverallDiscShare = saleSubtotal > 0 && overallSaleDiscount > 0
+          ? (rawItemRev / saleSubtotal) * overallSaleDiscount
+          : 0;
+        const lineNetExTax = Math.max(0, rawItemRev - itemOverallDiscShare);
+        const netItemRev = item.quantity > 0
+          ? Number((lineNetExTax * (netQuantity / item.quantity)).toFixed(2))
+          : 0;
+        const netItemTax = item.quantity > 0
+          ? Number(item.taxApplied || 0) * (netQuantity / item.quantity)
+          : 0;
+        saleTax += netItemTax;
 
         const itemCost = this.computeItemCost({ ...item, quantity: netQuantity });
         const itemProfit = Number((netItemRev - itemCost).toFixed(2));
@@ -513,6 +553,7 @@ export class ReportsService {
       });
 
       saleCost = Number(saleCost.toFixed(2));
+      saleTax = Number(saleTax.toFixed(2));
       const saleProfit = Number((netSaleRev - saleTax - saleCost).toFixed(2));
       const saleMargin = netSaleRev > 0 ? Number(((saleProfit / netSaleRev) * 100).toFixed(1)) : 0;
 
@@ -528,18 +569,50 @@ export class ReportsService {
         totalTransactions += 1;
       }
 
-      // Payment method tracking (reconcile net cash/digital/credit)
+      // Payment method tracking (reconcile original payment amounts minus refunds issued per tender)
       const primaryPaymentMethod = s.payments?.[0]?.method || 'CASH';
       if (!isFullyReturned) {
         if (primaryPaymentMethod === 'DIGITAL') {
           paymentBreakdown.digital.count += 1;
-          paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + netSaleRev).toFixed(2));
         } else if (primaryPaymentMethod === 'CREDIT') {
           paymentBreakdown.credit.count += 1;
-          paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + netSaleRev).toFixed(2));
         } else {
           paymentBreakdown.cash.count += 1;
-          paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + netSaleRev).toFixed(2));
+        }
+      }
+
+      if (s.payments && s.payments.length > 0) {
+        for (const p of s.payments) {
+          const amt = Number(p.amount || 0);
+          if (p.method === 'DIGITAL') {
+            paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + amt).toFixed(2));
+          } else if (p.method === 'CREDIT') {
+            paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + amt).toFixed(2));
+          } else {
+            paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + amt).toFixed(2));
+          }
+        }
+      } else {
+        if (primaryPaymentMethod === 'DIGITAL') {
+          paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + rawSaleRev).toFixed(2));
+        } else if (primaryPaymentMethod === 'CREDIT') {
+          paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + rawSaleRev).toFixed(2));
+        } else {
+          paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + rawSaleRev).toFixed(2));
+        }
+      }
+
+      if (s.returns && s.returns.length > 0) {
+        for (const r of s.returns) {
+          const refundAmt = Number(r.refundAmount || 0);
+          const refundTender = r.refundMethod || primaryPaymentMethod;
+          if (refundTender === 'DIGITAL') {
+            paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount - refundAmt).toFixed(2));
+          } else if (refundTender === 'CREDIT') {
+            paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount - refundAmt).toFixed(2));
+          } else {
+            paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount - refundAmt).toFixed(2));
+          }
         }
       }
 
@@ -578,7 +651,16 @@ export class ReportsService {
         cashierName: s.user?.name || 'Pharmacy Staff',
         storeName: s.store?.name || 'Main Store',
         doctorName: (s as any).doctorName || 'Self',
-        paymentMethod: isFullyReturned ? `RETURNED (${primaryPaymentMethod})` : primaryPaymentMethod,
+        paymentMethod: isFullyReturned
+          ? `RETURNED (${primaryPaymentMethod})`
+          : isPartiallyReturned
+          ? `PARTIAL_RETURN (${primaryPaymentMethod})`
+          : primaryPaymentMethod,
+        status: isFullyReturned ? 'RETURNED' : isPartiallyReturned ? 'PARTIAL_RETURN' : 'COMPLETED',
+        isFullyReturned,
+        isPartiallyReturned,
+        totalRefunded: saleReturnsTotal,
+        netAmount: netSaleRev,
         itemsCount: rawItemsCount,
         discountAmount: Number(saleDisc.toFixed(2)),
         totalAmount: Number(rawSaleRev.toFixed(2)),

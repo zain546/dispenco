@@ -574,15 +574,47 @@ export class SalesService {
       }
     }
 
+    const totalRefunded = sale.returns
+      ? sale.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0)
+      : 0;
+    const rawTotal = Number(sale.totalAmount);
+    const netAmount = Math.max(0, Number((rawTotal - totalRefunded).toFixed(2)));
+    const totalSoldQty = sale.saleItems.reduce((sum, si) => sum + (si.quantity || 0), 0);
+    const totalReturnedQty = sale.saleItems.reduce(
+      (sum, si) => sum + si.returnItems.reduce((acc, ri) => acc + (ri.quantity || 0), 0),
+      0,
+    );
+    const hasReturns = Boolean(sale.returns.length > 0 || totalReturnedQty > 0);
+    const isFullyReturned =
+      totalSoldQty > 0 &&
+      sale.saleItems.every(
+        (si) => si.returnItems.reduce((acc, ri) => acc + (ri.quantity || 0), 0) >= si.quantity,
+      );
+    const isPartiallyReturned =
+      hasReturns && !isFullyReturned && (totalReturnedQty > 0 || totalRefunded > 0);
+
+    let computedStatus: string = sale.status;
+    if (sale.status !== 'VOIDED') {
+      if (isFullyReturned) {
+        computedStatus = 'RETURNED';
+      } else if (isPartiallyReturned) {
+        computedStatus = 'PARTIAL_RETURN';
+      }
+    }
+
     return {
       success: true,
       sale: {
         id: sale.id,
         receiptNumber: sale.receiptNumber,
-        totalAmount: Number(sale.totalAmount),
+        totalAmount: rawTotal,
         discountAmount: Number(sale.discountAmount),
         taxAmount: Number(sale.taxAmount),
-        status: sale.status,
+        totalRefunded,
+        netAmount,
+        isFullyReturned,
+        isPartiallyReturned,
+        status: computedStatus,
         doctorName: sale.doctorName || 'Self',
         createdAt: sale.createdAt.toISOString(),
         customer: sale.customer

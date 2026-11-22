@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useStore } from '@/context/store-context';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   SaleDetailResponse,
   SaleItemData,
@@ -93,6 +94,7 @@ export function CreateReturnModal({
   onReturnSuccess,
 }: CreateReturnModalProps) {
   const { activeStore, isAllStores } = useStore();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [recentSales, setRecentSales] = useState<SaleResponse[]>([]);
@@ -292,6 +294,31 @@ export function CreateReturnModal({
     };
   }, [selectedSale, returnQuantities]);
 
+  const alreadyRefundedTotal = useMemo(() => {
+    if (!selectedSale) return 0;
+    if (selectedSale.returns && selectedSale.returns.length > 0) {
+      return selectedSale.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0);
+    }
+    return selectedSale.items.reduce((sum, item) => {
+      const retQty = item.returnedQuantity || 0;
+      if (retQty <= 0) return sum;
+      const lineEffective = computeItemEffectiveTotal(
+        item,
+        selectedSale.items,
+        selectedSale.discountAmount || 0,
+      );
+      return sum + Math.round((lineEffective * (retQty / item.quantity)) * 100) / 100;
+    }, 0);
+  }, [selectedSale]);
+
+  const hasPastReturns =
+    alreadyRefundedTotal > 0 ||
+    Boolean(selectedSale?.items.some((i) => (i.returnedQuantity || 0) > 0));
+  const remainingReturnableTotal = Math.max(
+    0,
+    Number(((selectedSale?.totalAmount || 0) - alreadyRefundedTotal).toFixed(2)),
+  );
+
   const handleSubmitReturn = async () => {
     if (!selectedSale) return;
     if (itemsToReturn.length === 0) {
@@ -319,6 +346,13 @@ export function CreateReturnModal({
       });
 
       toast.success(`Return #${createdReturn.returnNumber || ''} processed successfully! Stock restored.`);
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dispenco:sales-updated', { detail: { saleId: selectedSale.id } }));
+      }
       onOpenChange(false);
       if (onReturnSuccess) {
         onReturnSuccess(createdReturn);
@@ -446,7 +480,7 @@ export function CreateReturnModal({
             /* Step 2: Sale is Selected -> Select Return Items & Reason */
             <div className="space-y-4">
               {/* Receipt Overview Card */}
-              <div className="p-3.5 rounded-xl bg-muted/30 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-sm text-foreground">
@@ -455,6 +489,11 @@ export function CreateReturnModal({
                     <Badge variant="secondary" className="text-micro font-semibold uppercase">
                       {selectedSale.payment?.method || selectedSale.status}
                     </Badge>
+                    {hasPastReturns && (
+                      <Badge variant="outline" className="text-micro font-medium border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                        Partial Return
+                      </Badge>
+                    )}
                     <span className="text-muted-foreground">{formatDateTime(selectedSale.createdAt)}</span>
                   </div>
                   <p className="text-muted-foreground">
@@ -465,11 +504,31 @@ export function CreateReturnModal({
                     )}
                   </p>
                 </div>
-                <div className="text-right sm:border-l sm:border-border/60 sm:pl-4 shrink-0">
-                  <span className="text-muted-foreground block text-micro uppercase tracking-wider">Original Total</span>
-                  <span className="font-bold text-base text-foreground tabular-nums">
-                    {formatCurrency(selectedSale.totalAmount)}
-                  </span>
+                <div className="text-left sm:text-right sm:border-l sm:border-border/60 sm:pl-4 shrink-0">
+                  <div className="flex items-center sm:justify-end gap-3 sm:gap-4 flex-wrap">
+                    <div>
+                      <span className="text-muted-foreground block text-micro uppercase tracking-wider">Original Total</span>
+                      <span className="font-bold text-sm sm:text-base text-foreground tabular-nums">
+                        {formatCurrency(selectedSale.totalAmount)}
+                      </span>
+                    </div>
+                    {hasPastReturns && (
+                      <>
+                        <div>
+                          <span className="text-amber-600 dark:text-amber-400 block text-micro uppercase tracking-wider">Refunded</span>
+                          <span className="font-bold text-sm sm:text-base text-amber-600 dark:text-amber-400 tabular-nums">
+                            -{formatCurrency(alreadyRefundedTotal)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-primary block text-micro uppercase tracking-wider">Max Returnable</span>
+                          <span className="font-bold text-sm sm:text-base text-primary tabular-nums">
+                            {formatCurrency(remainingReturnableTotal)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -528,7 +587,7 @@ export function CreateReturnModal({
                       return (
                         <div
                           key={item.id}
-                          className={`p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                          className={`p-3 sm:py-2.5 sm:px-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
                             isFullyReturned
                               ? 'bg-muted/20 opacity-60'
                               : selectedQty > 0
@@ -561,11 +620,33 @@ export function CreateReturnModal({
 
                           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
                             {/* Proportional refund display */}
-                            <div className="text-right mr-1">
-                              <span className="text-micro text-muted-foreground block">Refund</span>
-                              <span className="font-bold tabular-nums text-xs text-primary">
-                                {formatCurrency(itemRefundPreview)}
-                              </span>
+                            <div className="text-right mr-1 min-w-[65px]">
+                              {isFullyReturned ? (
+                                <>
+                                  <span className="text-micro text-muted-foreground block">Past Refund</span>
+                                  <span className="text-xs font-semibold tabular-nums text-muted-foreground/75">
+                                    {formatCurrency(
+                                      Math.round(
+                                        (lineEffective * ((item.returnedQuantity || item.quantity) / item.quantity)) *
+                                          100,
+                                      ) / 100,
+                                    )}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-micro text-muted-foreground block">Refund</span>
+                                  <span
+                                    className={`tabular-nums text-xs ${
+                                      selectedQty > 0
+                                        ? 'font-bold text-primary'
+                                        : 'font-medium text-muted-foreground/70'
+                                    }`}
+                                  >
+                                    {formatCurrency(itemRefundPreview)}
+                                  </span>
+                                </>
+                              )}
                             </div>
 
                             {/* Quantity Controls */}
@@ -742,8 +823,14 @@ export function CreateReturnModal({
               className="text-xs font-semibold gap-1.5 cursor-pointer shadow-xs px-4"
             >
               {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-              <span className="hidden sm:inline">Confirm Return & Refund ({formatCurrency(totalRefundAmount)})</span>
-              <span className="sm:hidden">Confirm Return ({formatCurrency(totalRefundAmount)})</span>
+              {itemsToReturn.length === 0 ? (
+                <span>Select Medicines to Return</span>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Confirm Return & Refund ({formatCurrency(totalRefundAmount)})</span>
+                  <span className="sm:hidden">Confirm Return ({formatCurrency(totalRefundAmount)})</span>
+                </>
+              )}
             </Button>
           )}
         </div>

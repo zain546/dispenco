@@ -81,6 +81,9 @@ export function RecentSalesModal({
       setSaleToVoid(null);
       setVoidReason('Customer Return');
       onRefresh();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dispenco:sales-updated', { detail: { saleId: saleToVoid.id } }));
+      }
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to void sale'));
     } finally {
@@ -127,7 +130,7 @@ export function RecentSalesModal({
           </DialogHeader>
 
           <div className="p-3.5 sm:p-4 overflow-y-auto space-y-2.5 flex-1 min-h-0">
-            {isLoading ? (
+            {isLoading && recentSales.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
                 <Loader2 className="size-6 animate-spin text-primary" />
                 <span className="text-xs">Loading sales history ledger...</span>

@@ -173,11 +173,34 @@ export async function downloadA4TaxInvoicePdf(
     pdf.text(docName.slice(0, 20), rightBoxX + colWidth - 4, currentY + 22, { align: 'right' });
 
     const paymentMode = rawSale.paymentMethod || rawSale.payment?.method || 'CASH';
+    const totalRefunded =
+      typeof rawSale.totalRefunded === 'number'
+        ? rawSale.totalRefunded
+        : Array.isArray(rawSale.returns)
+        ? rawSale.returns.reduce((acc: number, r: any) => acc + Number(r.refundAmount || 0), 0)
+        : 0;
+    const isFullyReturned =
+      sale.status === 'RETURNED' ||
+      Boolean(rawSale.isFullyReturned) ||
+      ((sale.items || []).length > 0 &&
+        (sale.items || []).every((it: any) => (it.returnedQuantity || 0) >= it.quantity));
+    const isPartiallyReturned =
+      !isFullyReturned &&
+      (sale.status === 'PARTIAL_RETURN' ||
+        Boolean(rawSale.isPartiallyReturned) ||
+        totalRefunded > 0);
+    const statusLabel = isVoided
+      ? 'VOIDED'
+      : isFullyReturned
+      ? 'RETURNED'
+      : isPartiallyReturned
+      ? 'PARTIAL RETURN'
+      : 'PAID';
     pdf.setFont('helvetica', 'normal');
     pdf.text(`Payment Mode:`, rightBoxX + 4, currentY + 27.5);
     pdf.setFont('helvetica', 'bold');
     pdf.text(
-      `${paymentMode} (${isVoided ? 'VOIDED' : 'PAID'})`,
+      `${paymentMode} (${statusLabel})`,
       rightBoxX + colWidth - 4,
       currentY + 27.5,
       { align: 'right' },
@@ -260,6 +283,21 @@ export async function downloadA4TaxInvoicePdf(
     pdf.line(14, currentY, 196, currentY);
     currentY += 6;
 
+    const discount = Number(sale.discountAmount || 0);
+    const tax = Number(sale.taxAmount || 0);
+    const grandTotal = Number(sale.totalAmount);
+
+    // Ensure the full totals & terms block (including optional discount, tax, and refund rows) fits above the footer at 287mm
+    const termsBlockHeight = 44.5;
+    const rightTotalsBlockHeight =
+      19.5 + (discount > 0 ? 5.5 : 0) + (tax > 0 ? 5.5 : 0) + (totalRefunded > 0 ? 19.5 : 0);
+    const requiredTotalsHeight = Math.max(termsBlockHeight, rightTotalsBlockHeight);
+    const footerSafeLimitY = 280;
+    if (currentY + requiredTotalsHeight > footerSafeLimitY) {
+      pdf.addPage();
+      currentY = 20;
+    }
+
     // Totals & Regulatory Terms Section
     const totalsStartY = currentY;
 
@@ -304,9 +342,6 @@ export async function downloadA4TaxInvoicePdf(
     });
 
     const subtotal = subtotalCalc;
-    const discount = Number(sale.discountAmount || 0);
-    const tax = Number(sale.taxAmount || 0);
-    const grandTotal = Number(sale.totalAmount);
 
     let calcY = totalsStartY + 3;
 
@@ -343,6 +378,20 @@ export async function downloadA4TaxInvoicePdf(
     pdf.text('NET PAYABLE:', totalsBoxX + 2, calcY + 6.5);
     pdf.text(`${currency} ${grandTotal.toFixed(2)}`, 194, calcY + 6.5, { align: 'right' });
 
+    if (totalRefunded > 0) {
+      calcY += 14;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8.5);
+      pdf.setTextColor(220, 38, 38);
+      pdf.text('Less Refund Issued:', totalsBoxX, calcY);
+      pdf.text(`-${currency} ${totalRefunded.toFixed(2)}`, 196, calcY, { align: 'right' });
+      calcY += 5.5;
+      const netRetained = Math.max(0, Number((grandTotal - totalRefunded).toFixed(2)));
+      pdf.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      pdf.text('Net Retained Total:', totalsBoxX, calcY);
+      pdf.text(`${currency} ${netRetained.toFixed(2)}`, 196, calcY, { align: 'right' });
+    }
+
     // Page Footer at bottom of A4
     pdf.setFont('helvetica', 'italic');
     pdf.setFontSize(7.5);
@@ -374,7 +423,7 @@ export async function generateThermalReceiptPdf(
 
   const items = sale.items || [];
   const itemRowsCount = items.length;
-  const pdfHeight = Math.max(140, 85 + itemRowsCount * 11);
+  const pdfHeight = Math.max(150, 95 + itemRowsCount * 12);
 
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -496,17 +545,55 @@ export async function generateThermalReceiptPdf(
   }
 
   // GRAND TOTAL
+  const totalRefunded =
+    typeof rawSale.totalRefunded === 'number'
+      ? rawSale.totalRefunded
+      : Array.isArray(rawSale.returns)
+      ? rawSale.returns.reduce((acc: number, r: any) => acc + Number(r.refundAmount || 0), 0)
+      : 0;
+  const isFullyReturned =
+    sale.status === 'RETURNED' ||
+    Boolean(rawSale.isFullyReturned) ||
+    (items.length > 0 && items.every((it: any) => (it.returnedQuantity || 0) >= it.quantity));
+  const isPartiallyReturned =
+    !isFullyReturned &&
+    (sale.status === 'PARTIAL_RETURN' ||
+      Boolean(rawSale.isPartiallyReturned) ||
+      totalRefunded > 0);
+  const thermalStatusLabel = isVoided
+    ? 'VOIDED'
+    : isFullyReturned
+    ? 'RETURNED'
+    : isPartiallyReturned
+    ? 'PARTIAL RETURN'
+    : 'PAID';
+
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(10.5);
   pdf.text('GRAND TOTAL:', 6, currentY);
   pdf.text(`${Number(sale.totalAmount).toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
   currentY += 5.5;
 
+  if (totalRefunded > 0) {
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    pdf.text('Refund Issued:', 6, currentY);
+    pdf.text(`-${totalRefunded.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+    currentY += 4;
+
+    const netRetained = Math.max(0, Number((Number(sale.totalAmount) - totalRefunded).toFixed(2)));
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9.5);
+    pdf.text('NET RETAINED:', 6, currentY);
+    pdf.text(`${netRetained.toFixed(2)} ${currency}`, 74, currentY, { align: 'right' });
+    currentY += 5;
+  }
+
   // Payment Details
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8);
   const paymentStr = rawSale.paymentMethod || rawSale.payment?.method || 'CASH';
-  pdf.text(`Payment Method: ${paymentStr} (${isVoided ? 'VOIDED' : 'PAID'})`, 6, currentY);
+  pdf.text(`Payment Method: ${paymentStr} (${thermalStatusLabel})`, 6, currentY);
   currentY += 5;
 
   // Footer

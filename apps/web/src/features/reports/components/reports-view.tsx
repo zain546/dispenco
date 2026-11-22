@@ -31,8 +31,10 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatCurrency, formatNumber, formatDateTime } from '@/lib/format';
-import { salesApi, SaleDetailResponse } from '@/features/sales/services/sales-api';
+import { salesApi, SaleDetailResponse, ReturnRecord } from '@/features/sales/services/sales-api';
 import { downloadThermalReceiptPdf, downloadA4TaxInvoicePdf } from '@/features/sales/utils/invoice-pdf-generator';
+import { CreateReturnModal } from '@/features/sales/components/create-return-modal';
+import { ReturnSlipModal } from '@/features/sales/components/return-slip-modal';
 import {
   Dialog,
   DialogContent,
@@ -105,34 +107,44 @@ import {
 } from 'recharts';
 
 
-function getReceiptPaymentBadge(method: string) {
+function getReceiptPaymentBadge(method: string, status?: string) {
   const m = (method || '').toUpperCase();
-  if (m.includes('RETURNED')) {
+  const s = (status || '').toUpperCase();
+  if (s === 'RETURNED' || (m.includes('RETURN') && !m.includes('PARTIAL'))) {
     return (
-      <Badge variant="destructive" className="text-micro font-medium gap-1 whitespace-nowrap">
+      <Badge variant="outline" className="text-micro font-medium gap-1 whitespace-nowrap bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
+        <RotateCcw className="size-2.5 shrink-0" />
         Returned
       </Badge>
     );
   }
-  if (m === 'DIGITAL') {
+  if (s === 'PARTIAL_RETURN' || s === 'PARTIALLY_RETURNED' || m.includes('PARTIAL')) {
+    return (
+      <Badge variant="outline" className="text-micro font-medium gap-1 whitespace-nowrap bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+        <RotateCcw className="size-2.5 shrink-0" />
+        Partial Return
+      </Badge>
+    );
+  }
+  if (m.includes('DIGITAL')) {
     return (
       <Badge variant="outline" className="text-micro font-medium gap-1 border-primary/30 text-primary bg-primary/5 whitespace-nowrap">
-        <Smartphone className="size-2.5" />
+        <Smartphone className="size-2.5 shrink-0" />
         Digital
       </Badge>
     );
   }
-  if (m === 'CREDIT') {
+  if (m.includes('CREDIT')) {
     return (
       <Badge variant="outline" className="text-micro font-medium gap-1 border-warning/30 text-warning bg-warning/5 whitespace-nowrap">
-        <CreditCard className="size-2.5" />
+        <CreditCard className="size-2.5 shrink-0" />
         Khata
       </Badge>
     );
   }
   return (
     <Badge variant="secondary" className="text-micro font-medium gap-1 whitespace-nowrap">
-      <Banknote className="size-2.5 text-muted-foreground" />
+      <Banknote className="size-2.5 text-muted-foreground shrink-0" />
       Cash
     </Badge>
   );
@@ -170,6 +182,7 @@ export function ReportsView() {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [reportData, setReportData] = useState<SalesReportResponse['data'] | null>(null);
   const [orgOverviewData, setOrgOverviewData] = useState<OrgOverviewResponse['data'] | null>(null);
   const [activeTab, setActiveTab] = useState<'quantity' | 'revenue'>('revenue');
@@ -192,6 +205,8 @@ export function ReportsView() {
   const [loadingSaleDetail, setLoadingSaleDetail] = useState(false);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [modalPdfLoading, setModalPdfLoading] = useState(false);
+  const [saleIdToReturn, setSaleIdToReturn] = useState<string | null>(null);
+  const [returnRecordForSlip, setReturnRecordForSlip] = useState<ReturnRecord | null>(null);
   const activeReceiptRequestIdRef = useRef<string | null>(null);
 
   const handleOpenReceiptModal = async (saleId: string) => {
@@ -346,10 +361,16 @@ export function ReportsView() {
 
   const reportReqVersionRef = useRef(0);
 
-  const fetchReport = async () => {
+  const fetchReport = async (options?: { silent?: boolean; background?: boolean }) => {
     const reqVersion = ++reportReqVersionRef.current;
+    const isBackground = Boolean((options?.silent || options?.background) && reportData);
+    const suppressErrors = Boolean(options?.silent && reportData);
     try {
-      setLoading(true);
+      if (isBackground) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const params: GetSalesReportParams = { groupBy };
 
       if (preset !== 'custom') {
@@ -381,13 +402,13 @@ export function ReportsView() {
         if (salesResult.value?.success) {
           setReportData(salesResult.value.data);
         }
-      } else {
+      } else if (!suppressErrors) {
         toast.error('Failed to load sales analytics', {
           description: getErrorMessage(salesResult.reason),
         });
       }
 
-      if (orgResult.status === 'rejected') {
+      if (orgResult.status === 'rejected' && !suppressErrors) {
         toast.error('Failed to load organization overview', {
           description: getErrorMessage(orgResult.reason),
         });
@@ -400,12 +421,15 @@ export function ReportsView() {
       }
     } catch (err) {
       if (reqVersion !== reportReqVersionRef.current) return;
-      toast.error('Failed to load sales analytics', {
-        description: getErrorMessage(err),
-      });
+      if (!suppressErrors) {
+        toast.error('Failed to load sales analytics', {
+          description: getErrorMessage(err),
+        });
+      }
     } finally {
       if (reqVersion === reportReqVersionRef.current) {
         setLoading(false);
+        setIsRefreshing(false);
       }
     }
   };
@@ -414,6 +438,15 @@ export function ReportsView() {
     if (!isStoreReady) return;
     void fetchReport();
   }, [preset, groupBy, activeStoreId, isAllStores, isStoreReady]);
+
+  useEffect(() => {
+    if (!isStoreReady) return;
+    const handleSalesUpdated = () => {
+      void fetchReport({ silent: true });
+    };
+    window.addEventListener('dispenco:sales-updated', handleSalesUpdated);
+    return () => window.removeEventListener('dispenco:sales-updated', handleSalesUpdated);
+  }, [preset, groupBy, startDate, endDate, activeStoreId, isAllStores, isStoreReady, reportData]);
 
   const handleApplyCustomDates = () => {
     if (preset === 'custom') {
@@ -496,7 +529,8 @@ export function ReportsView() {
     const counts = { all: transactions.length, cash: 0, digital: 0, credit: 0, returned: 0 };
     for (const tx of transactions) {
       const m = (tx.paymentMethod || '').toUpperCase();
-      if (m.includes('RETURN')) {
+      const s = (tx.status || '').toUpperCase();
+      if (s === 'RETURNED' || s === 'PARTIAL_RETURN' || m.includes('RETURN')) {
         counts.returned++;
       } else if (m.includes('DIGITAL')) {
         counts.digital++;
@@ -528,10 +562,12 @@ export function ReportsView() {
     if (methodFilter !== 'all') {
       list = list.filter((tx) => {
         const m = (tx.paymentMethod || '').toUpperCase();
-        if (methodFilter === 'RETURNED') return m.includes('RETURN');
-        if (methodFilter === 'DIGITAL') return !m.includes('RETURN') && m.includes('DIGITAL');
-        if (methodFilter === 'CREDIT') return !m.includes('RETURN') && m.includes('CREDIT');
-        if (methodFilter === 'CASH') return !m.includes('RETURN') && !m.includes('DIGITAL') && !m.includes('CREDIT');
+        const s = (tx.status || '').toUpperCase();
+        const isReturn = s === 'RETURNED' || s === 'PARTIAL_RETURN' || m.includes('RETURN');
+        if (methodFilter === 'RETURNED') return isReturn;
+        if (methodFilter === 'DIGITAL') return !isReturn && m.includes('DIGITAL');
+        if (methodFilter === 'CREDIT') return !isReturn && m.includes('CREDIT');
+        if (methodFilter === 'CASH') return !isReturn && !m.includes('DIGITAL') && !m.includes('CREDIT');
         return true;
       });
     }
@@ -648,12 +684,12 @@ export function ReportsView() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={fetchReport}
-                disabled={loading}
+                onClick={() => void fetchReport({ background: true })}
+                disabled={loading || isRefreshing}
                 className="size-9 shrink-0 bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs cursor-pointer"
                 title="Refresh report data"
               >
-                <RefreshCw className={`size-3.5 text-primary ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`size-3.5 text-primary ${loading || isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           ) : undefined
@@ -1573,7 +1609,7 @@ export function ReportsView() {
                               </td>
 
                               <td className="py-3 px-4 whitespace-nowrap">
-                                {getReceiptPaymentBadge(tx.paymentMethod)}
+                                {getReceiptPaymentBadge(tx.paymentMethod, tx.status)}
                               </td>
 
                               <td className="py-3 px-4 text-center tabular-nums text-muted-foreground font-medium whitespace-nowrap">
@@ -1593,10 +1629,19 @@ export function ReportsView() {
                               </td>
 
                               <td className="py-3 px-4 text-right font-bold text-foreground tabular-nums text-xs whitespace-nowrap">
-                                {tx.paymentMethod?.includes('RETURNED') ? (
-                                  <span className="line-through text-muted-foreground/75" title="Returned / Refunded">
+                                {tx.status === 'RETURNED' || (tx.paymentMethod?.includes('RETURN') && !tx.paymentMethod?.includes('PARTIAL')) ? (
+                                  <span className="line-through text-muted-foreground/75" title="Fully Returned / Refunded">
                                     {formatCurrency(tx.totalAmount)}
                                   </span>
+                                ) : tx.status === 'PARTIAL_RETURN' || tx.isPartiallyReturned || tx.paymentMethod?.includes('PARTIAL') ? (
+                                  <div className="flex flex-col items-end leading-tight">
+                                    <span>{formatCurrency(tx.totalAmount)}</span>
+                                    {tx.totalRefunded && tx.totalRefunded > 0 ? (
+                                      <span className="text-micro font-medium text-amber-600 dark:text-amber-400">
+                                        (-{formatCurrency(tx.totalRefunded)} ret)
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 ) : (
                                   formatCurrency(tx.totalAmount)
                                 )}
@@ -1875,7 +1920,9 @@ export function ReportsView() {
               <DialogTitle className="text-base sm:text-lg font-bold font-mono">
                 {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
               </DialogTitle>
-              {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || saleDetail.status)}
+              {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || 'CASH')}
+              {saleDetail && (saleDetail.status === 'RETURNED' || saleDetail.status === 'PARTIAL_RETURN') &&
+                getReceiptPaymentBadge(saleDetail.payment?.method || 'CASH', saleDetail.status)}
             </div>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               {saleDetail ? (
@@ -1960,6 +2007,11 @@ export function ReportsView() {
                                 {item.genericName}
                               </div>
                             )}
+                            {(item.returnedQuantity || 0) > 0 && (
+                              <div className="text-micro font-semibold text-amber-600 dark:text-amber-400">
+                                Returned: {item.returnedQuantity} {item.unit || 'units'}
+                              </div>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
                             <div>{item.batchNumber || '—'}</div>
@@ -2033,17 +2085,30 @@ export function ReportsView() {
                   </div>
                   {saleDetail.returns.map((ret) => (
                     <div key={ret.id} className="flex justify-between items-center text-micro">
-                      <span>{ret.returnNumber} ({ret.itemsCount} items returned - {ret.reason})</span>
+                      <span>{ret.returnNumber} ({ret.itemsCount} {ret.itemsCount === 1 ? 'item' : 'items'} returned - {ret.reason})</span>
                       <span className="font-bold text-destructive">-{formatCurrency(ret.refundAmount)}</span>
                     </div>
                   ))}
+                  <div className="flex justify-between items-center text-xs font-bold pt-1.5 border-t border-destructive/20 text-foreground">
+                    <span>Net Retained Amount:</span>
+                    <span className="tabular-nums text-primary">
+                      {formatCurrency(
+                        saleDetail.netAmount ??
+                          Math.max(
+                            0,
+                            saleDetail.totalAmount -
+                              saleDetail.returns.reduce((acc, r) => acc + Number(r.refundAmount || 0), 0),
+                          ),
+                      )}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
           ) : null}
 
           <DialogFooter className="pt-3 border-t border-border flex flex-col sm:flex-row gap-2 justify-between items-center shrink-0">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -2064,6 +2129,20 @@ export function ReportsView() {
                 <FileDown className="size-3.5 text-primary" />
                 <span>A4 Tax Invoice</span>
               </Button>
+              {saleDetail &&
+                saleDetail.status !== 'VOIDED' &&
+                saleDetail.status !== 'RETURNED' &&
+                !saleDetail.isFullyReturned && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSaleIdToReturn(saleDetail.id)}
+                    className="flex-1 sm:flex-initial h-8 text-xs font-semibold gap-1.5 cursor-pointer border-amber-500/30 hover:bg-amber-500/10"
+                  >
+                    <RotateCcw className="size-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>Process Return</span>
+                  </Button>
+                )}
             </div>
             <Button
               variant="default"
@@ -2076,6 +2155,28 @@ export function ReportsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Direct Return Modal from Reports Table Inspection */}
+      <CreateReturnModal
+        open={Boolean(saleIdToReturn)}
+        onOpenChange={(open) => !open && setSaleIdToReturn(null)}
+        initialSaleId={saleIdToReturn || undefined}
+        onReturnSuccess={(newReturn) => {
+          const returnedSaleId = newReturn.sale?.id || newReturn.saleId || saleIdToReturn;
+          setSaleIdToReturn(null);
+          setReturnRecordForSlip(newReturn);
+          void fetchReport({ silent: true });
+          if (returnedSaleId && isReceiptModalOpen) {
+            void handleOpenReceiptModal(returnedSaleId);
+          }
+        }}
+      />
+
+      <ReturnSlipModal
+        open={Boolean(returnRecordForSlip)}
+        onOpenChange={(open) => !open && setReturnRecordForSlip(null)}
+        returnRecord={returnRecordForSlip}
+      />
     </div>
   );
 }
