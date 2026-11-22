@@ -65,6 +65,10 @@ export interface SaleDetailResponse {
   totalAmount: number;
   discountAmount: number;
   taxAmount: number;
+  totalRefunded?: number;
+  netAmount?: number;
+  isFullyReturned?: boolean;
+  isPartiallyReturned?: boolean;
   status: string;
   doctorName?: string | null;
   createdAt: string;

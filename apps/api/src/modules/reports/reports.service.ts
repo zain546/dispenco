@@ -165,23 +165,29 @@ export class ReportsService {
         const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         return itemReturns >= si.quantity;
       });
-      const isFullyReturned = (saleReturns >= rawSaleRev && rawSaleRev > 0) || isFullyReturnedByQty;
+      const isFullyReturned =
+        s.saleItems.length > 0
+          ? isFullyReturnedByQty
+          : saleReturns >= rawSaleRev && rawSaleRev > 0;
 
       grossRevenue += rawSaleRev;
       totalReturns += saleReturns;
       totalRevenue += netSaleRev;
-      totalTax += Number(s.taxAmount || 0);
 
       if (!isFullyReturned) {
         totalTransactions += 1;
       }
 
+      let netSaleTax = 0;
       s.saleItems.forEach((si) => {
         const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         const netQuantity = Math.max(0, si.quantity - itemReturns);
+        const itemNetTax = si.quantity > 0 ? Number(si.taxApplied || 0) * (netQuantity / si.quantity) : 0;
+        netSaleTax += itemNetTax;
         totalItemsSold += netQuantity;
         totalCost += this.computeItemCost({ ...si, quantity: netQuantity });
       });
+      totalTax += Number(netSaleTax.toFixed(2));
     });
 
     totalRevenue = Number(totalRevenue.toFixed(2));
@@ -208,21 +214,31 @@ export class ReportsService {
         const rawRev = Number(s.totalAmount);
         const sReturns = s.returns ? s.returns.reduce((sum, r) => sum + Number(r.refundAmount || 0), 0) : 0;
         const netRev = Math.max(0, Number((rawRev - sReturns).toFixed(2)));
-        const isFullyRet = sReturns >= rawRev && rawRev > 0;
+        const isFullyRetByQty = s.saleItems.length > 0 && s.saleItems.every((si) => {
+          const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
+          return itemReturns >= si.quantity;
+        });
+        const isFullyRet =
+          s.saleItems.length > 0
+            ? isFullyRetByQty
+            : sReturns >= rawRev && rawRev > 0;
 
         storeRevenue += netRev;
-        storeTax += Number(s.taxAmount || 0);
 
         if (!isFullyRet) {
           storeTransactions += 1;
         }
 
+        let netStoreSaleTax = 0;
         s.saleItems.forEach((si) => {
           const itemReturns = si.returnItems ? si.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
           const netQty = Math.max(0, si.quantity - itemReturns);
+          const itemNetTax = si.quantity > 0 ? Number(si.taxApplied || 0) * (netQty / si.quantity) : 0;
+          netStoreSaleTax += itemNetTax;
           storeItemsSold += netQty;
           storeCost += this.computeItemCost({ ...si, quantity: netQty });
         });
+        storeTax += Number(netStoreSaleTax.toFixed(2));
       });
 
       const storeProfit = Number((storeRevenue - storeTax - storeCost).toFixed(2));
@@ -462,29 +478,44 @@ export class ReportsService {
         const itemReturns = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         return itemReturns >= item.quantity;
       });
-      const isFullyReturned = (saleReturnsTotal >= rawSaleRev && rawSaleRev > 0) || isFullyReturnedByQty;
+      const isFullyReturned =
+        s.saleItems.length > 0
+          ? isFullyReturnedByQty
+          : saleReturnsTotal >= rawSaleRev && rawSaleRev > 0;
       const isPartiallyReturned =
         !isFullyReturned &&
         (saleReturnsTotal > 0 ||
           s.saleItems.some((item) => (item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0) > 0));
 
       const saleDisc = Number(s.discountAmount || 0);
-      const saleTax = Number(s.taxAmount || 0);
+      let saleTax = 0;
       let saleCost = 0;
       let saleUnits = 0;
 
-      // Subtotal of raw line items to apportion invoice-level discount
+      // Subtotal of line items after item-level discounts to apportion overall invoice-level discount
+      let totalItemDiscounts = 0;
       const saleSubtotal = s.saleItems.reduce((acc, item) => {
-        return acc + Math.max(0, Number(item.unitPrice) * item.quantity - Number(item.discount || 0));
+        const itemDisc = Number(item.discount || 0);
+        totalItemDiscounts += itemDisc;
+        return acc + Math.max(0, Number(item.unitPrice) * item.quantity - itemDisc);
       }, 0);
+      const overallSaleDiscount = Math.max(0, saleDisc - totalItemDiscounts);
 
       s.saleItems.forEach((item) => {
         const itemReturns = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + ri.quantity, 0) : 0;
         const netQuantity = Math.max(0, item.quantity - itemReturns);
-        const itemRefund = item.returnItems ? item.returnItems.reduce((sum, ri) => sum + Number(ri.refundAmount || 0), 0) : 0;
-        const rawItemRev = Number(item.unitPrice) * item.quantity - Number(item.discount || 0);
-        const itemDiscShare = saleSubtotal > 0 ? (rawItemRev / saleSubtotal) * saleDisc : 0;
-        const netItemRev = Math.max(0, Number((rawItemRev - itemDiscShare - itemRefund).toFixed(2)));
+        const rawItemRev = Math.max(0, Number(item.unitPrice) * item.quantity - Number(item.discount || 0));
+        const itemOverallDiscShare = saleSubtotal > 0 && overallSaleDiscount > 0
+          ? (rawItemRev / saleSubtotal) * overallSaleDiscount
+          : 0;
+        const lineNetExTax = Math.max(0, rawItemRev - itemOverallDiscShare);
+        const netItemRev = item.quantity > 0
+          ? Number((lineNetExTax * (netQuantity / item.quantity)).toFixed(2))
+          : 0;
+        const netItemTax = item.quantity > 0
+          ? Number(item.taxApplied || 0) * (netQuantity / item.quantity)
+          : 0;
+        saleTax += netItemTax;
 
         const itemCost = this.computeItemCost({ ...item, quantity: netQuantity });
         const itemProfit = Number((netItemRev - itemCost).toFixed(2));
@@ -522,6 +553,7 @@ export class ReportsService {
       });
 
       saleCost = Number(saleCost.toFixed(2));
+      saleTax = Number(saleTax.toFixed(2));
       const saleProfit = Number((netSaleRev - saleTax - saleCost).toFixed(2));
       const saleMargin = netSaleRev > 0 ? Number(((saleProfit / netSaleRev) * 100).toFixed(1)) : 0;
 

@@ -341,6 +341,28 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
     (acc, item) => acc + (item.returnedQuantity || 0),
     0,
   );
+  const totalSoldUnits = items.reduce(
+    (acc, item) => acc + (item.quantity || 0),
+    0,
+  );
+  const totalRefundedAmount =
+    saleData.totalRefunded ??
+    returns.reduce((acc, r) => acc + Number(r.refundAmount || 0), 0);
+  const netRetainedAmount =
+    saleData.netAmount ??
+    Math.max(0, Number((totalAmount - totalRefundedAmount).toFixed(2)));
+  const isFullyReturned =
+    status === 'RETURNED' ||
+    Boolean(saleData.isFullyReturned) ||
+    (totalSoldUnits > 0 && items.every((item) => (item.returnedQuantity || 0) >= item.quantity));
+  const isPartiallyReturned =
+    !isFullyReturned &&
+    (status === 'PARTIAL_RETURN' ||
+      Boolean(saleData.isPartiallyReturned) ||
+      totalReturnedUnits > 0 ||
+      totalRefundedAmount > 0 ||
+      returns.length > 0);
+  const hasAnyReturns = isFullyReturned || isPartiallyReturned || returns.length > 0;
 
   return (
     <div className="min-h-screen bg-muted/15 py-5 px-3 sm:px-6 print:p-0 print:bg-white print:m-0">
@@ -412,12 +434,22 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 #{receiptNumber}
               </span>
               <Badge
-                variant={isVoided ? 'destructive' : 'default'}
+                variant={isVoided || isFullyReturned ? 'destructive' : isPartiallyReturned ? 'outline' : 'default'}
                 className={`text-micro font-bold uppercase tracking-wider px-2 py-0.5 ${
-                  isVoided ? '' : 'text-white'
+                  isVoided || isFullyReturned
+                    ? ''
+                    : isPartiallyReturned
+                    ? 'border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+                    : 'text-white'
                 }`}
               >
-                {isVoided ? 'VOIDED' : 'PAID'}
+                {isVoided
+                  ? 'VOIDED'
+                  : isFullyReturned
+                  ? 'RETURNED'
+                  : isPartiallyReturned
+                  ? 'PARTIAL RETURN'
+                  : 'PAID'}
               </Badge>
             </div>
           </div>
@@ -435,7 +467,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
             </Button>
 
             <div className="flex items-center gap-1.5">
-              {!isVoided && (
+              {!isVoided && !isFullyReturned && (
                 <Button
                   type="button"
                   variant="outline"
@@ -448,7 +480,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                 </Button>
               )}
 
-              {!isVoided && canVoidSales && (
+              {!isVoided && !hasAnyReturns && canVoidSales && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -800,7 +832,7 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
 
                     <span className="text-zinc-600">Payment Mode:</span>
                     <span className="font-bold text-zinc-900 text-right uppercase">
-                      {payment?.method || 'CASH'} ({isVoided ? 'VOIDED' : 'PAID'})
+                      {payment?.method || 'CASH'} ({isVoided ? 'VOIDED' : isFullyReturned ? 'RETURNED' : isPartiallyReturned ? 'PARTIAL RETURN' : 'PAID'})
                     </span>
 
                     <span className="text-zinc-600">Cashier:</span>
@@ -953,6 +985,21 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                         {formatCurrency(totalAmount)}
                       </span>
                     </div>
+
+                    {totalRefundedAmount > 0 && (
+                      <>
+                        <div className="flex justify-between text-rose-600 font-semibold pt-1">
+                          <span>Less Refund Issued:</span>
+                          <span className="tabular-nums font-mono">-{formatCurrency(totalRefundedAmount)}</span>
+                        </div>
+                        <div className="pt-1.5 border-t border-zinc-300 flex justify-between items-center text-sm font-black text-zinc-950">
+                          <span>NET RETAINED:</span>
+                          <span className="text-zinc-950 font-mono text-base tabular-nums">
+                            {formatCurrency(netRetainedAmount)}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1071,6 +1118,11 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                               Discount: -{formatCurrency(item.discount)}
                             </p>
                           )}
+                          {(item.returnedQuantity || 0) > 0 && (
+                            <p className="text-micro text-amber-600 font-semibold">
+                              Returned: {item.returnedQuantity} {item.unit || 'units'}
+                            </p>
+                          )}
                         </div>
                       );
                     })}
@@ -1104,6 +1156,21 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                       {formatCurrency(totalAmount)}
                     </span>
                   </div>
+
+                  {totalRefundedAmount > 0 && (
+                    <>
+                      <div className="flex justify-between text-rose-600 font-semibold pt-1">
+                        <span>Refund Issued:</span>
+                        <span className="tabular-nums font-mono">-{formatCurrency(totalRefundedAmount)}</span>
+                      </div>
+                      <div className="flex justify-between items-baseline text-sm font-black pt-1.5 border-t border-dashed border-zinc-300 text-zinc-950">
+                        <span>NET RETAINED</span>
+                        <span className="text-base font-mono tracking-tight text-zinc-950 font-black">
+                          {formatCurrency(netRetainedAmount)}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Payment Badge Box */}
@@ -1121,13 +1188,19 @@ export function ReceiptView({ saleId, autoPrint = false }: ReceiptViewProps) {
                     <span className="text-zinc-600">Payment Status:</span>
                     <span
                       className={
-                        isVoided
+                        isVoided || isFullyReturned
                           ? 'text-destructive font-bold'
+                          : isPartiallyReturned
+                          ? 'text-amber-600 font-bold'
                           : 'text-emerald-600 font-bold flex items-center gap-1'
                       }
                     >
                       {isVoided ? (
                         'VOIDED'
+                      ) : isFullyReturned ? (
+                        'RETURNED'
+                      ) : isPartiallyReturned ? (
+                        'PARTIAL RETURN'
                       ) : (
                         <>
                           <CheckCircle2 className="size-3" /> Paid

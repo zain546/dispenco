@@ -1895,7 +1895,7 @@ export function ReportsView() {
               <DialogTitle className="text-base sm:text-lg font-bold font-mono">
                 {saleDetail?.receiptNumber ? `#${saleDetail.receiptNumber}` : 'Receipt Inspection'}
               </DialogTitle>
-              {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || saleDetail.status)}
+              {saleDetail && getReceiptPaymentBadge(saleDetail.payment?.method || 'CASH', saleDetail.status)}
             </div>
             <DialogDescription className="text-xs text-muted-foreground mt-1">
               {saleDetail ? (
@@ -1980,6 +1980,11 @@ export function ReportsView() {
                                 {item.genericName}
                               </div>
                             )}
+                            {(item.returnedQuantity || 0) > 0 && (
+                              <div className="text-micro font-semibold text-amber-600 dark:text-amber-400">
+                                Returned: {item.returnedQuantity} {item.unit || 'units'}
+                              </div>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 font-mono text-micro text-muted-foreground">
                             <div>{item.batchNumber || '—'}</div>
@@ -2053,10 +2058,23 @@ export function ReportsView() {
                   </div>
                   {saleDetail.returns.map((ret) => (
                     <div key={ret.id} className="flex justify-between items-center text-micro">
-                      <span>{ret.returnNumber} ({ret.itemsCount} items returned - {ret.reason})</span>
+                      <span>{ret.returnNumber} ({ret.itemsCount} {ret.itemsCount === 1 ? 'item' : 'items'} returned - {ret.reason})</span>
                       <span className="font-bold text-destructive">-{formatCurrency(ret.refundAmount)}</span>
                     </div>
                   ))}
+                  <div className="flex justify-between items-center text-xs font-bold pt-1.5 border-t border-destructive/20 text-foreground">
+                    <span>Net Retained Amount:</span>
+                    <span className="tabular-nums text-primary">
+                      {formatCurrency(
+                        saleDetail.netAmount ??
+                          Math.max(
+                            0,
+                            saleDetail.totalAmount -
+                              saleDetail.returns.reduce((acc, r) => acc + Number(r.refundAmount || 0), 0),
+                          ),
+                      )}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
