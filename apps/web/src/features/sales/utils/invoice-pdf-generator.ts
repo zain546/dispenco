@@ -283,6 +283,21 @@ export async function downloadA4TaxInvoicePdf(
     pdf.line(14, currentY, 196, currentY);
     currentY += 6;
 
+    const discount = Number(sale.discountAmount || 0);
+    const tax = Number(sale.taxAmount || 0);
+    const grandTotal = Number(sale.totalAmount);
+
+    // Ensure the full totals & terms block (including optional discount, tax, and refund rows) fits above the footer at 287mm
+    const termsBlockHeight = 44.5;
+    const rightTotalsBlockHeight =
+      19.5 + (discount > 0 ? 5.5 : 0) + (tax > 0 ? 5.5 : 0) + (totalRefunded > 0 ? 19.5 : 0);
+    const requiredTotalsHeight = Math.max(termsBlockHeight, rightTotalsBlockHeight);
+    const footerSafeLimitY = 280;
+    if (currentY + requiredTotalsHeight > footerSafeLimitY) {
+      pdf.addPage();
+      currentY = 20;
+    }
+
     // Totals & Regulatory Terms Section
     const totalsStartY = currentY;
 
@@ -327,9 +342,6 @@ export async function downloadA4TaxInvoicePdf(
     });
 
     const subtotal = subtotalCalc;
-    const discount = Number(sale.discountAmount || 0);
-    const tax = Number(sale.taxAmount || 0);
-    const grandTotal = Number(sale.totalAmount);
 
     let calcY = totalsStartY + 3;
 

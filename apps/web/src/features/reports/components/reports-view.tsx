@@ -361,11 +361,12 @@ export function ReportsView() {
 
   const reportReqVersionRef = useRef(0);
 
-  const fetchReport = async (options?: { silent?: boolean }) => {
+  const fetchReport = async (options?: { silent?: boolean; background?: boolean }) => {
     const reqVersion = ++reportReqVersionRef.current;
-    const isSilent = Boolean(options?.silent && reportData);
+    const isBackground = Boolean((options?.silent || options?.background) && reportData);
+    const suppressErrors = Boolean(options?.silent && reportData);
     try {
-      if (isSilent) {
+      if (isBackground) {
         setIsRefreshing(true);
       } else {
         setLoading(true);
@@ -401,13 +402,13 @@ export function ReportsView() {
         if (salesResult.value?.success) {
           setReportData(salesResult.value.data);
         }
-      } else if (!isSilent) {
+      } else if (!suppressErrors) {
         toast.error('Failed to load sales analytics', {
           description: getErrorMessage(salesResult.reason),
         });
       }
 
-      if (orgResult.status === 'rejected' && !isSilent) {
+      if (orgResult.status === 'rejected' && !suppressErrors) {
         toast.error('Failed to load organization overview', {
           description: getErrorMessage(orgResult.reason),
         });
@@ -420,7 +421,7 @@ export function ReportsView() {
       }
     } catch (err) {
       if (reqVersion !== reportReqVersionRef.current) return;
-      if (!isSilent) {
+      if (!suppressErrors) {
         toast.error('Failed to load sales analytics', {
           description: getErrorMessage(err),
         });
@@ -445,7 +446,7 @@ export function ReportsView() {
     };
     window.addEventListener('dispenco:sales-updated', handleSalesUpdated);
     return () => window.removeEventListener('dispenco:sales-updated', handleSalesUpdated);
-  }, [preset, groupBy, activeStoreId, isAllStores, isStoreReady, reportData]);
+  }, [preset, groupBy, startDate, endDate, activeStoreId, isAllStores, isStoreReady, reportData]);
 
   const handleApplyCustomDates = () => {
     if (preset === 'custom') {
@@ -683,7 +684,7 @@ export function ReportsView() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => void fetchReport({ silent: true })}
+                onClick={() => void fetchReport({ background: true })}
                 disabled={loading || isRefreshing}
                 className="size-9 shrink-0 bg-card hover:bg-muted border-border/80 text-foreground shadow-2xs cursor-pointer"
                 title="Refresh report data"
@@ -2161,7 +2162,7 @@ export function ReportsView() {
         onOpenChange={(open) => !open && setSaleIdToReturn(null)}
         initialSaleId={saleIdToReturn || undefined}
         onReturnSuccess={(newReturn) => {
-          const returnedSaleId = saleIdToReturn;
+          const returnedSaleId = newReturn.sale?.id || newReturn.saleId || saleIdToReturn;
           setSaleIdToReturn(null);
           setReturnRecordForSlip(newReturn);
           void fetchReport({ silent: true });

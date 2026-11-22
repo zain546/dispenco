@@ -569,18 +569,50 @@ export class ReportsService {
         totalTransactions += 1;
       }
 
-      // Payment method tracking (reconcile net cash/digital/credit)
+      // Payment method tracking (reconcile original payment amounts minus refunds issued per tender)
       const primaryPaymentMethod = s.payments?.[0]?.method || 'CASH';
       if (!isFullyReturned) {
         if (primaryPaymentMethod === 'DIGITAL') {
           paymentBreakdown.digital.count += 1;
-          paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + netSaleRev).toFixed(2));
         } else if (primaryPaymentMethod === 'CREDIT') {
           paymentBreakdown.credit.count += 1;
-          paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + netSaleRev).toFixed(2));
         } else {
           paymentBreakdown.cash.count += 1;
-          paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + netSaleRev).toFixed(2));
+        }
+      }
+
+      if (s.payments && s.payments.length > 0) {
+        for (const p of s.payments) {
+          const amt = Number(p.amount || 0);
+          if (p.method === 'DIGITAL') {
+            paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + amt).toFixed(2));
+          } else if (p.method === 'CREDIT') {
+            paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + amt).toFixed(2));
+          } else {
+            paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + amt).toFixed(2));
+          }
+        }
+      } else {
+        if (primaryPaymentMethod === 'DIGITAL') {
+          paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount + rawSaleRev).toFixed(2));
+        } else if (primaryPaymentMethod === 'CREDIT') {
+          paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount + rawSaleRev).toFixed(2));
+        } else {
+          paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount + rawSaleRev).toFixed(2));
+        }
+      }
+
+      if (s.returns && s.returns.length > 0) {
+        for (const r of s.returns) {
+          const refundAmt = Number(r.refundAmount || 0);
+          const refundTender = r.refundMethod || primaryPaymentMethod;
+          if (refundTender === 'DIGITAL') {
+            paymentBreakdown.digital.amount = Number((paymentBreakdown.digital.amount - refundAmt).toFixed(2));
+          } else if (refundTender === 'CREDIT') {
+            paymentBreakdown.credit.amount = Number((paymentBreakdown.credit.amount - refundAmt).toFixed(2));
+          } else {
+            paymentBreakdown.cash.amount = Number((paymentBreakdown.cash.amount - refundAmt).toFixed(2));
+          }
         }
       }
 
