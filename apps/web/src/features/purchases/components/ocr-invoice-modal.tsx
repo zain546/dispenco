@@ -431,7 +431,7 @@ export function OcrInvoiceModal({
         onOpenChange(val);
       }}
     >
-      <DialogContent className="w-[calc(100vw-20px)] sm:max-w-4xl lg:max-w-5xl max-h-[92dvh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
+      <DialogContent className="w-[calc(100vw-20px)] sm:max-w-4xl lg:max-w-5xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-xl border border-border bg-background shadow-2xl">
         {/* Header Bar */}
         <DialogHeader className="p-3.5 sm:px-6 sm:py-4.5 pr-12 sm:pr-14 border-b border-border/80 bg-muted/20 shrink-0">
           <div className="flex items-center justify-between">
