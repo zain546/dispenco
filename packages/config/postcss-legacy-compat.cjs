@@ -256,15 +256,28 @@ function dispencoLegacyBrowserCompat() {
         });
       });
 
-      // 2. Convert any remaining `color-mix(in srgb, oklch(...) X%, transparent)` or bare `oklch(...)` / `oklab(...)` outside `@supports`
+      // 2. Convert any remaining `color-mix(...)` outside `@supports` or bare `oklch(...)` / `oklab(...)`
       root.walkDecls((decl) => {
         if (isInsideSupportsRule(decl)) return;
 
-        if (decl.value.includes('color-mix(in srgb,')) {
+        if (decl.value.includes('color-mix(')) {
           decl.value = decl.value.replace(
-            /color-mix\(in srgb,\s*(oklch\([^)]+\))\s*([0-9.]+)%,\s*transparent\)/gi,
-            (full, oklchStr, pctStr) => {
-              const parsed = parseOklchString(oklchStr);
+            /color-mix\(in\s+(?:oklab|srgb),\s*var\((--[a-z0-9-]+)\)\s*([0-9.]+)%,\s*transparent\)/gi,
+            (full, varName, pctStr) => {
+              const rgbVar = dynamicVarToRgb[varName];
+              const pct = parseFloat(pctStr);
+              if (rgbVar && !Number.isNaN(pct)) {
+                const alpha = Number((pct / 100).toFixed(4));
+                return `rgba(var(${rgbVar}), ${alpha})`;
+              }
+              return `var(${varName})`;
+            }
+          );
+
+          decl.value = decl.value.replace(
+            /color-mix\(in\s+(?:srgb|oklab),\s*(oklch\([^)]+\)|oklab\([^)]+\))\s*([0-9.]+)%,\s*transparent\)/gi,
+            (full, colStr, pctStr) => {
+              const parsed = colStr.startsWith('oklch') ? parseOklchString(colStr) : parseOklabString(colStr);
               const pct = parseFloat(pctStr);
               if (!parsed || Number.isNaN(pct)) return full;
               const alpha = Number((pct / 100).toFixed(4));
