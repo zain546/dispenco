@@ -292,16 +292,16 @@ export const PosCartSection = React.memo(function PosCartSection({
             </div>
 
             {/* Desktop Table (Visible on screens >= md) */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden md:block overflow-x-hidden">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead className="bg-muted/20 text-muted-foreground/80 text-[11px] font-medium uppercase tracking-wider border-b border-border/60">
                   <tr>
-                    <th className="p-3 pl-4">Item & Unit Type</th>
-                    <th className="p-3 w-28 text-center">Unit Price</th>
-                    <th className="p-3 w-36 text-center">Quantity</th>
-                    <th className="p-3 w-32 text-center">Discount</th>
-                    <th className="p-3 pr-4 text-right whitespace-nowrap min-w-[105px]">Line Total</th>
-                    <th className="p-3 w-10"></th>
+                    <th className="py-2.5 px-3 pl-4">Item & Unit Type</th>
+                    <th className="py-2.5 px-1.5 w-20 text-center">Unit Price</th>
+                    <th className="py-2.5 px-1.5 w-26 text-center">Quantity</th>
+                    <th className="py-2.5 px-1.5 w-22 text-center">Discount</th>
+                    <th className="py-2.5 pr-4 text-right whitespace-nowrap w-24">Line Total</th>
+                    <th className="py-2.5 px-1 w-8"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -323,7 +323,7 @@ export const PosCartSection = React.memo(function PosCartSection({
                     return (
                       <tr key={`${item.product.id}-${item.unitType}`} className="hover:bg-muted/20 transition-colors">
                         {/* Medicine Name & Unit Mode Toggle */}
-                        <td className="p-3 pl-4 align-middle min-w-[240px]">
+                        <td className="py-2.5 px-3 pl-4 align-middle min-w-0">
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="font-semibold text-foreground leading-snug break-words">
@@ -406,30 +406,30 @@ export const PosCartSection = React.memo(function PosCartSection({
                         </td>
 
                         {/* Unit Price */}
-                        <td className="p-3 align-middle text-center">
-                          <div className="relative inline-block w-20">
+                        <td className="py-2.5 px-1.5 align-middle text-center">
+                          <div className="relative inline-block w-18">
                             <DraftPriceInput
                               value={item.unitPrice}
                               min={0.01}
                               onChange={(val) => onUpdateUnitPrice(idx, val)}
-                              className="h-8 text-xs text-center font-medium font-mono focus-visible:ring-1"
+                              className="h-7 text-xs text-center font-medium font-mono focus-visible:ring-1"
                               title="Edit unit price (PKR)"
                             />
                           </div>
                         </td>
 
                         {/* Quantity Controls */}
-                        <td className="p-3 align-middle text-center">
+                        <td className="py-2.5 px-1.5 align-middle text-center">
                           <div className="space-y-1">
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="flex items-center justify-center gap-0.5">
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="icon"
                                 onClick={() => onUpdateQuantity(idx, item.quantity - 1)}
-                                className="size-8 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                                className="size-7 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
                               >
-                                <Minus className="size-3.5" />
+                                <Minus className="size-3" />
                               </Button>
 
                               <DraftQuantityInput
@@ -437,7 +437,7 @@ export const PosCartSection = React.memo(function PosCartSection({
                                 min={1}
                                 max={lineMaxStock}
                                 onChange={(val) => onUpdateQuantity(idx, val)}
-                                className="h-8 w-14 text-xs text-center font-semibold font-mono px-1 focus-visible:ring-1"
+                                className="h-7 w-11 text-xs text-center font-semibold font-mono px-0.5 focus-visible:ring-1"
                               />
 
                               <Button
@@ -446,29 +446,29 @@ export const PosCartSection = React.memo(function PosCartSection({
                                 size="icon"
                                 onClick={() => onUpdateQuantity(idx, item.quantity + 1)}
                                 disabled={item.quantity >= lineMaxStock}
-                                className="size-8 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                                className="size-7 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
                               >
-                                <Plus className="size-3.5" />
+                                <Plus className="size-3" />
                               </Button>
                             </div>
                           </div>
                         </td>
 
                         {/* Per-Item Discount */}
-                        <td className="p-3 align-middle text-center">
-                          <div className="flex items-center justify-center gap-1">
+                        <td className="py-2.5 px-1.5 align-middle text-center">
+                          <div className="flex items-center justify-center gap-0.5">
                             <Input
                               type="number"
                               min="0"
                               value={item.discount || ''}
                               placeholder="0"
                               onChange={(e) => onUpdateDiscount(idx, parseFloat(e.target.value) || 0)}
-                              className="h-8 w-16 text-xs text-center font-medium font-mono px-1 focus-visible:ring-1"
+                              className="h-7 w-12 text-xs text-center font-medium font-mono px-1 focus-visible:ring-1"
                             />
                             <Button
                               type="button"
                               variant="ghost"
-                              size="icon"
+                              size="sm"
                               onClick={() =>
                                 onUpdateDiscount(
                                   idx,
@@ -476,7 +476,7 @@ export const PosCartSection = React.memo(function PosCartSection({
                                   item.discountType === 'FLAT' ? 'PERCENT' : 'FLAT',
                                 )
                               }
-                              className="h-8 px-2 shrink-0 text-xs font-semibold text-muted-foreground hover:text-primary cursor-pointer"
+                              className="h-7 px-1.5 shrink-0 text-micro font-semibold text-muted-foreground hover:text-primary cursor-pointer"
                               title="Toggle Flat (PKR) vs Percent (%) discount"
                             >
                               {item.discountType === 'PERCENT' ? '%' : 'PKR'}
@@ -485,18 +485,18 @@ export const PosCartSection = React.memo(function PosCartSection({
                         </td>
 
                         {/* Line Total */}
-                        <td className="p-3 pr-4 align-middle text-right font-semibold text-foreground font-mono tabular-nums whitespace-nowrap min-w-[105px]">
+                        <td className="py-2.5 pr-4 align-middle text-right font-semibold text-foreground font-mono tabular-nums whitespace-nowrap">
                           {lineTotal.toFixed(2)} PKR
                         </td>
 
                         {/* Remove Item */}
-                        <td className="p-3 align-middle text-center">
+                        <td className="py-2.5 px-1 align-middle text-center">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => onRemoveItem(idx)}
-                            className="size-8 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer"
+                            className="size-7 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer"
                             title="Remove item (Delete)"
                           >
                             <Trash2 className="size-3.5" />

@@ -168,7 +168,7 @@ export default function DashboardLayout({
     });
 
   const renderNavLinks = (inMobile = false) => (
-    <nav className="flex flex-col gap-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+    <nav className="flex flex-col gap-2.5 overflow-y-auto flex-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       {NAV_GROUPS.map((group, gIdx) => {
         const visibleItems = filterNavItems(group.items);
         if (visibleItems.length === 0) return null;
