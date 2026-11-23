@@ -26,6 +26,30 @@
   --m-spotlight-surface: rgba(var(--primary-rgb), 0.11);
 }
 
+@supports (color: oklch(0 0 0)) and (color: color-mix(in oklab, red, red)) {
+  .marketing-shell {
+    --background: oklch(0.99 0.002 240);
+    --card: oklch(1 0 0);
+    --muted: oklch(0.96 0.004 240);
+    --muted-foreground: oklch(0.46 0.012 240);
+    --border: oklch(0.905 0.006 240);
+    --m-border-strong: oklch(0.8 0.012 225);
+    --m-spotlight-border: color-mix(in oklab, var(--primary) 75%, var(--chart-1));
+    --m-spotlight-surface: color-mix(in oklab, var(--primary) 5.5%, transparent);
+  }
+
+  .dark .marketing-shell {
+    --background: oklch(0.13 0.004 240);
+    --card: oklch(0.165 0.005 240);
+    --muted: oklch(0.205 0.006 240);
+    --muted-foreground: oklch(0.68 0.008 240);
+    --border: oklch(1 0 0 / 9%);
+    --m-border-strong: oklch(1 0 0 / 18%);
+    --m-accent-text: oklch(0.82 0.11 208);
+    --m-spotlight-border: color-mix(in oklab, var(--chart-1) 80%, var(--primary));
+    --m-spotlight-surface: color-mix(in oklab, var(--primary) 11%, transparent);
+  }
+}
 
 html:has(.marketing-shell) {
   scroll-padding-top: calc(var(--spacing) * 20);
