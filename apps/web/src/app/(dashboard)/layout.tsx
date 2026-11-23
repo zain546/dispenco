@@ -136,7 +136,7 @@ export default function DashboardLayout({
       }
 
       // Alt+H -> jump to Dashboard Overview from anywhere
-      if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'h' || e.key === 'H')) {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'h' || e.key === 'H')) {
         if (pathname === '/dashboard') return;
         if (!user || !canAccessPage('/dashboard', user)) return;
         e.preventDefault();
@@ -239,7 +239,7 @@ export default function DashboardLayout({
                         <TooltipContent side="right" className="font-medium text-xs flex items-center gap-1.5">
                           <span>{item.name}</span>
                           {item.shortcut && (
-                            <kbd className="px-1 py-0.2 rounded text-[10px] font-mono font-medium text-muted-foreground bg-muted border border-border/50">
+                            <kbd className="px-1 py-0.5 rounded text-[10px] font-mono font-medium text-muted-foreground bg-muted border border-border/50">
                               {item.shortcut}
                             </kbd>
                           )}
