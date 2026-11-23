@@ -233,11 +233,11 @@ export default function DashboardLayout({
 
   return (
     <ProtectedRoute><TooltipProvider delayDuration={100}>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex h-screen w-full overflow-hidden bg-background">
         {/* Desktop Collapsible Sidebar (Hidden on Mobile/Tablet < lg) */}
         <aside
           className={cn(
-            'hidden lg:flex h-screen sticky top-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col justify-between p-3.5 shrink-0 z-30 transition-all duration-300 ease-in-out relative',
+            'hidden lg:flex h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col justify-between p-3.5 shrink-0 z-30 transition-all duration-300 ease-in-out relative',
             isCollapsed ? 'w-20' : 'w-64'
           )}
         >
@@ -365,7 +365,7 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main Content Container */}
-        <div className="flex-1 flex flex-col min-w-0 bg-background">
+        <div className="flex-1 flex flex-col h-full min-w-0 bg-background overflow-hidden">
           {/* Top Header */}
           <header className="h-14 bg-background/80 backdrop-blur-md border-b border-border/70 flex items-center justify-between px-3 sm:px-6 shrink-0 gap-2 z-20">
             <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[calc(100%-115px)] sm:max-w-none">
@@ -435,7 +435,7 @@ export default function DashboardLayout({
           <SubscriptionBanner />
 
           {/* Page View Body */}
-          <main className="flex-1 p-4 sm:p-6 lg:p-7 max-w-[1600px] w-full mx-auto overflow-y-auto">{children}</main>
+          <main className="flex-1 min-h-0 p-4 sm:p-6 lg:p-7 max-w-[1600px] w-full mx-auto overflow-y-auto">{children}</main>
 
           {/* Floating AI Assistant Widget (Available Globally across all Dashboard Screens) */}
           <AiAssistantWidget />
