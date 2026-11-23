@@ -270,7 +270,7 @@ function dispencoLegacyBrowserCompat() {
                 const alpha = Number((pct / 100).toFixed(4));
                 return `rgba(var(${rgbVar}), ${alpha})`;
               }
-              return `var(${varName})`;
+              return full;
             }
           );
 
@@ -280,7 +280,10 @@ function dispencoLegacyBrowserCompat() {
               const parsed = colStr.startsWith('oklch') ? parseOklchString(colStr) : parseOklabString(colStr);
               const pct = parseFloat(pctStr);
               if (!parsed || Number.isNaN(pct)) return full;
-              const alpha = Number((pct / 100).toFixed(4));
+              const sourceAlpha = typeof parsed.alpha === 'number' && !Number.isNaN(parsed.alpha)
+                ? Math.max(0, Math.min(1, parsed.alpha))
+                : 1;
+              const alpha = Number(((sourceAlpha * pct) / 100).toFixed(4));
               return `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${alpha})`;
             }
           );

@@ -292,8 +292,8 @@ export const PosCartSection = React.memo(function PosCartSection({
             </div>
 
             {/* Desktop Table (Visible on screens >= md) */}
-            <div className="hidden md:block overflow-x-hidden">
-              <table className="w-full text-left text-xs sm:text-sm">
+            <div className="hidden md:block overflow-x-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <table className="w-full min-w-full text-left text-xs sm:text-sm">
                 <thead className="bg-muted/20 text-muted-foreground/80 text-[11px] font-medium uppercase tracking-wider border-b border-border/60">
                   <tr>
                     <th className="py-2.5 px-3 pl-4">Item & Unit Type</th>
