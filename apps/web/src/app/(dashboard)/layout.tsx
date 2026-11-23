@@ -59,6 +59,7 @@ interface NavItem {
   icon: React.ElementType;
   permission: string | null;
   requiresMultiStore?: boolean;
+  shortcut?: string;
 }
 
 interface NavGroup {
@@ -70,13 +71,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Overview',
     items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null },
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: null, shortcut: 'Alt+H' },
     ],
   },
   {
     label: 'Point of Sale',
     items: [
-      { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null },
+      { name: 'POS Counter', href: '/pos', icon: ShoppingCart, permission: null, shortcut: 'F2' },
       { name: 'Prescriptions', href: '/prescriptions', icon: FileText, permission: null },
       { name: 'Returns', href: '/returns', icon: RotateCcw, permission: null },
       { name: 'Customers & Khata', href: '/customers', icon: Users, permission: null },
@@ -122,14 +123,26 @@ export default function DashboardLayout({
     }
   }, []);
 
-  // Global F2 shortcut to jump to POS Counter from any dashboard page
+  // Global shortcuts to quickly navigate between core views (F2 -> POS, Alt+H -> Dashboard)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'F2' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-      if (pathname === '/pos' || pathname.startsWith('/pos/')) return;
-      if (!user || !canAccessPage('/pos', user)) return;
-      e.preventDefault();
-      router.push('/pos');
+      // F2 -> jump to POS Counter from anywhere
+      if (e.key === 'F2' && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+        if (pathname === '/pos' || pathname.startsWith('/pos/')) return;
+        if (!user || !canAccessPage('/pos', user)) return;
+        e.preventDefault();
+        router.push('/pos');
+        return;
+      }
+
+      // Alt+H -> jump to Dashboard Overview from anywhere
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'h' || e.key === 'H')) {
+        if (pathname === '/dashboard') return;
+        if (!user || !canAccessPage('/dashboard', user)) return;
+        e.preventDefault();
+        router.push('/dashboard');
+        return;
+      }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
@@ -206,7 +219,16 @@ export default function DashboardLayout({
                       )}
                     >
                       <Icon className="size-4 shrink-0" />
-                      {!isCollapsedNav && <span className="truncate">{item.name}</span>}
+                      {!isCollapsedNav && (
+                        <>
+                          <span className="truncate flex-1">{item.name}</span>
+                          {item.shortcut && (
+                            <kbd className="hidden xl:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-muted-foreground/60 bg-muted/40 border border-border/40 shrink-0">
+                              {item.shortcut}
+                            </kbd>
+                          )}
+                        </>
+                      )}
                     </Link>
                   );
 
@@ -214,8 +236,13 @@ export default function DashboardLayout({
                     return (
                       <Tooltip key={item.href}>
                         <TooltipTrigger asChild>{navLink}</TooltipTrigger>
-                        <TooltipContent side="right" className="font-medium text-xs">
-                          {item.name}
+                        <TooltipContent side="right" className="font-medium text-xs flex items-center gap-1.5">
+                          <span>{item.name}</span>
+                          {item.shortcut && (
+                            <kbd className="px-1 py-0.5 rounded text-[10px] font-mono font-medium text-muted-foreground bg-muted border border-border/50">
+                              {item.shortcut}
+                            </kbd>
+                          )}
                         </TooltipContent>
                       </Tooltip>
                     );
