@@ -2034,7 +2034,9 @@ export function POSTerminal() {
                     className="h-11 text-sm bg-background/50 border-border/80 rounded-lg shadow-2xs transition-all duration-200 focus:bg-background focus:border-primary focus:ring-1 focus:ring-primary/35 focus:shadow-[0_0_10px_rgba(20,184,166,0.16)] dark:focus:shadow-[0_0_12px_rgba(45,212,191,0.18)] focus-visible:bg-background focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/35 focus-visible:shadow-[0_0_10px_rgba(20,184,166,0.16)] dark:focus-visible:shadow-[0_0_12px_rgba(45,212,191,0.18)]"
                   />
                   {isSearching && (
-                    <Loader2 className="absolute right-14 top-1/2 -translate-y-1/2 size-4 text-primary animate-spin pointer-events-none" />
+                    <div className="pointer-events-none absolute inset-y-0 right-14 flex items-center">
+                      <Loader2 className="size-4 text-primary animate-spin" />
+                    </div>
                   )}
 
                   {/* Floating Spotlight Search Results Dropdown */}
