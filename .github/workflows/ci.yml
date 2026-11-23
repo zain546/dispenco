@@ -2,9 +2,9 @@ name: Continuous Integration (CI)
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, dev, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, dev, develop]
 
 jobs:
   validate:
@@ -13,14 +13,17 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
+
+    env:
+      DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 9
 
@@ -32,6 +35,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Build Shared Packages
+        run: pnpm --filter @dispenco/types build && pnpm --filter @dispenco/utils build
 
       - name: Generate Prisma Client Types
         run: pnpm --filter @dispenco/api exec prisma generate
