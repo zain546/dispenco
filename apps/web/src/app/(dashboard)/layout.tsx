@@ -167,100 +167,108 @@ export default function DashboardLayout({
       return Boolean((permissions as any)[item.permission]);
     });
 
-  const renderNavLinks = (inMobile = false) => (
-    <nav className="flex flex-col gap-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
-      {NAV_GROUPS.map((group, gIdx) => {
-        const visibleItems = filterNavItems(group.items);
-        if (visibleItems.length === 0) return null;
+  const renderNavLinks = (inMobile = false) => {
+    const isCollapsedNav = isCollapsed && !inMobile;
 
-        const isCollapsedNav = isCollapsed && !inMobile;
+    return (
+      <nav className="flex flex-col gap-2.5 overflow-y-auto flex-1 scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {NAV_GROUPS.map((group, gIdx) => {
+          const visibleItems = filterNavItems(group.items);
+          if (visibleItems.length === 0) return null;
 
-        return (
-          <div key={group.label} className="space-y-1">
-            {!isCollapsedNav ? (
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 px-3 py-1 select-none">
-                {group.label}
-              </div>
-            ) : gIdx > 0 ? (
-              <div className="my-1 border-t border-sidebar-border/60 mx-2" />
-            ) : null}
+          return (
+            <div key={group.label} className="space-y-1">
+              {!isCollapsedNav ? (
+                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 px-3 py-1 select-none">
+                  {group.label}
+                </div>
+              ) : gIdx > 0 ? (
+                <div className="my-1 border-t border-sidebar-border/60 mx-2" />
+              ) : null}
 
-            <div className="flex flex-col gap-0.5">
-              {visibleItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+              <div className="flex flex-col gap-0.5">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-                const navLink = (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => inMobile && setMobileOpen(false)}
-                    className={cn(
-                      'flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150',
-                      isCollapsedNav ? 'justify-center px-0 h-9' : 'justify-start h-9',
-                      isActive
-                        ? 'bg-primary/15 text-primary border border-primary/25 shadow-xs dark:bg-white/[0.08] dark:text-white dark:border-white/10 font-semibold'
-                        : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground border border-transparent'
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0" />
-                    {!isCollapsedNav && <span className="truncate">{item.name}</span>}
-                  </Link>
-                );
-
-                if (isCollapsedNav) {
-                  return (
-                    <Tooltip key={item.href}>
-                      <TooltipTrigger asChild>{navLink}</TooltipTrigger>
-                      <TooltipContent side="right" className="font-medium text-xs">
-                        {item.name}
-                      </TooltipContent>
-                    </Tooltip>
+                  const navLink = (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => inMobile && setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150',
+                        isCollapsedNav ? 'justify-center px-0 h-9' : 'justify-start h-9',
+                        isActive
+                          ? 'bg-primary/15 text-primary border border-primary/25 shadow-xs dark:bg-white/[0.08] dark:text-white dark:border-white/10 font-semibold'
+                          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground border border-transparent'
+                      )}
+                    >
+                      <Icon className="size-4 shrink-0" />
+                      {!isCollapsedNav && <span className="truncate">{item.name}</span>}
+                    </Link>
                   );
-                }
 
-                return navLink;
-              })}
+                  if (isCollapsedNav) {
+                    return (
+                      <Tooltip key={item.href}>
+                        <TooltipTrigger asChild>{navLink}</TooltipTrigger>
+                        <TooltipContent side="right" className="font-medium text-xs">
+                          {item.name}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
+
+                  return navLink;
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
-    </nav>
-  );
+          );
+        })}
+      </nav>
+    );
+  };
 
   return (
     <ProtectedRoute><TooltipProvider delayDuration={100}>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex h-screen w-full overflow-hidden bg-background">
         {/* Desktop Collapsible Sidebar (Hidden on Mobile/Tablet < lg) */}
         <aside
           className={cn(
-            'hidden lg:flex h-screen sticky top-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col justify-between p-3.5 shrink-0 z-30 transition-all duration-300 ease-in-out',
+            'hidden lg:flex h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex-col justify-between p-3.5 shrink-0 z-30 transition-all duration-300 ease-in-out relative',
             isCollapsed ? 'w-20' : 'w-64'
           )}
         >
+          {/* Edge Toggle Button: mounted on the common line between sidebar and body, vertically centered with the logo */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="absolute -right-3 top-[22px] z-40 size-6 rounded-full border border-sidebar-border bg-sidebar hover:bg-sidebar-accent text-sidebar-foreground shadow-xs flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            aria-label={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="size-3.5" />
+            ) : (
+              <ChevronLeft className="size-3.5" />
+            )}
+          </Button>
+
           {/* Top Section: Brand Header & Nav */}
           <div className="flex flex-col flex-1 min-h-0">
             {/* Header / Brand */}
             {isCollapsed ? (
-              <div className="pb-3 border-b border-sidebar-border flex flex-col items-center gap-2 shrink-0">
+              <div className="pb-3 border-b border-sidebar-border flex items-center justify-center shrink-0">
                 <Link href="/dashboard" aria-label="Dispenco Dashboard">
                   <DispencoMark className="size-10 rounded-xl" />
                 </Link>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
-                  aria-label="Expand Sidebar"
-                  title="Expand Sidebar"
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
               </div>
             ) : (
-              <div className="pb-3 border-b border-sidebar-border flex items-center justify-between gap-2 shrink-0">
+              <div className="pb-3 border-b border-sidebar-border flex items-center justify-between gap-2 shrink-0 pr-2">
                 <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
                   <DispencoMark className="size-10 rounded-xl" />
                   <div className="min-w-0 flex-1">
@@ -272,17 +280,6 @@ export default function DashboardLayout({
                     </span>
                   </div>
                 </Link>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  className="size-7.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-sidebar-accent shrink-0"
-                  aria-label="Collapse Sidebar"
-                  title="Collapse Sidebar"
-                >
-                  <ChevronLeft className="size-3.5" />
-                </Button>
               </div>
             )}
 
@@ -368,7 +365,7 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main Content Container */}
-        <div className="flex-1 flex flex-col min-w-0 bg-background">
+        <div className="flex-1 flex flex-col h-full min-w-0 bg-background overflow-hidden">
           {/* Top Header */}
           <header className="h-14 bg-background/80 backdrop-blur-md border-b border-border/70 flex items-center justify-between px-3 sm:px-6 shrink-0 gap-2 z-20">
             <div className="flex items-center gap-2 min-w-0 flex-1 max-w-[calc(100%-115px)] sm:max-w-none">
@@ -438,7 +435,7 @@ export default function DashboardLayout({
           <SubscriptionBanner />
 
           {/* Page View Body */}
-          <main className="flex-1 p-4 sm:p-6 lg:p-7 max-w-[1600px] w-full mx-auto overflow-y-auto">{children}</main>
+          <main className="flex-1 min-h-0 p-4 sm:p-6 lg:p-7 max-w-[1600px] w-full mx-auto overflow-y-auto">{children}</main>
 
           {/* Floating AI Assistant Widget (Available Globally across all Dashboard Screens) */}
           <AiAssistantWidget />

@@ -586,7 +586,9 @@ export const ScannerInput = React.forwardRef<HTMLInputElement, ScannerInputProps
                   className
                 )}
               />
-              <QrCode className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none opacity-60" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+                <QrCode className="size-4 text-muted-foreground opacity-60" />
+              </div>
             </div>
 
             {showCameraToggle && (
