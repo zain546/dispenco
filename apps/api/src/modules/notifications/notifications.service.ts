@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagingProvider } from './providers/messaging.provider';
+import { EmailProvider } from './providers/email.provider';
 import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
@@ -10,9 +11,17 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly messagingProvider: MessagingProvider,
+    private readonly emailProvider: EmailProvider,
     @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
   ) {}
+
+  /**
+   * Dispatches a transactional email (e.g., invoices, alerts, password resets)
+   */
+  async sendEmail(to: string | string[], subject: string, html: string) {
+    return this.emailProvider.sendEmail({ to, subject, html });
+  }
 
   async createLowStockNotifications(
     tenantId: string,
