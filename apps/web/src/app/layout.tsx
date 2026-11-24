@@ -23,9 +23,45 @@ const inter = localFont({
 // (favicon.ico, icon.svg, icon1.png, apple-icon.png, opengraph-image.png, manifest.ts).
 export const metadata: Metadata = {
   metadataBase: new URL('https://dispenco.com'),
-  title: 'Dispenco — Modern Pharmacy Management',
-  description: 'Modern inventory and business management for pharmacies and medical stores.',
+  title: {
+    default: 'Dispenco — Pharmacy Inventory & POS Billing Software',
+    template: '%s | Dispenco',
+  },
+  description:
+    'All-in-one pharmacy management software in Pakistan. FEFO batch expiry tracking, high-speed barcode POS, Khata ledger accounting, purchases, and multi-branch control.',
   applicationName: 'Dispenco',
+  keywords: [
+    'pharmacy software Pakistan',
+    'medical store software',
+    'pharmacy management system',
+    'pharmacy POS billing software',
+    'medicine inventory software',
+    'expiry date tracking pharmacy',
+    'medical store billing software',
+    'pharmacy Khata ledger',
+    'Dispenco pharmacy',
+  ],
+  authors: [{ name: 'Dispenco Team', url: 'https://dispenco.com' }],
+  creator: 'Dispenco',
+  publisher: 'Dispenco',
+  alternates: {
+    canonical: 'https://dispenco.com',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_PK',
+    url: 'https://dispenco.com',
+    siteName: 'Dispenco',
+    title: 'Dispenco — Pharmacy Inventory & POS Billing Software',
+    description:
+      'All-in-one pharmacy management software in Pakistan. FEFO batch expiry tracking, high-speed barcode POS, Khata ledger, and multi-store control.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Dispenco — Pharmacy Inventory & POS Billing Software',
+    description:
+      'All-in-one pharmacy management software in Pakistan. FEFO batch expiry tracking, barcode POS, Khata ledger, and multi-store management.',
+  },
   appleWebApp: { title: 'Dispenco', capable: true, statusBarStyle: 'default' },
 };
 
