@@ -101,7 +101,7 @@ export default function CustomerKhataLedgerPage() {
           <div className="space-y-1 text-center sm:text-left">
             <h3 className="text-xl font-bold sm:text-2xl">Take control of your customer credit today</h3>
             <p className="text-sm text-primary-foreground/80">
-              Start your 14-day free trial. We will help you migrate your existing paper registers.
+              Start your 30-day free trial. We will help you migrate your existing paper registers.
             </p>
           </div>
           <Link

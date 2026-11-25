@@ -101,7 +101,7 @@ export default function BatchExpiryTrackingPage() {
           <div className="space-y-1 text-center sm:text-left">
             <h3 className="text-xl font-bold sm:text-2xl">Ready to protect your pharmacy inventory?</h3>
             <p className="text-sm text-primary-foreground/80">
-              Start your 14-day free trial today. We will migrate your existing stock list for free.
+              Start your 30-day free trial today. We will migrate your existing stock list for free.
             </p>
           </div>
           <Link

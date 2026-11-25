@@ -101,7 +101,7 @@ export default function PharmacyPosBillingPage() {
           <div className="space-y-1 text-center sm:text-left">
             <h3 className="text-xl font-bold sm:text-2xl">Upgrade your counter speed today</h3>
             <p className="text-sm text-primary-foreground/80">
-              Only Rs. 1,500/month per store. Free 14-day trial with full barcode POS capabilities.
+              Only Rs. 1,500/month per store. Free 30-day trial with full barcode POS capabilities.
             </p>
           </div>
           <Link
