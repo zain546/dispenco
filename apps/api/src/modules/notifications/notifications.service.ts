@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException, Inject, for
 import { PrismaService } from '../prisma/prisma.service';
 import { MessagingProvider } from './providers/messaging.provider';
 import { EmailProvider } from './providers/email.provider';
+import { EmailTemplatesService } from './services/email-templates.service';
 import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly messagingProvider: MessagingProvider,
     private readonly emailProvider: EmailProvider,
+    private readonly emailTemplatesService: EmailTemplatesService,
     @Inject(forwardRef(() => JobsService))
     private readonly jobsService: JobsService,
   ) {}
@@ -21,6 +23,40 @@ export class NotificationsService {
    */
   async sendEmail(to: string | string[], subject: string, html: string) {
     return this.emailProvider.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * Sends a styled Welcome & Onboarding email to new pharmacy owners
+   */
+  async sendWelcomeEmail(to: string, ownerName: string, storeName: string) {
+    const { subject, html } = this.emailTemplatesService.getWelcomeEmail(ownerName, storeName);
+    return this.sendEmail(to, subject, html);
+  }
+
+  /**
+   * Sends a styled Password Reset email
+   */
+  async sendPasswordResetEmail(to: string, userName: string, resetUrl: string) {
+    const { subject, html } = this.emailTemplatesService.getPasswordResetEmail(userName, resetUrl);
+    return this.sendEmail(to, subject, html);
+  }
+
+  /**
+   * Sends a styled Monthly Subscription Payment Receipt
+   */
+  async sendPaymentReceiptEmail(
+    to: string,
+    options: {
+      ownerName: string;
+      storeName: string;
+      invoiceNumber: string;
+      amountPkr: number;
+      billingPeriod: string;
+      receiptUrl?: string;
+    },
+  ) {
+    const { subject, html } = this.emailTemplatesService.getPaymentReceiptEmail(options);
+    return this.sendEmail(to, subject, html);
   }
 
   async createLowStockNotifications(
