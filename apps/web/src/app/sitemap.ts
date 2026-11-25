@@ -13,6 +13,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     ...[
+      '/features/batch-expiry-tracking',
+      '/features/pharmacy-pos-billing',
+      '/features/customer-khata-ledger',
       '/contact',
       '/support',
       '/privacy',
@@ -21,8 +24,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ].map((path) => ({
       url: `${marketingConfig.url}${path}`,
       lastModified,
-      changeFrequency: 'monthly' as const,
-      priority: path.startsWith('/support/') ? 0.7 : 0.6,
+      changeFrequency: path.startsWith('/features/') ? ('weekly' as const) : ('monthly' as const),
+      priority: path.startsWith('/features/') ? 0.9 : path.startsWith('/support/') ? 0.7 : 0.6,
     })),
   ];
 }
