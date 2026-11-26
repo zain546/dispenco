@@ -4,10 +4,10 @@
  * Handles:
  * 1. Explicit multi-unit pack configurations (`packSize > 1`) with `unitType` ('UNIT' vs 'BOX'/'PACK'),
  *    including legacy pre-unitType sales where `unitType` defaulted to 'PACK' (`stockDeducted === 0`).
- * 2. Pack-vs-Piece catalog mismatch guardrail: when a product has `packSize <= 1` (e.g. `unit = 'Piece'`)
- *    and a healthy batch margin (`0 < batchCost <= batchSell`), yet a batch's `costPrice` & `sellPrice`
- *    were entered for a full multi-unit box (`N >= 4` tablets/capsules) while POS dispensed single units
- *    at `batchSell / N` (e.g. `sellPrice = 450`, `costPrice = 369`, dispensed at `unitPrice = 15` -> `N = 30`).
+ * 2. Verified multi-unit acquisition / legacy-data pack corrections (`packSize <= 1`):
+ *    divides `batchCost` only when explicit `acquisitionPackSize > 1` metadata on the batch or
+ *    product confirms a multi-unit pack acquisition, preserving full cost for genuine deeply
+ *    discounted single-item sales (including sale-price ratios >= 4).
  */
 
 export interface CogsItemInput {
@@ -15,7 +15,11 @@ export interface CogsItemInput {
   unitType?: string | null;
   stockDeducted?: number | null;
   unitPrice: unknown;
-  batch?: { costPrice: unknown; sellPrice: unknown } | null;
+  batch?: {
+    costPrice: unknown;
+    sellPrice: unknown;
+    acquisitionPackSize?: unknown;
+  } | null;
   product?: { unit?: string | null; attributes?: unknown } | null;
 }
 
@@ -63,23 +67,25 @@ export function computeEffectiveUnitCost(item: Omit<CogsItemInput, 'quantity'> &
     return batchCost;
   }
 
-  // 2. Pack-vs-Piece mismatch guardrail (`packSize <= 1`):
-  // Protects reports & anomaly scans when a batch's costPrice/sellPrice were entered for a full box
-  // (e.g. Box of 30 @ 450 MRP / 369 cost) on a product whose unit was left as 'Piece' (`packSize = 1`),
-  // while the counter dispensed single units at `batchSell / N` (e.g. 15 PKR/tablet).
-  if (
-    batchSell > 0 &&
-    batchCost <= batchSell &&
-    unitPrice > 0 &&
-    unitPrice < batchCost
-  ) {
-    const impliedPackRatio = batchSell / unitPrice;
-    const inferredPackSize = Math.round(impliedPackRatio);
-    if (
-      inferredPackSize >= 4 &&
-      Math.abs(batchSell - unitPrice * inferredPackSize) / batchSell <= 0.03
-    ) {
-      return batchCost / inferredPackSize;
+  // 2. Verified multi-unit acquisition or explicit legacy-data pack correction (`packSize <= 1`):
+  // Never infer multi-unit acquisition from sale-price ratio alone, so genuine deeply discounted
+  // single items (including ratios >= 4) preserve their full acquisition cost.
+  const rawAcquisitionPackSize = Number(
+    item.batch?.acquisitionPackSize ?? attrs.acquisitionPackSize ?? 0,
+  );
+  const verifiedAcquisitionPackSize = Number.isFinite(rawAcquisitionPackSize)
+    ? Math.trunc(rawAcquisitionPackSize)
+    : 0;
+
+  if (verifiedAcquisitionPackSize > 1) {
+    if (unitType === 'UNIT') {
+      return batchCost / verifiedAcquisitionPackSize;
+    }
+    if (batchSell > 0 && unitPrice > 0) {
+      const singleUnitSellPrice = batchSell / verifiedAcquisitionPackSize;
+      if (Math.abs(unitPrice - singleUnitSellPrice) < Math.abs(unitPrice - batchSell)) {
+        return batchCost / verifiedAcquisitionPackSize;
+      }
     }
   }
 
@@ -87,14 +93,16 @@ export function computeEffectiveUnitCost(item: Omit<CogsItemInput, 'quantity'> &
 }
 
 /**
- * Computes total COGS (rounded to 2 decimal places) for `item.quantity` dispensed units.
+ * Computes total COGS (rounded to 2 decimal places) for dispensed units.
+ * Derives unit cost from the original `item` (`item.quantity` & `item.stockDeducted`),
+ * then scales by `netQuantity` (defaults to `item.quantity`).
  */
-export function computeSaleItemCost(item: CogsItemInput): number {
-  const qty = Number(item.quantity ?? 0);
-  if (!Number.isFinite(qty) || qty <= 0) return 0;
+export function computeSaleItemCost(item: CogsItemInput, netQuantity?: number): number {
+  const effectiveQty = Number(netQuantity ?? item.quantity ?? 0);
+  if (!Number.isFinite(effectiveQty) || effectiveQty <= 0) return 0;
 
   const effectiveUnitCost = computeEffectiveUnitCost(item);
   if (effectiveUnitCost <= 0) return 0;
 
-  return Number((effectiveUnitCost * qty).toFixed(2));
+  return Number((effectiveUnitCost * effectiveQty).toFixed(2));
 }

@@ -166,6 +166,27 @@ function isInsideSupportsRule(node) {
   return false;
 }
 
+function isFeatureSupportEstablished(node, prop) {
+  const propConditionRe = new RegExp(`\\(\\s*${prop}\\s*:`, 'i');
+  const negatedPropRe = new RegExp(`\\bnot\\s*\\([^)]*\\b${prop}\\s*:`, 'i');
+  let cur = node.parent;
+  while (cur) {
+    if (cur.type === 'atrule' && cur.name.toLowerCase() === 'supports') {
+      const params = (cur.params || '').trim();
+      if (
+        propConditionRe.test(params) &&
+        !negatedPropRe.test(params) &&
+        !/^\s*not\b/i.test(params) &&
+        !/\bor\b/i.test(params)
+      ) {
+        return true;
+      }
+    }
+    cur = cur.parent;
+  }
+  return false;
+}
+
 function dispencoLegacyBrowserCompat() {
   return {
     postcssPlugin: 'dispenco-legacy-browser-compat',
@@ -345,46 +366,107 @@ function dispencoLegacyBrowserCompat() {
       });
 
       // 5. Add standard `transform` fallbacks ONLY for legacy browsers without `translate`/`rotate`/`scale` (Chrome <= 103).
-      // Applying both `transform: translate(...)` and `translate: ...` simultaneously in modern browsers doubles the offset!
+      // Emit `@supports not (...) { <selector> { transform: ... } }` as a sibling rule rather than nested
+      // inside `rule`, so pre-CSS-nesting browsers (Chrome <= 103) apply the fallback while modern browsers
+      // skip it without doubling the offset.
+      const processedTransformRules = new WeakSet();
       root.walkDecls(/^(translate|rotate|scale)$/, (decl) => {
-        if (isInsideSupportsRule(decl)) return;
         const rule = decl.parent;
-        if (!rule || rule.type !== 'rule') return;
+        if (!rule || rule.type !== 'rule' || processedTransformRules.has(rule)) return;
+        processedTransformRules.add(rule);
+
         let hasTransform = false;
-        rule.walkDecls('transform', () => {
-          hasTransform = true;
+        const propDecls = { translate: null, rotate: null, scale: null };
+        rule.each((child) => {
+          if (child.type !== 'decl') return;
+          if (child.prop === 'transform') {
+            hasTransform = true;
+          } else if (
+            (child.prop === 'translate' || child.prop === 'rotate' || child.prop === 'scale') &&
+            !isFeatureSupportEstablished(child, child.prop)
+          ) {
+            propDecls[child.prop] = child;
+          }
         });
         if (hasTransform) return;
 
-        let transformValue = null;
-        let supportsCondition = '(translate: 0)';
-        if (decl.prop === 'translate') {
-          const parts = decl.value.trim().split(/\s+/);
-          if (parts.length === 2) {
-            transformValue = `translate(${parts[0]}, ${parts[1]})`;
+        const transformParts = [];
+        const supportsConditions = [];
+        let isImportant = false;
+        let hasNone = false;
+
+        if (propDecls.translate) {
+          const raw = propDecls.translate.value.trim();
+          const parts = raw.split(/\s+/);
+          let fn = null;
+          if (raw === 'none') {
+            hasNone = true;
+          } else if (parts.length === 2) {
+            fn = `translate(${parts[0]}, ${parts[1]})`;
           } else if (parts.length === 1) {
-            transformValue = `translate(${parts[0]})`;
+            fn = `translate(${parts[0]})`;
           }
-        } else if (decl.prop === 'rotate') {
-          supportsCondition = '(rotate: 0deg)';
-          transformValue = `rotate(${decl.value.trim()})`;
-        } else if (decl.prop === 'scale') {
-          supportsCondition = '(scale: 1)';
-          const parts = decl.value.trim().split(/\s+/);
-          if (parts.length === 2) {
-            transformValue = `scale(${parts[0]}, ${parts[1]})`;
-          } else if (parts.length === 1) {
-            transformValue = `scale(${parts[0]})`;
+          if (fn || raw === 'none') {
+            if (fn) transformParts.push(fn);
+            supportsConditions.push('(translate: 0)');
+            if (propDecls.translate.important) isImportant = true;
           }
         }
 
-        if (transformValue) {
+        if (propDecls.rotate) {
+          const raw = propDecls.rotate.value.trim();
+          const parts = raw.split(/\s+/);
+          if (raw === 'none') {
+            hasNone = true;
+            supportsConditions.push('(rotate: 0deg)');
+            if (propDecls.rotate.important) isImportant = true;
+          } else if (parts.length === 1 && raw) {
+            transformParts.push(`rotate(${raw})`);
+            supportsConditions.push('(rotate: 0deg)');
+            if (propDecls.rotate.important) isImportant = true;
+          }
+        }
+
+        if (propDecls.scale) {
+          const raw = propDecls.scale.value.trim();
+          const parts = raw.split(/\s+/);
+          let fn = null;
+          if (raw === 'none') {
+            hasNone = true;
+          } else if (parts.length === 2) {
+            fn = `scale(${parts[0]}, ${parts[1]})`;
+          } else if (parts.length === 1) {
+            fn = `scale(${parts[0]})`;
+          }
+          if (fn || raw === 'none') {
+            if (fn) transformParts.push(fn);
+            supportsConditions.push('(scale: 1)');
+            if (propDecls.scale.important) isImportant = true;
+          }
+        }
+
+        const transformValue =
+          transformParts.length > 0 ? transformParts.join(' ') : hasNone ? 'none' : null;
+
+        if (transformValue && supportsConditions.length > 0) {
+          const params =
+            supportsConditions.length === 1
+              ? `not ${supportsConditions[0]}`
+              : `not (${supportsConditions.join(' and ')})`;
+          const fallbackRule = postcss.rule({ selector: rule.selector });
+          fallbackRule.append(
+            postcss.decl({
+              prop: 'transform',
+              value: transformValue,
+              important: isImportant,
+            })
+          );
           const sup = postcss.atRule({
             name: 'supports',
-            params: `not ${supportsCondition}`,
+            params,
           });
-          sup.append(postcss.decl({ prop: 'transform', value: transformValue }));
-          rule.append(sup);
+          sup.append(fallbackRule);
+          rule.after(sup);
         }
       });
 

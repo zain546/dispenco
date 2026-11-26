@@ -33,16 +33,22 @@ describe('COGS Accounting Guardrails (computeEffectiveUnitCost & computeSaleItem
     assert.equal(cost, 65.6); // 328 / 50 * 10 = 65.60
   });
 
-  test('2. Explicit full BOX sale uses full batch cost even when discounted', () => {
-    const cost = computeSaleItemCost({
+  test('2. Explicit full BOX sale uses full batch cost even when discounted or partially returned', () => {
+    const saleItem = {
       quantity: 2,
       unitType: 'BOX',
       stockDeducted: 2,
-      unitPrice: 120, // heavily discounted box price
+      unitPrice: 120, // heavily discounted box price (closer to 300/10=30 than 300)
       batch: { costPrice: 200, sellPrice: 300 },
       product: { unit: 'Box', attributes: { packSize: 10 } },
-    });
-    assert.equal(cost, 400); // 2 full boxes * 200 = 400
+    };
+    assert.equal(computeSaleItemCost(saleItem), 400); // 2 full boxes * 200 = 400
+
+    // Partial return (1 of 2 boxes returned -> netQuantity = 1):
+    // Must keep original quantity=2 for unit-cost inference (200), not fall through to 20!
+    assert.equal(computeEffectiveUnitCost(saleItem), 200);
+    assert.equal(computeSaleItemCost(saleItem, 1), 200);
+    assert.equal(computeSaleItemCost(saleItem, 0), 0);
   });
 
   test('3. Legacy PACK sale (stockDeducted=0) infers loose units when unitPrice matches 1/packSize MRP', () => {
@@ -58,31 +64,57 @@ describe('COGS Accounting Guardrails (computeEffectiveUnitCost & computeSaleItem
     assert.equal(cost, 229.6); // 492 / 30 * 14 = 229.60 (not 6,888!)
   });
 
-  test('4. Pack-vs-Piece mismatch guardrail fixes box prices stored on Piece products (Dicloran 50mg & Inderal 10mg)', () => {
-    // Real production case 1: tab Dicloran 50mg (packSize=1, batchCost=369, batchSell=450, sold 14 @ 15)
+  test('4. Verified acquisitionPackSize converts box-priced batches on Piece products while leaving piece-priced batches intact', () => {
+    // Explicit batch-level or attribute-level verified acquisitionPackSize=30
     const dicloranCost = computeSaleItemCost({
       quantity: 14,
       unitType: 'PACK',
       stockDeducted: 0,
       unitPrice: 15,
-      batch: { costPrice: 369, sellPrice: 450 },
+      batch: { costPrice: 369, sellPrice: 450, acquisitionPackSize: 30 },
       product: { unit: 'Piece', attributes: { packSize: 1, dosageForm: 'Tablet' } },
     });
-    assert.equal(dicloranCost, 172.2); // 369 / 30 * 14 = 172.20 (instead of 5,166.00!)
+    assert.equal(dicloranCost, 172.2); // 369 / 30 * 14 = 172.20
 
-    // Real production case 2: Tab Inderal 10mg (packSize=1, batchCost=205, batchSell=250, sold 14 @ 5)
     const inderalCost = computeSaleItemCost({
       quantity: 14,
       unitType: 'BOX',
       stockDeducted: 14,
       unitPrice: 5,
       batch: { costPrice: 205, sellPrice: 250 },
-      product: { unit: 'Piece', attributes: { packSize: 1, dosageForm: 'Tablet' } },
+      product: {
+        unit: 'Piece',
+        attributes: { packSize: 1, acquisitionPackSize: 50, dosageForm: 'Tablet' },
+      },
     });
-    assert.equal(inderalCost, 57.4); // 205 / 50 * 14 = 57.40 (instead of 2,870.00!)
+    assert.equal(inderalCost, 57.4); // 205 / 50 * 14 = 57.40
+
+    // Subsequent batch already entered per-piece (cost=12, sell=15) on same product preserves 12/unit
+    const correctedBatchCost = computeEffectiveUnitCost({
+      quantity: 10,
+      unitType: 'PACK',
+      unitPrice: 15,
+      batch: { costPrice: 12, sellPrice: 15 },
+      product: {
+        unit: 'Piece',
+        attributes: { packSize: 1, acquisitionPackSize: 30, dosageForm: 'Tablet' },
+      },
+    });
+    assert.equal(correctedBatchCost, 12);
   });
 
-  test('5. Preserves genuine below-cost or discounted single-item sales without false division', () => {
+  test('5. Preserves full cost on genuine discounted or below-cost single-item sales (including ratios >= 4)', () => {
+    // Deeply discounted single Bottle (ratio = 265 / 53 = 5 >= 4, no verified multi-unit pack):
+    // Must preserve full 226 acquisition cost rather than inferring 5 units (45.20)!
+    const deepDiscountBottleCost = computeEffectiveUnitCost({
+      quantity: 1,
+      unitType: 'PACK',
+      unitPrice: 53,
+      batch: { costPrice: 226, sellPrice: 265 },
+      product: { unit: 'Bottle', attributes: { packSize: 1 } },
+    });
+    assert.equal(deepDiscountBottleCost, 226);
+
     // Real production case: syrup Mucaine (batchCost=226, batchSell=265, sold 1 @ 212)
     const mucaineUnitCost = computeEffectiveUnitCost({
       quantity: 1,
@@ -93,7 +125,7 @@ describe('COGS Accounting Guardrails (computeEffectiveUnitCost & computeSaleItem
     });
     assert.equal(mucaineUnitCost, 226);
 
-    // Real production case: syringe 3cc (batchCost=16.40, batchSell=20, sold 1 @ 10 — 50% discount, ratio=2 < 4)
+    // Real production case: syringe 3cc (batchCost=16.40, batchSell=20, sold 1 @ 10 — 50% discount)
     const syringeUnitCost = computeEffectiveUnitCost({
       quantity: 1,
       unitType: 'PACK',

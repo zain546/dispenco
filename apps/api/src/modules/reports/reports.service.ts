@@ -4,7 +4,7 @@ import { RedisCacheService } from '../cache/redis-cache.service';
 import { GetSalesReportDto, GroupByFrequency } from './dto/get-sales-report.dto';
 import { GetOrgOverviewDto } from './dto/get-org-overview.dto';
 import { SaleStatus } from '@prisma/client';
-import { computeSaleItemCost, type CogsItemInput } from '../../common/utils/cogs.util';
+import { computeEffectiveUnitCost, type CogsItemInput } from '../../common/utils/cogs.util';
 
 @Injectable()
 export class ReportsService {
@@ -14,12 +14,15 @@ export class ReportsService {
   ) {}
 
   /**
-   * Computes accurate Cost of Goods Sold (COGS) for a sale line item,
-   * automatically accounting for pack-level vs loose single-unit dispensing
-   * as well as pack-vs-piece batch price mismatches.
+   * Computes accurate Cost of Goods Sold (COGS) for a sale line item.
+   * Derives unit cost from the original sale item (preserving `quantity` vs `stockDeducted`),
+   * then scales by `netQuantity` after returns.
    */
-  private computeItemCost(item: CogsItemInput): number {
-    return computeSaleItemCost(item);
+  private computeItemCost(item: CogsItemInput, netQuantity: number): number {
+    if (!Number.isFinite(netQuantity) || netQuantity <= 0) return 0;
+    const unitCost = computeEffectiveUnitCost(item);
+    if (unitCost <= 0) return 0;
+    return Number((unitCost * netQuantity).toFixed(2));
   }
 
   private parseDateBoundary(dateStr: string | undefined, isEnd: boolean, defaultDaysAgo = 0): Date {
@@ -160,7 +163,7 @@ export class ReportsService {
         const itemNetTax = si.quantity > 0 ? Number(si.taxApplied || 0) * (netQuantity / si.quantity) : 0;
         netSaleTax += itemNetTax;
         totalItemsSold += netQuantity;
-        totalCost += this.computeItemCost({ ...si, quantity: netQuantity });
+        totalCost += this.computeItemCost(si, netQuantity);
       });
       totalTax += Number(netSaleTax.toFixed(2));
     });
@@ -211,7 +214,7 @@ export class ReportsService {
           const itemNetTax = si.quantity > 0 ? Number(si.taxApplied || 0) * (netQty / si.quantity) : 0;
           netStoreSaleTax += itemNetTax;
           storeItemsSold += netQty;
-          storeCost += this.computeItemCost({ ...si, quantity: netQty });
+          storeCost += this.computeItemCost(si, netQty);
         });
         storeTax += Number(netStoreSaleTax.toFixed(2));
       });
@@ -492,7 +495,7 @@ export class ReportsService {
           : 0;
         saleTax += netItemTax;
 
-        const itemCost = this.computeItemCost({ ...item, quantity: netQuantity });
+        const itemCost = this.computeItemCost(item, netQuantity);
         const itemProfit = Number((netItemRev - itemCost).toFixed(2));
 
         saleCost += itemCost;
