@@ -4,11 +4,12 @@ import { BillingController } from './billing.controller';
 import { SubscriptionService } from './subscription.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { SafepayService } from './safepay.service';
 import { SubscriptionGuard } from './guards/subscription.guard';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, NotificationsModule],
   controllers: [BillingController],
   providers: [
     SubscriptionService,

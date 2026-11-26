@@ -1,5 +1,5 @@
 import { STARTER_PLAN } from '@dispenco/types';
-import { Injectable, Optional, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, Optional, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Response, Request } from 'express';
@@ -7,6 +7,7 @@ import * as bcrypt from 'bcryptjs';
 import { ALL_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS } from '@dispenco/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisCacheService } from '../cache/redis-cache.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { SignupDto } from './dtos/signup.dto';
 import { LoginDto } from './dtos/login.dto';
 import { sessionProfile, sessionUserInclude } from './session-user';
@@ -14,11 +15,14 @@ import { JwtPayload, AuthenticatedUser } from './interfaces/jwt-payload.interfac
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     @Optional() private readonly cache?: RedisCacheService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   async signup(dto: SignupDto, res: Response) {
@@ -154,6 +158,17 @@ export class AuthService {
 
     const { accessToken, refreshToken } = this.generateTokens(payload);
     this.setAuthCookies(res, accessToken, refreshToken);
+
+    // Non-blocking welcome email so signup never fails if email delivery has a transient error
+    this.notifications
+      ?.sendWelcomeEmail(
+        result.user.email,
+        result.user.name,
+        result.store?.name || result.tenant.name,
+      )
+      .catch((err) =>
+        this.logger.warn(`Failed to send welcome email to ${result.user.email}: ${err?.message || err}`),
+      );
 
     return {
       success: true,

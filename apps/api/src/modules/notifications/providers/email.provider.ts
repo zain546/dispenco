@@ -58,7 +58,10 @@ export class EmailProvider {
         to: Array.isArray(options.to) ? options.to : [options.to],
         subject: options.subject,
         html: options.html,
-        replyTo: options.replyTo,
+        replyTo:
+          options.replyTo ||
+          this.config.get<string>('RESEND_REPLY_TO') ||
+          'dispenco@gmail.com',
       });
 
       if (response.error) {
