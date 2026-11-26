@@ -10,18 +10,14 @@ export function LegalPage({ kind }: { kind: keyof typeof legalDocuments }) {
 
   return (
     <PublicPage narrow eyebrow="Legal" title={document.title} description={document.description}>
-      <div className="mb-8 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+      <div className="mb-10 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span className="rounded-full border bg-muted/30 px-3 py-1 font-medium text-foreground">
-          Provisional document
+          Effective
         </span>
         <span>
-          Draft updated <time dateTime={legalDraftUpdated.date}>{legalDraftUpdated.label}</time>
+          Last updated <time dateTime={legalDraftUpdated.date}>{legalDraftUpdated.label}</time>
         </span>
       </div>
-      <p className="mb-10 border-l-2 border-primary/30 pl-4 text-sm leading-7 text-muted-foreground">
-        This is a provisional document. It will be revised as Dispenco’s operational and legal
-        arrangements are finalized.
-      </p>
       <nav aria-label="On this page" className="mb-10 border-y py-5">
         <p className="mb-3 text-overline text-muted-foreground">On this page</p>
         <ol className="grid gap-x-6 gap-y-3 text-xs sm:grid-cols-2">

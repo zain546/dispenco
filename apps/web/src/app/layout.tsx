@@ -83,7 +83,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={cn('font-sans', inter.variable)}
     >
-      <body className="min-h-screen bg-background font-sans antialiased text-foreground">
+      <body
+        suppressHydrationWarning
+        className="min-h-screen bg-background font-sans antialiased text-foreground"
+      >
         <Script
           id="google-tag-manager"
           src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}`}

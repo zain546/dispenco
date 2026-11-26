@@ -831,7 +831,7 @@ export function ProductForm({
                 <div className="space-y-1.5 col-span-1">
                   <Label htmlFor="sellPrice" className="text-xs sm:text-sm flex items-center gap-1.5">
                     <DollarSign className="size-3.5 text-primary shrink-0" />
-                    <span>Retail Price (MRP)</span>
+                    <span>Retail Price (MRP per {selectedUnit})</span>
                     <RequiredStockIndicator control={control} />
                   </Label>
                   <Input
@@ -848,6 +848,17 @@ export function ProductForm({
                     <p className="text-xs text-destructive">{errors.sellPrice.message}</p>
                   )}
                 </div>
+
+                {!isMultiUnitPackage &&
+                  selectedCategory === 'TABLET_CAPSULE' &&
+                  Number(watch('sellPrice') || 0) >= 100 && (
+                    <div className="col-span-1 sm:col-span-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-foreground">
+                      <strong>Check unit vs. pack pricing:</strong> Base unit is set to{' '}
+                      <strong>{selectedUnit}</strong> (1 single tablet/capsule). Make sure Purchase &amp; Retail
+                      prices above are for <strong>1 single piece</strong> — or change Base Unit to{' '}
+                      <strong>Box / Strip</strong> if you are entering full-pack prices.
+                    </div>
+                  )}
 
                 {/* Retail POS Unit Conversion Breakdown Preview */}
                 <PosUnitBreakdown control={control} />
