@@ -40,7 +40,9 @@ export function DashboardPreview() {
             width={1900}
             height={1078}
             priority
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
+            fetchPriority="high"
+            quality={75}
+            sizes="(max-width: 640px) 640px, (max-width: 1280px) 92vw, 1152px"
             className="block h-auto w-full select-none dark:hidden"
           />
           <Image
@@ -48,8 +50,10 @@ export function DashboardPreview() {
             alt="Dispenco Pharmacy Overview dashboard with today's sales, low stock alerts, near-expiry tracking, recent receipts, and quick POS billing"
             width={1902}
             height={1078}
-            priority
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
+            loading="lazy"
+            fetchPriority="low"
+            quality={75}
+            sizes="(max-width: 640px) 640px, (max-width: 1280px) 92vw, 1152px"
             className="hidden h-auto w-full select-none dark:block"
           />
           {/* Subtle bottom fade into bezel for polished depth */}

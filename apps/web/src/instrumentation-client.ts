@@ -6,9 +6,17 @@ const posthogToken =
 const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
 
 if (typeof window !== 'undefined' && posthogToken) {
-  posthog.init(posthogToken, {
-    api_host: posthogHost,
-    defaults: '2026-08-30',
-    disable_session_recording: true,
-  });
+  const initPostHog = () => {
+    posthog.init(posthogToken, {
+      api_host: posthogHost,
+      defaults: '2026-08-30',
+      disable_session_recording: true,
+    });
+  };
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(initPostHog, { timeout: 2500 });
+  } else {
+    setTimeout(initPostHog, 1500);
+  }
 }

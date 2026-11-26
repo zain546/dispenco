@@ -4,7 +4,11 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   transpilePackages: ['@dispenco/ui', '@dispenco/types', '@dispenco/utils'],
   devIndicators: false,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
   experimental: {
+    inlineCss: true,
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
   },
   redirects() {
