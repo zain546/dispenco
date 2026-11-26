@@ -4,6 +4,7 @@ import { RedisCacheService } from '../cache/redis-cache.service';
 import { GetSalesReportDto, GroupByFrequency } from './dto/get-sales-report.dto';
 import { GetOrgOverviewDto } from './dto/get-org-overview.dto';
 import { SaleStatus } from '@prisma/client';
+import { computeSaleItemCost, type CogsItemInput } from '../../common/utils/cogs.util';
 
 @Injectable()
 export class ReportsService {
@@ -14,37 +15,11 @@ export class ReportsService {
 
   /**
    * Computes accurate Cost of Goods Sold (COGS) for a sale line item,
-   * automatically accounting for pack-level vs loose single-unit dispensing.
+   * automatically accounting for pack-level vs loose single-unit dispensing
+   * as well as pack-vs-piece batch price mismatches.
    */
-  private computeItemCost(item: {
-    quantity: number;
-    unitPrice: unknown;
-    batch?: { costPrice: unknown; sellPrice: unknown } | null;
-    product?: { attributes?: unknown } | null;
-  }): number {
-    const qty = Number(item.quantity ?? 0);
-    if (qty <= 0) return 0;
-
-    const batchCost = Number(item.batch?.costPrice ?? 0);
-    const batchSell = Number(item.batch?.sellPrice ?? 0);
-    const unitPrice = Number(item.unitPrice ?? 0);
-    const attrs = (item.product?.attributes as Record<string, unknown>) || {};
-    const packSize = Math.max(1, Number(attrs.packSize) || 1);
-
-    if (batchCost <= 0) return 0;
-
-    let effectiveUnitCost = batchCost;
-    if (packSize > 1 && batchSell > 0) {
-      const singleUnitSellPrice = batchSell / packSize;
-      // Determine whether this line item was dispensed as loose units vs full packs
-      if (Math.abs(unitPrice - singleUnitSellPrice) < Math.abs(unitPrice - batchSell)) {
-        effectiveUnitCost = batchCost / packSize;
-      }
-    } else if (packSize > 1 && batchCost > unitPrice && batchCost / packSize <= unitPrice) {
-      effectiveUnitCost = batchCost / packSize;
-    }
-
-    return Number((effectiveUnitCost * qty).toFixed(2));
+  private computeItemCost(item: CogsItemInput): number {
+    return computeSaleItemCost(item);
   }
 
   private parseDateBoundary(dateStr: string | undefined, isEnd: boolean, defaultDaysAgo = 0): Date {
@@ -128,7 +103,7 @@ export class ReportsService {
                 select: { costPrice: true, sellPrice: true },
               },
               product: {
-                select: { attributes: true },
+                select: { unit: true, attributes: true },
               },
             },
           },

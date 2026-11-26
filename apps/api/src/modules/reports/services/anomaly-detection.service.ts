@@ -11,6 +11,7 @@ import {
   UpdateAnomalyStatusDto,
   TriggerAnomalyScanDto,
 } from '../dto/anomaly.dtos';
+import { computeEffectiveUnitCost } from '../../../common/utils/cogs.util';
 
 @Injectable()
 export class AnomalyDetectionService {
@@ -346,7 +347,16 @@ export class AnomalyDetectionService {
 
     for (const item of saleItems) {
       const unitPrice = Number(item.unitPrice);
-      const costPrice = Number(item.batch.costPrice);
+      const costPrice = Number(
+        computeEffectiveUnitCost({
+          quantity: item.quantity,
+          unitType: item.unitType,
+          stockDeducted: item.stockDeducted,
+          unitPrice: item.unitPrice,
+          batch: item.batch,
+          product: item.product,
+        }).toFixed(2),
+      );
 
       if (costPrice > 0 && unitPrice < costPrice) {
         const marginDeficit = (costPrice - unitPrice) * item.quantity;
