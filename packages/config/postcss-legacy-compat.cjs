@@ -344,8 +344,10 @@ function dispencoLegacyBrowserCompat() {
         }
       });
 
-      // 5. Add standard `transform` fallbacks before individual `translate`, `rotate`, `scale` properties (Chrome <= 103)
+      // 5. Add standard `transform` fallbacks ONLY for legacy browsers without `translate`/`rotate`/`scale` (Chrome <= 103).
+      // Applying both `transform: translate(...)` and `translate: ...` simultaneously in modern browsers doubles the offset!
       root.walkDecls(/^(translate|rotate|scale)$/, (decl) => {
+        if (isInsideSupportsRule(decl)) return;
         const rule = decl.parent;
         if (!rule || rule.type !== 'rule') return;
         let hasTransform = false;
@@ -354,37 +356,35 @@ function dispencoLegacyBrowserCompat() {
         });
         if (hasTransform) return;
 
+        let transformValue = null;
+        let supportsCondition = '(translate: 0)';
         if (decl.prop === 'translate') {
           const parts = decl.value.trim().split(/\s+/);
           if (parts.length === 2) {
-            decl.cloneBefore({
-              prop: 'transform',
-              value: `translate(${parts[0]}, ${parts[1]})`,
-            });
+            transformValue = `translate(${parts[0]}, ${parts[1]})`;
           } else if (parts.length === 1) {
-            decl.cloneBefore({
-              prop: 'transform',
-              value: `translate(${parts[0]})`,
-            });
+            transformValue = `translate(${parts[0]})`;
           }
         } else if (decl.prop === 'rotate') {
-          decl.cloneBefore({
-            prop: 'transform',
-            value: `rotate(${decl.value.trim()})`,
-          });
+          supportsCondition = '(rotate: 0deg)';
+          transformValue = `rotate(${decl.value.trim()})`;
         } else if (decl.prop === 'scale') {
+          supportsCondition = '(scale: 1)';
           const parts = decl.value.trim().split(/\s+/);
           if (parts.length === 2) {
-            decl.cloneBefore({
-              prop: 'transform',
-              value: `scale(${parts[0]}, ${parts[1]})`,
-            });
+            transformValue = `scale(${parts[0]}, ${parts[1]})`;
           } else if (parts.length === 1) {
-            decl.cloneBefore({
-              prop: 'transform',
-              value: `scale(${parts[0]})`,
-            });
+            transformValue = `scale(${parts[0]})`;
           }
+        }
+
+        if (transformValue) {
+          const sup = postcss.atRule({
+            name: 'supports',
+            params: `not ${supportsCondition}`,
+          });
+          sup.append(postcss.decl({ prop: 'transform', value: transformValue }));
+          rule.append(sup);
         }
       });
 
