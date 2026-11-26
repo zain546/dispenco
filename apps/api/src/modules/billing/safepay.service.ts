@@ -1,7 +1,8 @@
-import { Injectable, Logger, BadRequestException, NotFoundException, ConflictException, BadGatewayException } from '@nestjs/common';
+import { Injectable, Logger, Optional, BadRequestException, NotFoundException, ConflictException, BadGatewayException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionService } from './subscription.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -18,7 +19,8 @@ export class SafepayService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-    private readonly subscriptionService: SubscriptionService
+    private readonly subscriptionService: SubscriptionService,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {
     this.env = (this.configService.get<string>('SAFEPAY_ENV') || 'sandbox') as 'sandbox' | 'production';
     this.apiKey = this.configService.get<string>('SAFEPAY_API_KEY') || 'sec_sandbox_test_key';
@@ -235,6 +237,13 @@ export class SafepayService {
           createInvoice: false,
         });
         this.logger.log(`Subscription for tenant ${invoice.tenantId} successfully extended via Safepay`);
+
+        // Non-blocking payment receipt email to the tenant owner
+        if (this.notifications) {
+          this.sendReceiptForInvoice(invoice).catch((err) =>
+            this.logger.warn(`Failed to send payment receipt email: ${err?.message || err}`),
+          );
+        }
       }
     }
 
@@ -245,5 +254,33 @@ export class SafepayService {
     });
 
     return { received: true, success: true };
+  }
+
+  private async sendReceiptForInvoice(invoice: {
+    tenantId: string;
+    invoiceNumber: string;
+    amountMinor: number;
+    periodStart: Date;
+    periodEnd: Date;
+  }) {
+    if (!this.notifications) return;
+    const owner = await this.prisma.user.findFirst({
+      where: { tenantId: invoice.tenantId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { email: true, name: true, tenant: { select: { name: true } } },
+    });
+    if (!owner?.email) return;
+
+    const fmt = (d: Date) =>
+      d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+    const billingPeriod = `${fmt(invoice.periodStart)} – ${fmt(invoice.periodEnd)}`;
+
+    await this.notifications.sendPaymentReceiptEmail(owner.email, {
+      ownerName: owner.name,
+      storeName: owner.tenant?.name || 'Your Pharmacy',
+      invoiceNumber: invoice.invoiceNumber,
+      amountPkr: Math.round(invoice.amountMinor / 100),
+      billingPeriod,
+    });
   }
 }

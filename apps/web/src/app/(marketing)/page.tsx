@@ -67,20 +67,68 @@ const softwareSchema = {
   '@type': 'SoftwareApplication',
   name: 'Dispenco',
   applicationCategory: 'BusinessApplication',
-  operatingSystem: 'Web',
+  operatingSystem: 'Web, Windows, Android, iOS',
   url: marketingConfig.url,
   image: `${marketingConfig.url}/brand/dispenco-logo.png`,
   publisher: { '@id': `${marketingConfig.url}/#organization` },
   description,
   inLanguage: 'en',
+  offers: {
+    '@type': 'Offer',
+    price: '1500',
+    priceCurrency: 'PKR',
+    priceValidUntil: '2027-12-31',
+    availability: 'https://schema.org/InStock',
+    seller: { '@id': `${marketingConfig.url}/#organization` },
+  },
   featureList: [
-    'Batch and expiry tracking',
-    'Barcode point of sale',
-    'Stock ledger',
-    'Sales reports',
-    'Multi-store transfers',
-    'Supplier balances',
-    'CSV import',
+    'FEFO batch and expiry date tracking',
+    'Instant barcode POS billing and receipts',
+    'Customer Khata ledger accounting',
+    'Stock purchase orders and supplier balances',
+    'Multi-branch transfer and chain management',
+    'AI invoice and receipt scanning',
+    'Daily sales and gross profit analytics',
+    'Offline POS billing protection',
+  ],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'How does batch and expiry tracking work in Dispenco?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Dispenco uses First-Expiry-First-Out (FEFO) automated batch prioritization. When dispensing, the system automatically selects the nearest-expiry batch to prevent unsellable expired medicine losses.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I import my existing medicine catalog and stock?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. You can import your complete medicine stock list via CSV or Excel, or use Dispenco’s built-in AI invoice scanner to digitize distributor stock delivery sheets directly.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What happens if the internet connection drops during peak rush hours?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Dispenco features offline POS resilience. Sales continue to be recorded locally in your browser storage and automatically sync to your database as soon as connection is restored.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Does Dispenco work with thermal receipt printers and barcode scanners?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. Dispenco works seamlessly with standard USB and Bluetooth barcode scanners (1D & 2D) as well as 80mm and 58mm thermal receipt printers.',
+      },
+    },
   ],
 };
 
@@ -90,10 +138,12 @@ export default function MarketingPage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([organizationSchema, websiteSchema, softwareSchema]).replace(
-            /</g,
-            '\\u003c',
-          ),
+          __html: JSON.stringify([
+            organizationSchema,
+            websiteSchema,
+            softwareSchema,
+            faqSchema,
+          ]).replace(/</g, '\\u003c'),
         }}
       />
       <Hero />

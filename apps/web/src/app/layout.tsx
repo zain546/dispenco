@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import React from 'react';
+import Script from 'next/script';
 import { QueryProvider } from '@/lib/query-provider';
 import { AuthProvider } from '@/context/auth-context';
 import { StoreProvider } from '@/context/store-context';
@@ -23,9 +24,45 @@ const inter = localFont({
 // (favicon.ico, icon.svg, icon1.png, apple-icon.png, opengraph-image.png, manifest.ts).
 export const metadata: Metadata = {
   metadataBase: new URL('https://dispenco.com'),
-  title: 'Dispenco — Modern Pharmacy Management',
-  description: 'Modern inventory and business management for pharmacies and medical stores.',
+  title: {
+    default: 'Dispenco — Pharmacy Inventory & POS Billing Software',
+    template: '%s | Dispenco',
+  },
+  description:
+    'All-in-one pharmacy management software in Pakistan. FEFO batch expiry tracking, high-speed barcode POS, Khata ledger accounting, purchases, and multi-branch control.',
   applicationName: 'Dispenco',
+  keywords: [
+    'pharmacy software Pakistan',
+    'medical store software',
+    'pharmacy management system',
+    'pharmacy POS billing software',
+    'medicine inventory software',
+    'expiry date tracking pharmacy',
+    'medical store billing software',
+    'pharmacy Khata ledger',
+    'Dispenco pharmacy',
+  ],
+  authors: [{ name: 'Dispenco Team', url: 'https://dispenco.com' }],
+  creator: 'Dispenco',
+  publisher: 'Dispenco',
+  alternates: {
+    canonical: 'https://dispenco.com',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_PK',
+    url: 'https://dispenco.com',
+    siteName: 'Dispenco',
+    title: 'Dispenco — Pharmacy Inventory & POS Billing Software',
+    description:
+      'All-in-one pharmacy management software in Pakistan. FEFO batch expiry tracking, high-speed barcode POS, Khata ledger, and multi-store control.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Dispenco — Pharmacy Inventory & POS Billing Software',
+    description:
+      'All-in-one pharmacy management software in Pakistan. FEFO batch expiry tracking, barcode POS, Khata ledger, and multi-store management.',
+  },
   appleWebApp: { title: 'Dispenco', capable: true, statusBarStyle: 'default' },
 };
 
@@ -36,6 +73,8 @@ export const viewport: Viewport = {
   ],
 };
 
+const gtmId = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-PCWNHTKB';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -45,6 +84,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={cn('font-sans', inter.variable)}
     >
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
+        <Script
+          id="google-tag-manager"
+          src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-tag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+          `}
+        </Script>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

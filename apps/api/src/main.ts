@@ -1,3 +1,4 @@
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -58,13 +59,18 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: allowedOrigins.includes('*') ? true : allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   });
 
-  await app.listen(port, '0.0.0.0');
-  logger.log(`🚀 Dispenco API is running on: http://localhost:${port}/api/v1`);
+  await app.listen(port);
+  logger.log(`Dispenco API application listening on port ${port}`);
 }
 
 bootstrap();
-// Customer & Khata ledger ready - Search Module enabled

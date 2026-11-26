@@ -3,9 +3,19 @@ import { marketingConfig } from '@/components/marketing/config';
 import { supportArticles } from '@/components/marketing/support-content';
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const lastModified = new Date();
+
   return [
-    { url: marketingConfig.url, changeFrequency: 'monthly', priority: 1 },
+    {
+      url: marketingConfig.url,
+      lastModified,
+      changeFrequency: 'weekly',
+      priority: 1.0,
+    },
     ...[
+      '/features/batch-expiry-tracking',
+      '/features/pharmacy-pos-billing',
+      '/features/customer-khata-ledger',
       '/contact',
       '/support',
       '/privacy',
@@ -13,8 +23,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       ...supportArticles.map(({ slug }) => `/support/${slug}`),
     ].map((path) => ({
       url: `${marketingConfig.url}${path}`,
-      changeFrequency: 'monthly' as const,
-      priority: 0.5,
+      lastModified,
+      changeFrequency: path.startsWith('/features/') ? ('weekly' as const) : ('monthly' as const),
+      priority: path.startsWith('/features/') ? 0.9 : path.startsWith('/support/') ? 0.7 : 0.6,
     })),
   ];
 }
