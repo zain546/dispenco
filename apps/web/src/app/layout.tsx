@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import React from 'react';
+import Script from 'next/script';
 import { QueryProvider } from '@/lib/query-provider';
 import { AuthProvider } from '@/context/auth-context';
 import { StoreProvider } from '@/context/store-context';
@@ -72,6 +73,8 @@ export const viewport: Viewport = {
   ],
 };
 
+const gtmId = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-PCWNHTKB';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -81,6 +84,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={cn('font-sans', inter.variable)}
     >
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
+        <Script
+          id="google-tag-manager"
+          src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-tag-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+          `}
+        </Script>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
