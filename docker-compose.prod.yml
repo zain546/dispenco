@@ -57,18 +57,30 @@ services:
       PORT: 4000
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-dispenco_user}:${POSTGRES_PASSWORD:-dispenco_password}@postgres:5432/${POSTGRES_DB:-dispenco_db}?schema=public
+      DB_POOL_MAX: ${DB_POOL_MAX:-20}
       REDIS_URL: redis://redis:6379
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_API_KEY: ${MEILI_MASTER_KEY:-dispenco_master_key_must_be_at_least_16_bytes}
       JWT_SECRET: ${JWT_SECRET}
       REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
       CLIENT_URL: ${CLIENT_URL:-http://localhost:3000}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-https://www.dispenco.com}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-https://www.dispenco.com}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: "${RESEND_FROM_EMAIL:-Dispenco <noreply@dispenco.com>}"
+      RESEND_REPLY_TO: ${RESEND_REPLY_TO:-dispenco@gmail.com}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       SAFEPAY_ENV: ${SAFEPAY_ENV:-sandbox}
-      SAFEPAY_API_KEY: ${SAFEPAY_API_KEY}
-      SAFEPAY_SECRET_KEY: ${SAFEPAY_SECRET_KEY}
-      SAFEPAY_WEBHOOK_SECRET: ${SAFEPAY_WEBHOOK_SECRET}
+      SAFEPAY_API_KEY: ${SAFEPAY_API_KEY:-}
+      SAFEPAY_SECRET_KEY: ${SAFEPAY_SECRET_KEY:-}
+      SAFEPAY_WEBHOOK_SECRET: ${SAFEPAY_WEBHOOK_SECRET:-}
+      WHATSAPP_API_TOKEN: ${WHATSAPP_API_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      SMS_API_KEY: ${SMS_API_KEY:-}
     ports:
       - "4000:4000"
     restart: always
