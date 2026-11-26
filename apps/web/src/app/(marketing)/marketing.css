@@ -6,10 +6,10 @@
   --background: #fafcfd;
   --card: #ffffff;
   --muted: #eff3f5;
-  --muted-foreground: #525a61;
+  --muted-foreground: #464e56;
   --border: #dbdfe2;
   --m-border-strong: #b6c2c8;
-  --m-accent-text: var(--primary);
+  --m-accent-text: #00617a;
   --m-spotlight-border: rgba(var(--primary-rgb), 0.75);
   --m-spotlight-surface: rgba(var(--primary-rgb), 0.055);
 }
@@ -31,9 +31,10 @@
     --background: oklch(0.99 0.002 240);
     --card: oklch(1 0 0);
     --muted: oklch(0.96 0.004 240);
-    --muted-foreground: oklch(0.46 0.012 240);
+    --muted-foreground: oklch(0.42 0.012 240);
     --border: oklch(0.905 0.006 240);
     --m-border-strong: oklch(0.8 0.012 225);
+    --m-accent-text: oklch(0.45 0.105 223.128);
     --m-spotlight-border: color-mix(in oklab, var(--primary) 75%, var(--chart-1));
     --m-spotlight-surface: color-mix(in oklab, var(--primary) 5.5%, transparent);
   }
