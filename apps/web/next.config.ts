@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
   experimental: {
-    inlineCss: true,
     optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
   },
   redirects() {
